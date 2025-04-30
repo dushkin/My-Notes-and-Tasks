@@ -44,7 +44,7 @@ const Tree = ({
     return null;
   };
 
-  // Key navigation (arrows + space toggle)
+  // Key navigation
   const handleKeyDown = (e) => {
     // Skip when editing
     if (e.target.tagName === "INPUT") return;
@@ -101,91 +101,98 @@ const Tree = ({
 
   const renderItems = (nodes, depth = 0) => (
     <ul className="list-none" style={{ marginLeft: depth * 16 }}>
-      {sortItems(nodes).map((item) => (
-        <li
-          key={item.id}
-          className="py-1"
-          onDragStart={(e) => onDragStart(e, item.id)}
-          onDrop={(e) => onDrop(e, item.id)}
-          draggable
-        >
-          <div
-            className={`flex items-center px-1 ${
-              item.id === selectedItemId ? "bg-blue-600 text-white" : ""
-            }`}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onContextMenu(e, item);
-            }}
+      {sortItems(nodes).map((item) => {
+        // Determine if folder is empty
+        const isEmptyFolder = item.type === "folder" && (!item.children || item.children.length === 0);
+        return (
+          <li
+            key={item.id}
+            className="py-1"
+            onDragStart={(e) => onDragStart(e, item.id)}
+            onDrop={(e) => onDrop(e, item.id)}
+            draggable
           >
-            {item.type === "folder" ? (
-              <button
-                onClick={() => onToggleExpand(item.id)}
-                className="mr-2 flex items-center focus:outline-none"
-              >
-                <span className="mr-1">
-                  {expandedFolders[item.id] ? "▾" : "▸"}
-                </span>
-                {expandedFolders[item.id] ? "📂" : "📁"}
-              </button>
-            ) : item.type === "task" ? (
-              <button
-                onClick={() => onToggleTask(item.id, !item.completed)}
-                className="mr-2 focus:outline-none"
-              >
-                {item.completed ? "✅" : "⬜️"}
-              </button>
-            ) : (
-              <span className="mr-2">📝</span>
-            )}
+            <div
+              className={`flex items-center px-1 ${
+                item.id === selectedItemId ? "bg-blue-600 text-white" : ""
+              }`}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onContextMenu(e, item);
+              }}
+            >
+              {item.type === "folder" ? (
+                <button
+                  onClick={() => onToggleExpand(item.id)}
+                  className="mr-2 flex items-center focus:outline-none"
+                >
+                  <span className="mr-1">
+                    {expandedFolders[item.id] ? "▾" : "▸"}
+                  </span>
+                  <span className={`mr-2 ${isEmptyFolder ? "text-gray-400" : ""}`}>
+                    {expandedFolders[item.id] ? "📂" : "📁"}
+                  </span>
+                  {isEmptyFolder && <span className="ml-1 text-gray-400">∅</span>}
+                </button>
+              ) : item.type === "task" ? (
+                <button
+                  onClick={() => onToggleTask(item.id, !item.completed)}
+                  className="mr-2 focus:outline-none"
+                >
+                  {item.completed ? "✅" : "⬜️"}
+                </button>
+              ) : (
+                <span className="mr-2">📝</span>
+              )}
 
-            {item.id === inlineRenameId ? (
-              <input
-                className="flex-1 bg-transparent outline-none"
-                value={inlineRenameValue}
-                onChange={(e) => setInlineRenameValue(e.target.value)}
-                onBlur={() => {
-                  finishInlineRename();
-                  navRef.current?.focus({ preventScroll: true });
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+              {item.id === inlineRenameId ? (
+                <input
+                  className="flex-1 bg-transparent outline-none"
+                  value={inlineRenameValue}
+                  onChange={(e) => setInlineRenameValue(e.target.value)}
+                  onBlur={() => {
                     finishInlineRename();
                     navRef.current?.focus({ preventScroll: true });
-                  } else if (e.key === "Escape") {
-                    cancelInlineRename();
-                    setTimeout(() =>
-                      navRef.current?.focus({ preventScroll: true }),
-                      0
-                    );
-                  }
-                }}
-                autoFocus
-              />
-            ) : (
-              <span
-                className="flex-1 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect(item);
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onContextMenu(e, item);
-                }}
-              >
-                {item.label}
-              </span>
-            )}
-          </div>
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      finishInlineRename();
+                      navRef.current?.focus({ preventScroll: true });
+                    } else if (e.key === "Escape") {
+                      cancelInlineRename();
+                      setTimeout(() =>
+                        navRef.current?.focus({ preventScroll: true }),
+                        0
+                      );
+                    }
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className="flex-1 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(item);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onContextMenu(e, item);
+                  }}
+                >
+                  {item.label}
+                </span>
+              )}
+            </div>
 
-          {item.children &&
-            expandedFolders[item.id] &&
-            renderItems(item.children, depth + 1)}
-        </li>
-      ))}
+            {item.children &&
+              expandedFolders[item.id] &&
+              renderItems(item.children, depth + 1)}
+          </li>
+        );
+      })}
     </ul>
   );
 
