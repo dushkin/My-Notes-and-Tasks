@@ -67,11 +67,5 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
-dist/index.html
-dist/assets/index-CGNLuPRu.css
-dist/assets/index-CqQfAf5K.js
+dist/
 consolidated_output.txt
-dist/assets/index-COrGzRW2.css
-dist/assets/index-gkIzRSpb.js
-dist/assets/index-BqBGuMIq.js
-dist/assets/index-MyHQwVPR.css
