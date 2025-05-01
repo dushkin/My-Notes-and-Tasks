@@ -9,8 +9,6 @@ const ContentEditor = ({ item, onSaveContent }) => {
     return <div className="p-4 text-red-500">Error: Item data is missing.</div>;
   }
 
-  console.log(`ContentEditor RENDER: Item ID=${item.id}, Label='${item.label}', Received Content=`, item.content);
-
   // Initialize state using the key prop in App.jsx to trigger re-initialization
   const [body, setBody] = useState(() => {
       console.log(`ContentEditor useState Init (ID: ${item.id}): Initializing body with content:`, item.content);
