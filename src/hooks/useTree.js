@@ -213,3 +213,5 @@ export const useTree = () => {
     handleDrop,
   };
 };
+
+export default useTree;
