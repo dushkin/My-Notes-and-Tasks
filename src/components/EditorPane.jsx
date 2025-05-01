@@ -466,7 +466,7 @@ const EditorPane = ({ html = "", onChange }) => {
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
-        className="prose prose-sm dark:prose-invert max-w-none w-full min-h-[10rem] h-64 p-2 border border-zinc-300 dark:border-zinc-600 rounded resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 bg-white dark:bg-zinc-900 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline"
+        className="prose prose-sm dark:prose-invert max-w-none w-full min-h-[10rem] h-64 p-2 border border-zinc-300 dark:border-zinc-600 rounded resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 bg-white dark:bg-zinc-900 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline whitespace-pre-wrap"
       />
     </div>
   );
