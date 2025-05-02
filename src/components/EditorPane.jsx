@@ -15,11 +15,11 @@ import {
   AlignCenter,
   Type,
   Link as LinkIcon,
-  Code as CodeIcon, // Icon for inline code
-  SquareCode as CodeBlockIcon, // Icon for code block
-  TerminalSquare as ShellIcon, // Icon for shell command
-  List as UnorderedListIcon, // Icon for bulleted list
-  ListOrdered as OrderedListIcon, // Icon for numbered list
+  Code as CodeIcon,
+  SquareCode as CodeBlockIcon,
+  TerminalSquare as ShellIcon,
+  List as UnorderedListIcon,
+  ListOrdered as OrderedListIcon,
 } from "lucide-react";
 
 const FONT_FAMILIES = [
@@ -90,6 +90,7 @@ const EditorPane = ({ html = "", onChange }) => {
       const startOffset = range?.startOffset;
 
       editorRef.current.innerHTML = html;
+
       editorRef.current.scrollTop = currentScrollTop;
 
       try {
@@ -143,12 +144,13 @@ const EditorPane = ({ html = "", onChange }) => {
     }
   }, [isRTL]);
 
-  // Effect for Paste Handling (Auto-linking)
+  // Effect for Paste Handling (Auto-linking for text dropped/pasted without button)
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
 
-    const handlePaste = (e) => {
+    const handlePasteEvent = (e) => {
+      // This handles direct Ctrl+V or context menu paste, applying auto-linking
       e.preventDefault();
       const text = e.clipboardData.getData("text/plain");
       if (!text) return;
@@ -165,9 +167,13 @@ const EditorPane = ({ html = "", onChange }) => {
       }
     };
 
-    editor.addEventListener("paste", handlePaste);
-    return () => editor.removeEventListener("paste", handlePaste);
-  }, [onChange]); // Add onChange dependency
+    editor.addEventListener("paste", handlePasteEvent);
+    return () => {
+        if(editorRef.current) { // Check ref on cleanup
+             editorRef.current.removeEventListener("paste", handlePasteEvent);
+        }
+    };
+  }, [onChange]);
 
   // Effect for Handling Clicks on Links
   useEffect(() => {
@@ -189,13 +195,12 @@ const EditorPane = ({ html = "", onChange }) => {
     editor.addEventListener("click", handleClick);
     return () => {
       if (editorRef.current) {
-        // Check ref before removing listener
         editorRef.current.removeEventListener("click", handleClick);
       }
     };
   }, []);
 
-  // Clean up timeout on unmount
+  // Clean up typing timeout on unmount
   useEffect(() => {
     return () => {
       if (typingTimeout) clearTimeout(typingTimeout);
@@ -211,7 +216,7 @@ const EditorPane = ({ html = "", onChange }) => {
       // Clear any pending timeout
       if (typingTimeout) clearTimeout(typingTimeout);
 
-      // --- Start: Auto-linking logic (kept similar to original) ---
+      // --- Start: Auto-linking logic for typed text ---
       setTypingTimeout(
         setTimeout(() => {
           if (!editorRef.current) return;
@@ -225,21 +230,19 @@ const EditorPane = ({ html = "", onChange }) => {
           const cursorOffset = range?.startOffset;
 
           const tempDiv = document.createElement("div");
-          tempDiv.innerHTML = editorRef.current.innerHTML; // Process current HTML
+          tempDiv.innerHTML = editorRef.current.innerHTML;
 
           const textNodes = [];
           const walker = document.createTreeWalker(
             tempDiv,
             NodeFilter.SHOW_TEXT,
             (node) => {
-              // Filter: Skip nodes inside <a> tags
               return node.parentNode.nodeName !== "A"
                 ? NodeFilter.FILTER_ACCEPT
                 : NodeFilter.FILTER_REJECT;
             },
             false
           );
-
           let node;
           while ((node = walker.nextNode())) {
             textNodes.push(node);
@@ -263,7 +266,6 @@ const EditorPane = ({ html = "", onChange }) => {
                 (matchIndex === 0 || /[\s.,;!?(]/.test(text[matchIndex - 1]));
 
               if (isCompleteUrl) {
-                // Add text before URL
                 if (matchIndex > lastIndex) {
                   fragment.appendChild(
                     document.createTextNode(
@@ -271,21 +273,17 @@ const EditorPane = ({ html = "", onChange }) => {
                     )
                   );
                 }
-                // Add linked URL by creating an anchor element
                 const link = document.createElement("a");
                 const safeUrl = ensureProtocol(url);
                 link.href = safeUrl;
                 link.target = "_blank";
                 link.rel = "noopener noreferrer";
-                link.textContent = url; // Use textContent for safety
+                link.textContent = url;
                 fragment.appendChild(link);
-
                 lastIndex = matchIndex + url.length;
                 madeChanges = true;
               }
             });
-
-            // Add remaining text after last URL
             if (lastIndex < text.length) {
               fragment.appendChild(
                 document.createTextNode(text.substring(lastIndex))
@@ -293,7 +291,6 @@ const EditorPane = ({ html = "", onChange }) => {
             }
 
             if (madeChanges && textNode.parentNode) {
-              // Find the text node again in the live DOM (important!)
               const liveTextNode = findEquivalentNode(
                 editorRef.current,
                 textNode
@@ -304,19 +301,15 @@ const EditorPane = ({ html = "", onChange }) => {
                 console.warn(
                   "Could not find equivalent live node for auto-linking."
                 );
-                // Fallback: just replace in tempDiv, this might mess up cursor
-                // textNode.parentNode.replaceChild(fragment, textNode);
               }
             }
           });
 
           if (madeChanges) {
-            // Use requestAnimationFrame to allow DOM update before getting innerHTML
             requestAnimationFrame(() => {
               if (!editorRef.current) return;
               const finalHtml = editorRef.current.innerHTML;
 
-              // Smart cursor restoration
               if (
                 range &&
                 cursorNode &&
@@ -325,14 +318,12 @@ const EditorPane = ({ html = "", onChange }) => {
               ) {
                 try {
                   const newRange = document.createRange();
-                  // Try to find the original node or its equivalent
                   const liveCursorNode = findEquivalentNode(
                     editorRef.current,
                     cursorNode
                   );
 
                   if (liveCursorNode && isValidNode(liveCursorNode)) {
-                    // Adjust offset if node length changed (e.g., text split by link)
                     const adjustedOffset = Math.min(
                       cursorOffset,
                       liveCursorNode.length || liveCursorNode.childNodes.length
@@ -342,7 +333,6 @@ const EditorPane = ({ html = "", onChange }) => {
                     selection.removeAllRanges();
                     selection.addRange(newRange);
                   } else {
-                    // Fallback: Place cursor at the end if node not found
                     newRange.selectNodeContents(editorRef.current);
                     newRange.collapse(false);
                     selection.removeAllRanges();
@@ -350,7 +340,6 @@ const EditorPane = ({ html = "", onChange }) => {
                   }
                 } catch (e) {
                   console.error("Auto-link cursor restoration error:", e);
-                  // Fallback to end
                   const endRange = document.createRange();
                   endRange.selectNodeContents(editorRef.current);
                   endRange.collapse(false);
@@ -360,19 +349,18 @@ const EditorPane = ({ html = "", onChange }) => {
                   }
                 }
               }
-              onChange(finalHtml); // Update state with the auto-linked HTML
+              onChange(finalHtml);
             });
           }
         }, 700)
-      ); // Delay for auto-linking
-
+      );
       // --- End: Auto-linking logic ---
 
-      // Call onChange immediately for responsiveness
+      // Call onChange immediately for typing responsiveness
       onChange(newHtml);
     },
     [onChange, typingTimeout]
-  ); // Added typingTimeout dependency
+  );
 
   // Helper to find an equivalent node in the live DOM after modifications
   const findEquivalentNode = (root, targetNode) => {
@@ -382,35 +370,98 @@ const EditorPane = ({ html = "", onChange }) => {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ALL);
     let currentNode;
     while ((currentNode = walker.nextNode())) {
-      // Simple comparison (might need refinement for complex cases)
       if (
         currentNode.nodeType === targetNode.nodeType &&
         currentNode.nodeValue === targetNode.nodeValue
       ) {
-        // Further check if parent structure is similar? (Optional)
         return currentNode;
       }
     }
-    return null; // Not found
+    return null;
   };
 
-  // --- Formatting Commands ---
-  const applyCommand = useCallback(
-    (cmd, value = null) => {
-      editorRef.current?.focus();
-      document.execCommand(cmd, false, value);
-      editorRef.current?.focus(); // Refocus might be needed after execCommand
-      // Use requestAnimationFrame to ensure DOM update before reading innerHTML
+
+  // --- Specific handler for paste button using Clipboard API ---
+  const handlePasteFromClipboard = useCallback(async () => {
+    if (!navigator.clipboard?.readText) {
+      console.warn("Clipboard API (readText) not supported by this browser.");
+      // Fallback attempt using execCommand (might still fail)
+      applyCommand('paste'); // Try original execCommand as fallback
+      return;
+    }
+    editorRef.current?.focus();
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        // Escape basic HTML characters from plain text before inserting as HTML
+        const escapedText = text
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+        // Replace newlines with <br> tags for HTML insertion
+        const htmlToInsert = escapedText.replace(/\r?\n/g, '<br>');
+        document.execCommand('insertHTML', false, htmlToInsert);
+      }
+      // Trigger update after successful paste
       requestAnimationFrame(() => {
         if (editorRef.current) {
           onChange(editorRef.current.innerHTML);
         }
       });
+    } catch (err) {
+      console.error('Failed to read clipboard contents or insert HTML: ', err);
+      // If Clipboard API failed, maybe try execCommand as last resort
+      try {
+           console.log("Attempting execCommand('paste') as fallback...");
+           const success = document.execCommand('paste', false, null);
+           if (success && editorRef.current) {
+                requestAnimationFrame(() => {
+                  if (editorRef.current) {
+                     onChange(editorRef.current.innerHTML);
+                  }
+                });
+           } else if (!success) {
+                console.warn("Fallback execCommand('paste') also failed.");
+           }
+      } catch (execErr) {
+            console.error("Error during fallback execCommand('paste'):", execErr);
+      }
+    }
+    editorRef.current?.focus();
+  }, [onChange]); // onChange is a dependency
+
+
+  // --- Formatting Commands (Handles execCommand for most things) ---
+  const applyCommand = useCallback(
+    (cmd, value = null) => {
+      // Special handling for paste was moved to handlePasteFromClipboard
+      // but we keep the fallback call possibility here.
+
+      editorRef.current?.focus();
+       try {
+        const success = document.execCommand(cmd, false, value);
+        if (!success) {
+           console.warn(`execCommand(${cmd}) was not successful. It might be unsupported or blocked.`);
+        }
+      } catch (error) {
+           console.error(`Error executing command ${cmd}:`, error);
+      }
+      editorRef.current?.focus();
+      // Update state unless it's paste (which updates in its own handler or fallback)
+      if(cmd !== 'paste') {
+          requestAnimationFrame(() => {
+            if (editorRef.current) {
+              onChange(editorRef.current.innerHTML);
+            }
+          });
+      }
     },
-    [onChange]
+    [onChange] // onChange is dependency
   );
 
-  // Apply block-level styling (like <pre> or <div class="shell-command">)
+  // Apply block-level styling
   const applyBlockStyle = useCallback(
     (tag, className = null) => {
       editorRef.current?.focus();
@@ -418,33 +469,19 @@ const EditorPane = ({ html = "", onChange }) => {
       if (!selection || selection.rangeCount === 0) return;
 
       const range = selection.getRangeAt(0);
-      const selectedText = range.toString();
-
-      // --- Determine the block(s) to wrap/modify ---
       let startBlock = range.startContainer;
       while (
         (startBlock && startBlock.nodeType !== Node.ELEMENT_NODE) ||
         ![
-          "P",
-          "DIV",
-          "LI",
-          "H1",
-          "H2",
-          "H3",
-          "H4",
-          "H5",
-          "H6",
-          "BLOCKQUOTE",
-          "PRE",
+          "P", "DIV", "LI", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE", "PRE",
         ].includes(startBlock.nodeName)
       ) {
         if (startBlock === editorRef.current) break;
         startBlock = startBlock.parentNode;
       }
+
       if (!startBlock || startBlock === editorRef.current) {
-        // If selection starts outside a known block, wrap the whole selection in a new block first
         document.execCommand("formatBlock", false, "div");
-        // Re-get the selection/range as it might have changed
         const newSelection = window.getSelection();
         if (!newSelection || newSelection.rangeCount === 0) return;
         const newRange = newSelection.getRangeAt(0);
@@ -452,17 +489,7 @@ const EditorPane = ({ html = "", onChange }) => {
         while (
           (startBlock && startBlock.nodeType !== Node.ELEMENT_NODE) ||
           ![
-            "P",
-            "DIV",
-            "LI",
-            "H1",
-            "H2",
-            "H3",
-            "H4",
-            "H5",
-            "H6",
-            "BLOCKQUOTE",
-            "PRE",
+            "P", "DIV", "LI", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE", "PRE",
           ].includes(startBlock.nodeName)
         ) {
           if (startBlock === editorRef.current) break;
@@ -470,12 +497,10 @@ const EditorPane = ({ html = "", onChange }) => {
         }
         if (!startBlock || startBlock === editorRef.current) {
           console.error("Failed to wrap selection in a block element.");
-          return; // Exit if block creation failed
+          return;
         }
       }
 
-      // --- Handle existing block ---
-      // Check if the current block is already the desired type
       const isAlreadyStyled =
         (startBlock.nodeName === tag.toUpperCase() &&
           (!className || startBlock.classList.contains(className))) ||
@@ -485,13 +510,9 @@ const EditorPane = ({ html = "", onChange }) => {
           startBlock.classList.contains("shell-command"));
 
       if (isAlreadyStyled) {
-        // Convert back to paragraph (or default block)
-        document.execCommand("formatBlock", false, "p"); // Use 'p' as a sensible default
+        document.execCommand("formatBlock", false, "p");
       } else {
-        // Apply the new block format
-        document.execCommand("formatBlock", false, tag); // This wraps the current block/selection line
-
-        // Re-select the block to apply class or inner structure if needed
+        document.execCommand("formatBlock", false, tag);
         const finalSelection = window.getSelection();
         if (!finalSelection || finalSelection.rangeCount === 0) return;
         let finalRange = finalSelection.getRangeAt(0);
@@ -503,31 +524,20 @@ const EditorPane = ({ html = "", onChange }) => {
 
         if (newBlock && newBlock !== editorRef.current) {
           if (className) {
-            newBlock.className = ""; // Clear existing classes if necessary
+            newBlock.className = "";
             newBlock.classList.add(className);
           }
-          // Special handling for <pre> to ensure <code> inside
           if (tag === "pre") {
             const codeElement = document.createElement("code");
-            // Move content from <pre> into <code>, preserving line breaks
-            // Use innerHTML carefully, assuming selection was primarily text
-            codeElement.innerHTML = newBlock.innerHTML.replace(
-              /<br\s*\/?>/gi,
-              "\n"
-            ); // Convert <br> to newlines
-            newBlock.innerHTML = ""; // Clear the <pre>
+            codeElement.innerHTML = newBlock.innerHTML.replace(/<br\s*\/?>/gi, "\n");
+            newBlock.innerHTML = "";
             newBlock.appendChild(codeElement);
-            // Ensure text content is properly escaped if needed (complex)
-            // codeElement.textContent = newBlock.textContent; // Safer alternative if HTML tags inside PRE are not expected
           }
         } else {
-          console.warn(
-            "Could not reliably find the newly formatted block to apply class/structure."
-          );
+           console.warn("Could not reliably find the newly formatted block.");
         }
       }
 
-      // Trigger change after DOM modifications
       requestAnimationFrame(() => {
         if (editorRef.current) {
           onChange(editorRef.current.innerHTML);
@@ -537,11 +547,11 @@ const EditorPane = ({ html = "", onChange }) => {
     [onChange]
   );
 
-  // Apply inline styling (like <code>)
+  // Apply inline styling
   const applyInlineStyle = useCallback(
     (tag) => {
       editorRef.current?.focus();
-      const command = tag === "code" ? "insertHTML" : null; // Use insertHTML for code, execCommand might not support 'code' tag reliably
+      const command = tag === "code" ? "insertHTML" : null;
 
       if (command) {
         const selection = window.getSelection();
@@ -551,7 +561,6 @@ const EditorPane = ({ html = "", onChange }) => {
         const selectedText = range.toString();
         const commonAncestor = range.commonAncestorContainer;
 
-        // Check if the selection or its immediate parent is already the tag
         let isWrapped = false;
         let parentElement = commonAncestor;
         if (parentElement.nodeType !== Node.ELEMENT_NODE) {
@@ -562,37 +571,27 @@ const EditorPane = ({ html = "", onChange }) => {
           parentElement.nodeName === tag.toUpperCase() &&
           parentElement.closest(".editor-pane") === editorRef.current
         ) {
-          // Simple case: entire selection is within the tag
           isWrapped = true;
         } else if (
           !range.collapsed &&
           range.startContainer === range.endContainer &&
           range.startContainer.parentNode.nodeName === tag.toUpperCase()
         ) {
-          // Selection is within a node that is the tag
           isWrapped = true;
-          parentElement = range.startContainer.parentNode; // The actual tag element
+          parentElement = range.startContainer.parentNode;
         }
-        // More complex checks for partial overlaps might be needed
 
         if (isWrapped && parentElement) {
-          // Unwrap: Replace the parent tag with its text content
           const textContent = parentElement.textContent;
           const textNode = document.createTextNode(textContent);
           parentElement.parentNode.replaceChild(textNode, parentElement);
-          // Restore selection (optional, can be complex)
-          // range.selectNodeContents(textNode);
-          // selection.removeAllRanges();
-          // selection.addRange(range);
         } else if (!range.collapsed) {
-          // Wrap: Create the tag and insert HTML
           const newNodeHtml = `<${tag}>${selectedText
             .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")}</${tag}>`; // Basic HTML escaping
+            .replace(/>/g, "&gt;")}</${tag}>`;
           document.execCommand(command, false, newNodeHtml);
         }
       } else {
-        // Fallback or for other potential inline commands
         document.execCommand(tag, false, null);
       }
 
@@ -621,8 +620,14 @@ const EditorPane = ({ html = "", onChange }) => {
       return;
     }
     const linkHtml = createLinkHtml(fullUrl, selectedText || fullUrl);
-    applyCommand("insertHTML", linkHtml); // Use applyCommand to handle update
-  }, [applyCommand]);
+    // Use execCommand insertHTML for link creation
+    document.execCommand('insertHTML', false, linkHtml);
+    requestAnimationFrame(() => {
+        if (editorRef.current) {
+          onChange(editorRef.current.innerHTML);
+        }
+    });
+  }, [onChange]); // Depends on onChange for update
 
   // Toggle text direction
   const toggleDirection = useCallback(() => {
@@ -632,18 +637,18 @@ const EditorPane = ({ html = "", onChange }) => {
   // Handler for font family/size changes
   const handleFontChange = useCallback(
     (command, value) => {
-      applyCommand(command, value);
+      applyCommand(command, value); // Uses the main applyCommand
       if (command === "fontName") setFontFamily(value);
       if (command === "fontSize") setFontSize(value);
     },
-    [applyCommand]
+    [applyCommand] // Depends on applyCommand
   );
 
   return (
     <div className="p-4 space-y-2 border rounded bg-white dark:bg-zinc-800">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-2 border-b border-zinc-200 dark:border-zinc-700">
-        {/* --- Basic Formatting --- */}
+        {/* --- Undo/Redo --- */}
         <button
           onClick={() => applyCommand("undo")}
           title="Undo"
@@ -658,6 +663,31 @@ const EditorPane = ({ html = "", onChange }) => {
         >
           <Redo className="w-5 h-5" />
         </button>
+
+        {/* --- Cut/Copy/Paste Buttons --- */}
+         <button
+          onClick={() => applyCommand("cut")}
+          title="Cut"
+          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+        >
+          <Scissors className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => applyCommand("copy")}
+          title="Copy"
+          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+        >
+          <Copy className="w-5 h-5" />
+        </button>
+         <button
+          onClick={handlePasteFromClipboard} // Use the specific handler
+          title="Paste"
+          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+        >
+          <ClipboardPaste className="w-5 h-5" />
+        </button>
+
+        {/* --- Basic Formatting --- */}
         <button
           onClick={() => applyCommand("bold")}
           title="Bold"
@@ -680,7 +710,7 @@ const EditorPane = ({ html = "", onChange }) => {
           <UnderlineIcon className="w-5 h-5" />
         </button>
 
-        {/* --- Code Formatting --- */}
+         {/* --- Code Formatting --- */}
         <button
           onClick={() => applyInlineStyle("code")}
           title="Inline Code"
@@ -688,7 +718,7 @@ const EditorPane = ({ html = "", onChange }) => {
         >
           <CodeIcon className="w-5 h-5" />
         </button>
-        <button
+         <button
           onClick={() => applyBlockStyle("pre")}
           title="Code Block"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
@@ -732,18 +762,19 @@ const EditorPane = ({ html = "", onChange }) => {
         >
           <TextSelect className="w-5 h-5" />
         </button>
+
         {/* --- List Support --- */}
         <button
           onClick={() => applyCommand("insertUnorderedList")}
           title="Bulleted List"
-          className="hover:bg-zinc-700 rounded"
+          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
           <UnorderedListIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("insertOrderedList")}
           title="Numbered List"
-          className="hover:bg-zinc-700 rounded"
+          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
           <OrderedListIcon className="w-5 h-5" />
         </button>
@@ -788,23 +819,19 @@ const EditorPane = ({ html = "", onChange }) => {
         >
           {FONT_SIZES.map((s) => (
             <option key={s} value={s}>
-              {s}{" "}
-              {/* You might want more descriptive names like Small, Medium, Large */}
+              {s}
             </option>
           ))}
         </select>
       </div>
 
       {/* Editor area */}
-      {/* Add the editor-pane class here for the CSS styles to target */}
       <div
         ref={editorRef}
         dir={isRTL ? "rtl" : "ltr"}
         contentEditable
-        suppressContentEditableWarning // Still useful but be aware of potential hydration issues if SSR
+        suppressContentEditableWarning
         onInput={handleInput}
-        // Added 'editor-pane' class and ensured prose styles are present
-        // Adjusted prose styles for better code compatibility
         className="editor-pane prose prose-sm dark:prose-invert max-w-none w-full min-h-[10rem] h-64 p-3 border border-zinc-300 dark:border-zinc-600 rounded resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 bg-white dark:bg-zinc-900 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline whitespace-pre-wrap prose-code:before:content-none prose-code:after:content-none prose-pre:bg-inherit dark:prose-pre:bg-inherit prose-pre:p-0"
         role="textbox"
         aria-multiline="true"
