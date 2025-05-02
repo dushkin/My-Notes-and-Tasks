@@ -50,7 +50,7 @@ const ContextMenu = ({
           className="block w-full px-4 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
           onClick={onAddRootFolder}
         >
-          ➕ Add Root Folder
+          ➕ Add Top Level Folder
         </button>
       ) : (
         <>

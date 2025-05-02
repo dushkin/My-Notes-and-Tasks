@@ -5,9 +5,11 @@ import FolderContents from "./components/FolderContents";
 import ContentEditor from "./components/ContentEditor";
 import ContextMenu from "./components/ContextMenu";
 import AddDialog from "./components/AddDialog";
+import AboutDialog from "./components/AboutDialog"; // <-- Import AboutDialog
 import { useTree } from "./hooks/useTree";
 import { sortItems } from "./utils/treeUtils";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Info } from "lucide-react"; // <-- Import Info icon
 
 const findItemById = (nodes, id) => {
   if (!id || !Array.isArray(nodes)) return null;
@@ -48,7 +50,9 @@ const App = () => {
   const [showError, setShowError] = useState(false);
   const [inlineRenameId, setInlineRenameId] = useState(null);
   const [inlineRenameValue, setInlineRenameValue] = useState("");
+  const [aboutDialogOpen, setAboutDialogOpen] = useState(false); // <-- State for About Dialog
 
+  // --- Inline Rename Logic ---
   const startInlineRename = useCallback((itemToRename) => {
     if (!itemToRename) return;
     setInlineRenameId(itemToRename.id);
@@ -95,6 +99,7 @@ const App = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedItem, inlineRenameId, startInlineRename]);
 
+  // --- Add Item Logic ---
   const handleAddItem = useCallback((type, parent) => {
     setNewItemType(type);
     setParentItemForAdd(parent);
@@ -151,6 +156,7 @@ const App = () => {
     setShowError(false);
   }, [newItemLabel, newItemType, parentItemForAdd, setTree, expandFolderPath]);
 
+  // --- Toggle Task Logic ---
   const handleToggleTask = useCallback((id, completed) => {
     setTree((prevTree) => {
       const recurse = (arr) =>
@@ -168,6 +174,7 @@ const App = () => {
     });
   }, [setTree]);
 
+  // --- Render ---
   return (
     <div className="fixed inset-0 flex flex-col">
       <PanelGroup direction="horizontal" className="flex-1">
@@ -179,16 +186,29 @@ const App = () => {
           className="flex flex-col bg-white dark:bg-zinc-900 border-r border-gray-200 dark:border-zinc-700"
         >
           <div className="flex flex-col h-full overflow-hidden">
+            {/* --- Top Bar --- */}
             <div className="p-2 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 sticky top-0 bg-white dark:bg-zinc-900 z-10 flex-shrink-0">
               <h2 className="font-medium text-zinc-900 dark:text-zinc-100">Notes & Tasks</h2>
-              <button
-                onClick={() => handleAddItem("folder", null)}
-                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
-                title="Add Top Level Folder"
-              >
-                Add Top Level Folder
-              </button>
+              <div className="flex items-center space-x-2"> {/* <-- Wrapper for buttons */}
+                <button
+                  onClick={() => handleAddItem("folder", null)}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                  title="Add Top Level Folder"
+                >
+                  {/* Consider changing text to just "+" or an icon for smaller screens */}
+                  Add Top Level Folder
+                </button>
+                {/* --- About Button --- */}
+                <button
+                  onClick={() => setAboutDialogOpen(true)} // Open About Dialog
+                  className="p-1.5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+                  title="About this application"
+                >
+                   <Info className="w-4 h-4" /> {/* Use Info icon */}
+                </button>
+              </div>
             </div>
+            {/* --- Tree View --- */}
             <div className="flex-grow overflow-auto">
               <Tree
                 items={tree}
@@ -230,7 +250,7 @@ const App = () => {
           </div>
         </Panel>
 
-        {/* Resize Handle - Now spans full height */}
+        {/* Resize Handle */}
         <PanelResizeHandle className="w-1.5 h-full bg-transparent hover:bg-blue-500/50 data-[resize-handle-active]:bg-blue-600/50 cursor-col-resize" />
 
         {/* Right Panel */}
@@ -244,7 +264,7 @@ const App = () => {
                 </div>
               ) : (
                 <ContentEditor
-                  key={selectedItemId}
+                  key={selectedItemId} // Ensures editor remounts on item change
                   item={selectedItem}
                   onSaveContent={
                     selectedItem.type === "task"
@@ -262,7 +282,7 @@ const App = () => {
         </Panel>
       </PanelGroup>
 
-      {/* Context Menu and Add Dialog */}
+      {/* Context Menu */}
       {contextMenu.visible && (
         <ContextMenu
           visible={true}
@@ -279,6 +299,8 @@ const App = () => {
           onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
         />
       )}
+
+      {/* Add Dialog */}
       <AddDialog
         isOpen={addDialogOpen}
         newItemType={newItemType}
@@ -290,6 +312,12 @@ const App = () => {
         }}
         onAdd={handleAdd}
         onCancel={() => setAddDialogOpen(false)}
+      />
+
+      {/* About Dialog */}
+      <AboutDialog
+          isOpen={aboutDialogOpen}
+          onClose={() => setAboutDialogOpen(false)}
       />
     </div>
   );
