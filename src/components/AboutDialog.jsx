@@ -5,7 +5,7 @@ const AboutDialog = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const appName = "Notes & Tasks App"; // You can change this
-  const appVersion = "1.3";
+  const appVersion = "1.3.1";
   const currentYear = new Date().getFullYear(); // Get the current year
 
   return (
