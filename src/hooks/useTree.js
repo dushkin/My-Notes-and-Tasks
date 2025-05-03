@@ -86,8 +86,7 @@ export const useTree = () => {
     });
   }, []);
 
-  // expandFolderPath:
-  // Expand a folder and all its ancestors.
+  // expandFolderPath: Expand a folder and all its ancestors.
   const expandFolderPath = useCallback(
     (folderId) => {
       // Recursively find ancestors.
@@ -252,10 +251,58 @@ export const useTree = () => {
     [setTreeAndPersist]
   );
 
+  // --- NEW: Duplicate Item ---
+  // This function deep-clones the item (and its subtree), assigns new IDs,
+  // appends "-dup" to the top-level label, and then inserts it as a sibling.
+  const duplicateItem = useCallback((itemId) => {
+    const itemToDuplicate = findItemById(tree, itemId);
+    if (!itemToDuplicate) return;
+
+    // Deep-clone the item (using JSON for simplicity)
+    let duplicate = JSON.parse(JSON.stringify(itemToDuplicate));
+    // Recursively assign new IDs using your existing helper.
+    duplicate = assignNewIds(duplicate);
+    // Append "-dup" only to the top-level label.
+    duplicate.label = duplicate.label + "-dup";
+
+    // Helper: find the parent and index of the item in the tree.
+    const findParentAndIndex = (nodes, id, parent = null) => {
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].id === id) return { parent, index: i };
+        if (nodes[i].children) {
+          const res = findParentAndIndex(nodes[i].children, id, nodes[i]);
+          if (res) return res;
+        }
+      }
+      return null;
+    };
+
+    const parentInfo = findParentAndIndex(tree, itemId);
+    if (parentInfo && parentInfo.parent) {
+      // Insert duplicate as a sibling under the parent.
+      const parentId = parentInfo.parent.id;
+      setTreeAndPersist((prevTree) => {
+        const updateTree = (nodes) =>
+          nodes.map((node) => {
+            if (node.id === parentId) {
+              const currentChildren = Array.isArray(node.children) ? node.children : [];
+              return { ...node, children: [...currentChildren, duplicate] };
+            } else if (node.children) {
+              return { ...node, children: updateTree(node.children) };
+            }
+            return node;
+          });
+        return updateTree(prevTree);
+      });
+    } else {
+      // If no parent exists (the item is at root), add to the root level.
+      setTreeAndPersist((prevTree) => [...prevTree, duplicate]);
+    }
+    setContextMenu((m) => ({ ...m, visible: false }));
+  }, [tree, setTreeAndPersist, setContextMenu]);
+
   // pasteItem:
-  // After updating the tree, do not update expandedFolders synchronously.
-  // Instead, if a target folder ID is provided, schedule a call to expandFolderPath
-  // via setTimeout (so that immediately after paste the expanded state remains undefined).
+  // After updating the tree, if a target folder is provided, schedule a call to expandFolderPath.
   const pasteItem = useCallback(
     (targetFolderId) => {
       if (!clipboardItem) {
@@ -331,6 +378,7 @@ export const useTree = () => {
     cutItem,
     pasteItem,
     addItem,
+    duplicateItem, // NEW: expose duplicateItem
   };
 }; // End of useTree hook
 
