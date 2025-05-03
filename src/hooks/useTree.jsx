@@ -10,7 +10,44 @@ import {
   isSelfOrDescendant,
 } from "../utils/treeUtils";
 import { jsPDF } from "jspdf";
+
+// --- IMPORT FONT DATA ---
+// Make sure this file exists and exports the Base64 string correctly
+// e.g., export const notoSansHebrewBase64 = `AAEAA...`;
 import { notoSansHebrewBase64 } from '../fonts/NotoSansHebrewBase64';
+// --- END IMPORT FONT DATA ---
+
+
+// Helper function to convert editor HTML to plain text preserving basic newlines (REVISED)
+function htmlToPlainTextWithNewlines(html) {
+    if (!html) return "";
+    let text = html;
+
+    // Add explicit newline markers BEFORE block elements that should cause a break.
+    text = text.replace(/<(div|p|h[1-6]|li|blockquote|pre|tr|hr)[^>]*>/gi, '\n$&');
+
+    // Replace <br> tags with newline characters
+    text = text.replace(/<br\s*\/?>/gi, '\n');
+
+    // Now, remove all HTML tags
+    text = text.replace(/<[^>]+>/g, '');
+
+    // Decode HTML entities AFTER removing tags
+    try {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = text;
+        text = tempDiv.textContent || tempDiv.innerText || "";
+    } catch (e) {
+        console.error("Error decoding HTML entities during PDF export:", e);
+    }
+
+    // Cleanup whitespace and multiple newlines
+    text = text.trim();
+    // Replace multiple consecutive newlines with a SINGLE newline.
+    text = text.replace(/(\r\n|\r|\n){2,}/g, '\n');
+
+    return text;
+}
 
 
 // Helper function to find an item by its ID
@@ -380,11 +417,12 @@ export const useTree = () => {
         }
         dataToExport = selectedItem;
         fileName = `${selectedItem.label}-export`;
-      } else {
+      } else { // target === 'entire'
         dataToExport = tree;
         fileName = "tree-export";
       }
 
+      // --- JSON Export ---
       if (format === "json") {
         try {
             const jsonStr = JSON.stringify(dataToExport, null, 2);
@@ -401,91 +439,133 @@ export const useTree = () => {
              console.error("JSON export failed:", error);
              alert("Failed to export as JSON.");
         }
+      // --- PDF Export ---
       } else if (format === "pdf") {
         try {
             const doc = new jsPDF();
 
             // --- Font Handling ---
             const FONT_NAME = 'NotoSansHebrew';
-            const FONT_FILENAME = 'NotoSansHebrew-Regular.ttf'; // Must match VFS filename
-            const FONT_STYLE = 'normal';
+            const FONT_FILENAME = 'NotoSansHebrew-Regular.ttf';
+            const FONT_STYLE_NORMAL = 'normal';
+            const FONT_STYLE_BOLD = 'bold';
 
-            // Check if font data is available
             if (notoSansHebrewBase64) {
                  try {
-                    // Register the font file in VFS only if not already registered
                     if (!doc.getFileFromVFS(FONT_FILENAME)) {
                         doc.addFileToVFS(FONT_FILENAME, notoSansHebrewBase64);
                     }
-                    // Add the font to the document only if not already added
-                    // Note: jsPDF font list access is internal, so we might re-add, but it's usually ok.
-                    doc.addFont(FONT_FILENAME, FONT_NAME, FONT_STYLE);
-                    doc.setFont(FONT_NAME, FONT_STYLE); // Set the font
+                    doc.addFont(FONT_FILENAME, FONT_NAME, FONT_STYLE_NORMAL);
+                    doc.addFont(FONT_FILENAME, FONT_NAME, FONT_STYLE_BOLD);
                  } catch (fontError) {
                       console.error("Error loading/adding Hebrew font:", fontError);
                       alert("Failed to load Hebrew font for PDF export. Hebrew text may not display correctly.");
-                      // Fallback to default font will happen if setFont fails or isn't called
                  }
             } else {
-                console.warn("Hebrew font data not available for PDF export.");
+                console.warn("Hebrew font data could not be imported for PDF export.");
                 alert("Hebrew font not configured. Hebrew text may not display correctly.");
             }
             // --- End Font Handling ---
 
+            // --- PDF Content Generation ---
+            const PAGE_MARGIN = 15;
+            const FONT_SIZE_LABEL = 12;
+            const FONT_SIZE_CONTENT = 10;
+            // Use jsPDF's way to get line height factor if possible, otherwise estimate
+            const lineHeightFactor = doc.getLineHeightFactor ? doc.getLineHeightFactor() : 1.15;
+            const LINE_SPACING_LABEL = FONT_SIZE_LABEL * lineHeightFactor;
+            const LINE_SPACING_CONTENT = FONT_SIZE_CONTENT * lineHeightFactor;
+            const CONTENT_INDENT = 5; // Indent content relative to label indent
 
-            const buildText = (item, indent = 0) => {
-              const spaces = " ".repeat(indent);
-              let text = `${spaces}${item.type === 'folder' ? '📁' : item.type === 'note' ? '📝' : item.completed ? '✅' : '⬜️'} ${item.label}`;
-              if (item.content && (item.type === 'note' || item.type === 'task')) {
-                 const tempDiv = document.createElement('div');
-                 tempDiv.innerHTML = item.content;
-                 const contentText = tempDiv.textContent || tempDiv.innerText || "";
-                 // Replace multiple spaces/newlines possibly introduced by HTML stripping
-                 const cleanedContent = contentText.replace(/\s+/g, ' ').trim();
-                 text += `\n${spaces}  Content: ${cleanedContent.substring(0, 200)}${cleanedContent.length > 200 ? '...' : ''}`;
-              }
-              text += "\n";
-              if (item.children && item.children.length > 0) {
-                sortItems(item.children).forEach((child) => {
-                  text += buildText(child, indent + 2);
-                });
-              }
-              return text;
-            };
-
-            let fullText = "";
-            if (target === "selected") {
-              fullText = buildText(selectedItem);
-            } else {
-              sortItems(Array.isArray(dataToExport) ? dataToExport : []).forEach((item) => {
-                fullText += buildText(item) + "\n";
-              });
-            }
-
-            // Set font size AFTER setting the font
-            doc.setFontSize(10);
-
+            let cursorY = PAGE_MARGIN;
             const pageHeight = doc.internal.pageSize.getHeight();
             const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 10;
-            const maxLineWidth = pageWidth - margin * 2;
-            const lines = doc.splitTextToSize(fullText, maxLineWidth);
+            const maxLineWidth = pageWidth - PAGE_MARGIN * 2;
 
-            let cursorY = margin;
-             // jsPDF's text function needs manual line breaking and page adding
-             lines.forEach(line => {
-                if (cursorY + 5 > pageHeight - margin) { // Estimate line height (adjust 5 if needed)
-                    doc.addPage();
-                    cursorY = margin;
-                    // Re-apply font on new page (important!)
-                    doc.setFont(FONT_NAME, FONT_STYLE);
-                    doc.setFontSize(10);
+            // Function to add text and handle page breaks
+            const addText = (text, x, y, options = {}) => {
+                const { fontSize = FONT_SIZE_CONTENT, fontStyle = FONT_STYLE_NORMAL, isLabel = false } = options;
+                const currentLineHeight = isLabel ? LINE_SPACING_LABEL : LINE_SPACING_CONTENT;
+
+                doc.setFont(FONT_NAME, fontStyle);
+                doc.setFontSize(fontSize);
+
+                // Calculate available width based on starting x position
+                const availableWidth = maxLineWidth - x + PAGE_MARGIN;
+                const lines = doc.splitTextToSize(text, availableWidth);
+
+                lines.forEach((line, index) => {
+                    // Check for page break BEFORE rendering the line
+                    if (cursorY + currentLineHeight > pageHeight - PAGE_MARGIN) {
+                        doc.addPage();
+                        cursorY = PAGE_MARGIN;
+                        doc.setFont(FONT_NAME, fontStyle); // Re-apply font settings
+                        doc.setFontSize(fontSize);
+                    }
+
+                    // RTL/Alignment handling
+                    const isRTL = /[\u0590-\u05FF]/.test(line); // Basic check for Hebrew characters
+                    const textX = isRTL ? pageWidth - x : x; // Position from right margin if RTL
+                    const textAlign = isRTL ? 'right' : 'left';
+
+                    doc.text(line, textX, cursorY, { align: textAlign /*, lang: 'he' // Optional */ });
+                    cursorY += currentLineHeight; // Increment Y position by calculated height
+                });
+
+                 // Add a smaller gap after the text block
+                 if (lines.length > 0) cursorY += currentLineHeight * 0.3;
+            };
+
+            // Recursive function to build PDF content
+            const buildPdfContent = (item, indentLevel = 0) => {
+                const currentIndent = PAGE_MARGIN + (indentLevel * 10);
+
+                const labelIcon = item.type === 'folder' ? '📁' : item.type === 'note' ? '📝' : item.completed ? '✅' : '⬜️';
+                const labelText = `${labelIcon} ${item.label}`;
+                addText(labelText, currentIndent, cursorY, {
+                    fontSize: FONT_SIZE_LABEL,
+                    fontStyle: FONT_STYLE_BOLD,
+                    isLabel: true
+                 });
+                 // Gap after label is handled by the extra spacing in addText
+
+                if (item.content && (item.type === 'note' || item.type === 'task')) {
+                    const plainTextContent = htmlToPlainTextWithNewlines(item.content);
+                    if (plainTextContent) {
+                         addText(plainTextContent, currentIndent + CONTENT_INDENT, cursorY, {
+                             fontSize: FONT_SIZE_CONTENT,
+                             fontStyle: FONT_STYLE_NORMAL
+                             // isLabel: false (default)
+                         });
+                    }
                 }
-                // Render text line by line
-                // Consider RTL options if needed: doc.text(line, pageWidth - margin, cursorY, { align: 'right' });
-                doc.text(line, margin, cursorY);
-                cursorY += 5; // Increment cursor Y position (adjust line height if needed)
-             });
+
+                // Add small space before children
+                if (item.children && item.children.length > 0) {
+                    cursorY += LINE_SPACING_CONTENT * 0.5;
+                    sortItems(item.children).forEach((child) => {
+                        buildPdfContent(child, indentLevel + 1);
+                    });
+                    // Add space after processing children of a block
+                    cursorY += LINE_SPACING_LABEL * 0.2;
+                }
+            };
+
+            // --- Start PDF Generation ---
+            doc.setFont(FONT_NAME, FONT_STYLE_NORMAL);
+            doc.setFontSize(FONT_SIZE_CONTENT);
+
+            if (target === "selected") {
+                buildPdfContent(dataToExport, 0);
+            } else {
+                sortItems(Array.isArray(dataToExport) ? dataToExport : []).forEach((item, index) => {
+                    buildPdfContent(item, 0);
+                     // Add space between root items, except after the last one
+                     if (index < dataToExport.length - 1) {
+                        cursorY += LINE_SPACING_LABEL;
+                    }
+                });
+            }
 
             doc.save(fileName + ".pdf");
          } catch(error) {
@@ -494,68 +574,67 @@ export const useTree = () => {
          }
       }
     },
-    [selectedItem, tree] // Ensure dependencies are correct
+    [selectedItem, tree] // Dependencies
   );
 
   const handleImport = useCallback(
-    (file, targetOption) => { // targetOption might be 'item' or 'tree', passed from App.jsx
-      if (!file || !file.type || file.type !== 'application/json') {
-           alert("Import failed: Please select a valid JSON file (.json).");
-           return;
-       }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const importedData = JSON.parse(e.target.result);
-
-          const isValidStructure = (data) => {
-              if (Array.isArray(data)) {
-                  return data.every(item => item && item.id && item.label && item.type);
-              } else if (typeof data === 'object' && data !== null) {
-                  return data.id && data.label && data.type;
-              }
-              return false;
-          };
-
-          if (!isValidStructure(importedData)) {
-               throw new Error("Invalid JSON structure for import.");
-           }
-
-          // Use targetOption passed from App.jsx via ImportDialog state
-          if (targetOption === "tree") {
-             if (Array.isArray(importedData)) {
-                 replaceTree(importedData);
-             } else {
-                 replaceTree([importedData]);
-             }
-          } else { // targetOption should be 'item' or null (defaulting to selected)
-            if (!selectedItem) {
-              alert("No item is selected to import under.");
-              return;
-            }
-            if (selectedItem.type !== "folder") {
-              alert("The selected item is not a folder. Cannot import under non-folder items.");
-              return;
-            }
-
-             const itemsToImport = Array.isArray(importedData)
-                 ? importedData.map(item => assignNewIds(item))
-                 : [assignNewIds(importedData)];
-
-             itemsToImport.forEach(item => {
-                 addItem(item, selectedItem.id);
-             });
-          }
-        } catch (error) {
-          console.error("Import failed:", error);
-          alert(`Failed to import file. Please check the file format and structure. Error: ${error.message}`);
+    (file, targetOption) => {
+        if (!file || !file.type || file.type !== 'application/json') {
+            alert("Import failed: Please select a valid JSON file (.json).");
+            return;
         }
-      };
-       reader.onerror = (e) => {
-           console.error("File reading error:", e);
-           alert("Failed to read the selected file.");
-       };
-      reader.readAsText(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+
+                const isValidStructure = (data) => {
+                    if (Array.isArray(data)) {
+                        return data.every(item => item && item.id && item.label && item.type);
+                    } else if (typeof data === 'object' && data !== null) {
+                        return data.id && data.label && data.type;
+                    }
+                    return false;
+                };
+
+                if (!isValidStructure(importedData)) {
+                    throw new Error("Invalid JSON structure for import.");
+                }
+
+                if (targetOption === "tree") {
+                    if (Array.isArray(importedData)) {
+                        replaceTree(importedData);
+                    } else {
+                        replaceTree([importedData]);
+                    }
+                } else { // targetOption 'item' or null (defaults to selected)
+                    if (!selectedItem) {
+                        alert("No item is selected to import under.");
+                        return;
+                    }
+                    if (selectedItem.type !== "folder") {
+                        alert("The selected item is not a folder. Cannot import under non-folder items.");
+                        return;
+                    }
+
+                    const itemsToImport = Array.isArray(importedData)
+                        ? importedData.map(item => assignNewIds(item))
+                        : [assignNewIds(importedData)];
+
+                    itemsToImport.forEach(item => {
+                        addItem(item, selectedItem.id);
+                    });
+                }
+            } catch (error) {
+                console.error("Import failed:", error);
+                alert(`Failed to import file. Please check the file format and structure. Error: ${error.message}`);
+            }
+        };
+        reader.onerror = (e) => {
+            console.error("File reading error:", e);
+            alert("Failed to read the selected file.");
+        };
+        reader.readAsText(file);
     },
     [selectedItem, addItem, replaceTree] // Dependencies
   );
