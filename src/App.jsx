@@ -48,7 +48,8 @@ const App = () => {
     copyItem,
     cutItem,
     pasteItem,
-    addItem, // Use the specific action from the hook
+    addItem,
+    duplicateItem, // NEW: duplicateItem function from the hook
   } = useTree();
 
   // Local UI state
@@ -67,7 +68,7 @@ const App = () => {
       setInlineRenameId(itemToRename.id);
       setInlineRenameValue(itemToRename.label);
       setContextMenu((m) => ({ ...m, visible: false })); // Close context menu
-  }, []); // No dependencies needed, only uses args and setState
+  }, []);
 
   // Uses the renameItem function from useTree hook
   const finishInlineRename = useCallback(() => {
@@ -80,25 +81,25 @@ const App = () => {
       }
       setInlineRenameId(null); // Clear inline rename state regardless
       setInlineRenameValue(""); // Clear value
-  }, [inlineRenameId, inlineRenameValue, renameItem, tree]); // Add tree dependency for comparing label
+  }, [inlineRenameId, inlineRenameValue, renameItem, tree]);
 
   const cancelInlineRename = useCallback(() => {
       setInlineRenameId(null);
       setInlineRenameValue("");
-  }, []); // No dependencies needed
+  }, []);
 
   // --- Add Item Logic (UI Control) ---
-   const handleAddItem = useCallback((type, parent) => {
+  const handleAddItem = useCallback((type, parent) => {
       setNewItemType(type);
       setParentItemForAdd(parent); // parent can be null for root items
       setNewItemLabel(""); // Clear label for new dialog
       setShowError(false); // Reset error
       setAddDialogOpen(true); // Open dialog
       setContextMenu((m) => ({ ...m, visible: false })); // Close context menu
-  }, []); // No dependencies needed
+  }, []);
 
-   // This function creates the item and calls the addItem hook function
-   const handleAdd = useCallback(() => {
+  // This function creates the item and calls the addItem hook function
+  const handleAdd = useCallback(() => {
       if (!newItemLabel.trim()) {
         setShowError(true); // Show validation error
         return;
@@ -130,7 +131,6 @@ const App = () => {
   }, [newItemLabel, newItemType, parentItemForAdd, addItem, expandFolderPath]);
 
   // --- Toggle Task Logic ---
-  // This should ideally be moved into useTree hook as well for consistency
   const handleToggleTask = useCallback((id, completed) => {
        // Placeholder - Needs proper implementation in useTree
        console.warn("toggleTask logic should ideally be moved into useTree hook");
@@ -142,7 +142,6 @@ const App = () => {
 
   // --- Drag End Handler ---
   const handleDragEnd = useCallback(() => {
-    // Always clear the dragged item ID when drag operation finishes, successful or not
     setDraggedId(null);
   }, [setDraggedId]);
 
@@ -185,7 +184,6 @@ const App = () => {
     <div className="fixed inset-0 flex flex-col bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
       {/* Resizable Panels */}
       <PanelGroup direction="horizontal" className="flex-1">
-
         {/* Left Panel (Tree) */}
         <Panel
           defaultSize={25}
@@ -193,9 +191,8 @@ const App = () => {
           maxSize={50}
           className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700"
         >
-          {/* Inner div for layout within the panel */}
           <div className="flex flex-col h-full">
-             {/* Top Bar */}
+            {/* Top Bar */}
             <div className="p-2 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
                <h2 className="font-medium text-sm sm:text-base whitespace-nowrap overflow-hidden text-ellipsis mr-2">
                  Notes & Tasks
@@ -218,8 +215,7 @@ const App = () => {
                 </button>
               </div>
             </div>
-
-            {/* Tree View Container (This part scrolls) */}
+            {/* Tree View Container */}
             <div className="flex-grow overflow-auto">
               <Tree
                 items={tree}
@@ -258,13 +254,10 @@ const App = () => {
             </div>
           </div>
         </Panel>
-
         {/* Resize Handle */}
         <PanelResizeHandle className="w-1.5 h-full bg-transparent hover:bg-blue-500/50 data-[resize-handle-active]:bg-blue-600/50 cursor-col-resize z-20" />
-
         {/* Right Panel (Content) */}
         <Panel minSize={30} className="flex flex-col bg-white dark:bg-zinc-800">
-          {/* Content Area (Scrollable) */}
           <div className="flex-grow p-1 sm:p-4 overflow-auto h-full">
             {selectedItem ? (
               selectedItem.type === "folder" ? (
@@ -294,7 +287,7 @@ const App = () => {
         </Panel>
       </PanelGroup>
 
-      {/* --- Modals and Context Menu (Rendered on top) --- */}
+      {/* --- Modals and Context Menu --- */}
       {contextMenu.visible && (
         <ContextMenu
           visible={true}
@@ -309,6 +302,11 @@ const App = () => {
           onAddTask={() => contextMenu.item && handleAddItem("task", contextMenu.item)}
           onRename={() => contextMenu.item && startInlineRename(contextMenu.item)}
           onDelete={() => contextMenu.item && deleteItem(contextMenu.item.id)}
+          onDuplicate={() => {
+             if (contextMenu.item) {
+               duplicateItem(contextMenu.item.id);
+             }
+          }}
           onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
           onCopy={() => contextMenu.item && copyItem(contextMenu.item.id)}
           onCut={() => contextMenu.item && cutItem(contextMenu.item.id)}
@@ -322,7 +320,7 @@ const App = () => {
                    console.warn("Paste target is not a folder or the root area.");
                    setContextMenu((m) => ({ ...m, visible: false }));
                }
-           }}
+          }}
         />
       )}
 
