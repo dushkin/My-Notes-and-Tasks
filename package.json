@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.5.1",
-  "commitMessage": "Added hebrew font support for pdf",
+  "version": "1.5.2",
+  "commitMessage": "Fix exported files formatting",
   "private": true,
   "scripts": {
     "dev": "vite",
