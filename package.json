@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.5.2",
-  "commitMessage": "Fix exported files formatting",
+  "version": "1.6.0",
+  "commitMessage": "Span the content editor according to the content height",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -15,7 +15,8 @@
     "prismjs": "^1.30.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-resizable-panels": "^2.1.9"
+    "react-resizable-panels": "^2.1.9",
+    "unicode-bidirectional": "^2.0.5"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.27.1",

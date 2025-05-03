@@ -29,7 +29,7 @@ const ContentEditor = ({ item, onSaveContent }) => {
 
   // Render the editor UI
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 flex flex-col flex-grow">
       <h2 className="text-xl font-semibold">{item.label}</h2>
       {/* console.log(`ContentEditor RENDER: Passing body state to EditorPane (ID: ${item.id}):`, body) */}
       {/* Pass the internal body state to the EditorPane */}

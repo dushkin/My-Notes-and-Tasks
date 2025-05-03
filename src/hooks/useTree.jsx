@@ -10,6 +10,8 @@ import {
   isSelfOrDescendant,
 } from "../utils/treeUtils";
 import { jsPDF } from "jspdf";
+// Import the correct BiDi library
+import * as bidi from 'unicode-bidirectional';
 
 // --- IMPORT FONT DATA ---
 // Make sure this file exists and exports the Base64 string correctly
@@ -18,7 +20,7 @@ import { notoSansHebrewBase64 } from '../fonts/NotoSansHebrewBase64';
 // --- END IMPORT FONT DATA ---
 
 
-// Helper function to convert editor HTML to plain text preserving basic newlines (REVISED)
+// Helper function to convert editor HTML to plain text preserving basic newlines
 function htmlToPlainTextWithNewlines(html) {
     if (!html) return "";
     let text = html;
@@ -66,7 +68,7 @@ const findItemById = (nodes, id) => {
 // Helper: Recursively assign new IDs to an item and its children
 const assignNewIds = (item) => {
     const newItem = { ...item };
-    newItem.id = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 9);
+    newItem.id = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 9); // Generate new ID
     if (Array.isArray(newItem.children)) {
         newItem.children = newItem.children.map(child => assignNewIds(child));
     }
@@ -471,11 +473,10 @@ export const useTree = () => {
             const PAGE_MARGIN = 15;
             const FONT_SIZE_LABEL = 12;
             const FONT_SIZE_CONTENT = 10;
-            // Use jsPDF's way to get line height factor if possible, otherwise estimate
             const lineHeightFactor = doc.getLineHeightFactor ? doc.getLineHeightFactor() : 1.15;
             const LINE_SPACING_LABEL = FONT_SIZE_LABEL * lineHeightFactor;
             const LINE_SPACING_CONTENT = FONT_SIZE_CONTENT * lineHeightFactor;
-            const CONTENT_INDENT = 5; // Indent content relative to label indent
+            const CONTENT_INDENT = 5;
 
             let cursorY = PAGE_MARGIN;
             const pageHeight = doc.internal.pageSize.getHeight();
@@ -490,29 +491,49 @@ export const useTree = () => {
                 doc.setFont(FONT_NAME, fontStyle);
                 doc.setFontSize(fontSize);
 
-                // Calculate available width based on starting x position
                 const availableWidth = maxLineWidth - x + PAGE_MARGIN;
-                const lines = doc.splitTextToSize(text, availableWidth);
+
+                // --- BiDi Processing ---
+                let processedTextForRendering = text; // Default to original
+                const needsBiDi = /[\u0590-\u05FF]/.test(text); // Check original text
+
+                if (needsBiDi) {
+                    try {
+                        // Use unicode-bidirectional to get visual order
+                        const levels = bidi.getEmbeddingLevels(text);
+                        processedTextForRendering = bidi.getReorderedString(text, levels);
+                    } catch (bidiError) {
+                        console.error("BiDi processing failed:", bidiError);
+                        // Fallback to original text if processing fails
+                    }
+                }
+                // --- End BiDi Processing ---
+
+
+                // Split the *processed* text (visually ordered string)
+                const lines = doc.splitTextToSize(processedTextForRendering, availableWidth);
 
                 lines.forEach((line, index) => {
-                    // Check for page break BEFORE rendering the line
                     if (cursorY + currentLineHeight > pageHeight - PAGE_MARGIN) {
                         doc.addPage();
                         cursorY = PAGE_MARGIN;
-                        doc.setFont(FONT_NAME, fontStyle); // Re-apply font settings
+                        doc.setFont(FONT_NAME, fontStyle);
                         doc.setFontSize(fontSize);
                     }
 
-                    // RTL/Alignment handling
-                    const isRTL = /[\u0590-\u05FF]/.test(line); // Basic check for Hebrew characters
+                    // Alignment based on original text's RTL nature
+                    const isRTL = /[\u0590-\u05FF]/.test(text); // Check original text overall
                     const textX = isRTL ? pageWidth - x : x; // Position from right margin if RTL
-                    const textAlign = isRTL ? 'right' : 'left';
+                    const textOptions = {
+                        align: isRTL ? 'right' : 'left'
+                    };
+                     if (isRTL) textOptions.lang = 'he'; // Optional: Add lang hint
 
-                    doc.text(line, textX, cursorY, { align: textAlign /*, lang: 'he' // Optional */ });
-                    cursorY += currentLineHeight; // Increment Y position by calculated height
+                    // Render the visually ordered line string
+                    doc.text(line, textX, cursorY, textOptions);
+                    cursorY += currentLineHeight;
                 });
 
-                 // Add a smaller gap after the text block
                  if (lines.length > 0) cursorY += currentLineHeight * 0.3;
             };
 
@@ -527,7 +548,6 @@ export const useTree = () => {
                     fontStyle: FONT_STYLE_BOLD,
                     isLabel: true
                  });
-                 // Gap after label is handled by the extra spacing in addText
 
                 if (item.content && (item.type === 'note' || item.type === 'task')) {
                     const plainTextContent = htmlToPlainTextWithNewlines(item.content);
@@ -535,18 +555,15 @@ export const useTree = () => {
                          addText(plainTextContent, currentIndent + CONTENT_INDENT, cursorY, {
                              fontSize: FONT_SIZE_CONTENT,
                              fontStyle: FONT_STYLE_NORMAL
-                             // isLabel: false (default)
                          });
                     }
                 }
 
-                // Add small space before children
                 if (item.children && item.children.length > 0) {
                     cursorY += LINE_SPACING_CONTENT * 0.5;
                     sortItems(item.children).forEach((child) => {
                         buildPdfContent(child, indentLevel + 1);
                     });
-                    // Add space after processing children of a block
                     cursorY += LINE_SPACING_LABEL * 0.2;
                 }
             };
@@ -560,7 +577,6 @@ export const useTree = () => {
             } else {
                 sortItems(Array.isArray(dataToExport) ? dataToExport : []).forEach((item, index) => {
                     buildPdfContent(item, 0);
-                     // Add space between root items, except after the last one
                      if (index < dataToExport.length - 1) {
                         cursorY += LINE_SPACING_LABEL;
                     }
