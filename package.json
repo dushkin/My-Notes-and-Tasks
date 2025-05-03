@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.4.0",
-  "commitMessage": "Added duplicate item support. Renamed sync-version.sh",
+  "version": "1.5.0",
+  "commitMessage": "Added import export capabilties",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "jspdf": "^3.0.1",
     "lucide-react": "^0.503.0",
     "prismjs": "^1.30.0",
     "react": "^18.2.0",
