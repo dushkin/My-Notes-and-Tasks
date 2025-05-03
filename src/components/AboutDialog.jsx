@@ -1,5 +1,6 @@
 // src/components/AboutDialog.jsx
 import React from "react";
+import packageJson from "../../package.json";
 
 const AboutDialog = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
