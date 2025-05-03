@@ -5,7 +5,7 @@ const AboutDialog = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const appName = "Notes & Tasks App";
-  const appVersion = "1.0.0"; // Replace this dynamically if needed
+  const appVersion = packageJson.version; // Replace this dynamically if needed
   const currentYear = new Date().getFullYear();
 
   return (

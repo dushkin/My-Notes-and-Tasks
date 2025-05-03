@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.3.6",
-  "commitMessage": "Fixed About Dialog view problem",
+  "version": "1.3.7",
+  "commitMessage": "Fixed About Dialog version value",
   "private": true,
   "scripts": {
     "dev": "vite",
