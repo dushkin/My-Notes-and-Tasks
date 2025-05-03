@@ -645,9 +645,9 @@ const EditorPane = ({ html = "", onChange }) => {
   );
 
   return (
-    <div className="p-4 space-y-2 border rounded bg-white dark:bg-zinc-800">
+    <div className="flex flex-col flex-grow border rounded bg-white dark:bg-zinc-800">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-2 border-b border-zinc-200 dark:border-zinc-700">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-2 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
         {/* --- Undo/Redo --- */}
         <button
           onClick={() => applyCommand("undo")}
@@ -832,7 +832,7 @@ const EditorPane = ({ html = "", onChange }) => {
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
-        className="editor-pane prose prose-sm dark:prose-invert max-w-none w-full min-h-[10rem] h-64 p-3 border border-zinc-300 dark:border-zinc-600 rounded resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 bg-white dark:bg-zinc-900 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline whitespace-pre-wrap prose-code:before:content-none prose-code:after:content-none prose-pre:bg-inherit dark:prose-pre:bg-inherit prose-pre:p-0"
+        className="editor-pane prose prose-sm dark:prose-invert max-w-none w-full flex-grow p-3 border-t border-zinc-300 dark:border-zinc-600 rounded-b resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 bg-white dark:bg-zinc-900 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline whitespace-pre-wrap prose-code:before:content-none prose-code:after:content-none prose-pre:bg-inherit dark:prose-pre:bg-inherit prose-pre:p-0"
         role="textbox"
         aria-multiline="true"
       />
