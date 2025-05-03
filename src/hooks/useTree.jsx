@@ -9,7 +9,9 @@ import {
   insertItemRecursive,
   isSelfOrDescendant,
 } from "../utils/treeUtils";
-import { jsPDF } from "jspdf"; // Import jsPDF directly if needed frequently
+import { jsPDF } from "jspdf";
+import { notoSansHebrewBase64 } from '../fonts/NotoSansHebrewBase64';
+
 
 // Helper function to find an item by its ID
 const findItemById = (nodes, id) => {
@@ -27,7 +29,7 @@ const findItemById = (nodes, id) => {
 // Helper: Recursively assign new IDs to an item and its children
 const assignNewIds = (item) => {
     const newItem = { ...item };
-    newItem.id = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 9); // Generate new ID
+    newItem.id = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 9);
     if (Array.isArray(newItem.children)) {
         newItem.children = newItem.children.map(child => assignNewIds(child));
     }
@@ -65,15 +67,12 @@ export const useTree = () => {
     }
   });
   const [draggedId, setDraggedId] = useState(null);
-  // Clipboard state
   const [clipboardItem, setClipboardItem] = useState(null);
   const [clipboardMode, setClipboardMode] = useState(null);
   const [cutItemId, setCutItemId] = useState(null);
 
-  // Derived state: determine the selectedItem from the tree and selectedItemId
   const selectedItem = useMemo(() => findItemById(tree, selectedItemId), [tree, selectedItemId]);
 
-  // Persist expandedFolders in localStorage
   useEffect(() => {
     try {
       localStorage.setItem(EXPANDED_KEY, JSON.stringify(expandedFolders));
@@ -82,7 +81,6 @@ export const useTree = () => {
     }
   }, [expandedFolders]);
 
-  // Internal helper: setTreeAndPersist
   const setTreeAndPersist = useCallback((newTreeOrCallback) => {
     setTree((prevTree) => {
       const newTree =
@@ -98,24 +96,21 @@ export const useTree = () => {
     });
   }, []);
 
-   // Expose a function to select an item
    const selectItemById = useCallback((id) => {
      setSelectedItemId(id);
    }, []);
 
-  // Expose a function to replace the entire tree.
   const replaceTree = useCallback((newTreeData) => {
      if (Array.isArray(newTreeData)) {
         setTreeAndPersist(newTreeData);
-        setSelectedItemId(null); // Deselect item after replacing tree
-        setExpandedFolders({}); // Reset expanded folders
+        setSelectedItemId(null);
+        setExpandedFolders({});
      } else {
         console.error("replaceTree failed: Provided data is not an array.", newTreeData);
         alert("Import failed: Invalid data format (expected an array).");
      }
   }, [setTreeAndPersist]);
 
-  // expandFolderPath: Expand a folder and all its ancestors.
   const expandFolderPath = useCallback(
     (folderId) => {
        if (!folderId) return;
@@ -147,7 +142,6 @@ export const useTree = () => {
     setExpandedFolders((prev) => ({ ...prev, [id]: forced !== undefined ? forced : !prev[id] }));
   }, []);
 
-  // updateNoteContent and updateTaskContent – recursively update content/completion
    const updateNoteContent = useCallback(
     (noteId, content) => {
       const recurse = (items) =>
@@ -164,11 +158,11 @@ export const useTree = () => {
   );
 
   const updateTask = useCallback(
-    (taskId, updates) => { // updates is an object like { content: '...', completed: true }
+    (taskId, updates) => {
       const recurse = (items) =>
         items.map((it) =>
           it.id === taskId && it.type === 'task'
-            ? { ...it, ...updates } // Merge updates into the task
+            ? { ...it, ...updates }
             : Array.isArray(it.children)
             ? { ...it, children: recurse(it.children) }
             : it
@@ -178,7 +172,6 @@ export const useTree = () => {
     [setTreeAndPersist]
   );
 
-  // renameItem (using the imported renameItemRecursive)
   const renameItem = useCallback(
     (itemId, newLabel) => {
       if (!newLabel || !itemId) return;
@@ -187,7 +180,6 @@ export const useTree = () => {
     [setTreeAndPersist]
   );
 
-  // deleteItem (using the imported deleteItemRecursive)
   const deleteItem = useCallback(
     (idToDelete) => {
       setTreeAndPersist((currentTree) => deleteItemRecursive(currentTree, idToDelete));
@@ -202,7 +194,6 @@ export const useTree = () => {
     [selectedItemId, setTreeAndPersist]
   );
 
-  // handleDrop (using the imported treeHandleDropUtil)
   const handleDrop = useCallback(
     (targetId) => {
       const currentDraggedId = draggedId;
@@ -222,7 +213,6 @@ export const useTree = () => {
     [draggedId, tree, setTreeAndPersist, toggleFolderExpand]
   );
 
-  // Clipboard Operations
   const copyItem = useCallback(
     (itemId) => {
       const itemToCopy = findItemById(tree, itemId);
@@ -271,7 +261,6 @@ export const useTree = () => {
     [tree]
   );
 
-   // addItem (using the imported insertItemRecursive)
    const addItem = useCallback(
     (newItem, parentId) => {
        if (!newItem || !newItem.id) {
@@ -287,7 +276,6 @@ export const useTree = () => {
   );
 
 
-  // Duplicate Item
   const duplicateItem = useCallback((itemId) => {
     const itemToDuplicate = findItemById(tree, itemId);
     if (!itemToDuplicate) return;
@@ -330,9 +318,8 @@ export const useTree = () => {
     setContextMenu((m) => ({ ...m, visible: false }));
   }, [tree, setTreeAndPersist]);
 
-  // pasteItem:
   const pasteItem = useCallback(
-    (targetFolderId) => { // targetFolderId can be null for root paste
+    (targetFolderId) => {
       if (!clipboardItem) {
         console.warn("Clipboard is empty.");
         setContextMenu((m) => ({ ...m, visible: false }));
@@ -418,6 +405,34 @@ export const useTree = () => {
         try {
             const doc = new jsPDF();
 
+            // --- Font Handling ---
+            const FONT_NAME = 'NotoSansHebrew';
+            const FONT_FILENAME = 'NotoSansHebrew-Regular.ttf'; // Must match VFS filename
+            const FONT_STYLE = 'normal';
+
+            // Check if font data is available
+            if (notoSansHebrewBase64) {
+                 try {
+                    // Register the font file in VFS only if not already registered
+                    if (!doc.getFileFromVFS(FONT_FILENAME)) {
+                        doc.addFileToVFS(FONT_FILENAME, notoSansHebrewBase64);
+                    }
+                    // Add the font to the document only if not already added
+                    // Note: jsPDF font list access is internal, so we might re-add, but it's usually ok.
+                    doc.addFont(FONT_FILENAME, FONT_NAME, FONT_STYLE);
+                    doc.setFont(FONT_NAME, FONT_STYLE); // Set the font
+                 } catch (fontError) {
+                      console.error("Error loading/adding Hebrew font:", fontError);
+                      alert("Failed to load Hebrew font for PDF export. Hebrew text may not display correctly.");
+                      // Fallback to default font will happen if setFont fails or isn't called
+                 }
+            } else {
+                console.warn("Hebrew font data not available for PDF export.");
+                alert("Hebrew font not configured. Hebrew text may not display correctly.");
+            }
+            // --- End Font Handling ---
+
+
             const buildText = (item, indent = 0) => {
               const spaces = " ".repeat(indent);
               let text = `${spaces}${item.type === 'folder' ? '📁' : item.type === 'note' ? '📝' : item.completed ? '✅' : '⬜️'} ${item.label}`;
@@ -425,7 +440,9 @@ export const useTree = () => {
                  const tempDiv = document.createElement('div');
                  tempDiv.innerHTML = item.content;
                  const contentText = tempDiv.textContent || tempDiv.innerText || "";
-                 text += `\n${spaces}  Content: ${contentText.substring(0, 200)}${contentText.length > 200 ? '...' : ''}`;
+                 // Replace multiple spaces/newlines possibly introduced by HTML stripping
+                 const cleanedContent = contentText.replace(/\s+/g, ' ').trim();
+                 text += `\n${spaces}  Content: ${cleanedContent.substring(0, 200)}${cleanedContent.length > 200 ? '...' : ''}`;
               }
               text += "\n";
               if (item.children && item.children.length > 0) {
@@ -445,20 +462,43 @@ export const useTree = () => {
               });
             }
 
-            const lines = doc.splitTextToSize(fullText, doc.internal.pageSize.getWidth() - 20);
-            doc.text(lines, 10, 10);
+            // Set font size AFTER setting the font
+            doc.setFontSize(10);
+
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 10;
+            const maxLineWidth = pageWidth - margin * 2;
+            const lines = doc.splitTextToSize(fullText, maxLineWidth);
+
+            let cursorY = margin;
+             // jsPDF's text function needs manual line breaking and page adding
+             lines.forEach(line => {
+                if (cursorY + 5 > pageHeight - margin) { // Estimate line height (adjust 5 if needed)
+                    doc.addPage();
+                    cursorY = margin;
+                    // Re-apply font on new page (important!)
+                    doc.setFont(FONT_NAME, FONT_STYLE);
+                    doc.setFontSize(10);
+                }
+                // Render text line by line
+                // Consider RTL options if needed: doc.text(line, pageWidth - margin, cursorY, { align: 'right' });
+                doc.text(line, margin, cursorY);
+                cursorY += 5; // Increment cursor Y position (adjust line height if needed)
+             });
+
             doc.save(fileName + ".pdf");
          } catch(error) {
              console.error("PDF export failed:", error);
-             alert("Failed to export as PDF. Ensure jsPDF is installed.");
+             alert("Failed to generate PDF.");
          }
       }
     },
-    [selectedItem, tree]
+    [selectedItem, tree] // Ensure dependencies are correct
   );
 
   const handleImport = useCallback(
-    (file, targetOption) => {
+    (file, targetOption) => { // targetOption might be 'item' or 'tree', passed from App.jsx
       if (!file || !file.type || file.type !== 'application/json') {
            alert("Import failed: Please select a valid JSON file (.json).");
            return;
@@ -477,19 +517,18 @@ export const useTree = () => {
               return false;
           };
 
-
           if (!isValidStructure(importedData)) {
                throw new Error("Invalid JSON structure for import.");
            }
 
-
-          if (targetOption === "entire") {
+          // Use targetOption passed from App.jsx via ImportDialog state
+          if (targetOption === "tree") {
              if (Array.isArray(importedData)) {
                  replaceTree(importedData);
              } else {
                  replaceTree([importedData]);
              }
-          } else { // Import under selected item
+          } else { // targetOption should be 'item' or null (defaulting to selected)
             if (!selectedItem) {
               alert("No item is selected to import under.");
               return;
@@ -518,11 +557,11 @@ export const useTree = () => {
        };
       reader.readAsText(file);
     },
-    [selectedItem, addItem, replaceTree]
+    [selectedItem, addItem, replaceTree] // Dependencies
   );
 
 
-  // The hook returns all the state and functions needed by the UI
+  // Return all state and functions needed by the UI
   return {
     tree,
     selectedItem,
