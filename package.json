@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.6.0",
-  "commitMessage": "Span the content editor according to the content height",
+  "version": "1.7.0",
+  "commitMessage": "Prevent same named sibling items",
   "private": true,
   "scripts": {
     "dev": "vite",
