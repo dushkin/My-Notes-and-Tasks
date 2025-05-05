@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.7.0",
-  "commitMessage": "Prevent same named sibling items",
+  "version": "1.7.1",
+  "commitMessage": "Extended tests set",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -25,6 +25,7 @@
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.12",
     "babel-jest": "^29.7.0",
@@ -33,5 +34,8 @@
     "postcss": "^8.4.18",
     "tailwindcss": "^3.2.4",
     "vite": "^5.0.0"
+  },
+  "moduleNameMapper": {
+    "unicode-bidirectional": "<rootDir>/tests/__mocks__/unicodeBidirectionalMock.js"
   }
 }
