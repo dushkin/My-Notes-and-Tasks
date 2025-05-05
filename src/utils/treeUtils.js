@@ -299,7 +299,6 @@ export const handleDrop = (currentTree, targetId, draggedId) => {
 
 
   // --- Drop Logic ---
-  console.log(`Drop validated: Preparing to move item ${draggedId} ('${draggedItemData.label}') into folder ${targetId} ('${targetItem.label}')`);
   // 1. Deep copy the dragged item (using structuredClone if available, fallback to JSON)
   let draggedItemCopy;
   try {
@@ -330,7 +329,5 @@ export const handleDrop = (currentTree, targetId, draggedId) => {
       return null;
     }
 
-
-  console.log("Drop successful, returning final tree structure.");
   return finalTree; // Return the new tree structure
 };

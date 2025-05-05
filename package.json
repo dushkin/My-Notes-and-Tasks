@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.7.1",
-  "commitMessage": "Extended tests set",
+  "version": "1.8.0",
+  "commitMessage": "Add settings facility",
   "private": true,
   "scripts": {
     "dev": "vite",

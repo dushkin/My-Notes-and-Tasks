@@ -65,7 +65,7 @@ const App = () => {
     duplicateItem,
     handleExport,
     handleImport,
-  } = useTree(); // Note: useTree doesn't consume settings yet
+  } = useTree(); // useTree now handles auto-expand internally using settings
 
   // --- Local UI state (remains mostly the same) ---
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -135,7 +135,7 @@ const App = () => {
       setTopMenuOpen(false);
    }, []);
 
-   const handleAdd = useCallback(async () => {
+  const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) { setUiError("Name cannot be empty."); return; }
     const newItem = {
@@ -146,34 +146,37 @@ const App = () => {
       ...(newItemType === "note" ? { content: "" } : {}),
     };
     const parentId = parentItemForAdd?.id ?? null;
-    // Check setting before calling addItem which might expand parent
-    // TODO: Modify addItem in useTree to check settings.autoExpandNewFolders
+
+    // Call addItem hook function - auto-expand logic is now within useTree
     const result = addItem(newItem, parentId);
+
     if (result.success) {
         setAddDialogOpen(false); setNewItemLabel(""); setParentItemForAdd(null); setUiError('');
     } else { setUiError(result.error || "Failed to add item."); }
-  }, [newItemLabel, newItemType, parentItemForAdd, addItem /*, settings.autoExpandNewFolders */]); // Add setting dependency later
+  }, [newItemLabel, newItemType, parentItemForAdd, addItem]); // Removed settings dependency here
 
   // Other Handlers
    const handleToggleTask = useCallback((id, completed) => { updateTask(id, { completed }); }, [updateTask]);
    const handleDragEnd = useCallback(() => { setDraggedId(null); }, [setDraggedId]);
    const openExportDialog = useCallback((context = null) => { setExportDialogState({ isOpen: true, context: context }); setContextMenu((m) => ({ ...m, visible: false })); setTopMenuOpen(false); }, []);
    const openImportDialog = useCallback((context = null) => { setImportDialogState({ isOpen: true, context: context }); setContextMenu((m) => ({ ...m, visible: false })); setTopMenuOpen(false); }, []);
+
    const handleFileImport = useCallback(async (file, targetOption) => {
        const result = await handleImport(file, targetOption);
        if (!result.success) { setUiError(result.error || "An unknown error occurred during import."); }
        else { setUiError(''); }
    }, [handleImport]);
+
    const handlePaste = useCallback((targetFolderId) => {
        const result = pasteItem(targetFolderId);
        if (!result.success) { setUiError(result.error || "Failed to paste item."); }
        else { setUiError(''); }
    }, [pasteItem]);
-   const handleDeleteConfirm = useCallback(() => {
+
+    const handleDeleteConfirm = useCallback(() => {
         if (contextMenu.item) { deleteItem(contextMenu.item.id); }
         setContextMenu((m) => ({ ...m, visible: false }));
     }, [contextMenu.item, deleteItem]);
-
 
   // Keyboard Shortcuts Effect (remains the same for now)
   useEffect(() => {
@@ -194,12 +197,14 @@ const App = () => {
        if (e.ctrlKey && e.key.toLowerCase() === 'c' && selectedItemId) { e.preventDefault(); copyItem(selectedItemId); }
        if (e.ctrlKey && e.key.toLowerCase() === 'x' && selectedItemId) { e.preventDefault(); cutItem(selectedItemId); }
        if (e.ctrlKey && e.key.toLowerCase() === 'v' && clipboardItem) {
-           e.preventDefault(); const currentItem = findItemById(tree, selectedItemId);
+           e.preventDefault();
+           const currentItem = findItemById(tree, selectedItemId);
            const targetId = currentItem?.type === 'folder' ? selectedItemId : null; // TODO: More robust parent finding?
            handlePaste(targetId);
        }
        if ((e.key === "Delete" || e.key === "Backspace") && selectedItemId) {
-             e.preventDefault(); const itemToDelete = findItemById(tree, selectedItemId);
+             e.preventDefault();
+             const itemToDelete = findItemById(tree, selectedItemId);
              if (itemToDelete && window.confirm(`Are you sure you want to delete "${itemToDelete.label}"?`)) {
                  deleteItem(selectedItemId);
              }
@@ -291,7 +296,7 @@ const App = () => {
                                 dragOverItemId={null} // Manage drag over state if needed for folder contents view
                                 onToggleExpand={toggleFolderExpand}
                                 expandedItems={expandedFolders}
-                            />
+                           />
                          </div>
                      ) : selectedItem.type === 'note' || selectedItem.type === 'task' ? (
                          <ContentEditor
@@ -304,7 +309,7 @@ const App = () => {
                          />
                      ) : null
                  ) : (
-                     <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400">Select or create an item.</div>
+                   <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400">Select or create an item.</div>
                  )}
              </div>
          </Panel>
