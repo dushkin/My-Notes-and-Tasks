@@ -180,7 +180,6 @@ const Tree = ({
     if (targetItem?.id === currentDragOverId && targetItem?.type === 'folder' && targetItem.id !== draggedId) {
         onDrop(targetItem.id); // Call main drop handler passed from App
     } else {
-        console.log("Drop occurred on invalid target or conditions not met.");
         // Drag state is cleared by onDragEnd anyway
     }
   }, [dragOverId, draggedId, onDrop]); // Dependencies

@@ -15,6 +15,7 @@ import {
 import { jsPDF } from "jspdf";
 import * as bidi from 'unicode-bidirectional';
 import { notoSansHebrewBase64 } from '../fonts/NotoSansHebrewBase64';
+import { useSettings } from "../contexts/SettingsContext"; // <-- Import useSettings
 
 // Helper function to convert editor HTML to plain text preserving basic newlines
 function htmlToPlainTextWithNewlines(html) {
@@ -56,6 +57,7 @@ const assignNewIds = (item) => {
 
 export const useTree = () => {
   const EXPANDED_KEY = `${LOCAL_STORAGE_KEY}_expanded`;
+  const { settings } = useSettings(); // <-- Get settings from context
 
   // --- State Initialization ---
   const [tree, setTree] = useState(() => {
@@ -71,11 +73,9 @@ export const useTree = () => {
   });
 
   const [selectedItemId, setSelectedItemId] = useState(null);
-
   const [contextMenu, setContextMenu] = useState({
     visible: false, x: 0, y: 0, item: null, isEmptyArea: false,
   });
-
   const [expandedFolders, setExpandedFolders] = useState(() => {
     try {
       const stored = localStorage.getItem(EXPANDED_KEY);
@@ -85,11 +85,10 @@ export const useTree = () => {
       return {}; // Default to empty object on error
     }
   });
-
   const [draggedId, setDraggedId] = useState(null);
   const [clipboardItem, setClipboardItem] = useState(null); // Stores the actual item data (deep copy)
   const [clipboardMode, setClipboardMode] = useState(null); // 'copy' or 'cut'
-  const [cutItemId, setCutItemId] = useState(null);       // Track the original ID if mode is 'cut'
+  const [cutItemId, setCutItemId] = useState(null); // Track the original ID if mode is 'cut'
 
   // Memoize selectedItem calculation for performance
   const selectedItem = useMemo(() => findItemById(tree, selectedItemId), [tree, selectedItemId]);
@@ -125,7 +124,6 @@ export const useTree = () => {
       console.error("Failed to save expanded folders to localStorage:", error);
     }
   }, [expandedFolders, EXPANDED_KEY]);
-
 
   // --- Selection and Expansion ---
   const selectItemById = useCallback((id) => {
@@ -165,7 +163,6 @@ export const useTree = () => {
 
     const currentTree = Array.isArray(tree) ? tree : []; // Ensure tree is usable
     const ancestors = findAncestors(currentTree, folderId);
-
     // Update expanded state using functional update
     setExpandedFolders((prev) => {
       const next = { ...prev }; // Copy previous state
@@ -219,12 +216,11 @@ export const useTree = () => {
 
   /**
    * Adds a new item. Performs sibling name validation.
+   * Conditionally expands parent based on settings.
    * Returns { success: boolean, error?: string }
    */
   const addItem = useCallback((newItem, parentId) => {
     const trimmedLabel = newItem?.label?.trim();
-    console.log(`addItem Hook: Attempting to add "${trimmedLabel}" under parentId: ${parentId}`);
-
     if (!newItem || !newItem.id || !trimmedLabel) {
       console.error("addItem Hook failed: newItem is invalid (missing id or label).", { newItem });
       return { success: false, error: "Invalid item data provided." };
@@ -237,7 +233,6 @@ export const useTree = () => {
     if (parentId === null) {
       // Adding to root: siblings are the items in the root of the tree
       siblings = tree || []; // Use current tree state from the hook
-      console.log(`addItem Hook: Target is ROOT. Found siblings:`, siblings.map(s=>s?.label ?? 'N/A'));
     } else {
       // Adding to a specific folder: siblings are the children of that folder
       parentItem = findItemById(tree, parentId); // Find the parent folder using current tree state
@@ -246,7 +241,6 @@ export const useTree = () => {
         return { success: false, error: "Target parent folder not found or invalid." };
       }
       siblings = parentItem.children || []; // Siblings are the children array of the found parent
-      console.log(`addItem Hook: Target parent ${parentItem.label} (${parentId}). Found siblings:`, siblings.map(s=>s?.label ?? 'N/A'));
     }
     // --- End Corrected Sibling Finding Logic ---
 
@@ -254,7 +248,6 @@ export const useTree = () => {
     // --- Sibling Name Validation ---
     // Check if the new name conflicts with any existing sibling names (case-insensitive)
     const conflictExists = hasSiblingWithName(siblings, trimmedLabel, null); // excludeId is null for new items
-    console.log(`addItem Hook: Checking name "${trimmedLabel}" against siblings. Conflict exists? ${conflictExists}`);
 
     if (conflictExists) {
         const errorMsg = `An item named "${trimmedLabel}" already exists at this level.`;
@@ -263,16 +256,18 @@ export const useTree = () => {
     }
     // --- End Validation ---
 
-    console.log(`addItem Hook: Validation passed for "${trimmedLabel}". Proceeding to add.`);
     // Use functional update with the recursive utility to insert the item
     setTreeAndPersist((prevTree) => insertItemRecursive(prevTree, parentId, newItem));
 
-    // Expand the parent folder after adding, use setTimeout for state updates
-    if (parentId) {
+    // --- Auto-Expand Logic ---
+    if (parentId && settings.autoExpandNewFolders) {
+       // Use setTimeout to ensure state updates propagate before expansion check
        setTimeout(() => expandFolderPath(parentId), 0);
     }
+    // --- End Auto-Expand ---
+
     return { success: true }; // Return success
-  }, [setTreeAndPersist, expandFolderPath, tree]); // Depends on tree for validation
+  }, [setTreeAndPersist, expandFolderPath, tree, settings.autoExpandNewFolders]); // Depends on tree and the setting
 
 
   /**
@@ -290,11 +285,9 @@ export const useTree = () => {
       // --- Sibling Name Validation for RENAME ---
       // Use findParentAndSiblings to get the context of the item being renamed
       const { parent, siblings } = findParentAndSiblings(tree, itemId); // Use current tree state
-      console.log(`renameItem Hook: Item ID ${itemId}. Found parent: ${parent?.label ?? 'ROOT'}. Found siblings:`, siblings?.map(s=>s?.label ?? 'N/A'));
 
       // Check for conflict, EXCLUDING the item itself (itemId) from the check
       const conflictExists = hasSiblingWithName(siblings, trimmedLabel, itemId);
-      console.log(`renameItem Hook: Checking name "${trimmedLabel}" for item ${itemId}. Conflict exists? ${conflictExists}`);
 
       if (conflictExists) {
           const errorMsg = `An item named "${trimmedLabel}" already exists at this level.`;
@@ -303,7 +296,6 @@ export const useTree = () => {
       }
       // --- End Validation ---
 
-      console.log(`renameItem Hook: Validation passed for "${trimmedLabel}". Proceeding to rename.`);
       // Use functional update with the recursive utility to rename
       setTreeAndPersist((currentTree) => renameItemRecursive(currentTree, itemId, trimmedLabel));
       return { success: true }; // Return success
@@ -316,12 +308,10 @@ export const useTree = () => {
   const deleteItem = useCallback((idToDelete) => {
     if (!idToDelete) return; // Ignore if no ID
 
-    console.log(`deleteItem Hook: Deleting item ${idToDelete}`);
     setTreeAndPersist((currentTree) => deleteItemRecursive(currentTree, idToDelete));
 
     // Reset selection if the deleted item was selected
     if (selectedItemId === idToDelete) {
-      console.log(`deleteItem Hook: Clearing selection as deleted item was selected.`);
       setSelectedItemId(null);
     }
     // Remove from expanded folders state if it was a deleted folder
@@ -330,7 +320,6 @@ export const useTree = () => {
       if (prev.hasOwnProperty(idToDelete)) {
         const next = { ...prev };
         delete next[idToDelete];
-        console.log(`deleteItem Hook: Removing ${idToDelete} from expanded state.`);
         return next;
       }
       return prev; // Return previous state if key wasn't present
@@ -358,15 +347,12 @@ export const useTree = () => {
         let baseName = itemToDuplicate.label;
         let duplicateLabel = `${baseName}-dup`;
         let counter = 1;
-        console.log(`duplicateItem Hook: Base name "${baseName}", initial proposed "${duplicateLabel}" for parentId ${parentId}`);
 
         // Check name against the *original* siblings array
         while (hasSiblingWithName(siblings, duplicateLabel, null)) { // excludeId is null
             counter++;
             duplicateLabel = `${baseName}-dup (${counter})`;
-            console.log(`duplicateItem Hook: Conflict found, trying "${duplicateLabel}"`);
         }
-        console.log(`duplicateItem Hook: Final unique name "${duplicateLabel}"`);
 
         // Create the duplicate with new IDs and the unique label
         let duplicate = assignNewIds(itemToDuplicate); // Assign new IDs recursively
@@ -375,12 +361,15 @@ export const useTree = () => {
         // Insert the duplicate using functional update
         setTreeAndPersist((prevTree) => insertItemRecursive(prevTree, parentId, duplicate));
 
-        setContextMenu((m) => ({ ...m, visible: false })); // Close context menu
-        // Optional: Expand parent if duplicating into a folder
-        if(parentId) {
-            setTimeout(() => expandFolderPath(parentId), 0);
+        // --- Auto-Expand Logic for Duplicate ---
+        if (parentId && settings.autoExpandNewFolders) {
+             setTimeout(() => expandFolderPath(parentId), 0);
         }
-  }, [tree, setTreeAndPersist, expandFolderPath]); // Depends on tree
+        // --- End Auto-Expand ---
+
+        setContextMenu((m) => ({ ...m, visible: false })); // Close context menu
+
+  }, [tree, setTreeAndPersist, expandFolderPath, settings.autoExpandNewFolders]); // Depends on tree and setting
 
 
   // --- Drag and Drop ---
@@ -393,13 +382,11 @@ export const useTree = () => {
       return; // Ignore invalid drops
     }
 
-    console.log(`handleDrop Hook: Attempting drop of ${currentDraggedId} onto ${targetId}`);
     // Use the utility function which includes validation (ancestor, name conflict)
     // Pass the current tree state for validation
     const nextTree = treeHandleDropUtil(tree, targetId, currentDraggedId);
 
     if (nextTree) {
-      console.log(`handleDrop Hook: Drop successful. Updating tree.`);
       setTreeAndPersist(nextTree); // Persist the new tree structure
       toggleFolderExpand(targetId, true); // Expand the target folder
     } else {
@@ -407,7 +394,6 @@ export const useTree = () => {
       // User feedback (alert) is handled within treeHandleDropUtil
     }
   }, [draggedId, tree, setTreeAndPersist, toggleFolderExpand]);
-
 
   // --- Clipboard Operations ---
   // Copies item data to the clipboard state
@@ -422,7 +408,6 @@ export const useTree = () => {
         setClipboardItem(deepCopy);
         setClipboardMode("copy");
         setCutItemId(null); // Clear any previous cut state
-        console.log("Copied item:", itemToCopy.label);
       } catch (e) {
         console.error("Failed to copy item:", e);
         setClipboardItem(null); setClipboardMode(null); setCutItemId(null);
@@ -446,7 +431,6 @@ export const useTree = () => {
         setClipboardItem(deepCopy);
         setClipboardMode("cut");
         setCutItemId(itemId); // Store the ID of the item being cut
-        console.log("Cut item:", itemToCut.label, "ID:", itemId);
       } catch (e) {
         console.error("Failed to cut item:", e);
         setClipboardItem(null); setClipboardMode(null); setCutItemId(null);
@@ -460,10 +444,10 @@ export const useTree = () => {
 
   /**
    * Pastes the clipboard item. Handles validation (ancestor check, name conflicts).
+   * Conditionally expands target based on settings.
    * Returns { success: boolean, error?: string }
    */
   const pasteItem = useCallback((targetFolderId) => {
-    console.log(`pasteItem Hook: Attempting to paste "${clipboardItem?.label}" into targetFolderId: ${targetFolderId}`);
     if (!clipboardItem) {
       console.warn("pasteItem Hook: Clipboard is empty.");
       return { success: false, error: "Clipboard is empty." };
@@ -487,7 +471,6 @@ export const useTree = () => {
     if (targetFolderId === null) {
       // Pasting to root: siblings are items in the root
       targetSiblings = tree || [];
-      console.log(`pasteItem Hook: Target is ROOT. Found siblings:`, targetSiblings.map(s=>s?.label ?? 'N/A'));
     } else {
       // Pasting to a folder: siblings are the children of that folder
       targetParent = findItemById(tree, targetFolderId);
@@ -496,7 +479,6 @@ export const useTree = () => {
         return { success: false, error: "Target folder not found or invalid." };
       }
       targetSiblings = targetParent.children || [];
-      console.log(`pasteItem Hook: Target folder ${targetParent.label} (${targetFolderId}). Found siblings:`, targetSiblings.map(s=>s?.label ?? 'N/A'));
     }
     // --- End Corrected Sibling Finding Logic ---
 
@@ -507,16 +489,11 @@ export const useTree = () => {
     const { parent: sourceParent } = findParentAndSiblings(tree, currentCutItemIdValue); // Use cutItemIdValue if available
     // Check if targetFolderId matches sourceParent's id (null for root handled) & it's a 'cut'
     const isMovingInSameFolder = currentClipboardMode === 'cut' && sourceParent?.id === targetFolderId;
-    console.log(`pasteItem Hook: Is moving in same folder during cut? ${isMovingInSameFolder}`);
-
     let conflictExists = false;
     // Only check name conflicts if NOT moving within the same folder during a cut
     if (!isMovingInSameFolder) {
         // Check clipboard item's name against the CORRECT target siblings
         conflictExists = hasSiblingWithName(targetSiblings, clipboardItem.label, null); // excludeId is null
-        console.log(`pasteItem Hook: Checking name "${clipboardItem.label}" in target siblings. Conflict exists? ${conflictExists}`);
-    } else {
-         console.log(`pasteItem Hook: Skipping name check because item is being cut/pasted within the same folder.`);
     }
 
     if (conflictExists) {
@@ -526,10 +503,8 @@ export const useTree = () => {
     }
     // --- End Validation ---
 
-    console.log(`pasteItem Hook: Validation passed for "${clipboardItem.label}". Proceeding to paste.`);
     // Always assign new IDs when pasting, even for cut, to ensure tree integrity
     const itemToPasteWithNewIds = assignNewIds(clipboardItem);
-
     // Perform insertion and potential deletion (for cut) using functional update
     setTreeAndPersist((currentTree) => {
       // 1. Insert the item (with new IDs)
@@ -540,7 +515,6 @@ export const useTree = () => {
           // Verify insertion seems to have worked before deleting original
           const pastedItemExists = findItemById(newTree, itemToPasteWithNewIds.id);
           if (pastedItemExists) {
-            console.log(`Cut/Paste Hook: Deleting original item with ID: ${currentCutItemIdValue}`);
             newTree = deleteItemRecursive(newTree, currentCutItemIdValue);
           } else {
              // Log error and revert if insertion failed during a cut
@@ -553,21 +527,21 @@ export const useTree = () => {
 
     // Clear cut state ONLY if the operation was a 'cut'
     if (currentClipboardMode === "cut") {
-        console.log("pasteItem Hook: Clearing cut state.");
         setCutItemId(null);
         // Optionally clear clipboard fully after a successful cut/paste
         // setClipboardItem(null);
         // setClipboardMode(null);
     }
 
-    // Expand the target folder after pasting
-    if (targetFolderId) {
+    // --- Auto-Expand Logic for Paste ---
+    if (targetFolderId && settings.autoExpandNewFolders) {
         setTimeout(() => expandFolderPath(targetFolderId), 0);
     }
+    // --- End Auto-Expand ---
 
     setContextMenu((m) => ({ ...m, visible: false })); // Close context menu
     return { success: true }; // Indicate success
-  }, [clipboardItem, clipboardMode, cutItemId, tree, setTreeAndPersist, expandFolderPath]); // Include dependencies
+  }, [clipboardItem, clipboardMode, cutItemId, tree, setTreeAndPersist, expandFolderPath, settings.autoExpandNewFolders]); // Include dependencies
 
 
   // --- Export and Import Functions ---
@@ -611,7 +585,6 @@ export const useTree = () => {
                 const FONT_FILENAME = 'NotoSansHebrew-Regular.ttf';
                 const FONT_STYLE_NORMAL = 'normal';
                 const FONT_STYLE_BOLD = 'bold';
-
                 if (notoSansHebrewBase64) {
                     try {
                         // Add font file to jsPDF's virtual file system if not already present
@@ -642,10 +615,8 @@ export const useTree = () => {
                     const currentLineHeight = isLabel ? LINE_SPACING_LABEL : LINE_SPACING_CONTENT;
                     doc.setFont(FONT_NAME, fontStyle); // Set font style and size for this text block
                     doc.setFontSize(fontSize);
-
                     // Calculate available width based on current indentation
                     const availableWidth = maxLineWidth - (x - PAGE_MARGIN);
-
                     // Prepare text for rendering, applying BiDi reordering if needed
                     let processedTextForRendering = text;
                     const needsBiDi = /[\u0590-\u05FF]/.test(text); // Simple check for Hebrew characters
@@ -660,16 +631,16 @@ export const useTree = () => {
                     }
 
                     // Split text into lines that fit within the available width
-                    const lines = doc.splitTextToSize(processedTextForRendering, availableWidth);
+                     const lines = doc.splitTextToSize(processedTextForRendering, availableWidth);
 
                     // Draw each line
                     lines.forEach((line) => {
                         // Check if adding this line exceeds page height
                         if (cursorY + currentLineHeight > pageHeight - PAGE_MARGIN) {
-                            doc.addPage(); // Add a new page
+                             doc.addPage(); // Add a new page
                             cursorY = PAGE_MARGIN; // Reset cursor to top margin
                             // Re-apply font settings on new page
-                            doc.setFont(FONT_NAME, fontStyle);
+                             doc.setFont(FONT_NAME, fontStyle);
                             doc.setFontSize(fontSize);
                         }
                         // Handle RTL alignment for Hebrew text
@@ -696,7 +667,6 @@ export const useTree = () => {
 
                     // Add the item label (bold)
                     addText(labelText, currentIndent, cursorY, { fontSize: FONT_SIZE_LABEL, fontStyle: FONT_STYLE_BOLD, isLabel: true });
-
                     // Add item content if it exists (for notes and tasks)
                     if (item.content && (item.type === 'note' || item.type === 'task')) {
                         const plainTextContent = htmlToPlainTextWithNewlines(item.content);
@@ -712,23 +682,21 @@ export const useTree = () => {
                         sortItems(item.children).forEach((child) => buildPdfContent(child, indentLevel + 1)); // Process sorted children
                     }
                 };
-
                 // Start building the PDF from the determined dataToExport
                 doc.setFont(FONT_NAME, FONT_STYLE_NORMAL); // Ensure default font is set initially
                 doc.setFontSize(FONT_SIZE_CONTENT);
-
                 if (target === "selected" && dataToExport) {
                     buildPdfContent(dataToExport, 0); // Build from the single selected item
                 } else if (Array.isArray(dataToExport)) {
                     // Build from the root array, adding space between root items
                     sortItems(dataToExport).forEach((item, index) => {
-                        buildPdfContent(item, 0); // Build each root item
+                         buildPdfContent(item, 0); // Build each root item
                         // Add extra space between root items, checking for page breaks
                         if (index < dataToExport.length - 1) {
                              cursorY += LINE_SPACING_LABEL; // Add space after a root item
                             if (cursorY > pageHeight - PAGE_MARGIN - (LINE_SPACING_LABEL * 2)) { // Check if space pushes to next page
                                 doc.addPage(); cursorY = PAGE_MARGIN; // Add page if needed
-                            }
+                             }
                         }
                     });
                 }
@@ -749,7 +717,7 @@ export const useTree = () => {
         if (!file || file.type !== 'application/json') {
             resolve({ success: false, error: "Import failed: Please select a valid JSON file (.json)." });
             return;
-        }
+         }
 
         const reader = new FileReader();
 
@@ -782,12 +750,10 @@ export const useTree = () => {
                 // --- Perform Import based on Target Option ---
                 if (importTargetOption === "tree") {
                     // Option 1: Replace the entire tree
-                    console.log("handleImport Hook: Replacing entire tree.");
                     // Assign new IDs to avoid potential collisions if importing modified old data
                     resolve(replaceTree(itemsToImport.map(item => assignNewIds(item))));
                 } else {
                     // Option 2: Import under the currently selected item
-                    console.log(`handleImport Hook: Importing under selected item: ${selectedItemId}`);
                     const currentSelectedItem = findItemById(tree, selectedItemId); // Use current tree state
 
                     // Validate selected item
@@ -796,7 +762,6 @@ export const useTree = () => {
 
                     // --- Sibling Name Validation for Import ---
                     const targetSiblings = currentSelectedItem.children || []; // Get children of the target folder
-                    console.log(`handleImport Hook: Target folder "${currentSelectedItem.label}". Existing children:`, targetSiblings.map(s=>s?.label));
                     for (const item of itemsToImport) {
                         if (hasSiblingWithName(targetSiblings, item.label, null)) { // Check against existing children
                             const errorMsg = `Import failed: An item named "${item.label}" already exists in the target folder "${currentSelectedItem.label}".`;
@@ -805,24 +770,25 @@ export const useTree = () => {
                             return; // Abort on the first conflict
                         }
                     }
-                    console.log(`handleImport Hook: Name validation passed for all items.`);
                     // --- End Validation ---
 
                     // Assign new IDs to all imported items and their descendants
                     const itemsWithNewIds = itemsToImport.map(item => assignNewIds(item));
-
                     // Insert items into the target folder using functional update
                     setTreeAndPersist((prevTree) => {
                         let currentSubTree = prevTree;
                         itemsWithNewIds.forEach(item => {
-                            console.log(`handleImport Hook: Inserting item "${item.label}" into ${selectedItemId}`);
                             currentSubTree = insertItemRecursive(currentSubTree, selectedItemId, item);
                         });
                         return currentSubTree; // Return the updated tree
                     });
 
-                    // Expand the target folder after import
-                    setTimeout(() => expandFolderPath(selectedItemId), 0);
+                    // --- Auto-Expand Logic for Import ---
+                    if (selectedItemId && settings.autoExpandNewFolders) {
+                         setTimeout(() => expandFolderPath(selectedItemId), 0);
+                    }
+                    // --- End Auto-Expand ---
+
                     resolve({ success: true }); // Indicate successful import under item
                 }
             } catch (error) { // Catch errors from validation or processing
@@ -830,17 +796,15 @@ export const useTree = () => {
                 resolve({ success: false, error: `Failed to process import data: ${error.message}` });
             }
         };
-
         // Handle file reading errors
         reader.onerror = (error) => {
             console.error("File reading error:", error);
             resolve({ success: false, error: "Failed to read the selected file." });
         };
-
         // Read the file content as text
         reader.readAsText(file);
     });
-  }, [tree, selectedItemId, setTreeAndPersist, replaceTree, expandFolderPath]); // Include dependencies
+  }, [tree, selectedItemId, setTreeAndPersist, replaceTree, expandFolderPath, settings.autoExpandNewFolders]); // Include dependencies
 
 
   // --- Return Hook State and Methods ---
@@ -861,15 +825,15 @@ export const useTree = () => {
     toggleFolderExpand,
     updateNoteContent,
     updateTask,
-    addItem,        // Includes validation
+    addItem,        // Includes validation and auto-expand
     renameItem,     // Includes validation
     deleteItem,
-    duplicateItem,  // Includes validation
+    duplicateItem,  // Includes validation and auto-expand
     handleDrop,     // Includes validation
     copyItem,
     cutItem,
-    pasteItem,      // Includes validation
+    pasteItem,      // Includes validation and auto-expand
     handleExport,
-    handleImport,   // Includes validation
+    handleImport,   // Includes validation and auto-expand
   };
 }; // End of useTree hook
