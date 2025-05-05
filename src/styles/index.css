@@ -1,48 +1,89 @@
+/* src/styles/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Add these styles for code formatting */
+/* Add these styles for the settings dialog scrollbar */
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    /* Tailwind zinc-400 */
+    background-color: #a1a1aa;
+    border-radius: 20px;
+    /* Creates padding around thumb */
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    /* Tailwind zinc-600 */
+    background-color: #52525b;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+     /* Tailwind zinc-500 */
+    background-color: #71717a;
+  }
+   .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+     /* Tailwind zinc-500 */
+     background-color: #71717a;
+   }
+
+   /* Firefox scrollbar styling (optional but recommended) */
+   .custom-scrollbar {
+     scrollbar-width: thin;
+     /* Tailwind zinc-400 / zinc-600 */
+     scrollbar-color: #a1a1aa transparent;
+   }
+   .dark .custom-scrollbar {
+     scrollbar-color: #52525b transparent;
+   }
+}
+
+/* Styles for code formatting within the editor */
 .editor-pane code:not(pre > code) { /* Style for inline code */
-  @apply bg-zinc-200 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-sm text-red-600 dark:text-red-400; /* Adjust colors as needed */
+  @apply bg-zinc-200 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-sm text-red-600 dark:text-red-400; /* */ /* */
 }
 
 .editor-pane pre { /* Style for code blocks */
-  @apply bg-zinc-100 dark:bg-zinc-900 p-3 my-2 rounded overflow-auto font-mono text-sm block;
-  white-space: pre; /* Important for preserving whitespace */
+  @apply bg-zinc-100 dark:bg-zinc-900 p-3 my-2 rounded overflow-auto font-mono text-sm block; /* */ /* */
+  white-space: pre; /* Important for preserving whitespace */ /* */ /* */
 }
 
 .editor-pane pre code { /* Style for code specifically within a pre block */
-   @apply bg-transparent p-0 font-mono text-sm text-inherit dark:text-inherit; /* Reset inline styles */
-   white-space: pre; /* Inherit whitespace preservation */
+   @apply bg-transparent p-0 font-mono text-sm text-inherit dark:text-inherit; /* */ /* */
+   white-space: pre; /* Inherit whitespace preservation */ /* */ /* */
 }
 
 /* Style for shell/terminal commands (using a class) */
 .editor-pane .shell-command {
-    @apply bg-black dark:bg-black text-green-400 dark:text-green-300 p-3 my-2 rounded overflow-auto font-mono text-sm block;
-    white-space: pre;
+    @apply bg-black dark:bg-black text-green-400 dark:text-green-300 p-3 my-2 rounded overflow-auto font-mono text-sm block; /* */ /* */
+    white-space: pre; /* */ /* */
 }
 .editor-pane .shell-command::before {
-    content: "$ "; /* Optional: Add a shell prompt indicator */
-    color: #9ca3af; /* gray-400 */
+    content: "$ "; /* */ /* */ /* Optional: Add a shell prompt indicator */ /* */ /* */
+    color: #9ca3af; /* gray-400 */ /* */ /* */ /* */ /* */
 }
 
 /* Optional: Ensure the main editor preserves general whitespace */
 .editor-pane {
-  white-space: pre-wrap; /* Keep this for general text */
+  white-space: pre-wrap; /* */ /* */ /* Keep this for general text */ /* */ /* */
 }
 
 /* Ensure prose styles don't override code block styles too much */
 .dark .prose-invert pre {
-    @apply bg-zinc-900; /* Adjust dark mode prose background if needed */
+    @apply bg-zinc-900; /* */ /* */ /* Adjust dark mode prose background if needed */ /* */ /* */
 }
 .prose pre {
-    @apply bg-zinc-100; /* Adjust light mode prose background if needed */
+    @apply bg-zinc-100; /* */ /* */ /* Adjust light mode prose background if needed */ /* */ /* */
 }
 .prose code:not(pre > code) {
-     @apply bg-zinc-200 dark:bg-zinc-700 text-red-600 dark:text-red-400 px-1 py-0.5; /* Ensure prose doesn't override inline code bg/text */
-     font-weight: normal; /* Prevent prose from making inline code bold */
+     @apply bg-zinc-200 dark:bg-zinc-700 text-red-600 dark:text-red-400 px-1 py-0.5; /* */ /* */ /* Ensure prose doesn't override inline code bg/text */ /* */ /* */
+     font-weight: normal; /* */ /* */ /* Prevent prose from making inline code bold */ /* */ /* */
 }
 .prose code::before, .prose code::after {
-    content: none; /* Remove prose's default backticks around inline code */
+    content: none; /* */ /* */ /* Remove prose's default backticks around inline code */ /* */ /* */
 }
