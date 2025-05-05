@@ -32,7 +32,7 @@ describe('<AboutDialog />', () => {
     expect(screen.getByText(/Notes & Tasks App © 2025/)).toBeInTheDocument();
 
     // Check version (use appVersion from component)
-    expect(screen.getByText(/Version: 1.3/)).toBeInTheDocument();
+    expect(screen.getByText(/Version: 1.7/)).toBeInTheDocument();
 
     // Check close button
     expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument();
