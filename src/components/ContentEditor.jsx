@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from "react";
 import EditorPane from "./EditorPane";
 
-const ContentEditor = ({ item, onSaveContent }) => {
+// Added defaultFontFamily and defaultFontSize props
+const ContentEditor = ({ item, onSaveContent, defaultFontFamily, defaultFontSize }) => {
   // Defensive check
   if (!item) {
     console.error("ContentEditor RENDER ERROR: Received null or undefined 'item' prop.");
@@ -16,10 +17,6 @@ const ContentEditor = ({ item, onSaveContent }) => {
       return item.content ?? "";
   });
 
-  // *** REMOVED the useEffect that synced item.content to body ***
-  // The key={selectedItemId} on ContentEditor in App.jsx should handle resetting
-  // the component state when the selected item changes.
-
   // Handler for changes within EditorPane
   const handleChange = (html) => {
     // console.log(`ContentEditor handleChange (ID: ${item.id}): Editor content changed.`);
@@ -30,10 +27,16 @@ const ContentEditor = ({ item, onSaveContent }) => {
   // Render the editor UI
   return (
     <div className="p-4 flex flex-col flex-grow">
-      <h2 className="text-xl font-semibold">{item.label}</h2>
+      {/* Added margin-bottom to title */}
+      <h2 className="text-xl font-semibold mb-3 break-words">{item.label}</h2>
       {/* console.log(`ContentEditor RENDER: Passing body state to EditorPane (ID: ${item.id}):`, body) */}
-      {/* Pass the internal body state to the EditorPane */}
-      <EditorPane html={body} onChange={handleChange} />
+      {/* Pass the internal body state AND default font settings to the EditorPane */}
+      <EditorPane
+        html={body}
+        onChange={handleChange}
+        defaultFontFamily={defaultFontFamily} // Pass down
+        defaultFontSize={defaultFontSize}     // Pass down
+      />
     </div>
   );
 };
