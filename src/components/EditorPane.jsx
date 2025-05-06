@@ -1,6 +1,7 @@
 // src/components/EditorPane.jsx
 // Based on the uploaded EditorPane.jsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useTree } from "../hooks/useTree";
 import {
   Undo,
   Redo,
@@ -72,9 +73,34 @@ const isValidNode = (node) => {
 };
 
 // *** MODIFIED: Added defaultFontFamily, defaultFontSize props ***
-const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize }) => {
+const EditorPane = ({
+  html = "",
+  onChange,
+  defaultFontFamily,
+  defaultFontSize,
+}) => {
   // *** MODIFIED: Use prop default for initial state ***
-  const [fontFamily, setFontFamily] = useState(defaultFontFamily || FONT_FAMILIES[0]);
+  const [fontFamily, setFontFamily] = useState(
+    defaultFontFamily || FONT_FAMILIES[0]
+  );
+  // ─── Sync editor content to tree for both notes & tasks ───
+  const { updateNoteContent, updateTask, selectedItemId, selectedItem } =
+    useTree();
+  const handleContentChange = useCallback(
+    (newHtml) => {
+      // First update the EditorPane's own state
+      onChange(newHtml);
+      // Then persist into the tree:
+      if (selectedItem && selectedItemId) {
+        if (selectedItem.type === "task") {
+          updateTask(selectedItemId, newHtml);
+        } else {
+          updateNoteContent(selectedItemId, newHtml);
+        }
+      }
+    },
+    [onChange, updateNoteContent, updateTask, selectedItemId, selectedItem]
+  );
   const [fontSize, setFontSize] = useState(defaultFontSize || FONT_SIZES[2]); // Default to size '3' (index 2)
 
   const [isRTL, setIsRTL] = useState(false);
@@ -166,16 +192,18 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
       if (editorRef.current) {
         // Update state after paste processing
         requestAnimationFrame(() => {
-          if (editorRef.current) onChange(editorRef.current.innerHTML);
+          if (editorRef.current)
+            handleContentChange(editorRef.current.innerHTML);
         });
       }
     };
 
     editor.addEventListener("paste", handlePasteEvent);
     return () => {
-        if(editorRef.current) { // Check ref on cleanup
-            editorRef.current.removeEventListener("paste", handlePasteEvent);
-        }
+      if (editorRef.current) {
+        // Check ref on cleanup
+        editorRef.current.removeEventListener("paste", handlePasteEvent);
+      }
     };
   }, [onChange]);
 
@@ -234,22 +262,24 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
   const applyCommand = useCallback(
     (cmd, value = null) => {
       editorRef.current?.focus();
-       try {
+      try {
         const success = document.execCommand(cmd, false, value);
         if (!success) {
-            console.warn(`execCommand(${cmd}) was not successful. It might be unsupported or blocked.`);
+          console.warn(
+            `execCommand(${cmd}) was not successful. It might be unsupported or blocked.`
+          );
         }
       } catch (error) {
-           console.error(`Error executing command ${cmd}:`, error);
+        console.error(`Error executing command ${cmd}:`, error);
       }
       editorRef.current?.focus();
       // Update state unless it's paste (which updates in its own handler or fallback)
-      if(cmd !== 'paste') {
-          requestAnimationFrame(() => {
-              if (editorRef.current) {
-              onChange(editorRef.current.innerHTML);
-            }
-          });
+      if (cmd !== "paste") {
+        requestAnimationFrame(() => {
+          if (editorRef.current) {
+            handleContentChange(editorRef.current.innerHTML);
+          }
+        });
       }
     },
     [onChange]
@@ -398,7 +428,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
                   }
                 }
               }
-              onChange(finalHtml);
+              handleContentChange(finalHtml);
             });
           }
         }, 700)
@@ -406,7 +436,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
       // --- End: Auto-linking logic ---
 
       // Call onChange immediately for typing responsiveness
-      onChange(newHtml);
+      handleContentChange(newHtml);
     },
     [onChange, typingTimeout]
   );
@@ -415,7 +445,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
   const handlePasteFromClipboard = useCallback(async () => {
     if (!navigator.clipboard?.readText) {
       console.warn("Clipboard API (readText) not supported by this browser.");
-      applyCommand('paste'); // Try original execCommand as fallback
+      applyCommand("paste"); // Try original execCommand as fallback
       return;
     }
     editorRef.current?.focus();
@@ -424,37 +454,37 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
       if (text) {
         // Escape basic HTML characters from plain text before inserting as HTML
         const escapedText = text
-              .replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;")
-              .replace(/"/g, "&quot;")
-              .replace(/'/g, "&#039;");
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
         // Replace newlines with <br> tags for HTML insertion
-        const htmlToInsert = escapedText.replace(/\r?\n/g, '<br>');
-        document.execCommand('insertHTML', false, htmlToInsert);
+        const htmlToInsert = escapedText.replace(/\r?\n/g, "<br>");
+        document.execCommand("insertHTML", false, htmlToInsert);
       }
       // Trigger update after successful paste
       requestAnimationFrame(() => {
         if (editorRef.current) {
-          onChange(editorRef.current.innerHTML);
+          handleContentChange(editorRef.current.innerHTML);
         }
       });
     } catch (err) {
-      console.error('Failed to read clipboard contents or insert HTML: ', err);
+      console.error("Failed to read clipboard contents or insert HTML: ", err);
       // If Clipboard API failed, maybe try execCommand as last resort
       try {
-           const success = document.execCommand('paste', false, null);
-           if (success && editorRef.current) {
-                requestAnimationFrame(() => {
-                  if (editorRef.current) {
-                     onChange(editorRef.current.innerHTML);
-                  }
-                });
-           } else if (!success) {
-                console.warn("Fallback execCommand('paste') also failed.");
-           }
+        const success = document.execCommand("paste", false, null);
+        if (success && editorRef.current) {
+          requestAnimationFrame(() => {
+            if (editorRef.current) {
+              handleContentChange(editorRef.current.innerHTML);
+            }
+          });
+        } else if (!success) {
+          console.warn("Fallback execCommand('paste') also failed.");
+        }
       } catch (execErr) {
-            console.error("Error during fallback execCommand('paste'):", execErr);
+        console.error("Error during fallback execCommand('paste'):", execErr);
       }
     }
     editorRef.current?.focus();
@@ -472,7 +502,17 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
       while (
         (startBlock && startBlock.nodeType !== Node.ELEMENT_NODE) ||
         ![
-          "P", "DIV", "LI", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE", "PRE",
+          "P",
+          "DIV",
+          "LI",
+          "H1",
+          "H2",
+          "H3",
+          "H4",
+          "H5",
+          "H6",
+          "BLOCKQUOTE",
+          "PRE",
         ].includes(startBlock.nodeName)
       ) {
         if (startBlock === editorRef.current) break;
@@ -488,7 +528,17 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
         while (
           (startBlock && startBlock.nodeType !== Node.ELEMENT_NODE) ||
           ![
-            "P", "DIV", "LI", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE", "PRE",
+            "P",
+            "DIV",
+            "LI",
+            "H1",
+            "H2",
+            "H3",
+            "H4",
+            "H5",
+            "H6",
+            "BLOCKQUOTE",
+            "PRE",
           ].includes(startBlock.nodeName)
         ) {
           if (startBlock === editorRef.current) break;
@@ -527,18 +577,21 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
           }
           if (tag === "pre") {
             const codeElement = document.createElement("code");
-            codeElement.innerHTML = newBlock.innerHTML.replace(/<br\s*\/?>/gi, "\n");
+            codeElement.innerHTML = newBlock.innerHTML.replace(
+              /<br\s*\/?>/gi,
+              "\n"
+            );
             newBlock.innerHTML = "";
             newBlock.appendChild(codeElement);
           }
         } else {
-           console.warn("Could not reliably find the newly formatted block.");
+          console.warn("Could not reliably find the newly formatted block.");
         }
       }
 
       requestAnimationFrame(() => {
         if (editorRef.current) {
-          onChange(editorRef.current.innerHTML);
+          handleContentChange(editorRef.current.innerHTML);
         }
       });
     },
@@ -595,7 +648,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
 
       requestAnimationFrame(() => {
         if (editorRef.current) {
-          onChange(editorRef.current.innerHTML);
+          handleContentChange(editorRef.current.innerHTML);
         }
       });
     },
@@ -615,15 +668,15 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
     const fullUrl = ensureProtocol(url);
     if (!fullUrl.startsWith("http") && !fullUrl.startsWith("ftp")) {
       alert("Invalid URL provided.");
-       return;
+      return;
     }
     const linkHtml = createLinkHtml(fullUrl, selectedText || fullUrl);
     // Use execCommand insertHTML for link creation
-    document.execCommand('insertHTML', false, linkHtml);
+    document.execCommand("insertHTML", false, linkHtml);
     requestAnimationFrame(() => {
-        if (editorRef.current) {
-          onChange(editorRef.current.innerHTML);
-        }
+      if (editorRef.current) {
+        handleContentChange(editorRef.current.innerHTML);
+      }
     });
   }, [onChange]); // Depends on onChange for update
 
@@ -653,7 +706,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
           title="Undo"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
-           <Undo className="w-5 h-5" />
+          <Undo className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("redo")}
@@ -664,7 +717,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
         </button>
 
         {/* --- Cut/Copy/Paste Buttons --- */}
-         <button
+        <button
           onClick={() => applyCommand("cut")}
           title="Cut"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
@@ -678,7 +731,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
         >
           <Copy className="w-5 h-5" />
         </button>
-         <button
+        <button
           onClick={handlePasteFromClipboard} // Use the specific handler
           title="Paste"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
@@ -692,7 +745,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
           title="Bold"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
-           <BoldIcon className="w-5 h-5" />
+          <BoldIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("italic")}
@@ -702,14 +755,14 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
           <ItalicIcon className="w-5 h-5" />
         </button>
         <button
-           onClick={() => applyCommand("underline")}
+          onClick={() => applyCommand("underline")}
           title="Underline"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
           <UnderlineIcon className="w-5 h-5" />
         </button>
 
-         {/* --- Code Formatting --- */}
+        {/* --- Code Formatting --- */}
         <button
           onClick={() => applyInlineStyle("code")}
           title="Inline Code"
@@ -717,12 +770,12 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
         >
           <CodeIcon className="w-5 h-5" />
         </button>
-         <button
+        <button
           onClick={() => applyBlockStyle("pre")}
           title="Code Block"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
-           <CodeBlockIcon className="w-5 h-5" />
+          <CodeBlockIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyBlockStyle("div", "shell-command")}
@@ -742,7 +795,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
         </button>
         <button
           onClick={() => applyCommand("justifyCenter")}
-           title="Align Center"
+          title="Align Center"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
           <AlignCenter className="w-5 h-5" />
@@ -762,7 +815,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
           <TextSelect className="w-5 h-5" />
         </button>
 
-         {/* --- List Support --- */}
+        {/* --- List Support --- */}
         <button
           onClick={() => applyCommand("insertUnorderedList")}
           title="Bulleted List"
@@ -771,7 +824,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
           <UnorderedListIcon className="w-5 h-5" />
         </button>
         <button
-           onClick={() => applyCommand("insertOrderedList")}
+          onClick={() => applyCommand("insertOrderedList")}
           title="Numbered List"
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
@@ -782,7 +835,7 @@ const EditorPane = ({ html = "", onChange, defaultFontFamily, defaultFontSize })
         <button
           onClick={handleCreateLink}
           title="Create Link"
-           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
           <LinkIcon className="w-5 h-5" />
         </button>

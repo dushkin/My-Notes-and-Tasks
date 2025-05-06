@@ -5,7 +5,8 @@
  * Returns a new sorted array (the original array is not mutated).
  */
 export const sortItems = (items) => {
-  if (!Array.isArray(items)) return []; // Return empty array if input is not an array
+  if (!Array.isArray(items)) return [];
+  // Return empty array if input is not an array
   // Create a shallow copy before sorting to avoid mutating the original array
   return [...items].sort((a, b) => {
     // Basic type checks to prevent errors if items lack 'type' or 'label'
@@ -58,11 +59,9 @@ export const deleteItemRecursive = (items, idToDelete) => {
 export const findItemById = (nodes, id) => {
   // Basic validation
   if (!Array.isArray(nodes) || !id) return null;
-
   for (const item of nodes) {
     // Check if the current item is the one we're looking for
     if (item.id === id) return item;
-
     // If the item is a folder and has children, search recursively within its children
     if (item.type === "folder" && Array.isArray(item.children)) {
       const found = findItemById(item.children, id);
@@ -73,8 +72,6 @@ export const findItemById = (nodes, id) => {
   // Item not found in the current level or its descendants
   return null;
 };
-
-
 /**
  * Finds the parent object and the siblings array of an item identified by itemId.
  * Returns an object { parent: object | null, siblings: array }.
@@ -97,7 +94,6 @@ export const findParentAndSiblings = (tree, itemId) => {
   const findRecursive = (nodes, idToFind, currentParent = null) => {
     // Ensure nodes is an array before iterating
     if (!Array.isArray(nodes)) return null;
-
     for (let i = 0; i < nodes.length; i++) {
       const item = nodes[i];
       // Check if the current item is the one we are looking for
@@ -119,7 +115,6 @@ export const findParentAndSiblings = (tree, itemId) => {
 
   // Start the recursive search from the root of the tree
   const result = findRecursive(tree, itemId, null);
-
   if (result) {
     // Item was found, return the result { parent, siblings }
     return result;
@@ -130,7 +125,6 @@ export const findParentAndSiblings = (tree, itemId) => {
     return { parent: null, siblings: [] };
   }
 };
-
 /**
  * Recursively renames an item in the tree. (Internal logic).
  * Returns a new tree array with the item renamed.
@@ -163,7 +157,6 @@ export const renameItemRecursive = (items, idToRename, newLabel) => {
  */
 export const insertItemRecursive = (nodes, targetFolderId, itemToInsert) => {
   const baseNodes = Array.isArray(nodes) ? nodes : [];
-
   // Case 1: Add to root
   if (targetFolderId === null) {
     // Add the new item and sort the root level
@@ -199,17 +192,15 @@ export const insertItemRecursive = (nodes, targetFolderId, itemToInsert) => {
 export const hasSiblingWithName = (siblings, nameToCheck, excludeId = null) => {
   // Basic validation: ensure siblings is an array and nameToCheck is provided
   if (!Array.isArray(siblings) || !nameToCheck) return false;
-
   // Normalize the name to check (trim whitespace, convert to lowercase)
   const normalizedName = nameToCheck.trim().toLowerCase();
   // If the normalized name is empty, it cannot conflict
   if (!normalizedName) return false;
-
   // Check if 'some' sibling matches the criteria
   return siblings.some(sibling =>
     sibling &&                                  // Ensure sibling exists
     sibling.id !== excludeId &&                 // Don't compare item with itself if excludeId is given
-    sibling.label &&                            // Ensure sibling has a label
+    sibling.label &&                         // Ensure sibling has a label
     sibling.label.trim().toLowerCase() === normalizedName // Perform case-insensitive comparison
   );
 };
@@ -223,12 +214,10 @@ export const isSelfOrDescendant = (nodes, checkItemId, potentialTargetId) => {
   if (!checkItemId || !potentialTargetId) return false;
   // An item is its own ancestor in this context
   if (checkItemId === potentialTargetId) return true;
-
   // Find the item that might be the ancestor
   const item = findItemById(nodes, checkItemId);
   // If the item isn't found, or it's not a folder, it can't be an ancestor
   if (!item || item.type !== "folder" || !Array.isArray(item.children)) return false;
-
   // Recursive helper to check children
   const checkChildren = (children) => {
     if (!Array.isArray(children)) return false;
@@ -247,7 +236,6 @@ export const isSelfOrDescendant = (nodes, checkItemId, potentialTargetId) => {
   // Start the check from the children of the potential ancestor item
   return checkChildren(item.children);
 };
-
 /**
  * Handles the drop operation validation and data preparation for drag-and-drop.
  * Returns a new tree structure if drop is valid, otherwise null.
@@ -263,7 +251,6 @@ export const handleDrop = (currentTree, targetId, draggedId) => {
   // --- Find Items ---
   const targetItem = findItemById(currentTree, targetId);
   const draggedItemData = findItemById(currentTree, draggedId);
-
   // --- Target Validation ---
   if (!targetItem) {
     console.warn(`Drop cancelled: Target item ${targetId} could not be found.`);
@@ -312,22 +299,59 @@ export const handleDrop = (currentTree, targetId, draggedId) => {
 
   // 2. Remove the original dragged item recursively from a copy of the tree
   const treeWithoutDraggedItem = deleteItemRecursive(currentTree, draggedId);
-   // Verify removal happened (optional but good practice)
+  // Verify removal happened (optional but good practice)
    if (JSON.stringify(treeWithoutDraggedItem) === JSON.stringify(currentTree)) {
-      console.error("Drop failed: Removal of dragged item did not change the tree structure.", { draggedId });
-      // This indicates the draggedId might not have been found, despite earlier checks.
+      console.error("Drop failed: Removal of dragged item did not change the tree structure.", { draggedId }); // This indicates the draggedId might not have been found, despite earlier checks.
       return null;
-   }
+  }
 
 
   // 3. Insert the copy into the target folder recursively
   const finalTree = insertItemRecursive(treeWithoutDraggedItem, targetId, draggedItemCopy);
-   // Verify insertion happened (optional but good practice)
+  // Verify insertion happened (optional but good practice)
     if (JSON.stringify(finalTree) === JSON.stringify(treeWithoutDraggedItem)) {
-      console.error("Drop failed: Insertion of dragged item copy did not change the tree structure.", { targetId, draggedId });
-      // This indicates the targetId might not have been found during insertion.
+      console.error("Drop failed: Insertion of dragged item copy did not change the tree structure.", { targetId, draggedId }); // This indicates the targetId might not have been found during insertion.
       return null;
     }
 
   return finalTree; // Return the new tree structure
 };
+
+// ********** NEW FUNCTION **********
+/**
+ * Gets the hierarchical path labels for a given item ID.
+ * Returns the path as a string (e.g., "Root / Folder A / Item B").
+ */
+export const getItemPath = (tree, itemId) => {
+  const pathLabels = [];
+  // Recursive function to find the item and build the path upwards
+  const findPathRecursive = (nodes, idToFind, currentPath = []) => {
+    if (!Array.isArray(nodes)) return false; // Base case: invalid node structure
+
+    for (const item of nodes) {
+      // Create the potential path including the current item
+      const newPath = [...currentPath, item.label];
+
+      // Check if the current item is the one we're looking for
+      if (item.id === idToFind) {
+        pathLabels.push(...newPath); // Store the found path
+        return true; // Indicate found
+      }
+
+      // If the current item is a folder and has children, search recursively
+      if (item.type === "folder" && Array.isArray(item.children) && item.children.length > 0) {
+        if (findPathRecursive(item.children, idToFind, newPath)) {
+          return true; // Indicate found in children
+        }
+      }
+    }
+    return false; // Item not found in this branch
+  };
+
+  // Start the search from the root of the tree
+  findPathRecursive(tree, itemId);
+
+  // Join the collected labels into a string path, or return an empty string if not found
+  return pathLabels.join(' / ');
+};
+// ********** END NEW FUNCTION **********
