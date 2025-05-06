@@ -3,6 +3,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AboutDialog from '../../src/components/AboutDialog';
+import packageJson from '../../package.json'
 
 describe('<AboutDialog />', () => {
   const mockOnClose = jest.fn();
@@ -32,7 +33,7 @@ describe('<AboutDialog />', () => {
     expect(screen.getByText(/Notes & Tasks App © 2025/)).toBeInTheDocument();
 
     // Check version (use appVersion from component)
-    expect(screen.getByText(/Version: 1.7/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Version: ${packageJson.version}`))).toBeInTheDocument();
 
     // Check close button
     expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument();

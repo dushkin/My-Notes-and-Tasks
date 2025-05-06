@@ -4,7 +4,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 const SETTINGS_STORAGE_KEY = "appSettings";
 
 // Define default settings
-const defaultSettings = {
+export const defaultSettings = {
   theme: 'system', // 'light', 'dark', 'system'
   defaultSortOrder: 'foldersFirstAlpha', // e.g., 'foldersFirstAlpha', 'alpha', 'typeAlpha'
   autoExpandNewFolders: true,

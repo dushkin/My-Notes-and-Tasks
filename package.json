@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.8.0",
-  "commitMessage": "Add settings facility",
+  "version": "1.9.0",
+  "commitMessage": "Add search capability",
   "private": true,
   "scripts": {
     "dev": "vite",
