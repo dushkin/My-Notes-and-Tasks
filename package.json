@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "2.0.0",
-  "commitMessage": "From dev to prod - adapt to android mobile",
+  "version": "2.1.0",
+  "commitMessage": "From dev to prod - adapt to android mobile - add item side menu.",
   "private": true,
   "scripts": {
     "dev": "vite",

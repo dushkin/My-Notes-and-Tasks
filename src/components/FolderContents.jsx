@@ -1,6 +1,9 @@
 // src/components/FolderContents.jsx
 import React from "react";
 import { sortItems } from "../utils/treeUtils";
+// --- MODIFICATION: Import MoreVertical icon ---
+import { MoreVertical } from "lucide-react";
+// --- END MODIFICATION ---
 
 const FolderContents = ({
   folder,
@@ -15,6 +18,9 @@ const FolderContents = ({
   dragOverItemId,
   onToggleExpand,
   expandedItems,
+  // --- MODIFICATION: Add prop for menu button click ---
+  onShowItemMenu,
+  // --- END MODIFICATION ---
 }) => {
   const hasChildren =
     folder && Array.isArray(folder.children) && folder.children.length > 0;
@@ -39,10 +45,12 @@ const FolderContents = ({
             <li
               key={child.id}
               data-testid={`item-${child.id}`}
-              className={`relative flex items-center p-3 sm:p-2 group hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer ${
+              // --- MODIFICATION: Added group class for hover effect on button ---
+              className={`group relative flex items-center p-3 sm:p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer ${
                 isBeingDragged ? "opacity-40" : ""
               }`}
-              onClick={() => onSelect && onSelect(child.id)}
+              // --- END MODIFICATION ---
+              onClick={() => onSelect && onSelect(child.id)} // Keep main click for selection
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
@@ -64,6 +72,9 @@ const FolderContents = ({
               aria-label={`${child.label} (${
                 child.type.charAt(0).toUpperCase() + child.type.slice(1)
               })`}
+              // --- MODIFICATION: Removed context menu handler from li, moved to button ---
+              // onContextMenu={(e) => { ... }}
+              // --- END MODIFICATION ---
             >
               {isDragOverTarget && (
                 <div
@@ -74,8 +85,6 @@ const FolderContents = ({
               )}
               {/* Expand/Collapse Button & Icon Area */}
               <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center mr-1 z-10">
-                {" "}
-                {/* Consistent width for icon/button area */}
                 {child.type === "folder" && onToggleExpand && expandedItems ? (
                   <button
                     onClick={(e) => {
@@ -91,7 +100,8 @@ const FolderContents = ({
                     }
                     title={expandedItems[child.id] ? `Collapse` : `Expand`}
                   >
-                    {expandedItems[child.id] ? "▾" : "▸"}
+                    {" "}
+                    {expandedItems[child.id] ? "▾" : "▸"}{" "}
                   </button>
                 ) : (
                   <span
@@ -99,14 +109,11 @@ const FolderContents = ({
                     aria-hidden="true"
                   >
                     &nbsp;
-                  </span> /* Placeholder for alignment if not folder */
+                  </span>
                 )}
               </div>
-
               {/* Item Icon */}
               <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center mr-1.5 sm:mr-1 z-10">
-                {" "}
-                {/* Consistent width and centering */}
                 {child.type === "folder"
                   ? expandedItems && expandedItems[child.id]
                     ? "📂"
@@ -117,8 +124,9 @@ const FolderContents = ({
                   ? "✅"
                   : "⬜️"}
               </div>
+              {/* Label */}
               <span
-                className={`truncate z-10 text-base md:text-sm ${
+                className={`flex-grow truncate z-10 text-base md:text-sm ${
                   child.type === "task" && child.completed
                     ? "line-through text-zinc-500 dark:text-zinc-400"
                     : ""
@@ -126,9 +134,28 @@ const FolderContents = ({
               >
                 {child.label}
               </span>
-              <span className="ml-2 text-zinc-500 text-xs sm:text-sm z-10">
-                ({child.type.charAt(0).toUpperCase() + child.type.slice(1)})
+              {/* Type Indicator */}
+              <span className="ml-2 text-zinc-500 text-xs sm:text-sm z-10 flex-shrink-0">
+                {" "}
+                {/* Added flex-shrink-0 */}(
+                {child.type.charAt(0).toUpperCase() + child.type.slice(1)})
               </span>
+              {/* --- MODIFICATION: Add More Options Button --- */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation(); // Prevent the li's onClick
+                  if (onShowItemMenu) {
+                    onShowItemMenu(child, e.currentTarget); // Pass item and button element
+                  }
+                }}
+                className={`ml-1 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-zinc-500 dark:text-zinc-400 opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0`} // Show on hover/focus
+                aria-label={`More options for ${child.label}`}
+                title="More options"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+              {/* --- END MODIFICATION --- */}
             </li>
           );
         })}

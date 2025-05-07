@@ -21,16 +21,14 @@ import {
   Settings as SettingsIcon,
   Undo,
   Redo,
-  // ChevronDown, // No longer needed for placeholder handle
 } from "lucide-react";
 import SearchResultsPane from "./components/SearchResultsPane";
-// Import matchText AND escapeRegex from searchUtils
 import { matchText, escapeRegex } from "./utils/searchUtils";
-import { Sheet } from 'react-modal-sheet'; // Use curly braces for named import
+import { Sheet } from "react-modal-sheet";
 
-// Helper function to convert HTML to plain text, preserving basic newlines
+// Helper function (htmlToPlainTextWithNewlines) remains the same
 function htmlToPlainTextWithNewlines(html) {
-  if (!html) return "";
+  /* ... */ if (!html) return "";
   let text = html;
   text = text.replace(
     /<(div|p|h[1-6]|li|blockquote|pre|tr|hr)[^>]*>/gi,
@@ -43,41 +41,40 @@ function htmlToPlainTextWithNewlines(html) {
     tempDiv.innerHTML = text;
     text = tempDiv.textContent || tempDiv.innerText || "";
   } catch (e) {
-    // console.error("Error decoding HTML entities:", e);
+    /* ignore */
   }
   return text.replace(/(\r?\n|\r){2,}/g, "\n").trim();
 }
-
-// Component to display temporary error messages
+// ErrorDisplay component remains the same
 const ErrorDisplay = ({ message, onClose }) => {
-  if (!message) return null;
+  /* ... */ if (!message) return null;
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
     }, 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
-
   return (
     <div className="absolute top-2 right-2 left-2 md:left-auto md:max-w-md z-[60] bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded shadow-lg flex justify-between items-center">
-      <span className="text-sm">{message}</span>
+      {" "}
+      <span className="text-sm">{message}</span>{" "}
       <button
         onClick={onClose}
         className="ml-2 text-red-500 hover:text-red-700"
         aria-label="Close error message"
       >
-        <XCircle className="w-4 h-4" />
-      </button>
+        {" "}
+        <XCircle className="w-4 h-4" />{" "}
+      </button>{" "}
     </div>
   );
 };
 
-// Consistent header height class
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 // Main Application Component
 const App = () => {
-  // --- State Hooks ---
+  // --- State Hooks (remain the same) ---
   const { settings } = useSettings();
   const {
     tree,
@@ -112,9 +109,7 @@ const App = () => {
     canUndoTree,
     canRedoTree,
   } = useTree();
-
-  // UI State
-  const [searchSheetOpen, setSearchSheetOpen] = useState(false); // State for the search bottom sheet
+  const [searchSheetOpen, setSearchSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
     caseSensitive: false,
@@ -146,6 +141,7 @@ const App = () => {
 
   // Global keybindings for Undo/Redo and Search Toggle
   useEffect(() => {
+    /* ... (Undo/Redo/Search Toggle logic remains the same) ... */
     const handler = (e) => {
       const activeElement = document.activeElement;
       const isInput =
@@ -157,8 +153,6 @@ const App = () => {
         !!inlineRenameId &&
         activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
           activeElement;
-
-      // Undo (Ctrl/Cmd + Z)
       if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "z" &&
@@ -173,9 +167,7 @@ const App = () => {
           return;
         e.preventDefault();
         if (canUndoTree) undoTreeChange();
-      }
-      // Redo (Ctrl/Cmd + Y or Ctrl/Cmd + Shift + Z)
-      else if (
+      } else if (
         (e.ctrlKey || e.metaKey) &&
         (e.key.toLowerCase() === "y" ||
           (e.shiftKey && e.key.toLowerCase() === "z"))
@@ -189,9 +181,7 @@ const App = () => {
           return;
         e.preventDefault();
         if (canRedoTree) redoTreeChange();
-      }
-      // Toggle Search Sheet (Ctrl/Cmd + Shift + F)
-      else if (
+      } else if (
         (e.ctrlKey || e.metaKey) &&
         e.shiftKey &&
         e.key.toUpperCase() === "F"
@@ -203,7 +193,7 @@ const App = () => {
         )
           return;
         e.preventDefault();
-        setSearchSheetOpen((s) => !s); // Toggle sheet
+        setSearchSheetOpen((s) => !s);
       }
     };
     window.addEventListener("keydown", handler);
@@ -218,23 +208,22 @@ const App = () => {
 
   // Disable Regex search option if needed
   useEffect(() => {
-    const isRegexCurrentlyDisabledInPane = true;
+    /* ... (Regex disable logic remains the same) ... */ const isRegexCurrentlyDisabledInPane = true;
     if (isRegexCurrentlyDisabledInPane && searchOptions.useRegex) {
       setSearchOptions((prev) => ({ ...prev, useRegex: false }));
     }
   }, [searchOptions.useRegex]);
 
-  // Effect to generate search results (FIX for Duplicates included)
+  // Effect to generate search results
   useEffect(() => {
+    /* ... (Search result generation logic remains the same) ... */
     if (searchQuery && searchSheetOpen) {
-      // Check if sheet is open
       const currentSearchOpts = { ...searchOptions, useRegex: false };
       const rawHits = searchItems(searchQuery, currentSearchOpts);
       const CONTEXT_CHARS_BEFORE = 20;
       const CONTEXT_CHARS_AFTER = 20;
       const MAX_SNIPPET_LENGTH = 80;
       let resultCounter = 0;
-
       const processedResults = rawHits.map((hit) => {
         const path = getItemPath(tree, hit.id);
         const originalLabel =
@@ -247,7 +236,6 @@ const App = () => {
           typeof hit.content === "string" ? hit.content : "";
         const plainTextContent =
           htmlToPlainTextWithNewlines(originalContentHtml);
-
         let displaySnippetText = "";
         let highlightStartIndexInSnippet = -1;
         let highlightEndIndexInSnippet = -1;
@@ -257,7 +245,6 @@ const App = () => {
           end: -1,
           originalMatchInLabel: "",
         };
-
         const labelMatchInfo = matchText(
           originalLabel,
           searchQuery,
@@ -276,7 +263,6 @@ const App = () => {
             originalMatchInLabel: labelMatchInfo.matchedString,
           };
         }
-
         if ((hit.type === "note" || hit.type === "task") && plainTextContent) {
           const contentMatchInfo = matchText(
             plainTextContent,
@@ -308,7 +294,6 @@ const App = () => {
                 startIndexInPlainText - snippetStart;
               highlightEndIndexInSnippet =
                 highlightStartIndexInSnippet + matchedOriginalString.length;
-
               let prefixEllipsis = snippetStart > 0;
               let suffixEllipsis = snippetEnd < plainTextContent.length;
               if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
@@ -354,12 +339,10 @@ const App = () => {
             }
           }
         }
-
         if (!matchSource) {
           displaySnippetText = originalLabel;
           matchSource = "unknown";
         }
-
         return {
           id: `${hit.id}-${matchSource}-${resultCounter++}`,
           originalId: hit.id,
@@ -375,7 +358,6 @@ const App = () => {
               : undefined,
         };
       });
-
       setSearchResults(
         processedResults.filter(
           (r) => r && r.matchSource && r.matchSource !== "unknown"
@@ -391,62 +373,65 @@ const App = () => {
     tree,
     getItemPath,
     searchSheetOpen,
-  ]); // Depends on sheet state
+  ]);
 
   // Close top menu on outside click
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
-        setTopMenuOpen(false);
-      }
-    };
+    /* ... (Outside click logic remains the same) ... */ const handleClickOutside =
+      (e) => {
+        if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
+          setTopMenuOpen(false);
+        }
+      };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- Callback Handlers (Unchanged from previous correct version) ---
+  // --- Callback Handlers ---
+  // ** MODIFICATION: Moved rename-related callbacks BEFORE the final useEffect **
   const startInlineRename = useCallback(
-    /* ... */ (i) => {
-      if (!i || draggedId === i.id || inlineRenameId) return;
+    (item) => {
+      if (!item || draggedId === item.id || inlineRenameId) return;
       setUiError("");
-      setInlineRenameId(i.id);
-      setInlineRenameValue(i.label);
+      setInlineRenameId(item.id);
+      setInlineRenameValue(item.label);
       setContextMenu((m) => ({ ...m, visible: false }));
     },
     [draggedId, inlineRenameId, setContextMenu]
   );
-  const cancelInlineRename = useCallback(
-    /* ... */ () => {
-      setInlineRenameId(null);
-      setInlineRenameValue("");
-      setUiError("");
-      requestAnimationFrame(() =>
-        document
-          .querySelector('nav[aria-label="Notes and Tasks Tree"]')
-          ?.focus({ preventScroll: true })
-      );
-    },
-    []
-  );
-  const handleAttemptRename = useCallback(
-    /* ... */ async () => {
-      if (!inlineRenameId) return;
-      const nl = inlineRenameValue.trim();
-      const oi = findItemById(tree, inlineRenameId);
-      if (!nl) {
-        setUiError("Name cannot be empty.");
-        return;
-      }
-      if (nl === oi?.label) {
-        cancelInlineRename();
-        return;
-      }
-      const r = renameItem(inlineRenameId, nl);
-      if (r.success) cancelInlineRename();
-      else setUiError(r.error || "Rename failed.");
-    },
-    [inlineRenameId, inlineRenameValue, renameItem, tree, cancelInlineRename]
-  );
+
+  const cancelInlineRename = useCallback(() => {
+    setInlineRenameId(null);
+    setInlineRenameValue("");
+    setUiError("");
+    requestAnimationFrame(() =>
+      document
+        .querySelector('nav[aria-label="Notes and Tasks Tree"]')
+        ?.focus({ preventScroll: true })
+    );
+  }, []);
+
+  const handleAttemptRename = useCallback(async () => {
+    if (!inlineRenameId) return;
+    const newLabel = inlineRenameValue.trim();
+    const originalItem = findItemById(tree, inlineRenameId);
+    if (!newLabel) {
+      setUiError("Name cannot be empty.");
+      return;
+    }
+    if (newLabel === originalItem?.label) {
+      cancelInlineRename();
+      return;
+    }
+    const result = renameItem(inlineRenameId, newLabel);
+    if (result.success) {
+      cancelInlineRename();
+    } else {
+      setUiError(result.error || "Rename failed.");
+    }
+  }, [inlineRenameId, inlineRenameValue, renameItem, tree, cancelInlineRename]);
+  // ** END MODIFICATION **
+
   const openAddDialog = useCallback(
     /* ... */ (t, p) => {
       setNewItemType(t);
@@ -532,10 +517,46 @@ const App = () => {
     },
     [contextMenu.item, deleteItem, setContextMenu]
   );
+  const handleShowItemMenu = useCallback(
+    /* ... */ (item, buttonElement) => {
+      if (!item || !buttonElement) return;
+      const rect = buttonElement.getBoundingClientRect();
+      const x = rect.right - 180;
+      const y = rect.bottom + 2;
+      selectItemById(item.id);
+      setContextMenu({
+        visible: true,
+        x: x < 10 ? 10 : x,
+        y: y,
+        item: item,
+        isEmptyArea: false,
+      });
+    },
+    [selectItemById, setContextMenu]
+  );
+  const handleNativeContextMenu = useCallback(
+    /* ... */ (event, item) => {
+      if (draggedId || inlineRenameId) {
+        event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      selectItemById(item?.id ?? null);
+      setContextMenu({
+        visible: true,
+        x: event.clientX,
+        y: event.clientY,
+        item: item,
+        isEmptyArea: !item,
+      });
+    },
+    [draggedId, inlineRenameId, selectItemById, setContextMenu]
+  );
 
-  // Global Keydown logic for F2, Copy, Cut, Paste, Delete (Unchanged)
+  // Global Keydown logic for F2, Copy, Cut, Paste, Delete
+  // ** MODIFICATION: Ensure all dependent callbacks are defined above **
   useEffect(() => {
-    /* ... Keep the existing handleGlobalKeyDown logic ... */
     const handleGlobalKeyDown = (e) => {
       const activeEl = document.activeElement;
       const isAnyInputFocused =
@@ -544,6 +565,7 @@ const App = () => {
           activeEl.tagName === "TEXTAREA" ||
           activeEl.isContentEditable);
       const isRenameActive = !!inlineRenameId;
+
       if (
         isAnyInputFocused &&
         !isRenameActive &&
@@ -556,11 +578,13 @@ const App = () => {
             activeEl &&
           (e.key === "Enter" || e.key === "Escape")
         ) {
-          /* handled by input */
+          // Let rename input handle these
         } else {
+          // Block other shortcuts for general inputs
           return;
         }
       }
+
       if (
         isRenameActive &&
         activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
@@ -570,6 +594,7 @@ const App = () => {
           return;
         }
       }
+
       const treeNav = document.querySelector(
         'nav[aria-label="Notes and Tasks Tree"]'
       );
@@ -578,6 +603,7 @@ const App = () => {
         (treeNav === activeEl ||
           activeEl === document.body ||
           treeNav.contains(activeEl));
+
       if (
         !isTreeAreaFocused &&
         !selectedItemId &&
@@ -585,10 +611,11 @@ const App = () => {
         activeEl.id !== "global-search-input"
       )
         return;
+
       if (e.key === "F2" && selectedItemId) {
         e.preventDefault();
         const item = findItemById(tree, selectedItemId);
-        if (item) startInlineRename(item);
+        if (item) startInlineRename(item); // Now defined above
       }
       if (
         (e.ctrlKey || e.metaKey) &&
@@ -617,7 +644,7 @@ const App = () => {
           currentItem?.type === "folder"
             ? selectedItemId
             : findParentAndSiblings(tree, selectedItemId)?.parent?.id ?? null;
-        handlePaste(targetId);
+        handlePaste(targetId); // Now defined above
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedItemId) {
         if (activeEl.id === "global-search-input" && searchQuery !== "") return;
@@ -627,13 +654,14 @@ const App = () => {
           item &&
           window.confirm(`Delete "${item.label}"? This cannot be undone.`)
         ) {
-          deleteItem(selectedItemId);
+          deleteItem(selectedItemId); // Assumed to be defined in useTree
         }
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [
+    // Add all dependencies used inside handleGlobalKeyDown
     selectedItemId,
     inlineRenameId,
     tree,
@@ -643,7 +671,8 @@ const App = () => {
     cutItem,
     pasteItem,
     deleteItem,
-    startInlineRename,
+    startInlineRename, // Add startInlineRename here
+    handlePaste, // Add handlePaste here
   ]);
 
   // --- Render ---
@@ -662,7 +691,6 @@ const App = () => {
           maxSize={60}
           className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700"
         >
-          {/* Tree Header & Controls */}
           <div className="flex flex-col h-full">
             <div
               className={`p-2 sm:p-3 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0 ${APP_HEADER_HEIGHT_CLASS}`}
@@ -701,7 +729,6 @@ const App = () => {
                   {" "}
                   <Redo className="w-5 h-5" />{" "}
                 </button>
-                {/* Search button toggles the Bottom Sheet */}
                 <button
                   onClick={() => setSearchSheetOpen((s) => !s)}
                   title="Search (Ctrl+Shift+F)"
@@ -740,32 +767,32 @@ const App = () => {
                 </button>
                 {topMenuOpen && (
                   <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded shadow-lg z-40 text-sm">
+                    {" "}
                     <button
                       onClick={() => openAddDialog("folder", null)}
                       className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
                       {" "}
                       Add Root Folder{" "}
-                    </button>
+                    </button>{" "}
                     <button
                       onClick={() => openExportDialog("tree")}
                       className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
                       {" "}
                       Export Full Tree...{" "}
-                    </button>
+                    </button>{" "}
                     <button
                       onClick={() => openImportDialog("tree")}
                       className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
                       {" "}
                       Import Full Tree...{" "}
-                    </button>
+                    </button>{" "}
                   </div>
                 )}
               </div>
             </div>
-            {/* Tree Component */}
             <div
               className="flex-grow overflow-auto"
               id="tree-navigation-area"
@@ -801,22 +828,8 @@ const App = () => {
                 }}
                 onDrop={handleDrop}
                 onDragEnd={handleDragEnd}
-                onContextMenu={(e, item) => {
-                  if (draggedId || inlineRenameId) {
-                    e.preventDefault();
-                    return;
-                  }
-                  e.preventDefault();
-                  e.stopPropagation();
-                  selectItemById(item?.id ?? null);
-                  setContextMenu({
-                    visible: true,
-                    x: e.clientX,
-                    y: e.clientY,
-                    item,
-                    isEmptyArea: !item,
-                  });
-                }}
+                onNativeContextMenu={handleNativeContextMenu}
+                onShowItemMenu={handleShowItemMenu}
                 onRename={startInlineRename}
                 uiError={uiError}
                 setUiError={setUiError}
@@ -825,14 +838,12 @@ const App = () => {
           </div>
         </Panel>
 
-        {/* NO Search Panel Here */}
-
         <PanelResizeHandle className="w-1 bg-zinc-300 dark:bg-zinc-600 hover:bg-blue-500 data-[resize-handle-active]:bg-blue-600 cursor-col-resize z-20 flex-shrink-0" />
 
         {/* Panel 2: Content Area */}
         <Panel
           id="content-panel"
-          order={1} // Only 2 panels now
+          order={1}
           defaultSize={70}
           minSize={40}
           className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-800"
@@ -853,6 +864,22 @@ const App = () => {
                     dragOverItemId={null}
                     onToggleExpand={toggleFolderExpand}
                     expandedItems={expandedFolders}
+                    onShowItemMenu={handleShowItemMenu}
+                    handleDragStart={(e, id) => {
+                      /* ... */
+                    }}
+                    handleDragEnter={(e, id) => {
+                      /* ... */
+                    }}
+                    handleDragOver={(e) => {
+                      /* ... */
+                    }}
+                    handleDragLeave={(e) => {
+                      /* ... */
+                    }}
+                    handleDrop={(e, id) => {
+                      /* ... */
+                    }}
                   />
                 </div>
               ) : selectedItem.type === "note" ||
@@ -879,52 +906,55 @@ const App = () => {
         </Panel>
       </PanelGroup>
 
-      {/* --- Bottom Sheet for Search using react-modal-sheet --- */}
+      {/* Bottom Sheet for Search using react-modal-sheet */}
       <Sheet
         isOpen={searchSheetOpen}
         onClose={() => setSearchSheetOpen(false)}
-        snapPoints={[0.75, 0.5, 0.25]} // Snap points as fractions of window height (e.g., 75%, 50%, 25%)
-        initialSnap={1} // Start at 50% height (index 1 of snapPoints)
+        snapPoints={[0.75, 0.5, 0.25]}
+        initialSnap={1}
       >
         <Sheet.Container>
           <Sheet.Header>
-            {/* Optional: Add a drag handle indicator */}
+            {" "}
             <div className="flex justify-center py-2 cursor-grab">
-              <div className="w-8 h-1 bg-zinc-400 dark:bg-zinc-600 rounded-full"></div>
-            </div>
+              {" "}
+              <div className="w-8 h-1 bg-zinc-400 dark:bg-zinc-600 rounded-full"></div>{" "}
+            </div>{" "}
           </Sheet.Header>
           <Sheet.Content>
-            {/* Render the SearchResultsPane inside the sheet content */}
-            {/* We remove the internal header/close button from SearchResultsPane if the Sheet handles it */}
-            <SearchResultsPane
-              // headerHeightClass="h-12" // Height is now managed by Sheet.Header/Sheet.Content
-              query={searchQuery}
-              onQueryChange={setSearchQuery}
-              results={searchResults}
-              onSelectResult={(item) => {
-                expandFolderPath(item.originalId);
-                selectItemById(item.originalId);
-                setSearchSheetOpen(false); // Close sheet on selection
-                setTimeout(() => {
-                  document
-                    .querySelector(`li[data-item-id="${item.originalId}"]`)
-                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                }, 50);
-              }}
-              onClose={() => setSearchSheetOpen(false)} // Close button within pane can still trigger close
-              opts={searchOptions}
-              setOpts={setSearchOptions}
-              // Pass a prop to hide internal header if Sheet.Header is used
-              // hideInternalHeader={true}
-            />
+            {" "}
+            <div className="overflow-y-auto h-full">
+              {" "}
+              <SearchResultsPane
+                headerHeightClass="h-12"
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                results={searchResults}
+                onSelectResult={(item) => {
+                  expandFolderPath(item.originalId);
+                  selectItemById(item.originalId);
+                  /* setSearchSheetOpen(false); // Keep open */ setTimeout(
+                    () => {
+                      document
+                        .querySelector(`li[data-item-id="${item.originalId}"]`)
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                    },
+                    50
+                  );
+                }}
+                onClose={() => setSearchSheetOpen(false)}
+                opts={searchOptions}
+                setOpts={setSearchOptions}
+              />{" "}
+            </div>{" "}
           </Sheet.Content>
         </Sheet.Container>
-        {/* Backdrop is usually handled by the Sheet component itself */}
-        {/* <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} /> */}
       </Sheet>
-      {/* --- End Bottom Sheet --- */}
 
-      {/* Modals and Dialogs (Context Menu, Add, About, Export, Import, Settings) */}
+      {/* Modals and Dialogs */}
       {contextMenu.visible && (
         <ContextMenu
           visible={true}
