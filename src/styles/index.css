@@ -3,14 +3,88 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Add these styles for the settings dialog scrollbar */
+@layer base {
+
+  /*
+    1. Set a responsive base font size.
+       This makes 1rem roughly equivalent to 16px on most desktop browsers
+       but allows for better scaling based on user preferences and device settings.
+       Mobile devices might use a slightly larger physical pixel size for 1rem
+       due to the viewport meta tag, improving readability.
+  */
+  html {
+    font-size: 100%;
+    /* Or 16px as a starting point if you prefer explicit base */
+    -webkit-text-size-adjust: 100%;
+    /* Prevent font scaling in landscape on iOS */
+  }
+
+  body {
+    @apply bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100;
+    /*
+      2. Apply a sensible default font family.
+         Tailwind's default sans-serif stack is usually good.
+         Ensure this is what you want for the overall UI, not just prose content.
+    */
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    /*
+      3. Consider a slightly larger base line-height for better readability,
+         especially on mobile. Tailwind's `leading-normal` is 1.5.
+         This can be overridden by specific utilities.
+    */
+    @apply leading-normal;
+  }
+
+  /*
+    4. Customize Tailwind Typography Plugin defaults if needed.
+       The `.prose` class is applied in your EditorPane.
+       You might want to ensure its base font size is responsive or suitable for mobile.
+       By default, `prose-sm` (which you use) has a 0.875rem (14px) base font size.
+       This might be okay for content on mobile, but test thoroughly.
+
+       If you need to globally adjust prose defaults for mobile, you could do:
+  */
+  /*
+  .prose {
+    @apply text-base; // Example: Make base prose text 1rem (16px)
+  }
+  .prose-sm {
+    @apply text-sm; // Ensure prose-sm still works if you want smaller specific sections
+                    // This would be 0.875rem (14px) if base is 1rem.
+  }
+
+  You can also target specific elements within .prose:
+  .prose h1 {
+    @apply text-2xl sm:text-3xl; // Responsive heading sizes
+  }
+  */
+
+  /*
+    If you find the default prose font sizes too small on mobile,
+    and you apply `.prose` or `.prose-sm` directly in your JSX,
+    you can make the component itself responsive with Tailwind classes:
+
+    e.g., in EditorPane.jsx:
+    className="editor-pane prose prose-sm md:prose ..."
+    This would apply `prose` (base size) on small screens and `prose-sm` on medium and up.
+    Or even just `prose md:prose-sm` if `prose` (base) is your desired mobile size.
+  */
+}
+
+/*
+  Scrollbar styles from your previous configuration.
+  These are generally fine and don't directly impact font/resolution,
+  but keeping them here for completeness of the file.
+*/
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
   }
+
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
     /* Tailwind zinc-400 */
     background-color: #a1a1aa;
@@ -19,71 +93,90 @@
     border: 3px solid transparent;
     background-clip: content-box;
   }
+
   .dark .custom-scrollbar::-webkit-scrollbar-thumb {
     /* Tailwind zinc-600 */
     background-color: #52525b;
   }
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-     /* Tailwind zinc-500 */
+    /* Tailwind zinc-500 */
     background-color: #71717a;
   }
-   .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-     /* Tailwind zinc-500 */
-     background-color: #71717a;
-   }
 
-   /* Firefox scrollbar styling (optional but recommended) */
-   .custom-scrollbar {
-     scrollbar-width: thin;
-     /* Tailwind zinc-400 / zinc-600 */
-     scrollbar-color: #a1a1aa transparent;
-   }
-   .dark .custom-scrollbar {
-     scrollbar-color: #52525b transparent;
-   }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    /* Tailwind zinc-500 */
+    background-color: #71717a;
+  }
+
+  /* Firefox scrollbar styling (optional but recommended) */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    /* Tailwind zinc-400 / zinc-600 */
+    scrollbar-color: #a1a1aa transparent;
+  }
+
+  .dark .custom-scrollbar {
+    scrollbar-color: #52525b transparent;
+  }
 }
 
-/* Styles for code formatting within the editor */
-.editor-pane code:not(pre > code) { /* Style for inline code */
-  @apply bg-zinc-200 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-sm text-red-600 dark:text-red-400; /* */ /* */
+/*
+  Styles for code formatting within the editor.
+  These are generally fine and relate to specific elements, not base typography.
+  Ensure the font sizes (text-sm) used here are readable on mobile within the editor context.
+  If `text-sm` (0.875rem) becomes too small because the base `rem` value is effectively small on mobile,
+  you might need to use responsive prefixes here too (e.g., `text-base md:text-sm`).
+*/
+.editor-pane code:not(pre > code) {
+  /* Style for inline code */
+  @apply bg-zinc-200 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-sm text-red-600 dark:text-red-400;
 }
 
-.editor-pane pre { /* Style for code blocks */
-  @apply bg-zinc-100 dark:bg-zinc-900 p-3 my-2 rounded overflow-auto font-mono text-sm block; /* */ /* */
-  white-space: pre; /* Important for preserving whitespace */ /* */ /* */
+.editor-pane pre {
+  /* Style for code blocks */
+  @apply bg-zinc-100 dark:bg-zinc-900 p-3 my-2 rounded overflow-auto font-mono text-sm block;
+  white-space: pre;
+  /* Important for preserving whitespace */
 }
 
-.editor-pane pre code { /* Style for code specifically within a pre block */
-   @apply bg-transparent p-0 font-mono text-sm text-inherit dark:text-inherit; /* */ /* */
-   white-space: pre; /* Inherit whitespace preservation */ /* */ /* */
+.editor-pane pre code {
+  /* Style for code specifically within a pre block */
+  @apply bg-transparent p-0 font-mono text-sm text-inherit dark:text-inherit;
+  white-space: pre;
+  /* Inherit whitespace preservation */
 }
 
-/* Style for shell/terminal commands (using a class) */
 .editor-pane .shell-command {
-    @apply bg-black dark:bg-black text-green-400 dark:text-green-300 p-3 my-2 rounded overflow-auto font-mono text-sm block; /* */ /* */
-    white-space: pre; /* */ /* */
-}
-.editor-pane .shell-command::before {
-    content: "$ "; /* */ /* */ /* Optional: Add a shell prompt indicator */ /* */ /* */
-    color: #9ca3af; /* gray-400 */ /* */ /* */ /* */ /* */
+  @apply bg-black dark:bg-black text-green-400 dark:text-green-300 p-3 my-2 rounded overflow-auto font-mono text-sm block;
+  white-space: pre;
 }
 
-/* Optional: Ensure the main editor preserves general whitespace */
+.editor-pane .shell-command::before {
+  content: "$ ";
+  color: #9ca3af;
+  /* gray-400 */
+}
+
 .editor-pane {
-  white-space: pre-wrap; /* */ /* */ /* Keep this for general text */ /* */ /* */
+  white-space: pre-wrap;
 }
 
 /* Ensure prose styles don't override code block styles too much */
 .dark .prose-invert pre {
-    @apply bg-zinc-900; /* */ /* */ /* Adjust dark mode prose background if needed */ /* */ /* */
+  @apply bg-zinc-900;
 }
+
 .prose pre {
-    @apply bg-zinc-100; /* */ /* */ /* Adjust light mode prose background if needed */ /* */ /* */
+  @apply bg-zinc-100;
 }
+
 .prose code:not(pre > code) {
-     @apply bg-zinc-200 dark:bg-zinc-700 text-red-600 dark:text-red-400 px-1 py-0.5; /* */ /* */ /* Ensure prose doesn't override inline code bg/text */ /* */ /* */
-     font-weight: normal; /* */ /* */ /* Prevent prose from making inline code bold */ /* */ /* */
+  @apply bg-zinc-200 dark:bg-zinc-700 text-red-600 dark:text-red-400 px-1 py-0.5;
+  font-weight: normal;
 }
-.prose code::before, .prose code::after {
-    content: none; /* */ /* */ /* Remove prose's default backticks around inline code */ /* */ /* */
+
+.prose code::before,
+.prose code::after {
+  content: none;
 }
