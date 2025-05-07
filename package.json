@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.9.0",
-  "commitMessage": "Add search capability",
+  "version": "1.10.0",
+  "commitMessage": "Add undo redo support",
   "private": true,
   "scripts": {
     "dev": "vite",
