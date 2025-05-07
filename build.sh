@@ -14,7 +14,7 @@ git commit -m "$COMMIT_MESSAGE"
 git push origin main  # Change 'main' to your relevant branch
 
 # Create and push the tag
-git tag -a "$VERSION" -m "Release $VERSION"
+git tag -a "$VERSION" -m "Release $VERSION – $COMMIT_MESSAGE"
 git push origin "$VERSION"
 
 echo "Version $VERSION successfully pushed with commit message: '$COMMIT_MESSAGE'!"

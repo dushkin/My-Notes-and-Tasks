@@ -21,11 +21,14 @@ import {
   Settings as SettingsIcon,
   Undo,
   Redo,
+  // ChevronDown, // No longer needed for placeholder handle
 } from "lucide-react";
 import SearchResultsPane from "./components/SearchResultsPane";
-import { matchText } from "./utils/searchUtils";
+// Import matchText AND escapeRegex from searchUtils
+import { matchText, escapeRegex } from "./utils/searchUtils";
+import { Sheet } from 'react-modal-sheet'; // Use curly braces for named import
 
-// Helper function (can be imported from utils if you move it there)
+// Helper function to convert HTML to plain text, preserving basic newlines
 function htmlToPlainTextWithNewlines(html) {
   if (!html) return "";
   let text = html;
@@ -34,17 +37,18 @@ function htmlToPlainTextWithNewlines(html) {
     "\n$&"
   );
   text = text.replace(/<br\s*\/?>/gi, "\n");
-  text = text.replace(/<[^>]+>/g, ""); // Strip all tags
+  text = text.replace(/<[^>]+>/g, "");
   try {
     const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = text; // For HTML entities decoding
+    tempDiv.innerHTML = text;
     text = tempDiv.textContent || tempDiv.innerText || "";
   } catch (e) {
-    // console.error("Error decoding HTML entities for snippet:", e);
+    // console.error("Error decoding HTML entities:", e);
   }
-  return text.trim().replace(/(\r\n|\r|\n){2,}/g, "\n");
+  return text.replace(/(\r?\n|\r){2,}/g, "\n").trim();
 }
 
+// Component to display temporary error messages
 const ErrorDisplay = ({ message, onClose }) => {
   if (!message) return null;
   useEffect(() => {
@@ -53,12 +57,14 @@ const ErrorDisplay = ({ message, onClose }) => {
     }, 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
+
   return (
-    <div className="absolute top-2 right-2 left-2 md:left-auto md:max-w-md z-50 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded shadow-lg flex justify-between items-center">
+    <div className="absolute top-2 right-2 left-2 md:left-auto md:max-w-md z-[60] bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded shadow-lg flex justify-between items-center">
       <span className="text-sm">{message}</span>
       <button
         onClick={onClose}
         className="ml-2 text-red-500 hover:text-red-700"
+        aria-label="Close error message"
       >
         <XCircle className="w-4 h-4" />
       </button>
@@ -66,9 +72,12 @@ const ErrorDisplay = ({ message, onClose }) => {
   );
 };
 
-const APP_HEADER_HEIGHT_CLASS = "h-12";
+// Consistent header height class
+const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
+// Main Application Component
 const App = () => {
+  // --- State Hooks ---
   const { settings } = useSettings();
   const {
     tree,
@@ -101,10 +110,11 @@ const App = () => {
     undoTreeChange,
     redoTreeChange,
     canUndoTree,
-    canRedoTree, // Destructure undo/redo
+    canRedoTree,
   } = useTree();
 
-  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  // UI State
+  const [searchSheetOpen, setSearchSheetOpen] = useState(false); // State for the search bottom sheet
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
     caseSensitive: false,
@@ -132,6 +142,9 @@ const App = () => {
   const topMenuRef = useRef(null);
   const [uiError, setUiError] = useState("");
 
+  // --- Effects ---
+
+  // Global keybindings for Undo/Redo and Search Toggle
   useEffect(() => {
     const handler = (e) => {
       const activeElement = document.activeElement;
@@ -140,13 +153,12 @@ const App = () => {
         (activeElement.tagName === "INPUT" ||
           activeElement.tagName === "TEXTAREA" ||
           activeElement.isContentEditable);
-
-      // Allow undo/redo even if an input is focused, unless it's the rename input
       const isRenameActive =
         !!inlineRenameId &&
         activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
           activeElement;
 
+      // Undo (Ctrl/Cmd + Z)
       if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "z" &&
@@ -158,10 +170,12 @@ const App = () => {
           activeElement.id !== "tree-navigation-area" &&
           activeElement.id !== "global-search-input"
         )
-          return; // Allow browser undo for general text fields
+          return;
         e.preventDefault();
         if (canUndoTree) undoTreeChange();
-      } else if (
+      }
+      // Redo (Ctrl/Cmd + Y or Ctrl/Cmd + Shift + Z)
+      else if (
         (e.ctrlKey || e.metaKey) &&
         (e.key.toLowerCase() === "y" ||
           (e.shiftKey && e.key.toLowerCase() === "z"))
@@ -172,10 +186,12 @@ const App = () => {
           activeElement.id !== "tree-navigation-area" &&
           activeElement.id !== "global-search-input"
         )
-          return; // Allow browser redo
+          return;
         e.preventDefault();
         if (canRedoTree) redoTreeChange();
-      } else if (
+      }
+      // Toggle Search Sheet (Ctrl/Cmd + Shift + F)
+      else if (
         (e.ctrlKey || e.metaKey) &&
         e.shiftKey &&
         e.key.toUpperCase() === "F"
@@ -187,7 +203,7 @@ const App = () => {
         )
           return;
         e.preventDefault();
-        setSearchPanelOpen((s) => !s);
+        setSearchSheetOpen((s) => !s); // Toggle sheet
       }
     };
     window.addEventListener("keydown", handler);
@@ -200,6 +216,7 @@ const App = () => {
     inlineRenameId,
   ]);
 
+  // Disable Regex search option if needed
   useEffect(() => {
     const isRegexCurrentlyDisabledInPane = true;
     if (isRegexCurrentlyDisabledInPane && searchOptions.useRegex) {
@@ -207,19 +224,18 @@ const App = () => {
     }
   }, [searchOptions.useRegex]);
 
+  // Effect to generate search results (FIX for Duplicates included)
   useEffect(() => {
-    if (searchQuery && searchPanelOpen) {
-      const currentSearchOpts = { ...searchOptions };
-      currentSearchOpts.useRegex = false;
-
+    if (searchQuery && searchSheetOpen) {
+      // Check if sheet is open
+      const currentSearchOpts = { ...searchOptions, useRegex: false };
       const rawHits = searchItems(searchQuery, currentSearchOpts);
-
       const CONTEXT_CHARS_BEFORE = 20;
       const CONTEXT_CHARS_AFTER = 20;
       const MAX_SNIPPET_LENGTH = 80;
+      let resultCounter = 0;
 
-      const allProcessedResults = rawHits.flatMap((hit) => {
-        const itemSpecificResults = [];
+      const processedResults = rawHits.map((hit) => {
         const path = getItemPath(tree, hit.id);
         const originalLabel =
           typeof hit.label === "string"
@@ -231,37 +247,34 @@ const App = () => {
           typeof hit.content === "string" ? hit.content : "";
         const plainTextContent =
           htmlToPlainTextWithNewlines(originalContentHtml);
-        let pathLabelHighlight = {
+
+        let displaySnippetText = "";
+        let highlightStartIndexInSnippet = -1;
+        let highlightEndIndexInSnippet = -1;
+        let matchSource = "";
+        let pathLabelHighlightDetails = {
           start: -1,
           end: -1,
           originalMatchInLabel: "",
         };
 
-        if (originalLabel) {
-          const labelMatchInfo = matchText(
-            originalLabel,
-            searchQuery,
-            currentSearchOpts
-          );
-          if (labelMatchInfo) {
-            itemSpecificResults.push({
-              id: `${hit.id}-labelmatch-${labelMatchInfo.startIndex}`,
-              originalId: hit.id,
-              ...hit, // Keep original item data
-              path: path,
-              displaySnippetText: originalLabel,
-              highlightStartIndexInSnippet: labelMatchInfo.startIndex,
-              highlightEndIndexInSnippet:
-                labelMatchInfo.startIndex + labelMatchInfo.matchedString.length,
-              matchSource: "label",
-            });
-            pathLabelHighlight = {
-              start: labelMatchInfo.startIndex,
-              end:
-                labelMatchInfo.startIndex + labelMatchInfo.matchedString.length,
-              originalMatchInLabel: labelMatchInfo.matchedString,
-            };
-          }
+        const labelMatchInfo = matchText(
+          originalLabel,
+          searchQuery,
+          currentSearchOpts
+        );
+        if (labelMatchInfo) {
+          matchSource = "label";
+          displaySnippetText = originalLabel;
+          highlightStartIndexInSnippet = labelMatchInfo.startIndex;
+          highlightEndIndexInSnippet =
+            labelMatchInfo.startIndex + labelMatchInfo.matchedString.length;
+          pathLabelHighlightDetails = {
+            start: labelMatchInfo.startIndex,
+            end:
+              labelMatchInfo.startIndex + labelMatchInfo.matchedString.length,
+            originalMatchInLabel: labelMatchInfo.matchedString,
+          };
         }
 
         if ((hit.type === "note" || hit.type === "task") && plainTextContent) {
@@ -271,105 +284,103 @@ const App = () => {
             currentSearchOpts
           );
           if (contentMatchInfo) {
-            const matchedOriginalString = contentMatchInfo.matchedString;
-            const startIndexInPlainText = contentMatchInfo.startIndex;
-            let snippetStart = Math.max(
-              0,
-              startIndexInPlainText - CONTEXT_CHARS_BEFORE
-            );
-            let snippetEnd = Math.min(
-              plainTextContent.length,
-              startIndexInPlainText +
-                matchedOriginalString.length +
-                CONTEXT_CHARS_AFTER
-            );
-            let displaySnippetText = plainTextContent.substring(
-              snippetStart,
-              snippetEnd
-            );
-            let highlightStartIndexInSnippet =
-              startIndexInPlainText - snippetStart;
-            let highlightEndIndexInSnippet =
-              highlightStartIndexInSnippet + matchedOriginalString.length;
-            let prefixEllipsis = snippetStart > 0;
-            let suffixEllipsis = snippetEnd < plainTextContent.length;
-
-            if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
-              const overflow = displaySnippetText.length - MAX_SNIPPET_LENGTH;
-              let reduceBefore = Math.floor(overflow / 2);
-              if (highlightStartIndexInSnippet < reduceBefore)
-                reduceBefore = highlightStartIndexInSnippet;
-              if (reduceBefore > 0) {
-                displaySnippetText = displaySnippetText.substring(reduceBefore);
-                highlightStartIndexInSnippet -= reduceBefore;
-                highlightEndIndexInSnippet -= reduceBefore;
-                prefixEllipsis = true;
-              }
-              if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
-                const cutFromEnd =
-                  displaySnippetText.length - MAX_SNIPPET_LENGTH;
-                displaySnippetText = displaySnippetText.substring(
-                  0,
-                  displaySnippetText.length - cutFromEnd
-                );
-                suffixEllipsis = true;
-              }
-              highlightStartIndexInSnippet = Math.max(
+            if (matchSource === "label") {
+              matchSource = "label & content";
+            } else {
+              matchSource = "content";
+              const matchedOriginalString = contentMatchInfo.matchedString;
+              const startIndexInPlainText = contentMatchInfo.startIndex;
+              let snippetStart = Math.max(
                 0,
-                highlightStartIndexInSnippet
+                startIndexInPlainText - CONTEXT_CHARS_BEFORE
               );
-              highlightEndIndexInSnippet = Math.min(
-                displaySnippetText.length,
-                highlightEndIndexInSnippet
+              let snippetEnd = Math.min(
+                plainTextContent.length,
+                startIndexInPlainText +
+                  matchedOriginalString.length +
+                  CONTEXT_CHARS_AFTER
               );
-              if (highlightStartIndexInSnippet >= highlightEndIndexInSnippet) {
-                highlightStartIndexInSnippet = -1;
-                highlightEndIndexInSnippet = -1;
-              }
-            }
-            if (prefixEllipsis && !displaySnippetText.startsWith("..."))
-              displaySnippetText = "..." + displaySnippetText;
-            if (suffixEllipsis && !displaySnippetText.endsWith("..."))
-              displaySnippetText = displaySnippetText + "...";
+              displaySnippetText = plainTextContent.substring(
+                snippetStart,
+                snippetEnd
+              );
+              highlightStartIndexInSnippet =
+                startIndexInPlainText - snippetStart;
+              highlightEndIndexInSnippet =
+                highlightStartIndexInSnippet + matchedOriginalString.length;
 
-            const existingLabelMatchEntry = itemSpecificResults.find(
-              (r) => r.matchSource === "label"
-            );
-            if (
-              !existingLabelMatchEntry ||
-              existingLabelMatchEntry.displaySnippetText !== displaySnippetText
-            ) {
-              itemSpecificResults.push({
-                id: `${hit.id}-contentmatch-${contentMatchInfo.startIndex}`,
-                originalId: hit.id,
-                ...hit,
-                path: path,
-                displaySnippetText: displaySnippetText,
-                highlightStartIndexInSnippet: highlightStartIndexInSnippet,
-                highlightEndIndexInSnippet: highlightEndIndexInSnippet,
-                matchSource: "content",
-                pathLabelHighlight:
-                  pathLabelHighlight.start !== -1
-                    ? pathLabelHighlight
-                    : undefined,
-              });
-            } else if (
-              existingLabelMatchEntry &&
-              existingLabelMatchEntry.displaySnippetText === displaySnippetText
-            ) {
-              existingLabelMatchEntry.matchSource = "label & content";
+              let prefixEllipsis = snippetStart > 0;
+              let suffixEllipsis = snippetEnd < plainTextContent.length;
+              if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
+                const overflow = displaySnippetText.length - MAX_SNIPPET_LENGTH;
+                let reduceBefore = Math.floor(overflow / 2);
+                if (highlightStartIndexInSnippet < reduceBefore)
+                  reduceBefore = highlightStartIndexInSnippet;
+                if (reduceBefore > 0) {
+                  displaySnippetText =
+                    displaySnippetText.substring(reduceBefore);
+                  highlightStartIndexInSnippet -= reduceBefore;
+                  highlightEndIndexInSnippet -= reduceBefore;
+                  prefixEllipsis = true;
+                }
+                if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
+                  const cutFromEnd =
+                    displaySnippetText.length - MAX_SNIPPET_LENGTH;
+                  displaySnippetText = displaySnippetText.substring(
+                    0,
+                    displaySnippetText.length - cutFromEnd
+                  );
+                  suffixEllipsis = true;
+                }
+                highlightStartIndexInSnippet = Math.max(
+                  0,
+                  highlightStartIndexInSnippet
+                );
+                highlightEndIndexInSnippet = Math.min(
+                  displaySnippetText.length,
+                  highlightEndIndexInSnippet
+                );
+                if (
+                  highlightStartIndexInSnippet >= highlightEndIndexInSnippet
+                ) {
+                  highlightStartIndexInSnippet = -1;
+                  highlightEndIndexInSnippet = -1;
+                }
+              }
+              if (prefixEllipsis && !displaySnippetText.startsWith("..."))
+                displaySnippetText = "..." + displaySnippetText;
+              if (suffixEllipsis && !displaySnippetText.endsWith("..."))
+                displaySnippetText = displaySnippetText + "...";
             }
           }
         }
-        if (pathLabelHighlight.start !== -1) {
-          itemSpecificResults.forEach((res) => {
-            if (!res.pathLabelHighlight)
-              res.pathLabelHighlight = pathLabelHighlight;
-          });
+
+        if (!matchSource) {
+          displaySnippetText = originalLabel;
+          matchSource = "unknown";
         }
-        return itemSpecificResults;
+
+        return {
+          id: `${hit.id}-${matchSource}-${resultCounter++}`,
+          originalId: hit.id,
+          ...hit,
+          path: path,
+          displaySnippetText: displaySnippetText,
+          highlightStartIndexInSnippet: highlightStartIndexInSnippet,
+          highlightEndIndexInSnippet: highlightEndIndexInSnippet,
+          matchSource: matchSource,
+          pathLabelHighlight:
+            pathLabelHighlightDetails.start !== -1
+              ? pathLabelHighlightDetails
+              : undefined,
+        };
       });
-      setSearchResults(allProcessedResults.filter((r) => r && r.id)); // Ensure valid results
+
+      setSearchResults(
+        processedResults.filter(
+          (r) => r && r.matchSource && r.matchSource !== "unknown"
+        )
+      );
     } else {
       setSearchResults([]);
     }
@@ -379,19 +390,23 @@ const App = () => {
     searchItems,
     tree,
     getItemPath,
-    searchPanelOpen,
-  ]);
+    searchSheetOpen,
+  ]); // Depends on sheet state
 
+  // Close top menu on outside click
   useEffect(() => {
-    const h = (e) => {
-      if (topMenuRef.current && !topMenuRef.current.contains(e.target))
+    const handleClickOutside = (e) => {
+      if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
         setTopMenuOpen(false);
+      }
     };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // --- Callback Handlers (Unchanged from previous correct version) ---
   const startInlineRename = useCallback(
-    (i) => {
+    /* ... */ (i) => {
       if (!i || draggedId === i.id || inlineRenameId) return;
       setUiError("");
       setInlineRenameId(i.id);
@@ -400,34 +415,40 @@ const App = () => {
     },
     [draggedId, inlineRenameId, setContextMenu]
   );
-  const cancelInlineRename = useCallback(() => {
-    setInlineRenameId(null);
-    setInlineRenameValue("");
-    setUiError("");
-    requestAnimationFrame(() =>
-      document
-        .querySelector('nav[aria-label="Notes and Tasks Tree"]')
-        ?.focus({ preventScroll: true })
-    );
-  }, []);
-  const handleAttemptRename = useCallback(async () => {
-    if (!inlineRenameId) return;
-    const nl = inlineRenameValue.trim();
-    const oi = findItemById(tree, inlineRenameId);
-    if (!nl) {
-      setUiError("Name empty.");
-      return;
-    }
-    if (nl === oi?.label) {
-      cancelInlineRename();
-      return;
-    }
-    const r = renameItem(inlineRenameId, nl);
-    if (r.success) cancelInlineRename();
-    else setUiError(r.error || "Rename fail.");
-  }, [inlineRenameId, inlineRenameValue, renameItem, tree, cancelInlineRename]);
+  const cancelInlineRename = useCallback(
+    /* ... */ () => {
+      setInlineRenameId(null);
+      setInlineRenameValue("");
+      setUiError("");
+      requestAnimationFrame(() =>
+        document
+          .querySelector('nav[aria-label="Notes and Tasks Tree"]')
+          ?.focus({ preventScroll: true })
+      );
+    },
+    []
+  );
+  const handleAttemptRename = useCallback(
+    /* ... */ async () => {
+      if (!inlineRenameId) return;
+      const nl = inlineRenameValue.trim();
+      const oi = findItemById(tree, inlineRenameId);
+      if (!nl) {
+        setUiError("Name cannot be empty.");
+        return;
+      }
+      if (nl === oi?.label) {
+        cancelInlineRename();
+        return;
+      }
+      const r = renameItem(inlineRenameId, nl);
+      if (r.success) cancelInlineRename();
+      else setUiError(r.error || "Rename failed.");
+    },
+    [inlineRenameId, inlineRenameValue, renameItem, tree, cancelInlineRename]
+  );
   const openAddDialog = useCallback(
-    (t, p) => {
+    /* ... */ (t, p) => {
       setNewItemType(t);
       setParentItemForAdd(p);
       setNewItemLabel("");
@@ -438,36 +459,42 @@ const App = () => {
     },
     [setContextMenu]
   );
-  const handleAdd = useCallback(async () => {
-    const tl = newItemLabel.trim();
-    if (!tl) {
-      setUiError("Name empty.");
-      return;
-    }
-    const ni = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: newItemType,
-      label: tl,
-      ...(newItemType === "folder" ? { children: [] } : {}),
-      ...(newItemType === "task" ? { completed: false, content: "" } : {}),
-      ...(newItemType === "note" ? { content: "" } : {}),
-    };
-    const pid = parentItemForAdd?.id ?? null;
-    const r = addItem(ni, pid);
-    if (r.success) {
-      setAddDialogOpen(false);
-      setNewItemLabel("");
-      setParentItemForAdd(null);
-      setUiError("");
-    } else setUiError(r.error || "Add fail.");
-  }, [newItemLabel, newItemType, parentItemForAdd, addItem]);
+  const handleAdd = useCallback(
+    /* ... */ async () => {
+      const tl = newItemLabel.trim();
+      if (!tl) {
+        setUiError("Name cannot be empty.");
+        return;
+      }
+      const ni = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: newItemType,
+        label: tl,
+        ...(newItemType === "folder" ? { children: [] } : {}),
+        ...(newItemType === "task" ? { completed: false, content: "" } : {}),
+        ...(newItemType === "note" ? { content: "" } : {}),
+      };
+      const pid = parentItemForAdd?.id ?? null;
+      const r = addItem(ni, pid);
+      if (r.success) {
+        setAddDialogOpen(false);
+        setNewItemLabel("");
+        setParentItemForAdd(null);
+        setUiError("");
+      } else setUiError(r.error || "Add failed.");
+    },
+    [newItemLabel, newItemType, parentItemForAdd, addItem]
+  );
   const handleToggleTask = useCallback(
-    (id, comp) => updateTask(id, { completed: comp }),
+    /* ... */ (id, comp) => updateTask(id, { completed: comp }),
     [updateTask]
   );
-  const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
+  const handleDragEnd = useCallback(
+    /* ... */ () => setDraggedId(null),
+    [setDraggedId]
+  );
   const openExportDialog = useCallback(
-    (ctx) => {
+    /* ... */ (ctx) => {
       setExportDialogState({ isOpen: true, context: ctx });
       setContextMenu((m) => ({ ...m, visible: false }));
       setTopMenuOpen(false);
@@ -475,7 +502,7 @@ const App = () => {
     [setContextMenu]
   );
   const openImportDialog = useCallback(
-    (ctx) => {
+    /* ... */ (ctx) => {
       setImportDialogState({ isOpen: true, context: ctx });
       setContextMenu((m) => ({ ...m, visible: false }));
       setTopMenuOpen(false);
@@ -483,7 +510,7 @@ const App = () => {
     [setContextMenu]
   );
   const handleFileImport = useCallback(
-    async (f, to) => {
+    /* ... */ async (f, to) => {
       const r = await handleImport(f, to);
       if (!r.success) setUiError(r.error || "Import error.");
       else setUiError("");
@@ -491,19 +518,24 @@ const App = () => {
     [handleImport]
   );
   const handlePaste = useCallback(
-    (tid) => {
+    /* ... */ (tid) => {
       const r = pasteItem(tid);
-      if (!r.success) setUiError(r.error || "Paste fail.");
+      if (!r.success) setUiError(r.error || "Paste failed.");
       else setUiError("");
     },
     [pasteItem]
   );
-  const handleDeleteConfirm = useCallback(() => {
-    if (contextMenu.item) deleteItem(contextMenu.item.id);
-    setContextMenu((m) => ({ ...m, visible: false }));
-  }, [contextMenu.item, deleteItem, setContextMenu]);
+  const handleDeleteConfirm = useCallback(
+    /* ... */ () => {
+      if (contextMenu.item) deleteItem(contextMenu.item.id);
+      setContextMenu((m) => ({ ...m, visible: false }));
+    },
+    [contextMenu.item, deleteItem, setContextMenu]
+  );
 
+  // Global Keydown logic for F2, Copy, Cut, Paste, Delete (Unchanged)
   useEffect(() => {
+    /* ... Keep the existing handleGlobalKeyDown logic ... */
     const handleGlobalKeyDown = (e) => {
       const activeEl = document.activeElement;
       const isAnyInputFocused =
@@ -512,62 +544,32 @@ const App = () => {
           activeEl.tagName === "TEXTAREA" ||
           activeEl.isContentEditable);
       const isRenameActive = !!inlineRenameId;
-
-      // Undo/Redo should not be blocked by general inputs, only by rename input explicitly
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "z" &&
-        !e.shiftKey
-      ) {
-        if (
-          isRenameActive &&
-          activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-            activeEl
-        )
-          return; // Let rename input handle its own undo
-        e.preventDefault();
-        if (canUndoTree) undoTreeChange();
-        return;
-      }
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        (e.key.toLowerCase() === "y" ||
-          (e.shiftKey && e.key.toLowerCase() === "z"))
-      ) {
-        if (
-          isRenameActive &&
-          activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-            activeEl
-        )
-          return; // Let rename input handle its own redo
-        e.preventDefault();
-        if (canRedoTree) redoTreeChange();
-        return;
-      }
-
-      if (
-        isRenameActive &&
-        activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-          activeEl
-      ) {
-        // Let rename input handle Enter/Escape, but not other global shortcuts if it's focused
-        if (e.key === "Enter" || e.key === "Escape") {
-          /* handled by input */
-        } else {
-          return;
-        }
-      }
-
-      // For other shortcuts, if a general input (not tree, not search, not rename) is focused, block them.
       if (
         isAnyInputFocused &&
         !isRenameActive &&
         activeEl.id !== "global-search-input" &&
         activeEl.id !== "tree-navigation-area"
       ) {
-        return;
+        if (
+          isRenameActive &&
+          activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
+            activeEl &&
+          (e.key === "Enter" || e.key === "Escape")
+        ) {
+          /* handled by input */
+        } else {
+          return;
+        }
       }
-
+      if (
+        isRenameActive &&
+        activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
+          activeEl
+      ) {
+        if (e.key !== "Enter" && e.key !== "Escape") {
+          return;
+        }
+      }
       const treeNav = document.querySelector(
         'nav[aria-label="Notes and Tasks Tree"]'
       );
@@ -576,7 +578,6 @@ const App = () => {
         (treeNav === activeEl ||
           activeEl === document.body ||
           treeNav.contains(activeEl));
-
       if (
         !isTreeAreaFocused &&
         !selectedItemId &&
@@ -584,7 +585,6 @@ const App = () => {
         activeEl.id !== "global-search-input"
       )
         return;
-
       if (e.key === "F2" && selectedItemId) {
         e.preventDefault();
         const item = findItemById(tree, selectedItemId);
@@ -620,11 +620,15 @@ const App = () => {
         handlePaste(targetId);
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedItemId) {
-        if (activeEl.id === "global-search-input" && searchQuery !== "") return; // Let search input clear itself
+        if (activeEl.id === "global-search-input" && searchQuery !== "") return;
         e.preventDefault();
         const item = findItemById(tree, selectedItemId);
-        if (item && window.confirm(`Delete "${item.label}"?`))
+        if (
+          item &&
+          window.confirm(`Delete "${item.label}"? This cannot be undone.`)
+        ) {
           deleteItem(selectedItemId);
+        }
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
@@ -640,116 +644,128 @@ const App = () => {
     pasteItem,
     deleteItem,
     startInlineRename,
-    canUndoTree,
-    undoTreeChange,
-    canRedoTree,
-    redoTreeChange,
   ]);
 
+  // --- Render ---
   return (
     <div className="relative flex flex-col h-screen bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
       <ErrorDisplay message={uiError} onClose={() => setUiError("")} />
+
+      {/* Main Layout: Only Tree and Content Panels */}
       <PanelGroup direction="horizontal" className="flex-1 min-h-0">
+        {/* Panel 1: Tree View */}
         <Panel
           id="tree-panel"
           order={0}
-          defaultSize={25}
-          minSize={15}
-          maxSize={50}
+          defaultSize={30}
+          minSize={20}
+          maxSize={60}
           className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700"
         >
+          {/* Tree Header & Controls */}
           <div className="flex flex-col h-full">
             <div
-              className={`p-2 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0 ${APP_HEADER_HEIGHT_CLASS}`}
+              className={`p-2 sm:p-3 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0 ${APP_HEADER_HEIGHT_CLASS}`}
             >
-              <h2 className="font-medium text-sm sm:text-base whitespace-nowrap overflow-hidden text-ellipsis mr-2">
-                Notes & Tasks
+              <h2 className="font-medium text-base sm:text-lg md:text-xl whitespace-nowrap overflow-hidden text-ellipsis mr-2">
+                {" "}
+                Notes & Tasks{" "}
               </h2>
               <div
-                className="flex items-center space-x-0.5 sm:space-x-1 relative"
+                className="flex items-center space-x-1 sm:space-x-1.5 relative"
                 ref={topMenuRef}
               >
                 <button
                   onClick={undoTreeChange}
                   disabled={!canUndoTree}
                   title="Undo (Ctrl+Z)"
-                  className={`p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
+                  className={`p-1.5 sm:p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
                     !canUndoTree
                       ? "opacity-50 cursor-not-allowed"
                       : "text-zinc-500 dark:text-zinc-400"
                   }`}
                 >
-                  <Undo className="w-5 h-5" />
+                  {" "}
+                  <Undo className="w-5 h-5" />{" "}
                 </button>
                 <button
                   onClick={redoTreeChange}
                   disabled={!canRedoTree}
                   title="Redo (Ctrl+Y)"
-                  className={`p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
+                  className={`p-1.5 sm:p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
                     !canRedoTree
                       ? "opacity-50 cursor-not-allowed"
                       : "text-zinc-500 dark:text-zinc-400"
                   }`}
                 >
-                  <Redo className="w-5 h-5" />
+                  {" "}
+                  <Redo className="w-5 h-5" />{" "}
                 </button>
+                {/* Search button toggles the Bottom Sheet */}
                 <button
-                  onClick={() => setSearchPanelOpen((s) => !s)}
+                  onClick={() => setSearchSheetOpen((s) => !s)}
                   title="Search (Ctrl+Shift+F)"
-                  className={`p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
-                    searchPanelOpen
+                  className={`p-1.5 sm:p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
+                    searchSheetOpen
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "text-zinc-500 dark:text-zinc-400"
                   }`}
                 >
-                  <SearchIcon className="w-5 h-5" />
+                  {" "}
+                  <SearchIcon className="w-5 h-5" />{" "}
                 </button>
                 <button
                   onClick={() => setSettingsDialogOpen(true)}
-                  className="p-1 sm:p-1.5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+                  className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
                   title="Settings"
                 >
-                  <SettingsIcon className="w-4 h-4" />
+                  {" "}
+                  <SettingsIcon className="w-5 h-5 sm:w-4 sm:h-4" />{" "}
                 </button>
                 <button
                   onClick={() => setAboutDialogOpen(true)}
-                  className="p-1 sm:p-1.5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+                  className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
                   title="About"
                 >
-                  <Info className="w-4 h-4" />
+                  {" "}
+                  <Info className="w-5 h-5 sm:w-4 sm:h-4" />{" "}
                 </button>
                 <button
                   onClick={() => setTopMenuOpen((p) => !p)}
-                  className="p-1 sm:p-1.5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+                  className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
                   title="More"
                 >
-                  <EllipsisVertical className="w-4 h-4" />
+                  {" "}
+                  <EllipsisVertical className="w-5 h-5 sm:w-4 sm:h-4" />{" "}
                 </button>
                 {topMenuOpen && (
                   <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded shadow-lg z-40 text-sm">
-                    {" "}
                     <button
                       onClick={() => openAddDialog("folder", null)}
-                      className="block w-full px-4 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                      className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      Add Root Folder
-                    </button>{" "}
+                      {" "}
+                      Add Root Folder{" "}
+                    </button>
                     <button
                       onClick={() => openExportDialog("tree")}
-                      className="block w-full px-4 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                      className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      Export Full Tree...
-                    </button>{" "}
+                      {" "}
+                      Export Full Tree...{" "}
+                    </button>
                     <button
                       onClick={() => openImportDialog("tree")}
-                      className="block w-full px-4 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                      className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      Import Full Tree...
-                    </button>{" "}
+                      {" "}
+                      Import Full Tree...{" "}
+                    </button>
                   </div>
                 )}
               </div>
             </div>
+            {/* Tree Component */}
             <div
               className="flex-grow overflow-auto"
               id="tree-navigation-area"
@@ -808,54 +824,27 @@ const App = () => {
             </div>
           </div>
         </Panel>
-        {searchPanelOpen && (
-          <PanelResizeHandle className="w-1 bg-zinc-300 dark:bg-zinc-600 hover:bg-blue-500 data-[resize-handle-active]:bg-blue-600 cursor-col-resize z-20 flex-shrink-0" />
-        )}
-        {searchPanelOpen && (
-          <Panel
-            id="search-results-panel"
-            order={1}
-            defaultSize={25}
-            minSize={15}
-            maxSize={50}
-            className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700"
-          >
-            <SearchResultsPane
-              query={searchQuery}
-              onQueryChange={setSearchQuery}
-              results={searchResults}
-              onSelectResult={(item) => {
-                expandFolderPath(item.originalId);
-                selectItemById(item.originalId);
-                setTimeout(() => {
-                  document
-                    .querySelector(`li[data-item-id="${item.originalId}"]`)
-                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                }, 50);
-              }}
-              onClose={() => setSearchPanelOpen(false)}
-              opts={searchOptions}
-              setOpts={setSearchOptions}
-              headerHeightClass={APP_HEADER_HEIGHT_CLASS}
-            />
-          </Panel>
-        )}
+
+        {/* NO Search Panel Here */}
+
         <PanelResizeHandle className="w-1 bg-zinc-300 dark:bg-zinc-600 hover:bg-blue-500 data-[resize-handle-active]:bg-blue-600 cursor-col-resize z-20 flex-shrink-0" />
+
+        {/* Panel 2: Content Area */}
         <Panel
           id="content-panel"
-          order={2}
-          minSize={30}
-          defaultSize={searchPanelOpen ? 50 : 75}
+          order={1} // Only 2 panels now
+          defaultSize={70}
+          minSize={40}
           className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-800"
         >
-          <div className="flex-grow p-1 sm:p-4 overflow-auto h-full">
+          <div className="flex-grow p-2 sm:p-4 overflow-auto h-full">
             {selectedItem ? (
               selectedItem.type === "folder" ? (
                 <div className="p-3">
-                  {" "}
                   <h2 className="text-lg sm:text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100 break-words">
-                    {selectedItem.label}
-                  </h2>{" "}
+                    {" "}
+                    {selectedItem.label}{" "}
+                  </h2>
                   <FolderContents
                     folder={selectedItem}
                     onSelect={selectItemById}
@@ -864,7 +853,7 @@ const App = () => {
                     dragOverItemId={null}
                     onToggleExpand={toggleFolderExpand}
                     expandedItems={expandedFolders}
-                  />{" "}
+                  />
                 </div>
               ) : selectedItem.type === "note" ||
                 selectedItem.type === "task" ? (
@@ -881,13 +870,61 @@ const App = () => {
                 />
               ) : null
             ) : (
-              <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400">
-                Select or create an item.
+              <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
+                {" "}
+                Select or create an item to view or edit its content.{" "}
               </div>
             )}
           </div>
         </Panel>
       </PanelGroup>
+
+      {/* --- Bottom Sheet for Search using react-modal-sheet --- */}
+      <Sheet
+        isOpen={searchSheetOpen}
+        onClose={() => setSearchSheetOpen(false)}
+        snapPoints={[0.75, 0.5, 0.25]} // Snap points as fractions of window height (e.g., 75%, 50%, 25%)
+        initialSnap={1} // Start at 50% height (index 1 of snapPoints)
+      >
+        <Sheet.Container>
+          <Sheet.Header>
+            {/* Optional: Add a drag handle indicator */}
+            <div className="flex justify-center py-2 cursor-grab">
+              <div className="w-8 h-1 bg-zinc-400 dark:bg-zinc-600 rounded-full"></div>
+            </div>
+          </Sheet.Header>
+          <Sheet.Content>
+            {/* Render the SearchResultsPane inside the sheet content */}
+            {/* We remove the internal header/close button from SearchResultsPane if the Sheet handles it */}
+            <SearchResultsPane
+              // headerHeightClass="h-12" // Height is now managed by Sheet.Header/Sheet.Content
+              query={searchQuery}
+              onQueryChange={setSearchQuery}
+              results={searchResults}
+              onSelectResult={(item) => {
+                expandFolderPath(item.originalId);
+                selectItemById(item.originalId);
+                setSearchSheetOpen(false); // Close sheet on selection
+                setTimeout(() => {
+                  document
+                    .querySelector(`li[data-item-id="${item.originalId}"]`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 50);
+              }}
+              onClose={() => setSearchSheetOpen(false)} // Close button within pane can still trigger close
+              opts={searchOptions}
+              setOpts={setSearchOptions}
+              // Pass a prop to hide internal header if Sheet.Header is used
+              // hideInternalHeader={true}
+            />
+          </Sheet.Content>
+        </Sheet.Container>
+        {/* Backdrop is usually handled by the Sheet component itself */}
+        {/* <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} /> */}
+      </Sheet>
+      {/* --- End Bottom Sheet --- */}
+
+      {/* Modals and Dialogs (Context Menu, Add, About, Export, Import, Settings) */}
       {contextMenu.visible && (
         <ContextMenu
           visible={true}
@@ -911,7 +948,11 @@ const App = () => {
           }
           onDelete={() => {
             if (contextMenu.item) {
-              if (window.confirm(`Delete "${contextMenu.item.label}"?`))
+              if (
+                window.confirm(
+                  `Delete "${contextMenu.item.label}"? This cannot be undone.`
+                )
+              )
                 handleDeleteConfirm();
               else setContextMenu((m) => ({ ...m, visible: false }));
             } else setContextMenu((m) => ({ ...m, visible: false }));

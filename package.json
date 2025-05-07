@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "1.10.0",
-  "commitMessage": "Add undo redo support",
+  "version": "2.0.0",
+  "commitMessage": "From dev to prod - adapt to android mobile",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "prismjs": "^1.30.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-modal-sheet": "^4.4.0",
     "react-resizable-panels": "^2.1.9",
     "unicode-bidirectional": "^2.0.5"
   },

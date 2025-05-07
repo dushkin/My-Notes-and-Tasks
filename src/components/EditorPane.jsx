@@ -31,10 +31,9 @@ const FONT_FAMILIES = [
   "Georgia",
   "Verdana",
 ];
-const FONT_SIZES = ["1", "2", "3", "4", "5", "6", "7"];
+const FONT_SIZES = ["1", "2", "3", "4", "5", "6", "7"]; // Corresponds to HTML <font size> which is deprecated. Consider mapping to actual px/rem.
 const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
 
-// Helper to ensure URL has a protocol
 const ensureProtocol = (url) => {
   if (!url) return "";
   let fullUrl = url.trim();
@@ -49,7 +48,6 @@ const ensureProtocol = (url) => {
   return fullUrl;
 };
 
-// Helper function to create link HTML string
 const createLinkHtml = (url, text) => {
   const safeUrl = ensureProtocol(url);
   if (safeUrl.startsWith("http") || safeUrl.startsWith("ftp")) {
@@ -67,33 +65,28 @@ const createLinkHtml = (url, text) => {
     : url;
 };
 
-// Helper to check if a node is valid and connected to DOM
 const isValidNode = (node) => {
   return node && node.nodeType && document.body.contains(node);
 };
 
-// *** MODIFIED: Added defaultFontFamily, defaultFontSize props ***
 const EditorPane = ({
   html = "",
   onChange,
   defaultFontFamily,
   defaultFontSize,
 }) => {
-  // *** MODIFIED: Use prop default for initial state ***
   const [fontFamily, setFontFamily] = useState(
     defaultFontFamily || FONT_FAMILIES[0]
   );
-  // ─── Sync editor content to tree for both notes & tasks ───
   const { updateNoteContent, updateTask, selectedItemId, selectedItem } =
     useTree();
+
   const handleContentChange = useCallback(
     (newHtml) => {
-      // First update the EditorPane's own state
       onChange(newHtml);
-      // Then persist into the tree:
       if (selectedItem && selectedItemId) {
         if (selectedItem.type === "task") {
-          updateTask(selectedItemId, newHtml);
+          updateTask(selectedItemId, { content: newHtml }); // Ensure content is passed correctly
         } else {
           updateNoteContent(selectedItemId, newHtml);
         }
@@ -101,14 +94,13 @@ const EditorPane = ({
     },
     [onChange, updateNoteContent, updateTask, selectedItemId, selectedItem]
   );
-  const [fontSize, setFontSize] = useState(defaultFontSize || FONT_SIZES[2]); // Default to size '3' (index 2)
+  const [fontSize, setFontSize] = useState(defaultFontSize || FONT_SIZES[2]);
 
   const [isRTL, setIsRTL] = useState(false);
   const editorRef = useRef(null);
   const propUpdateInProgress = useRef(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
 
-  // Effect to update editor content when html prop changes
   useEffect(() => {
     if (editorRef.current && html !== editorRef.current.innerHTML) {
       propUpdateInProgress.current = true;
@@ -120,14 +112,11 @@ const EditorPane = ({
       const startOffset = range?.startOffset;
 
       editorRef.current.innerHTML = html;
-
       editorRef.current.scrollTop = currentScrollTop;
 
       try {
         if (selection && range && isValidNode(startContainer)) {
-          // Try to restore cursor position
           const newRange = document.createRange();
-          // Ensure the container still exists and offset is valid
           if (
             startContainer.nodeType === Node.TEXT_NODE &&
             startOffset <= startContainer.length
@@ -139,7 +128,6 @@ const EditorPane = ({
           ) {
             newRange.setStart(startContainer, startOffset);
           } else {
-            // Fallback if container/offset became invalid, place at end of editor
             newRange.selectNodeContents(editorRef.current);
             newRange.collapse(false);
           }
@@ -147,71 +135,58 @@ const EditorPane = ({
           selection.removeAllRanges();
           selection.addRange(newRange);
         } else if (selection) {
-          // Fallback: If no previous range or node invalid, move cursor to the end
           const endRange = document.createRange();
           endRange.selectNodeContents(editorRef.current);
-          endRange.collapse(false); // Collapse to the end
+          endRange.collapse(false);
           selection.removeAllRanges();
           selection.addRange(endRange);
           editorRef.current.focus();
         }
       } catch (e) {
         console.error("Error setting cursor position after prop update:", e);
-        editorRef.current?.focus(); // Fallback focus
+        editorRef.current?.focus();
       }
-
-      // Use requestAnimationFrame to ensure prop update is fully processed
       requestAnimationFrame(() => {
         propUpdateInProgress.current = false;
       });
     }
   }, [html]);
 
-  // Effect to apply text direction
   useEffect(() => {
     if (editorRef.current) {
       editorRef.current.dir = isRTL ? "rtl" : "ltr";
     }
   }, [isRTL]);
 
-  // Effect for Paste Handling (Auto-linking for text dropped/pasted without button)
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-
     const handlePasteEvent = (e) => {
-      // This handles direct Ctrl+V or context menu paste, applying auto-linking
       e.preventDefault();
       const text = e.clipboardData.getData("text/plain");
       if (!text) return;
-
       const linkedHtml = text.replace(URL_REGEX, (match) =>
         createLinkHtml(match, match)
       );
       document.execCommand("insertHTML", false, linkedHtml);
       if (editorRef.current) {
-        // Update state after paste processing
         requestAnimationFrame(() => {
           if (editorRef.current)
             handleContentChange(editorRef.current.innerHTML);
         });
       }
     };
-
     editor.addEventListener("paste", handlePasteEvent);
     return () => {
       if (editorRef.current) {
-        // Check ref on cleanup
         editorRef.current.removeEventListener("paste", handlePasteEvent);
       }
     };
-  }, [onChange]);
+  }, [handleContentChange]); // Added handleContentChange as dependency
 
-  // Effect for Handling Clicks on Links
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-
     const handleClick = (event) => {
       let targetElement = event.target;
       while (targetElement && targetElement !== editor) {
@@ -223,7 +198,6 @@ const EditorPane = ({
         targetElement = targetElement.parentNode;
       }
     };
-
     editor.addEventListener("click", handleClick);
     return () => {
       if (editorRef.current) {
@@ -232,18 +206,15 @@ const EditorPane = ({
     };
   }, []);
 
-  // Clean up typing timeout on unmount
   useEffect(() => {
     return () => {
       if (typingTimeout) clearTimeout(typingTimeout);
     };
   }, [typingTimeout]);
 
-  // Helper to find an equivalent node in the live DOM after modifications
   const findEquivalentNode = (root, targetNode) => {
     if (!root || !targetNode) return null;
     if (root === targetNode) return root;
-
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ALL);
     let currentNode;
     while ((currentNode = walker.nextNode())) {
@@ -257,8 +228,6 @@ const EditorPane = ({
     return null;
   };
 
-  // *** MOVED applyCommand DEFINITION EARLIER ***
-  // --- Formatting Commands (Handles execCommand for most things) ---
   const applyCommand = useCallback(
     (cmd, value = null) => {
       editorRef.current?.focus();
@@ -273,7 +242,6 @@ const EditorPane = ({
         console.error(`Error executing command ${cmd}:`, error);
       }
       editorRef.current?.focus();
-      // Update state unless it's paste (which updates in its own handler or fallback)
       if (cmd !== "paste") {
         requestAnimationFrame(() => {
           if (editorRef.current) {
@@ -282,25 +250,17 @@ const EditorPane = ({
         });
       }
     },
-    [onChange]
+    [handleContentChange] // Changed onChange to handleContentChange
   );
-  // *** END MOVED applyCommand ***
 
-  // Handle input events, including auto-linking after a delay
   const handleInput = useCallback(
     (event) => {
       if (!editorRef.current || propUpdateInProgress.current) return;
-
       const newHtml = event.target.innerHTML;
-
-      // Clear any pending timeout
       if (typingTimeout) clearTimeout(typingTimeout);
-
-      // --- Start: Auto-linking logic for typed text ---
       setTypingTimeout(
         setTimeout(() => {
           if (!editorRef.current) return;
-
           const selection = window.getSelection();
           const range =
             selection && selection.rangeCount > 0
@@ -308,10 +268,8 @@ const EditorPane = ({
               : null;
           const cursorNode = range?.startContainer;
           const cursorOffset = range?.startOffset;
-
           const tempDiv = document.createElement("div");
           tempDiv.innerHTML = editorRef.current.innerHTML;
-
           const textNodes = [];
           const walker = document.createTreeWalker(
             tempDiv,
@@ -327,24 +285,20 @@ const EditorPane = ({
           while ((node = walker.nextNode())) {
             textNodes.push(node);
           }
-
           let madeChanges = false;
           textNodes.forEach((textNode) => {
             const text = textNode.nodeValue;
             const fragment = document.createDocumentFragment();
             let lastIndex = 0;
-
             const urlMatches = [...text.matchAll(URL_REGEX)];
             urlMatches.forEach((match) => {
               const url = match[0];
               const matchIndex = match.index;
-
               const isCompleteUrl =
                 url.length >= 8 &&
                 (matchIndex + url.length === text.length ||
                   /[\s.,;!?)]/.test(text[matchIndex + url.length])) &&
                 (matchIndex === 0 || /[\s.,;!?(]/.test(text[matchIndex - 1]));
-
               if (isCompleteUrl) {
                 if (matchIndex > lastIndex) {
                   fragment.appendChild(
@@ -369,7 +323,6 @@ const EditorPane = ({
                 document.createTextNode(text.substring(lastIndex))
               );
             }
-
             if (madeChanges && textNode.parentNode) {
               const liveTextNode = findEquivalentNode(
                 editorRef.current,
@@ -388,7 +341,6 @@ const EditorPane = ({
             requestAnimationFrame(() => {
               if (!editorRef.current) return;
               const finalHtml = editorRef.current.innerHTML;
-
               if (
                 range &&
                 cursorNode &&
@@ -401,7 +353,6 @@ const EditorPane = ({
                     editorRef.current,
                     cursorNode
                   );
-
                   if (liveCursorNode && isValidNode(liveCursorNode)) {
                     const adjustedOffset = Math.min(
                       cursorOffset,
@@ -433,37 +384,30 @@ const EditorPane = ({
           }
         }, 700)
       );
-      // --- End: Auto-linking logic ---
-
-      // Call onChange immediately for typing responsiveness
       handleContentChange(newHtml);
     },
-    [onChange, typingTimeout]
+    [handleContentChange, typingTimeout] // Changed onChange to handleContentChange
   );
 
-  // --- Specific handler for paste button using Clipboard API ---
   const handlePasteFromClipboard = useCallback(async () => {
     if (!navigator.clipboard?.readText) {
       console.warn("Clipboard API (readText) not supported by this browser.");
-      applyCommand("paste"); // Try original execCommand as fallback
+      applyCommand("paste");
       return;
     }
     editorRef.current?.focus();
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        // Escape basic HTML characters from plain text before inserting as HTML
         const escapedText = text
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#039;");
-        // Replace newlines with <br> tags for HTML insertion
         const htmlToInsert = escapedText.replace(/\r?\n/g, "<br>");
         document.execCommand("insertHTML", false, htmlToInsert);
       }
-      // Trigger update after successful paste
       requestAnimationFrame(() => {
         if (editorRef.current) {
           handleContentChange(editorRef.current.innerHTML);
@@ -471,7 +415,6 @@ const EditorPane = ({
       });
     } catch (err) {
       console.error("Failed to read clipboard contents or insert HTML: ", err);
-      // If Clipboard API failed, maybe try execCommand as last resort
       try {
         const success = document.execCommand("paste", false, null);
         if (success && editorRef.current) {
@@ -488,15 +431,13 @@ const EditorPane = ({
       }
     }
     editorRef.current?.focus();
-  }, [onChange, applyCommand]); // Now depends on correctly ordered applyCommand
+  }, [applyCommand, handleContentChange]); // Changed onChange to handleContentChange
 
-  // Apply block-level styling
   const applyBlockStyle = useCallback(
     (tag, className = null) => {
       editorRef.current?.focus();
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return;
-
       const range = selection.getRangeAt(0);
       let startBlock = range.startContainer;
       while (
@@ -518,7 +459,6 @@ const EditorPane = ({
         if (startBlock === editorRef.current) break;
         startBlock = startBlock.parentNode;
       }
-
       if (!startBlock || startBlock === editorRef.current) {
         document.execCommand("formatBlock", false, "div");
         const newSelection = window.getSelection();
@@ -549,7 +489,6 @@ const EditorPane = ({
           return;
         }
       }
-
       const isAlreadyStyled =
         (startBlock.nodeName === tag.toUpperCase() &&
           (!className || startBlock.classList.contains(className))) ||
@@ -569,7 +508,6 @@ const EditorPane = ({
           if (newBlock === editorRef.current) break;
           newBlock = newBlock.parentNode;
         }
-
         if (newBlock && newBlock !== editorRef.current) {
           if (className) {
             newBlock.className = "";
@@ -588,30 +526,25 @@ const EditorPane = ({
           console.warn("Could not reliably find the newly formatted block.");
         }
       }
-
       requestAnimationFrame(() => {
         if (editorRef.current) {
           handleContentChange(editorRef.current.innerHTML);
         }
       });
     },
-    [onChange]
+    [handleContentChange] // Changed onChange to handleContentChange
   );
 
-  // Apply inline styling
   const applyInlineStyle = useCallback(
     (tag) => {
       editorRef.current?.focus();
       const command = tag === "code" ? "insertHTML" : null;
-
       if (command) {
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0) return;
-
         const range = selection.getRangeAt(0);
         const selectedText = range.toString();
         const commonAncestor = range.commonAncestorContainer;
-
         let isWrapped = false;
         let parentElement = commonAncestor;
         if (parentElement.nodeType !== Node.ELEMENT_NODE) {
@@ -631,7 +564,6 @@ const EditorPane = ({
           isWrapped = true;
           parentElement = range.startContainer.parentNode;
         }
-
         if (isWrapped && parentElement) {
           const textContent = parentElement.textContent;
           const textNode = document.createTextNode(textContent);
@@ -645,17 +577,15 @@ const EditorPane = ({
       } else {
         document.execCommand(tag, false, null);
       }
-
       requestAnimationFrame(() => {
         if (editorRef.current) {
           handleContentChange(editorRef.current.innerHTML);
         }
       });
     },
-    [onChange]
+    [handleContentChange] // Changed onChange to handleContentChange
   );
 
-  // Link Button Handler
   const handleCreateLink = useCallback(() => {
     editorRef.current?.focus();
     const selection = window.getSelection();
@@ -671,190 +601,176 @@ const EditorPane = ({
       return;
     }
     const linkHtml = createLinkHtml(fullUrl, selectedText || fullUrl);
-    // Use execCommand insertHTML for link creation
     document.execCommand("insertHTML", false, linkHtml);
     requestAnimationFrame(() => {
       if (editorRef.current) {
         handleContentChange(editorRef.current.innerHTML);
       }
     });
-  }, [onChange]); // Depends on onChange for update
+  }, [handleContentChange]); // Changed onChange to handleContentChange
 
-  // Toggle text direction
   const toggleDirection = useCallback(() => {
     setIsRTL((prevIsRTL) => !prevIsRTL);
   }, []);
 
-  // Handler for font family/size changes
   const handleFontChange = useCallback(
     (command, value) => {
-      applyCommand(command, value); // Now uses applyCommand defined earlier
+      applyCommand(command, value);
       if (command === "fontName") setFontFamily(value);
       if (command === "fontSize") setFontSize(value);
     },
-    [applyCommand] // Correct dependency order now
+    [applyCommand]
   );
 
-  // --- Render Component ---
+  const buttonBaseClass =
+    "p-1.5 sm:p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"; // Increased base padding
+
   return (
     <div className="flex flex-col flex-grow border rounded bg-white dark:bg-zinc-800 dark:border-zinc-700">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-2 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
-        {/* --- Undo/Redo --- */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:gap-y-1 p-2 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
+        {" "}
+        {/* Increased gap-y for mobile */}
         <button
           onClick={() => applyCommand("undo")}
           title="Undo"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <Undo className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("redo")}
           title="Redo"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <Redo className="w-5 h-5" />
         </button>
-
-        {/* --- Cut/Copy/Paste Buttons --- */}
         <button
           onClick={() => applyCommand("cut")}
           title="Cut"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <Scissors className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("copy")}
           title="Copy"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <Copy className="w-5 h-5" />
         </button>
         <button
-          onClick={handlePasteFromClipboard} // Use the specific handler
+          onClick={handlePasteFromClipboard}
           title="Paste"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <ClipboardPaste className="w-5 h-5" />
         </button>
-
-        {/* --- Basic Formatting --- */}
         <button
           onClick={() => applyCommand("bold")}
           title="Bold"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <BoldIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("italic")}
           title="Italic"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <ItalicIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("underline")}
           title="Underline"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <UnderlineIcon className="w-5 h-5" />
         </button>
-
-        {/* --- Code Formatting --- */}
         <button
           onClick={() => applyInlineStyle("code")}
           title="Inline Code"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <CodeIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyBlockStyle("pre")}
           title="Code Block"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <CodeBlockIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyBlockStyle("div", "shell-command")}
           title="Shell Command Block"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <ShellIcon className="w-5 h-5" />
         </button>
-
-        {/* --- Alignment & Selection --- */}
         <button
           onClick={() => applyCommand("justifyLeft")}
           title="Align Left"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <AlignLeft className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("justifyCenter")}
           title="Align Center"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <AlignCenter className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("justifyRight")}
           title="Align Right"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <AlignRight className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("selectAll")}
           title="Select All"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <TextSelect className="w-5 h-5" />
         </button>
-
-        {/* --- List Support --- */}
         <button
           onClick={() => applyCommand("insertUnorderedList")}
           title="Bulleted List"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <UnorderedListIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => applyCommand("insertOrderedList")}
           title="Numbered List"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <OrderedListIcon className="w-5 h-5" />
         </button>
-
-        {/* --- Link & Direction --- */}
         <button
           onClick={handleCreateLink}
           title="Create Link"
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <LinkIcon className="w-5 h-5" />
         </button>
         <button
           onClick={toggleDirection}
           title={`Text Direction: ${isRTL ? "RTL" : "LTR"}`}
-          className={`p-1 flex items-center ${
+          className={`p-1.5 sm:p-1 flex items-center ${
+            // Adjusted padding
             isRTL ? "bg-blue-100 dark:bg-blue-900" : ""
           } hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded`}
         >
           <Type className="w-5 h-5 mr-1" />
           <span>{isRTL ? "RTL" : "LTR"}</span>
         </button>
-
-        {/* --- Font Selection --- */}
         <select
           title="Font Family"
-          className="p-1 text-sm border rounded bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          value={fontFamily} // Use local state for controlled component value
+          className="p-1.5 sm:p-1 text-base md:text-sm border rounded bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500" // Adjusted padding and font
+          value={fontFamily}
           onChange={(e) => handleFontChange("fontName", e.target.value)}
         >
           {FONT_FAMILIES.map((f) => (
@@ -865,8 +781,8 @@ const EditorPane = ({
         </select>
         <select
           title="Font Size"
-          className="p-1 text-sm border rounded bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          value={fontSize} // Use local state for controlled component value
+          className="p-1.5 sm:p-1 text-base md:text-sm border rounded bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500" // Adjusted padding and font
+          value={fontSize}
           onChange={(e) => handleFontChange("fontSize", e.target.value)}
         >
           {FONT_SIZES.map((s) => (
@@ -876,15 +792,13 @@ const EditorPane = ({
           ))}
         </select>
       </div>
-
-      {/* Editor area */}
       <div
         ref={editorRef}
         dir={isRTL ? "rtl" : "ltr"}
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
-        className="editor-pane prose prose-sm dark:prose-invert max-w-none w-full flex-grow p-3 border-t border-zinc-300 dark:border-zinc-600 rounded-b resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 bg-white dark:bg-zinc-900 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline whitespace-pre-wrap prose-code:before:content-none prose-code:after:content-none prose-pre:bg-inherit dark:prose-pre:bg-inherit prose-pre:p-0" // Keep original classes
+        className="editor-pane prose prose-base md:prose-sm dark:prose-invert max-w-none w-full flex-grow p-3 border-t border-zinc-300 dark:border-zinc-600 rounded-b resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 bg-white dark:bg-zinc-900 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline whitespace-pre-wrap prose-code:before:content-none prose-code:after:content-none prose-pre:bg-inherit dark:prose-pre:bg-inherit prose-pre:p-0" // Adjusted prose class for mobile
         role="textbox"
         aria-multiline="true"
       />

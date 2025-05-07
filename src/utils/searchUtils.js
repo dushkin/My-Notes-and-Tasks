@@ -1,6 +1,4 @@
-// src/utils/searchUtils.js
-
-function escapeRegex(str) {
+export function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
@@ -19,21 +17,22 @@ export function matchText(text, query, opts) {
     if (opts.useRegex) {
       pattern = query;
     } else {
+      // Use the (now exported) escapeRegex function
       const safe = escapeRegex(query);
       pattern = opts.wholeWord ? `\\b${safe}\\b` : safe;
     }
     const re = new RegExp(pattern, flags);
-    const matchResult = re.exec(text); // Use exec() to get index and matched string
+    const matchResult = re.exec(text);
 
     if (matchResult) {
       return {
-        matchedString: matchResult[0], // The actual matched string
-        startIndex: matchResult.index,  // The starting index of the match
+        matchedString: matchResult[0],
+        startIndex: matchResult.index,
       };
     }
-    return null; // No match
+    return null;
   } catch (e) {
-    // console.error("Regex error in matchText:", e, query, text); // For debugging
+    // console.error("Regex error in matchText:", e, query, text);
     return null;
   }
 }
@@ -50,23 +49,33 @@ export function matchText(text, query, opts) {
 export function itemMatches(item, query, opts) {
   if (!item || !query) return false;
 
-  if (item.type === 'folder') {
-    if (typeof item.label === 'string' && matchText(item.label, query, opts) !== null) {
-      return true;
-    }
-  } else if (item.type === 'note' || item.type === 'task') {
-    // Check label first
-    if (typeof item.label === 'string' && matchText(item.label, query, opts) !== null) {
-      return true;
-    }
-    // Then check content
-    if (typeof item.content === 'string' && matchText(item.content, query, opts) !== null) {
-      return true;
-    }
-    // If item has a 'title' (e.g. from an imported structure) and it's different from label, you could check it too
-    if (typeof item.title === 'string' && item.title !== item.label && matchText(item.title, query, opts) !== null) {
+  // Check label (common to all types that might have one)
+  if (typeof item.label === 'string' && matchText(item.label, query, opts) !== null) {
+    return true;
+  }
+
+  // Check title if it exists and differs from label
+  if (typeof item.title === 'string' && item.title !== item.label && matchText(item.title, query, opts) !== null) {
+    return true;
+  }
+
+  // Check content only for notes and tasks
+  if ((item.type === 'note' || item.type === 'task') && typeof item.content === 'string') {
+    // Convert HTML content to plain text before matching
+    // Note: This assumes a simple HTML structure or requires a more robust HTML-to-text conversion
+    // For efficiency, this conversion might ideally happen once when indexing or preparing search data,
+    // but for direct matching, we do it here.
+    let plainTextContent = '';
+    try {
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = item.content;
+      plainTextContent = tempDiv.textContent || tempDiv.innerText || "";
+    } catch (e) { /* Ignore potential errors during conversion for search */ }
+
+    if (matchText(plainTextContent, query, opts) !== null) {
       return true;
     }
   }
+
   return false;
 }

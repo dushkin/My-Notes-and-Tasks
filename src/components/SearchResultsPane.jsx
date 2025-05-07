@@ -21,7 +21,7 @@ const HighlightMultiple = ({ text, query, opts }) => {
   const parts = [];
   let lastIndex = 0;
   let match;
-  const textToSearch = String(text); // Ensure it's a string
+  const textToSearch = String(text);
 
   while ((match = regex.exec(textToSearch)) !== null) {
     if (match.index > lastIndex) {
@@ -46,7 +46,6 @@ const HighlightMultiple = ({ text, query, opts }) => {
   return parts.length > 0 ? <>{parts}</> : <>{text}</>;
 };
 
-// Path Highlighter - specific for the label part of the path
 const HighlightedPathLabel = ({ pathString, itemLabel, highlightDetails }) => {
   if (!pathString) return <>{pathString}</>;
   const pathParts = pathString.split(" / ");
@@ -74,7 +73,6 @@ const HighlightedPathLabel = ({ pathString, itemLabel, highlightDetails }) => {
         {suffix}
       </>
     );
-
     return (
       <>
         {pathParts.map((part, index) => (
@@ -100,15 +98,14 @@ export default function SearchResultsPane({
   headerHeightClass,
 }) {
   const isRegexEnabledCurrently = false;
-
   return (
     <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
       <div
-        className={`flex items-center space-x-2 p-2 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0 ${headerHeightClass}`}
+        className={`flex items-center space-x-2 p-2 sm:p-3 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0 ${headerHeightClass}`} // Adjusted padding
       >
         <input
           id="global-search-input"
-          className="flex-1 px-2 py-1 rounded bg-white dark:bg-zinc-800 focus:outline-none text-zinc-900 dark:text-zinc-100"
+          className="flex-1 px-3 sm:px-2 py-2 sm:py-1 rounded bg-white dark:bg-zinc-800 focus:outline-none text-zinc-900 dark:text-zinc-100 text-base md:text-sm" // Adjusted padding and font
           placeholder="Search..."
           value={query || ""}
           onChange={(e) => onQueryChange(e.target.value)}
@@ -147,7 +144,8 @@ export default function SearchResultsPane({
                 }
               }}
               disabled={disabled}
-              className={`p-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+              className={`p-1.5 sm:p-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                // Adjusted padding
                 disabled
                   ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
                   : opts[key]
@@ -155,13 +153,14 @@ export default function SearchResultsPane({
                   : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-5 h-5 sm:w-4 sm:h-4" />{" "}
+              {/* Adjusted icon size */}
             </button>
           ))}
         </div>
         <button
           onClick={onClose}
-          className="p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded"
+          className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded" // Adjusted padding
           title="Close Search"
         >
           <XCircle className="w-5 h-5" />
@@ -181,7 +180,7 @@ export default function SearchResultsPane({
               <div
                 key={item.id}
                 onClick={() => onSelectResult(item)}
-                className="p-2 border-b border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                className="p-3 sm:p-2 border-b border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700" // Increased base padding
               >
                 {item.path && (
                   <p
@@ -191,7 +190,7 @@ export default function SearchResultsPane({
                     <HighlightedPathLabel
                       pathString={item.path}
                       itemLabel={item.label || item.title || ""}
-                      highlightDetails={item.pathLabelHighlight} // This comes from App.jsx
+                      highlightDetails={item.pathLabelHighlight}
                     />
                     {item.matchSource && (
                       <span
@@ -210,11 +209,11 @@ export default function SearchResultsPane({
                 )}
 
                 <p
-                  className="text-sm text-zinc-800 dark:text-zinc-200 max-w-full truncate"
+                  className="text-base md:text-sm text-zinc-800 dark:text-zinc-200 max-w-full truncate" // Adjusted font size
                   title={item.displaySnippetText}
                 >
                   <HighlightMultiple
-                    text={item.displaySnippetText} // This is now plain text
+                    text={item.displaySnippetText}
                     query={query}
                     opts={opts}
                   />
