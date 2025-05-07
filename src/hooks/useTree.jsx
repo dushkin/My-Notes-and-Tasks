@@ -17,7 +17,8 @@ import { jsPDF } from "jspdf";
 import * as bidiNS from "unicode-bidirectional";
 import { notoSansHebrewBase64 } from "../fonts/NotoSansHebrewBase64";
 import { useSettings } from "../contexts/SettingsContext";
-import { itemMatches } from "../utils/searchUtils";
+import { itemMatches, matchText as utilMatchText } from "../utils/searchUtils";
+import { useUndoRedo } from "./useUndoRedo";
 
 const embeddingLevels = bidiNS.embeddingLevels || bidiNS.getEmbeddingLevels;
 const reorder = bidiNS.reorder || bidiNS.getReorderedString;
@@ -36,16 +37,17 @@ function htmlToPlainTextWithNewlines(html) {
     tempDiv.innerHTML = text;
     text = tempDiv.textContent || tempDiv.innerText || "";
   } catch (e) {
-    console.error("Error decoding HTML entities during PDF export:", e);
+    console.error("Error decoding HTML entities for PDF export:", e);
   }
-  text = text.trim().replace(/(\r\n|\r|\n){2,}/g, "\n");
-  return text;
+  return text.trim().replace(/(\r\n|\r|\n){2,}/g, "\n");
 }
 
 const assignNewIds = (item) => {
-  const newItem = { ...item };
-  newItem.id =
-    Date.now().toString() + "-" + Math.random().toString(36).substring(2, 9);
+  const newItem = {
+    ...item,
+    id:
+      Date.now().toString() + "-" + Math.random().toString(36).substring(2, 9),
+  };
   if (Array.isArray(newItem.children)) {
     newItem.children = newItem.children.map((child) => assignNewIds(child));
   }
@@ -56,16 +58,29 @@ export const useTree = () => {
   const EXPANDED_KEY = `${LOCAL_STORAGE_KEY}_expanded`;
   const { settings } = useSettings();
 
-  const [tree, setTree] = useState(() => {
+  const initialTreeState = (() => {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
       const parsed = stored ? JSON.parse(stored) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-      console.error("Failed to load or parse tree from localStorage:", error);
+      console.error(
+        "Failed to load or parse tree from localStorage for initial state:",
+        error
+      );
       return [];
     }
-  });
+  })();
+
+  const {
+    state: tree,
+    setState: setTreeWithUndo,
+    resetState: resetTreeHistory,
+    undo: undoTreeChange,
+    redo: redoTreeChange,
+    canUndo: canUndoTree,
+    canRedo: canRedoTree,
+  } = useUndoRedo(initialTreeState);
 
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [contextMenu, setContextMenu] = useState({
@@ -80,10 +95,6 @@ export const useTree = () => {
       const stored = localStorage.getItem(EXPANDED_KEY);
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
-      console.error(
-        "Failed to load or parse expanded folders from localStorage:",
-        error
-      );
       return {};
     }
   });
@@ -97,36 +108,26 @@ export const useTree = () => {
     [tree, selectedItemId]
   );
 
-  const setTreeAndPersist = useCallback(
-    (newTreeOrCallback) => {
-      setTree((prevTree) => {
-        const newTree =
-          typeof newTreeOrCallback === "function"
-            ? newTreeOrCallback(prevTree)
-            : newTreeOrCallback;
-        try {
-          if (!Array.isArray(newTree)) {
-            console.error(
-              "Attempted to save non-array data to localStorage:",
-              newTree
-            );
-            return prevTree;
-          }
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newTree));
-        } catch (error) {
-          console.error("Failed to save tree to localStorage:", error);
-        }
-        return newTree;
-      });
-    },
-    [LOCAL_STORAGE_KEY]
-  );
+  useEffect(() => {
+    try {
+      if (!Array.isArray(tree)) {
+        console.error(
+          "Attempted to save non-array tree data to localStorage:",
+          tree
+        );
+        return;
+      }
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tree));
+    } catch (error) {
+      console.error("Failed to save tree to localStorage:", error);
+    }
+  }, [tree]);
 
   useEffect(() => {
     try {
       localStorage.setItem(EXPANDED_KEY, JSON.stringify(expandedFolders));
     } catch (error) {
-      console.error("Failed to save expanded folders to localStorage:", error);
+      console.error("Failed to save expanded folders:", error);
     }
   }, [expandedFolders, EXPANDED_KEY]);
 
@@ -135,7 +136,7 @@ export const useTree = () => {
   const replaceTree = useCallback(
     (newTreeData) => {
       if (Array.isArray(newTreeData)) {
-        setTreeAndPersist(newTreeData);
+        resetTreeHistory(newTreeData);
         setSelectedItemId(null);
         setExpandedFolders({});
         return { success: true };
@@ -144,13 +145,10 @@ export const useTree = () => {
           "replaceTree failed: Provided data is not an array.",
           newTreeData
         );
-        return {
-          success: false,
-          error: "Import failed: Invalid data format (expected an array).",
-        };
+        return { success: false, error: "Import failed: Invalid data format." };
       }
     },
-    [setTreeAndPersist]
+    [resetTreeHistory]
   );
 
   const expandFolderPath = useCallback(
@@ -180,10 +178,6 @@ export const useTree = () => {
         const targetItem = findItemById(currentTree, folderId);
         if (targetItem) {
           next[folderId] = true;
-        } else {
-          console.warn(
-            `expandFolderPath: Could not find item with id ${folderId} to ensure expansion.`
-          );
         }
         return next;
       });
@@ -201,104 +195,96 @@ export const useTree = () => {
 
   const updateNoteContent = useCallback(
     (itemId, content) => {
-      const recurse = (items) =>
-        items.map((it) =>
-          it.id === itemId
-            ? { ...it, content }
-            : Array.isArray(it.children)
-            ? { ...it, children: recurse(it.children) }
-            : it
+      const mapRecursive = (items, id, updates) => {
+        return items.map((i) =>
+          i.id === id
+            ? { ...i, ...updates }
+            : Array.isArray(i.children)
+            ? { ...i, children: mapRecursive(i.children, id, updates) }
+            : i
         );
-      setTreeAndPersist(recurse);
+      };
+      const newTreeState = mapRecursive(tree, itemId, { content });
+      setTreeWithUndo(newTreeState);
     },
-    [setTreeAndPersist]
+    [tree, setTreeWithUndo]
   );
 
   const updateTask = useCallback(
     (taskId, updates) => {
-      const recurse = (items) =>
-        items.map((it) =>
-          it.id === taskId && it.type === "task"
-            ? { ...it, ...updates }
-            : Array.isArray(it.children)
-            ? { ...it, children: recurse(it.children) }
-            : it
+      const mapRecursiveTask = (items, id, taskUpdates) => {
+        return items.map((i) =>
+          i.id === id && i.type === "task"
+            ? { ...i, ...taskUpdates }
+            : Array.isArray(i.children)
+            ? { ...i, children: mapRecursiveTask(i.children, id, taskUpdates) }
+            : i
         );
-      setTreeAndPersist(recurse);
+      };
+      const newTreeState = mapRecursiveTask(tree, taskId, updates);
+      setTreeWithUndo(newTreeState);
     },
-    [setTreeAndPersist]
+    [tree, setTreeWithUndo]
   );
 
   const addItem = useCallback(
     (newItem, parentId) => {
       const trimmedLabel = newItem?.label?.trim();
-      if (!newItem || !newItem.id || !trimmedLabel) {
-        return { success: false, error: "Invalid item data provided." };
-      }
+      if (!newItem || !newItem.id || !trimmedLabel)
+        return { success: false, error: "Invalid item data." };
       let siblings = [];
-      let parentItem = null;
+      const currentTreeSnapshot = tree;
       if (parentId === null) {
-        siblings = tree || [];
+        siblings = currentTreeSnapshot || [];
       } else {
-        parentItem = findItemById(tree, parentId);
-        if (!parentItem || parentItem.type !== "folder") {
-          return {
-            success: false,
-            error: "Target parent folder not found or invalid.",
-          };
-        }
+        const parentItem = findItemById(currentTreeSnapshot, parentId);
+        if (!parentItem || parentItem.type !== "folder")
+          return { success: false, error: "Target parent not found." };
         siblings = parentItem.children || [];
       }
-      if (hasSiblingWithName(siblings, trimmedLabel, null)) {
+      if (hasSiblingWithName(siblings, trimmedLabel, null))
         return {
           success: false,
-          error: `An item named "${trimmedLabel}" already exists at this level.`,
+          error: `Item "${trimmedLabel}" already exists.`,
         };
-      }
-      setTreeAndPersist((prevTree) =>
-        insertItemRecursive(prevTree, parentId, newItem)
-      );
+
+      const newTreeState = insertItemRecursive(tree, parentId, newItem);
+      setTreeWithUndo(newTreeState);
+
       if (parentId && settings.autoExpandNewFolders) {
         setTimeout(() => expandFolderPath(parentId), 0);
       }
       return { success: true };
     },
-    [setTreeAndPersist, expandFolderPath, tree, settings.autoExpandNewFolders]
+    [tree, setTreeWithUndo, expandFolderPath, settings.autoExpandNewFolders]
   );
 
   const renameItem = useCallback(
     (itemId, newLabel) => {
       const trimmedLabel = newLabel?.trim();
-      if (!trimmedLabel || !itemId) {
+      if (!trimmedLabel || !itemId)
+        return { success: false, error: "Invalid ID or name." };
+      const currentTreeSnapshot = tree;
+      const { siblings } = findParentAndSiblings(currentTreeSnapshot, itemId);
+      if (hasSiblingWithName(siblings, trimmedLabel, itemId))
         return {
           success: false,
-          error: "Cannot rename: Invalid ID or empty name provided.",
+          error: `Item "${trimmedLabel}" already exists.`,
         };
-      }
-      const { siblings } = findParentAndSiblings(tree, itemId);
-      if (hasSiblingWithName(siblings, trimmedLabel, itemId)) {
-        return {
-          success: false,
-          error: `An item named "${trimmedLabel}" already exists at this level.`,
-        };
-      }
-      setTreeAndPersist((currentTree) =>
-        renameItemRecursive(currentTree, itemId, trimmedLabel)
-      );
+
+      const newTreeState = renameItemRecursive(tree, itemId, trimmedLabel);
+      setTreeWithUndo(newTreeState);
       return { success: true };
     },
-    [setTreeAndPersist, tree]
+    [tree, setTreeWithUndo]
   );
 
   const deleteItem = useCallback(
     (idToDelete) => {
       if (!idToDelete) return;
-      setTreeAndPersist((currentTree) =>
-        deleteItemRecursive(currentTree, idToDelete)
-      );
-      if (selectedItemId === idToDelete) {
-        setSelectedItemId(null);
-      }
+      const newTreeState = deleteItemRecursive(tree, idToDelete);
+      setTreeWithUndo(newTreeState);
+      if (selectedItemId === idToDelete) setSelectedItemId(null);
       setExpandedFolders((prev) => {
         if (prev.hasOwnProperty(idToDelete)) {
           const next = { ...prev };
@@ -309,20 +295,21 @@ export const useTree = () => {
       });
       setContextMenu((m) => (m.visible ? { ...m, visible: false } : m));
     },
-    [selectedItemId, setTreeAndPersist, setExpandedFolders]
+    [tree, selectedItemId, setTreeWithUndo]
   );
 
   const duplicateItem = useCallback(
     (itemId) => {
-      const itemToDuplicate = findItemById(tree, itemId);
+      const currentTreeSnapshot = tree;
+      const itemToDuplicate = findItemById(currentTreeSnapshot, itemId);
       if (!itemToDuplicate) {
-        console.error(
-          "duplicateItem Hook failed: Item to duplicate not found",
-          itemId
-        );
+        console.error("duplicateItem Hook failed", itemId);
         return;
       }
-      const { parent, siblings } = findParentAndSiblings(tree, itemId);
+      const { parent, siblings } = findParentAndSiblings(
+        currentTreeSnapshot,
+        itemId
+      );
       const parentId = parent?.id ?? null;
       let baseName = itemToDuplicate.label;
       let duplicateLabel = `${baseName}-dup`;
@@ -333,15 +320,16 @@ export const useTree = () => {
       }
       let duplicate = assignNewIds(itemToDuplicate);
       duplicate.label = duplicateLabel;
-      setTreeAndPersist((prevTree) =>
-        insertItemRecursive(prevTree, parentId, duplicate)
-      );
+
+      const newTreeState = insertItemRecursive(tree, parentId, duplicate);
+      setTreeWithUndo(newTreeState);
+
       if (parentId && settings.autoExpandNewFolders) {
         setTimeout(() => expandFolderPath(parentId), 0);
       }
       setContextMenu((m) => ({ ...m, visible: false }));
     },
-    [tree, setTreeAndPersist, expandFolderPath, settings.autoExpandNewFolders]
+    [tree, setTreeWithUndo, expandFolderPath, settings.autoExpandNewFolders]
   );
 
   const handleDrop = useCallback(
@@ -349,15 +337,20 @@ export const useTree = () => {
       const currentDraggedId = draggedId;
       setDraggedId(null);
       if (!currentDraggedId || targetId === currentDraggedId) return;
-      const nextTree = treeHandleDropUtil(tree, targetId, currentDraggedId);
-      if (nextTree) {
-        setTreeAndPersist(nextTree);
+      const currentTreeSnapshot = tree;
+      const nextTreeResult = treeHandleDropUtil(
+        currentTreeSnapshot,
+        targetId,
+        currentDraggedId
+      ); // This utility should return the new tree array or null
+      if (nextTreeResult) {
+        setTreeWithUndo(nextTreeResult);
         toggleFolderExpand(targetId, true);
       } else {
-        console.warn("handleDrop Hook: Drop deemed invalid by treeUtils.");
+        console.warn("Drop invalid by treeUtils.");
       }
     },
-    [draggedId, tree, setTreeAndPersist, toggleFolderExpand]
+    [draggedId, tree, setTreeWithUndo, toggleFolderExpand]
   );
 
   const copyItem = useCallback(
@@ -365,21 +358,15 @@ export const useTree = () => {
       const itemToCopy = findItemById(tree, itemId);
       if (itemToCopy) {
         try {
-          const deepCopy =
-            typeof structuredClone === "function"
-              ? structuredClone(itemToCopy)
-              : JSON.parse(JSON.stringify(itemToCopy));
+          const deepCopy = structuredClone(itemToCopy);
           setClipboardItem(deepCopy);
           setClipboardMode("copy");
           setCutItemId(null);
         } catch (e) {
-          console.error("Failed to copy item:", e);
           setClipboardItem(null);
           setClipboardMode(null);
           setCutItemId(null);
         }
-      } else {
-        console.warn("copyItem: Item not found", itemId);
       }
       setContextMenu((m) => ({ ...m, visible: false }));
     },
@@ -391,21 +378,15 @@ export const useTree = () => {
       const itemToCut = findItemById(tree, itemId);
       if (itemToCut) {
         try {
-          const deepCopy =
-            typeof structuredClone === "function"
-              ? structuredClone(itemToCut)
-              : JSON.parse(JSON.stringify(itemToCut));
+          const deepCopy = structuredClone(itemToCut);
           setClipboardItem(deepCopy);
           setClipboardMode("cut");
           setCutItemId(itemId);
         } catch (e) {
-          console.error("Failed to cut item:", e);
           setClipboardItem(null);
           setClipboardMode(null);
           setCutItemId(null);
         }
-      } else {
-        console.warn("cutItem: Item not found", itemId);
       }
       setContextMenu((m) => ({ ...m, visible: false }));
     },
@@ -414,79 +395,66 @@ export const useTree = () => {
 
   const pasteItem = useCallback(
     (targetFolderId) => {
-      if (!clipboardItem) {
-        return { success: false, error: "Clipboard is empty." };
-      }
-      const originalClipboardItemId = clipboardItem.id;
-      const currentCutItemIdValue = cutItemId;
-      const currentClipboardMode = clipboardMode;
+      if (!clipboardItem) return { success: false, error: "Clipboard empty." };
+      const currentTreeSnapshot = tree;
       if (
         clipboardItem.type === "folder" &&
-        isSelfOrDescendant(tree, originalClipboardItemId, targetFolderId)
+        isSelfOrDescendant(
+          currentTreeSnapshot,
+          clipboardItem.id,
+          targetFolderId
+        )
       ) {
-        return {
-          success: false,
-          error: `Cannot paste folder "${clipboardItem.label}" into itself or one of its subfolders.`,
-        };
+        return { success: false, error: `Cannot paste folder into itself.` };
       }
       let targetSiblings = [];
-      let targetParent = null;
       if (targetFolderId === null) {
-        targetSiblings = tree || [];
+        targetSiblings = currentTreeSnapshot || [];
       } else {
-        targetParent = findItemById(tree, targetFolderId);
-        if (!targetParent || targetParent.type !== "folder") {
-          return {
-            success: false,
-            error: "Target folder not found or invalid.",
-          };
-        }
+        const targetParent = findItemById(currentTreeSnapshot, targetFolderId);
+        if (!targetParent || targetParent.type !== "folder")
+          return { success: false, error: "Target not found." };
         targetSiblings = targetParent.children || [];
       }
       const { parent: sourceParent } = findParentAndSiblings(
-        tree,
-        currentCutItemIdValue
+        currentTreeSnapshot,
+        cutItemId
       );
       const isMovingInSameFolder =
-        currentClipboardMode === "cut" && sourceParent?.id === targetFolderId;
-      let conflictExists = false;
-      if (!isMovingInSameFolder) {
-        conflictExists = hasSiblingWithName(
-          targetSiblings,
-          clipboardItem.label,
-          null
-        );
-      }
-      if (conflictExists) {
+        clipboardMode === "cut" && sourceParent?.id === targetFolderId;
+      if (
+        !isMovingInSameFolder &&
+        hasSiblingWithName(targetSiblings, clipboardItem.label, null)
+      ) {
         return {
           success: false,
-          error: `An item named "${clipboardItem.label}" already exists in the target location.`,
+          error: `Item "${clipboardItem.label}" already exists.`,
         };
       }
       const itemToPasteWithNewIds = assignNewIds(clipboardItem);
-      setTreeAndPersist((currentTree) => {
-        let newTree = insertItemRecursive(
-          currentTree,
-          targetFolderId,
-          itemToPasteWithNewIds
+
+      let finalTreeState = insertItemRecursive(
+        tree,
+        targetFolderId,
+        itemToPasteWithNewIds
+      ); // tree is history.present
+      if (clipboardMode === "cut" && cutItemId) {
+        const pastedItemStillExists = findItemById(
+          finalTreeState,
+          itemToPasteWithNewIds.id
         );
-        if (currentClipboardMode === "cut" && currentCutItemIdValue) {
-          const pastedItemExists = findItemById(
-            newTree,
-            itemToPasteWithNewIds.id
+        if (pastedItemStillExists) {
+          finalTreeState = deleteItemRecursive(finalTreeState, cutItemId);
+        } else {
+          console.error(
+            "Paste ERROR during CUT: Pasted item disappeared! No tree operation performed."
           );
-          if (pastedItemExists) {
-            newTree = deleteItemRecursive(newTree, currentCutItemIdValue);
-          } else {
-            console.error("Paste ERROR during CUT: Reverting tree.");
-            return currentTree;
-          }
+          return { success: false, error: "Paste error during cut operation." };
         }
-        return newTree;
-      });
-      if (currentClipboardMode === "cut") {
-        setCutItemId(null);
       }
+      setTreeWithUndo(finalTreeState);
+
+      if (clipboardMode === "cut") setCutItemId(null);
       if (targetFolderId && settings.autoExpandNewFolders) {
         setTimeout(() => expandFolderPath(targetFolderId), 0);
       }
@@ -498,7 +466,7 @@ export const useTree = () => {
       clipboardMode,
       cutItemId,
       tree,
-      setTreeAndPersist,
+      setTreeWithUndo,
       expandFolderPath,
       settings.autoExpandNewFolders,
     ]
@@ -509,10 +477,9 @@ export const useTree = () => {
       let dataToExport;
       let fileName;
       const currentSelectedItem = findItemById(tree, selectedItemId);
-
       if (target === "selected") {
         if (!currentSelectedItem) {
-          alert("No item is selected to export.");
+          alert("No item selected.");
           return;
         }
         dataToExport = currentSelectedItem;
@@ -521,7 +488,6 @@ export const useTree = () => {
         dataToExport = tree;
         fileName = "tree-export";
       }
-
       if (format === "json") {
         try {
           const jsonStr = JSON.stringify(dataToExport, null, 2);
@@ -535,8 +501,7 @@ export const useTree = () => {
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
         } catch (error) {
-          console.error("JSON export failed:", error);
-          alert("Failed to export as JSON.");
+          alert("Failed to export JSON.");
         }
       } else if (format === "pdf") {
         try {
@@ -554,18 +519,10 @@ export const useTree = () => {
               doc.addFont(FONT_FILENAME, FONT_NAME, FONT_STYLE_BOLD);
               doc.setFont(FONT_NAME, FONT_STYLE_NORMAL);
             } catch (fontError) {
-              console.error("Error loading/adding Hebrew font:", fontError);
-              alert(
-                "Failed to load Hebrew font for PDF export. Hebrew text may not display correctly."
-              );
+              alert("Font error.");
             }
           } else {
-            console.warn(
-              "Hebrew font data could not be imported for PDF export."
-            );
-            alert(
-              "Hebrew font not configured. Hebrew text may not display correctly."
-            );
+            alert("Hebrew font not configured.");
           }
           const PAGE_MARGIN = 15;
           const FONT_SIZE_LABEL = 12;
@@ -598,13 +555,7 @@ export const useTree = () => {
               try {
                 const levels = embeddingLevels(text);
                 processedTextForRendering = reorder(text, levels);
-              } catch (bidiError) {
-                console.error(
-                  "BiDi processing failed for text:",
-                  text,
-                  bidiError
-                );
-              }
+              } catch (bidiError) {}
             }
             const lines = doc.splitTextToSize(
               processedTextForRendering,
@@ -705,10 +656,7 @@ export const useTree = () => {
     (file, importTargetOption) => {
       return new Promise((resolve) => {
         if (!file || file.type !== "application/json") {
-          resolve({
-            success: false,
-            error: "Import failed: Please select a valid JSON file (.json).",
-          });
+          resolve({ success: false, error: "Please select JSON." });
           return;
         }
         const reader = new FileReader();
@@ -717,73 +665,56 @@ export const useTree = () => {
           try {
             importedData = JSON.parse(e.target.result);
           } catch (error) {
-            resolve({
-              success: false,
-              error: `Failed to parse JSON file: ${error.message}`,
-            });
+            resolve({ success: false, error: `Parse error: ${error.message}` });
             return;
           }
           try {
             const isValidItem = (item) =>
               typeof item === "object" &&
-              item !== null &&
+              item &&
               "id" in item &&
               "label" in item &&
               "type" in item;
-            const isValidStructure = (data) =>
-              Array.isArray(data) ? data.every(isValidItem) : isValidItem(data);
-            if (!isValidStructure(importedData)) {
-              throw new Error(
-                "Invalid JSON structure (items must have id, label, type)."
-              );
+            const isValid = (d) =>
+              Array.isArray(d) ? d.every(isValidItem) : isValidItem(d);
+            if (!isValid(importedData)) {
+              throw new Error("Invalid structure.");
             }
             const itemsToImport = Array.isArray(importedData)
               ? importedData
               : [importedData];
             if (importTargetOption === "tree") {
-              resolve(
-                replaceTree(itemsToImport.map((item) => assignNewIds(item)))
-              );
+              const newTreeState = itemsToImport.map((i) => assignNewIds(i));
+              resolve(replaceTree(newTreeState));
             } else {
-              const currentSelectedItem = findItemById(tree, selectedItemId);
-              if (!currentSelectedItem) {
-                resolve({
-                  success: false,
-                  error: "Import failed: No item selected as target.",
-                });
+              const currentSel = findItemById(tree, selectedItemId);
+              if (!currentSel) {
+                resolve({ success: false, error: "No target selected." });
                 return;
               }
-              if (currentSelectedItem.type !== "folder") {
-                resolve({
-                  success: false,
-                  error: "Import failed: Selected item must be a folder.",
-                });
+              if (currentSel.type !== "folder") {
+                resolve({ success: false, error: "Target must be folder." });
                 return;
               }
-              const targetSiblings = currentSelectedItem.children || [];
-              for (const item of itemsToImport) {
-                if (hasSiblingWithName(targetSiblings, item.label, null)) {
-                  resolve({
-                    success: false,
-                    error: `Import failed: An item named "${item.label}" already exists in the target folder "${currentSelectedItem.label}".`,
-                  });
+              const siblings = currentSel.children || [];
+              for (const i of itemsToImport) {
+                if (hasSiblingWithName(siblings, i.label, null)) {
+                  resolve({ success: false, error: `"${i.label}" exists.` });
                   return;
                 }
               }
-              const itemsWithNewIds = itemsToImport.map((item) =>
-                assignNewIds(item)
-              );
-              setTreeAndPersist((prevTree) => {
-                let currentSubTree = prevTree;
-                itemsWithNewIds.forEach((item) => {
-                  currentSubTree = insertItemRecursive(
-                    currentSubTree,
-                    selectedItemId,
-                    item
-                  );
-                });
-                return currentSubTree;
+              const newItems = itemsToImport.map((i) => assignNewIds(i));
+
+              let finalTreeStateAfterInserts = tree;
+              newItems.forEach((ni) => {
+                finalTreeStateAfterInserts = insertItemRecursive(
+                  finalTreeStateAfterInserts,
+                  selectedItemId,
+                  ni
+                );
               });
+              setTreeWithUndo(finalTreeStateAfterInserts);
+
               if (selectedItemId && settings.autoExpandNewFolders) {
                 setTimeout(() => expandFolderPath(selectedItemId), 0);
               }
@@ -792,15 +723,12 @@ export const useTree = () => {
           } catch (error) {
             resolve({
               success: false,
-              error: `Failed to process import data: ${error.message}`,
+              error: `Processing error: ${error.message}`,
             });
           }
         };
-        reader.onerror = (error) => {
-          resolve({
-            success: false,
-            error: "Failed to read the selected file.",
-          });
+        reader.onerror = () => {
+          resolve({ success: false, error: "File read error." });
         };
         reader.readAsText(file);
       });
@@ -808,7 +736,7 @@ export const useTree = () => {
     [
       tree,
       selectedItemId,
-      setTreeAndPersist,
+      setTreeWithUndo,
       replaceTree,
       expandFolderPath,
       settings.autoExpandNewFolders,
@@ -816,30 +744,26 @@ export const useTree = () => {
   );
 
   const searchItems = useCallback(
-    (
-      query,
-      opts = { caseSensitive: false, wholeWord: false, useRegex: false }
-    ) => {
+    (query, opts) => {
       if (!query) return [];
       const results = [];
+      const currentTree = tree || [];
       const walk = (nodes) => {
         if (!Array.isArray(nodes)) return;
         nodes.forEach((it) => {
-          // Use the revised itemMatches which checks label for folders, and label/content for notes/tasks
           if (itemMatches(it, query, opts)) {
             results.push(it);
           }
-          // Recursively search children if it's a folder
           if (it.type === "folder" && Array.isArray(it.children)) {
             walk(it.children);
           }
         });
       };
-      walk(tree); // Start walking from the root of the tree
+      walk(currentTree);
       return results;
     },
     [tree]
-  ); // itemMatches is pure, tree is the main dependency
+  );
 
   return {
     tree,
@@ -869,5 +793,9 @@ export const useTree = () => {
     searchItems,
     getItemPath,
     expandFolderPath,
+    undoTreeChange,
+    redoTreeChange,
+    canUndoTree,
+    canRedoTree,
   };
 };
