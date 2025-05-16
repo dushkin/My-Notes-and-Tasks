@@ -21,14 +21,15 @@ import {
   Settings as SettingsIcon,
   Undo,
   Redo,
+  LogOut, // Added for logout button
 } from "lucide-react";
 import SearchResultsPane from "./components/SearchResultsPane";
-import { matchText, escapeRegex } from "./utils/searchUtils";
+import { matchText } from "./utils/searchUtils"; // escapeRegex might not be needed here
 import { Sheet } from "react-modal-sheet";
+import Login from "./components/Login"; // Import the Login component
 
-// Helper function (htmlToPlainTextWithNewlines) remains the same
 function htmlToPlainTextWithNewlines(html) {
-  /* ... */ if (!html) return "";
+  if (!html) return "";
   let text = html;
   text = text.replace(
     /<(div|p|h[1-6]|li|blockquote|pre|tr|hr)[^>]*>/gi,
@@ -45,36 +46,33 @@ function htmlToPlainTextWithNewlines(html) {
   }
   return text.replace(/(\r?\n|\r){2,}/g, "\n").trim();
 }
-// ErrorDisplay component remains the same
+
 const ErrorDisplay = ({ message, onClose }) => {
-  /* ... */ if (!message) return null;
+  if (!message) return null;
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
     }, 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
+
   return (
     <div className="absolute top-2 right-2 left-2 md:left-auto md:max-w-md z-[60] bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded shadow-lg flex justify-between items-center">
-      {" "}
-      <span className="text-sm">{message}</span>{" "}
+      <span className="text-sm">{message}</span>
       <button
         onClick={onClose}
         className="ml-2 text-red-500 hover:text-red-700"
         aria-label="Close error message"
       >
-        {" "}
-        <XCircle className="w-4 h-4" />{" "}
-      </button>{" "}
+        <XCircle className="w-4 h-4" />
+      </button>
     </div>
   );
 };
 
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
-// Main Application Component
 const App = () => {
-  // --- State Hooks (remain the same) ---
   const { settings } = useSettings();
   const {
     tree,
@@ -108,7 +106,14 @@ const App = () => {
     redoTreeChange,
     canUndoTree,
     canRedoTree,
+    // It's good practice to get resetTreeHistory if you might clear the tree on logout
+    resetState: resetTreeHistory, // from useUndoRedo, aliased as resetTreeHistory in useTree
   } = useTree();
+
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
+
   const [searchSheetOpen, setSearchSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
@@ -120,6 +125,7 @@ const App = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newItemType, setNewItemType] = useState("folder");
   const [newItemLabel, setNewItemLabel] = useState("");
+  const [addDialogErrorMessage, setAddDialogErrorMessage] = useState("");
   const [parentItemForAdd, setParentItemForAdd] = useState(null);
   const [inlineRenameId, setInlineRenameId] = useState(null);
   const [inlineRenameValue, setInlineRenameValue] = useState("");
@@ -137,11 +143,41 @@ const App = () => {
   const topMenuRef = useRef(null);
   const [uiError, setUiError] = useState("");
 
-  // --- Effects ---
-
-  // Global keybindings for Undo/Redo and Search Toggle
+  // Check for existing token on initial app load
   useEffect(() => {
-    /* ... (Undo/Redo/Search Toggle logic remains the same) ... */
+    const token = localStorage.getItem("userToken");
+    if (token) {
+      // Here, you might want to verify the token with the backend
+      // and fetch user details if the token is valid.
+      // For now, we'll assume if a token exists, the user is "logged in"
+      // The useTree hook will then attempt to fetch the tree using this token.
+      setCurrentUser({ token }); // Minimal user object indicating logged-in state
+      
+    }
+    setIsAuthCheckComplete(true); // Mark initial auth check as complete
+  }, []);
+
+  const handleLoginSuccess = (userData) => {
+    setCurrentUser(userData); // userData from server should not include token, token is already in localStorage
+    // The useEffect in useTree hook should re-run due to resetTreeHistory or if its dependencies change
+    // in a way that makes it re-fetch based on the new auth state (e.g., if it depended on a user context).
+    // Forcing a reload is a simple way to ensure everything re-initializes with the new token.
+    window.location.reload();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("userToken");
+    setCurrentUser(null);
+    if (resetTreeHistory) {
+      // Ensure resetTreeHistory is available from useTree
+      resetTreeHistory([]); // Clear the local tree state
+    }
+    setUiError(""); // Clear any existing errors
+    // No need to reload, the component will re-render to show Login
+  };
+
+  useEffect(() => {
+    // Global Keybindings
     const handler = (e) => {
       const activeElement = document.activeElement;
       const isInput =
@@ -153,6 +189,7 @@ const App = () => {
         !!inlineRenameId &&
         activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
           activeElement;
+
       if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "z" &&
@@ -162,7 +199,8 @@ const App = () => {
           isInput &&
           !isRenameActive &&
           activeElement.id !== "tree-navigation-area" &&
-          activeElement.id !== "global-search-input"
+          activeElement.id !== "global-search-input" &&
+          !activeElement.classList.contains("editor-pane")
         )
           return;
         e.preventDefault();
@@ -176,7 +214,8 @@ const App = () => {
           isInput &&
           !isRenameActive &&
           activeElement.id !== "tree-navigation-area" &&
-          activeElement.id !== "global-search-input"
+          activeElement.id !== "global-search-input" &&
+          !activeElement.classList.contains("editor-pane")
         )
           return;
         e.preventDefault();
@@ -186,12 +225,7 @@ const App = () => {
         e.shiftKey &&
         e.key.toUpperCase() === "F"
       ) {
-        if (
-          isInput &&
-          activeElement.id !== "tree-navigation-area" &&
-          activeElement.id !== "global-search-input"
-        )
-          return;
+        if (isInput && activeElement.id === "global-search-input") return;
         e.preventDefault();
         setSearchSheetOpen((s) => !s);
       }
@@ -206,23 +240,22 @@ const App = () => {
     inlineRenameId,
   ]);
 
-  // Disable Regex search option if needed
   useEffect(() => {
-    /* ... (Regex disable logic remains the same) ... */ const isRegexCurrentlyDisabledInPane = true;
+    // Disable Regex search option
+    const isRegexCurrentlyDisabledInPane = true;
     if (isRegexCurrentlyDisabledInPane && searchOptions.useRegex) {
       setSearchOptions((prev) => ({ ...prev, useRegex: false }));
     }
   }, [searchOptions.useRegex]);
 
-  // Effect to generate search results
   useEffect(() => {
-    /* ... (Search result generation logic remains the same) ... */
+    // Generate search results
     if (searchQuery && searchSheetOpen) {
       const currentSearchOpts = { ...searchOptions, useRegex: false };
       const rawHits = searchItems(searchQuery, currentSearchOpts);
-      const CONTEXT_CHARS_BEFORE = 20;
-      const CONTEXT_CHARS_AFTER = 20;
-      const MAX_SNIPPET_LENGTH = 80;
+      const CONTEXT_CHARS_BEFORE = 20,
+        CONTEXT_CHARS_AFTER = 20,
+        MAX_SNIPPET_LENGTH = 80;
       let resultCounter = 0;
       const processedResults = rawHits.map((hit) => {
         const path = getItemPath(tree, hit.id);
@@ -236,10 +269,10 @@ const App = () => {
           typeof hit.content === "string" ? hit.content : "";
         const plainTextContent =
           htmlToPlainTextWithNewlines(originalContentHtml);
-        let displaySnippetText = "";
-        let highlightStartIndexInSnippet = -1;
-        let highlightEndIndexInSnippet = -1;
-        let matchSource = "";
+        let displaySnippetText = "",
+          highlightStartIndexInSnippet = -1,
+          highlightEndIndexInSnippet = -1,
+          matchSource = "";
         let pathLabelHighlightDetails = {
           start: -1,
           end: -1,
@@ -258,8 +291,7 @@ const App = () => {
             labelMatchInfo.startIndex + labelMatchInfo.matchedString.length;
           pathLabelHighlightDetails = {
             start: labelMatchInfo.startIndex,
-            end:
-              labelMatchInfo.startIndex + labelMatchInfo.matchedString.length,
+            end: highlightStartIndexInSnippet,
             originalMatchInLabel: labelMatchInfo.matchedString,
           };
         }
@@ -270,12 +302,11 @@ const App = () => {
             currentSearchOpts
           );
           if (contentMatchInfo) {
-            if (matchSource === "label") {
-              matchSource = "label & content";
-            } else {
+            if (matchSource === "label") matchSource = "label & content";
+            else {
               matchSource = "content";
-              const matchedOriginalString = contentMatchInfo.matchedString;
-              const startIndexInPlainText = contentMatchInfo.startIndex;
+              const { matchedString, startIndex: startIndexInPlainText } =
+                contentMatchInfo;
               let snippetStart = Math.max(
                 0,
                 startIndexInPlainText - CONTEXT_CHARS_BEFORE
@@ -283,7 +314,7 @@ const App = () => {
               let snippetEnd = Math.min(
                 plainTextContent.length,
                 startIndexInPlainText +
-                  matchedOriginalString.length +
+                  matchedString.length +
                   CONTEXT_CHARS_AFTER
               );
               displaySnippetText = plainTextContent.substring(
@@ -293,9 +324,9 @@ const App = () => {
               highlightStartIndexInSnippet =
                 startIndexInPlainText - snippetStart;
               highlightEndIndexInSnippet =
-                highlightStartIndexInSnippet + matchedOriginalString.length;
-              let prefixEllipsis = snippetStart > 0;
-              let suffixEllipsis = snippetEnd < plainTextContent.length;
+                highlightStartIndexInSnippet + matchedString.length;
+              let prefixEllipsis = snippetStart > 0,
+                suffixEllipsis = snippetEnd < plainTextContent.length;
               if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
                 const overflow = displaySnippetText.length - MAX_SNIPPET_LENGTH;
                 let reduceBefore = Math.floor(overflow / 2);
@@ -347,11 +378,11 @@ const App = () => {
           id: `${hit.id}-${matchSource}-${resultCounter++}`,
           originalId: hit.id,
           ...hit,
-          path: path,
-          displaySnippetText: displaySnippetText,
-          highlightStartIndexInSnippet: highlightStartIndexInSnippet,
-          highlightEndIndexInSnippet: highlightEndIndexInSnippet,
-          matchSource: matchSource,
+          path,
+          displaySnippetText,
+          highlightStartIndexInSnippet,
+          highlightEndIndexInSnippet,
+          matchSource,
           pathLabelHighlight:
             pathLabelHighlightDetails.start !== -1
               ? pathLabelHighlightDetails
@@ -375,20 +406,17 @@ const App = () => {
     searchSheetOpen,
   ]);
 
-  // Close top menu on outside click
   useEffect(() => {
-    /* ... (Outside click logic remains the same) ... */ const handleClickOutside =
-      (e) => {
-        if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
-          setTopMenuOpen(false);
-        }
-      };
+    // Close top menu on outside click
+    const handleClickOutside = (e) => {
+      if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
+        setTopMenuOpen(false);
+      }
+    };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- Callback Handlers ---
-  // ** MODIFICATION: Moved rename-related callbacks BEFORE the final useEffect **
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -397,7 +425,7 @@ const App = () => {
       setInlineRenameValue(item.label);
       setContextMenu((m) => ({ ...m, visible: false }));
     },
-    [draggedId, inlineRenameId, setContextMenu]
+    [draggedId, inlineRenameId]
   );
 
   const cancelInlineRename = useCallback(() => {
@@ -423,119 +451,137 @@ const App = () => {
       cancelInlineRename();
       return;
     }
-    const result = renameItem(inlineRenameId, newLabel);
-    if (result.success) {
-      cancelInlineRename();
-    } else {
-      setUiError(result.error || "Rename failed.");
-    }
-  }, [inlineRenameId, inlineRenameValue, renameItem, tree, cancelInlineRename]);
-  // ** END MODIFICATION **
+    const result = await renameItem(inlineRenameId, newLabel);
+    if (result.success) cancelInlineRename();
+    else setUiError(result.error || "Rename failed.");
+  }, [
+    inlineRenameId,
+    inlineRenameValue,
+    renameItem,
+    tree,
+    cancelInlineRename,
+    setUiError,
+  ]);
 
-  const openAddDialog = useCallback(
-    /* ... */ (t, p) => {
-      setNewItemType(t);
-      setParentItemForAdd(p);
+  const openAddDialog = useCallback((type, parent) => {
+    setNewItemType(type);
+    setParentItemForAdd(parent);
+    setNewItemLabel("");
+    setAddDialogErrorMessage("");
+    setUiError("");
+    setAddDialogOpen(true);
+    setContextMenu((m) => ({ ...m, visible: false }));
+    setTopMenuOpen(false);
+  }, []);
+
+  const handleAdd = useCallback(async () => {
+    const tl = newItemLabel.trim();
+    if (!tl) {
+      setAddDialogErrorMessage("Name cannot be empty.");
+      return;
+    }
+    const newItemData = {
+      type: newItemType,
+      label: tl,
+      ...(newItemType === "task" ? { completed: false, content: "" } : {}),
+      ...(newItemType === "note" ? { content: "" } : {}),
+    };
+    const pid = parentItemForAdd?.id ?? null;
+    const result = await addItem(newItemData, pid);
+    if (result.success) {
+      setAddDialogOpen(false);
       setNewItemLabel("");
+      setParentItemForAdd(null);
+      setAddDialogErrorMessage("");
       setUiError("");
-      setAddDialogOpen(true);
-      setContextMenu((m) => ({ ...m, visible: false }));
-      setTopMenuOpen(false);
-    },
-    [setContextMenu]
-  );
-  const handleAdd = useCallback(
-    /* ... */ async () => {
-      const tl = newItemLabel.trim();
-      if (!tl) {
-        setUiError("Name cannot be empty.");
-        return;
-      }
-      const ni = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: newItemType,
-        label: tl,
-        ...(newItemType === "folder" ? { children: [] } : {}),
-        ...(newItemType === "task" ? { completed: false, content: "" } : {}),
-        ...(newItemType === "note" ? { content: "" } : {}),
-      };
-      const pid = parentItemForAdd?.id ?? null;
-      const r = addItem(ni, pid);
-      if (r.success) {
-        setAddDialogOpen(false);
-        setNewItemLabel("");
-        setParentItemForAdd(null);
-        setUiError("");
-      } else setUiError(r.error || "Add failed.");
-    },
-    [newItemLabel, newItemType, parentItemForAdd, addItem]
-  );
+      // if (result.item && result.item.id) selectItemById(result.item.id);
+    } else {
+      setAddDialogErrorMessage(result.error || "Add operation failed.");
+    }
+  }, [
+    newItemLabel,
+    newItemType,
+    parentItemForAdd,
+    addItem /* selectItemById */,
+  ]);
+
   const handleToggleTask = useCallback(
-    /* ... */ (id, comp) => updateTask(id, { completed: comp }),
-    [updateTask]
-  );
-  const handleDragEnd = useCallback(
-    /* ... */ () => setDraggedId(null),
-    [setDraggedId]
-  );
-  const openExportDialog = useCallback(
-    /* ... */ (ctx) => {
-      setExportDialogState({ isOpen: true, context: ctx });
-      setContextMenu((m) => ({ ...m, visible: false }));
-      setTopMenuOpen(false);
+    async (id, currentCompletedStatus) => {
+      const result = await updateTask(id, {
+        completed: !currentCompletedStatus,
+      });
+      if (!result.success)
+        setUiError(result.error || "Failed to update task status.");
     },
-    [setContextMenu]
+    [updateTask, setUiError]
   );
-  const openImportDialog = useCallback(
-    /* ... */ (ctx) => {
-      setImportDialogState({ isOpen: true, context: ctx });
-      setContextMenu((m) => ({ ...m, visible: false }));
-      setTopMenuOpen(false);
-    },
-    [setContextMenu]
-  );
+
+  const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
+
+  const openExportDialog = useCallback((context) => {
+    setExportDialogState({ isOpen: true, context });
+    setContextMenu((m) => ({ ...m, visible: false }));
+    setTopMenuOpen(false);
+  }, []);
+
+  const openImportDialog = useCallback((context) => {
+    setImportDialogState({ isOpen: true, context });
+    setContextMenu((m) => ({ ...m, visible: false }));
+    setTopMenuOpen(false);
+  }, []);
+
   const handleFileImport = useCallback(
-    /* ... */ async (f, to) => {
-      const r = await handleImport(f, to);
-      if (!r.success) setUiError(r.error || "Import error.");
+    async (file, importTargetOption) => {
+      const result = await handleImport(file, importTargetOption);
+      if (!result.success)
+        setUiError(result.error || "Import operation failed.");
       else setUiError("");
     },
-    [handleImport]
+    [handleImport, setUiError]
   );
-  const handlePaste = useCallback(
-    /* ... */ (tid) => {
-      const r = pasteItem(tid);
-      if (!r.success) setUiError(r.error || "Paste failed.");
+
+  const handlePasteWrapper = useCallback(
+    async (targetId) => {
+      const result = await pasteItem(targetId);
+      if (!result.success)
+        setUiError(result.error || "Paste operation failed.");
       else setUiError("");
     },
-    [pasteItem]
+    [pasteItem, setUiError]
   );
-  const handleDeleteConfirm = useCallback(
-    /* ... */ () => {
-      if (contextMenu.item) deleteItem(contextMenu.item.id);
-      setContextMenu((m) => ({ ...m, visible: false }));
-    },
-    [contextMenu.item, deleteItem, setContextMenu]
-  );
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (contextMenu.item && contextMenu.item.id) {
+      const result = await deleteItem(contextMenu.item.id);
+      if (!result.success)
+        setUiError(result.error || "Delete operation failed.");
+      else setUiError("");
+    }
+    setContextMenu((m) => ({ ...m, visible: false }));
+  }, [contextMenu.item, deleteItem, setUiError]);
+
   const handleShowItemMenu = useCallback(
-    /* ... */ (item, buttonElement) => {
+    (item, buttonElement) => {
       if (!item || !buttonElement) return;
       const rect = buttonElement.getBoundingClientRect();
-      const x = rect.right - 180;
-      const y = rect.bottom + 2;
+      let x = rect.left,
+        y = rect.bottom + 2;
+      const menuWidth = 180,
+        menuHeight = 250;
+      if (x + menuWidth > window.innerWidth - 10)
+        x = window.innerWidth - menuWidth - 10;
+      if (x < 10) x = 10;
+      if (y + menuHeight > window.innerHeight - 10)
+        y = rect.top - menuHeight - 2;
+      if (y < 10) y = 10;
       selectItemById(item.id);
-      setContextMenu({
-        visible: true,
-        x: x < 10 ? 10 : x,
-        y: y,
-        item: item,
-        isEmptyArea: false,
-      });
+      setContextMenu({ visible: true, x, y, item, isEmptyArea: false });
     },
-    [selectItemById, setContextMenu]
+    [selectItemById]
   );
+
   const handleNativeContextMenu = useCallback(
-    /* ... */ (event, item) => {
+    (event, item) => {
       if (draggedId || inlineRenameId) {
         event.preventDefault();
         return;
@@ -543,125 +589,195 @@ const App = () => {
       event.preventDefault();
       event.stopPropagation();
       selectItemById(item?.id ?? null);
-      setContextMenu({
-        visible: true,
-        x: event.clientX,
-        y: event.clientY,
-        item: item,
-        isEmptyArea: !item,
-      });
+      let x = event.clientX,
+        y = event.clientY;
+      const menuWidth = 180,
+        menuHeight = item ? 250 : 150;
+      if (x + menuWidth > window.innerWidth - 10)
+        x = window.innerWidth - menuWidth - 10;
+      if (x < 10) x = 10;
+      if (y + menuHeight > window.innerHeight - 10)
+        y = window.innerHeight - menuHeight - 10;
+      if (y < 10) y = 10;
+      setContextMenu({ visible: true, x, y, item, isEmptyArea: !item });
     },
-    [draggedId, inlineRenameId, selectItemById, setContextMenu]
+    [draggedId, inlineRenameId, selectItemById]
   );
 
-  // Global Keydown logic for F2, Copy, Cut, Paste, Delete
-  // ** MODIFICATION: Ensure all dependent callbacks are defined above **
   useEffect(() => {
-    const handleGlobalKeyDown = (e) => {
+    const handleGlobalKeyDown = async (e) => {
       const activeEl = document.activeElement;
-      const isAnyInputFocused =
-        activeEl &&
-        (activeEl.tagName === "INPUT" ||
-          activeEl.tagName === "TEXTAREA" ||
-          activeEl.isContentEditable);
-      const isRenameActive = !!inlineRenameId;
-
-      if (
-        isAnyInputFocused &&
-        !isRenameActive &&
-        activeEl.id !== "global-search-input" &&
-        activeEl.id !== "tree-navigation-area"
-      ) {
-        if (
-          isRenameActive &&
-          activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-            activeEl &&
-          (e.key === "Enter" || e.key === "Escape")
-        ) {
-          // Let rename input handle these
-        } else {
-          // Block other shortcuts for general inputs
-          return;
-        }
-      }
-
-      if (
-        isRenameActive &&
+      const isRenameActive =
+        !!inlineRenameId &&
         activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-          activeEl
-      ) {
-        if (e.key !== "Enter" && e.key !== "Escape") {
-          return;
-        }
-      }
+          activeEl;
 
-      const treeNav = document.querySelector(
-        'nav[aria-label="Notes and Tasks Tree"]'
-      );
-      const isTreeAreaFocused =
-        treeNav &&
-        (treeNav === activeEl ||
-          activeEl === document.body ||
-          treeNav.contains(activeEl));
-
-      if (
-        !isTreeAreaFocused &&
-        !selectedItemId &&
-        isAnyInputFocused &&
-        activeEl.id !== "global-search-input"
-      )
+      // If inline rename is active, let its own onKeyDown handler manage Enter/Escape
+      if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) {
         return;
-
-      if (e.key === "F2" && selectedItemId) {
-        e.preventDefault();
-        const item = findItemById(tree, selectedItemId);
-        if (item) startInlineRename(item); // Now defined above
       }
+
+      // Standard input fields like search, add dialog, rename dialog input
+      const isStandardInputFocused =
+        activeEl &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA") &&
+        activeEl.id !== "tree-navigation-area" && // Exclude the tree itself from this check
+        !activeEl.closest(`li[data-item-id="${inlineRenameId}"] input`); // Exclude active rename input
+
+      // Specifically check if the ContentEditor's contentEditable div is focused
+      const isContentEditorFocused =
+        activeEl &&
+        (activeEl.classList.contains("editor-pane") ||
+          activeEl.closest(".editor-pane"));
+
+      // --- Ctrl/Meta + Z (Undo) & Ctrl/Meta + Y (Redo) ---
       if (
         (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "z" &&
+        !e.shiftKey
+      ) {
+        // Allow undo in specific inputs, otherwise global undo
+        if (isStandardInputFocused || isContentEditorFocused) {
+          // Let browser/editor handle its own undo if it's not the global search or tree nav
+          if (
+            activeEl.id === "global-search-input" ||
+            activeEl.id === "tree-navigation-area" ||
+            document.body === activeEl
+          ) {
+            e.preventDefault();
+            if (canUndoTree) undoTreeChange();
+          }
+          // else: do nothing, let the input field handle its own undo.
+        } else {
+          // Focus is not on a specific input that handles undo, or it's the tree itself
+          e.preventDefault();
+          if (canUndoTree) undoTreeChange();
+        }
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "y" ||
+          (e.shiftKey && e.key.toLowerCase() === "z"))
+      ) {
+        // Similar logic for redo
+        if (isStandardInputFocused || isContentEditorFocused) {
+          if (
+            activeEl.id === "global-search-input" ||
+            activeEl.id === "tree-navigation-area" ||
+            document.body === activeEl
+          ) {
+            e.preventDefault();
+            if (canRedoTree) redoTreeChange();
+          }
+        } else {
+          e.preventDefault();
+          if (canRedoTree) redoTreeChange();
+        }
+      }
+      // --- Ctrl/Meta + Shift + F (Search) ---
+      else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        e.key.toUpperCase() === "F"
+      ) {
+        if (isStandardInputFocused && activeEl.id === "global-search-input")
+          return;
+        e.preventDefault();
+        setSearchSheetOpen((s) => !s);
+      }
+      // --- F2 (Rename) ---
+      else if (
+        e.key === "F2" &&
+        selectedItemId &&
+        !isRenameActive &&
+        !isStandardInputFocused &&
+        !isContentEditorFocused
+      ) {
+        e.preventDefault();
+        const item = findItemById(tree, selectedItemId);
+        if (item) startInlineRename(item);
+      }
+      // --- Ctrl/Meta + C (Copy) & Ctrl/Meta + X (Cut) ---
+      else if (
+        (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "c" &&
-        selectedItemId
+        selectedItemId &&
+        !isRenameActive &&
+        !isContentEditorFocused &&
+        !isStandardInputFocused
       ) {
         e.preventDefault();
         copyItem(selectedItemId);
-      }
-      if (
+      } else if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "x" &&
-        selectedItemId
+        selectedItemId &&
+        !isRenameActive &&
+        !isContentEditorFocused &&
+        !isStandardInputFocused
       ) {
         e.preventDefault();
         cutItem(selectedItemId);
       }
-      if (
+      // --- Ctrl/Meta + V (Paste) ---
+      else if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "v" &&
-        clipboardItem
+        clipboardItem &&
+        !isRenameActive &&
+        !isContentEditorFocused &&
+        !isStandardInputFocused
       ) {
         e.preventDefault();
         const currentItem = findItemById(tree, selectedItemId);
-        const targetId =
+        const targetIdForPaste =
           currentItem?.type === "folder"
             ? selectedItemId
             : findParentAndSiblings(tree, selectedItemId)?.parent?.id ?? null;
-        handlePaste(targetId); // Now defined above
+        await handlePasteWrapper(targetIdForPaste);
       }
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedItemId) {
-        if (activeEl.id === "global-search-input" && searchQuery !== "") return;
-        e.preventDefault();
+      // --- Delete / Backspace for Item Deletion ---
+      else if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedItemId &&
+        !isRenameActive
+      ) {
+        // CRITICAL: Only proceed if focus is NOT within ContentEditor or a standard input field
+        if (isContentEditorFocused || isStandardInputFocused) {
+          // If focus is inside editor or a text input (not rename), let the input handle the key press.
+          return;
+        }
+        // Allow if focus is on body, tree nav, or an element that doesn't trap these keys for text editing.
+        if (
+          activeEl.id === "global-search-input" &&
+          searchQuery !== "" &&
+          e.key === "Backspace"
+        ) {
+          // Let backspace work in search input if it has content
+          return;
+        }
+        if (activeEl.id === "global-search-input" && e.key === "Delete") {
+          // Let delete work in search input
+          return;
+        }
+
+        e.preventDefault(); // Prevent default only if we are handling item deletion
         const item = findItemById(tree, selectedItemId);
         if (
           item &&
           window.confirm(`Delete "${item.label}"? This cannot be undone.`)
         ) {
-          deleteItem(selectedItemId); // Assumed to be defined in useTree
+          const result = await deleteItem(selectedItemId);
+          if (!result.success) {
+            setUiError(result.error || "Delete operation failed via keydown.");
+          } else {
+            setUiError("");
+          }
         }
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [
-    // Add all dependencies used inside handleGlobalKeyDown
     selectedItemId,
     inlineRenameId,
     tree,
@@ -671,18 +787,42 @@ const App = () => {
     cutItem,
     pasteItem,
     deleteItem,
-    startInlineRename, // Add startInlineRename here
-    handlePaste, // Add handlePaste here
+    startInlineRename,
+    handlePasteWrapper,
+    setUiError,
   ]);
 
-  // --- Render ---
+  // Conditional rendering based on auth state
+  if (!isAuthCheckComplete) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    ); // Or a spinner
+  }
+
+  if (
+    !currentUser &&
+    !localStorage.getItem("userToken") /* More robust check might be needed */
+  ) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="relative flex flex-col h-screen bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
       <ErrorDisplay message={uiError} onClose={() => setUiError("")} />
+      {/* Logout Button - Example Placement */}
+      <button
+        onClick={handleLogout}
+        className="absolute top-3 right-3 z-50 p-1.5 sm:p-1 bg-red-500 hover:bg-red-600 text-white rounded"
+        title="Logout"
+      >
+        <LogOut className="w-5 h-5" />
+      </button>
 
-      {/* Main Layout: Only Tree and Content Panels */}
-      <PanelGroup direction="horizontal" className="flex-1 min-h-0">
-        {/* Panel 1: Tree View */}
+      <PanelGroup direction="horizontal" className="flex-1 min-h-0 pt-12">
+        {" "}
+        {/* Added pt-12 for header spacing */}
         <Panel
           id="tree-panel"
           order={0}
@@ -692,12 +832,12 @@ const App = () => {
           className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700"
         >
           <div className="flex flex-col h-full">
+            {/* Header is now part of the main app layout, not inside panel if logout is outside */}
             <div
               className={`p-2 sm:p-3 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0 ${APP_HEADER_HEIGHT_CLASS}`}
             >
               <h2 className="font-medium text-base sm:text-lg md:text-xl whitespace-nowrap overflow-hidden text-ellipsis mr-2">
-                {" "}
-                Notes & Tasks{" "}
+                Notes & Tasks
               </h2>
               <div
                 className="flex items-center space-x-1 sm:space-x-1.5 relative"
@@ -767,28 +907,27 @@ const App = () => {
                 </button>
                 {topMenuOpen && (
                   <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded shadow-lg z-40 text-sm">
-                    {" "}
                     <button
                       onClick={() => openAddDialog("folder", null)}
                       className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
                       {" "}
                       Add Root Folder{" "}
-                    </button>{" "}
+                    </button>
                     <button
                       onClick={() => openExportDialog("tree")}
                       className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
                       {" "}
                       Export Full Tree...{" "}
-                    </button>{" "}
+                    </button>
                     <button
                       onClick={() => openImportDialog("tree")}
                       className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
                       {" "}
                       Import Full Tree...{" "}
-                    </button>{" "}
+                    </button>
                   </div>
                 )}
               </div>
@@ -824,9 +963,10 @@ const App = () => {
                     setDraggedId(id);
                   } catch (err) {
                     console.error("Drag error:", err);
+                    setUiError("Drag operation failed to start.");
                   }
                 }}
-                onDrop={handleDrop}
+                onDrop={(targetId) => handleDrop(targetId, draggedId)}
                 onDragEnd={handleDragEnd}
                 onNativeContextMenu={handleNativeContextMenu}
                 onShowItemMenu={handleShowItemMenu}
@@ -837,10 +977,7 @@ const App = () => {
             </div>
           </div>
         </Panel>
-
         <PanelResizeHandle className="w-1 bg-zinc-300 dark:bg-zinc-600 hover:bg-blue-500 data-[resize-handle-active]:bg-blue-600 cursor-col-resize z-20 flex-shrink-0" />
-
-        {/* Panel 2: Content Area */}
         <Panel
           id="content-panel"
           order={1}
@@ -853,33 +990,39 @@ const App = () => {
               selectedItem.type === "folder" ? (
                 <div className="p-3">
                   <h2 className="text-lg sm:text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100 break-words">
-                    {" "}
-                    {selectedItem.label}{" "}
+                    {selectedItem.label}
                   </h2>
                   <FolderContents
                     folder={selectedItem}
                     onSelect={selectItemById}
+                    handleDragStart={(e, id) => {
+                      if (inlineRenameId) e.preventDefault();
+                      else setDraggedId(id);
+                    }}
+                    handleDragEnter={(e, id) => {
+                      /* Placeholder */
+                    }}
+                    handleDragOver={(e) => {
+                      /* Placeholder */
+                    }}
+                    handleDragLeave={(e) => {
+                      /* Placeholder */
+                    }}
+                    handleDrop={(e, id) => {
+                      if (
+                        draggedId &&
+                        id !== draggedId &&
+                        selectedItem?.id === id
+                      ) {
+                        handleDrop(id, draggedId);
+                      }
+                    }}
                     handleDragEnd={handleDragEnd}
                     draggedId={draggedId}
                     dragOverItemId={null}
                     onToggleExpand={toggleFolderExpand}
                     expandedItems={expandedFolders}
                     onShowItemMenu={handleShowItemMenu}
-                    handleDragStart={(e, id) => {
-                      /* ... */
-                    }}
-                    handleDragEnter={(e, id) => {
-                      /* ... */
-                    }}
-                    handleDragOver={(e) => {
-                      /* ... */
-                    }}
-                    handleDragLeave={(e) => {
-                      /* ... */
-                    }}
-                    handleDrop={(e, id) => {
-                      /* ... */
-                    }}
                   />
                 </div>
               ) : selectedItem.type === "note" ||
@@ -891,22 +1034,34 @@ const App = () => {
                   defaultFontSize={settings.editorFontSize}
                   onSaveContent={
                     selectedItem.type === "task"
-                      ? (id, content) => updateTask(id, { content })
-                      : updateNoteContent
+                      ? async (id, content) => {
+                          
+                          const result = await updateTask(id, { content }); // updateTask should be from useTree
+                          if (!result.success)
+                            setUiError(
+                              result.error || "Failed to save task content."
+                            );
+                        }
+                      : async (id, content) => {
+                          
+                          const result = await updateNoteContent(id, content); // updateNoteContent from useTree
+                          if (!result.success)
+                            setUiError(
+                              result.error || "Failed to save note content."
+                            );
+                        }
                   }
                 />
               ) : null
             ) : (
               <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
-                {" "}
-                Select or create an item to view or edit its content.{" "}
+                Select or create an item to view or edit its content.
               </div>
             )}
           </div>
         </Panel>
       </PanelGroup>
 
-      {/* Bottom Sheet for Search using react-modal-sheet */}
       <Sheet
         isOpen={searchSheetOpen}
         onClose={() => setSearchSheetOpen(false)}
@@ -915,16 +1070,13 @@ const App = () => {
       >
         <Sheet.Container>
           <Sheet.Header>
-            {" "}
             <div className="flex justify-center py-2 cursor-grab">
               {" "}
               <div className="w-8 h-1 bg-zinc-400 dark:bg-zinc-600 rounded-full"></div>{" "}
-            </div>{" "}
+            </div>
           </Sheet.Header>
           <Sheet.Content>
-            {" "}
             <div className="overflow-y-auto h-full">
-              {" "}
               <SearchResultsPane
                 headerHeightClass="h-12"
                 query={searchQuery}
@@ -933,28 +1085,21 @@ const App = () => {
                 onSelectResult={(item) => {
                   expandFolderPath(item.originalId);
                   selectItemById(item.originalId);
-                  /* setSearchSheetOpen(false); // Keep open */ setTimeout(
-                    () => {
-                      document
-                        .querySelector(`li[data-item-id="${item.originalId}"]`)
-                        ?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "center",
-                        });
-                    },
-                    50
-                  );
+                  setTimeout(() => {
+                    document
+                      .querySelector(`li[data-item-id="${item.originalId}"]`)
+                      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }, 50);
                 }}
                 onClose={() => setSearchSheetOpen(false)}
                 opts={searchOptions}
                 setOpts={setSearchOptions}
-              />{" "}
-            </div>{" "}
+              />
+            </div>
           </Sheet.Content>
         </Sheet.Container>
       </Sheet>
 
-      {/* Modals and Dialogs */}
       {contextMenu.visible && (
         <ContextMenu
           visible={true}
@@ -982,25 +1127,33 @@ const App = () => {
                 window.confirm(
                   `Delete "${contextMenu.item.label}"? This cannot be undone.`
                 )
-              )
+              ) {
                 handleDeleteConfirm();
-              else setContextMenu((m) => ({ ...m, visible: false }));
-            } else setContextMenu((m) => ({ ...m, visible: false }));
+              } else {
+                setContextMenu((m) => ({ ...m, visible: false }));
+              }
+            } else {
+              setContextMenu((m) => ({ ...m, visible: false }));
+            }
           }}
-          onDuplicate={() =>
-            contextMenu.item && duplicateItem(contextMenu.item.id)
-          }
+          onDuplicate={async () => {
+            if (contextMenu.item) {
+              const result = await duplicateItem(contextMenu.item.id);
+              if (!result.success)
+                setUiError(result.error || "Duplicate failed");
+            }
+          }}
           onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
           onCopy={() => contextMenu.item && copyItem(contextMenu.item.id)}
           onCut={() => contextMenu.item && cutItem(contextMenu.item.id)}
-          onPaste={() => {
+          onPaste={async () => {
             const tid = contextMenu.isEmptyArea
               ? null
               : contextMenu.item?.type === "folder"
               ? contextMenu.item.id
               : findParentAndSiblings(tree, contextMenu.item?.id)?.parent?.id ??
                 null;
-            handlePaste(tid);
+            await handlePasteWrapper(tid);
           }}
           onExportItem={() => openExportDialog("item")}
           onImportItem={() => openImportDialog("item")}
@@ -1012,14 +1165,15 @@ const App = () => {
         isOpen={addDialogOpen}
         newItemType={newItemType}
         newItemLabel={newItemLabel}
-        errorMessage={addDialogOpen ? uiError : ""}
+        errorMessage={addDialogErrorMessage}
         onLabelChange={(e) => {
           setNewItemLabel(e.target.value);
-          if (addDialogOpen) setUiError("");
+          if (addDialogOpen) setAddDialogErrorMessage("");
         }}
         onAdd={handleAdd}
         onCancel={() => {
           setAddDialogOpen(false);
+          setAddDialogErrorMessage("");
           setUiError("");
         }}
       />

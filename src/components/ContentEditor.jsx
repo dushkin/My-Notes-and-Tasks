@@ -18,8 +18,8 @@ const ContentEditor = ({ item, onSaveContent, defaultFontFamily, defaultFontSize
 
   // Handler for changes within EditorPane
   const handleChange = (html) => {
-    setBody(html); // Update internal state
-    onSaveContent(item.id, html); // Propagate change upwards
+    setBody(html);
+    onSaveContent(item.id, html);
   };
 
   // Render the editor UI
