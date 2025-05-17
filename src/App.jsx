@@ -152,7 +152,6 @@ const App = () => {
       // For now, we'll assume if a token exists, the user is "logged in"
       // The useTree hook will then attempt to fetch the tree using this token.
       setCurrentUser({ token }); // Minimal user object indicating logged-in state
-      
     }
     setIsAuthCheckComplete(true); // Mark initial auth check as complete
   }, []);
@@ -532,12 +531,40 @@ const App = () => {
 
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
-      const result = await handleImport(file, importTargetOption);
-      if (!result.success)
-        setUiError(result.error || "Import operation failed.");
-      else setUiError("");
+      setUiError(""); // Clear any previous global UI error
+
+      // Call the import logic from the useTree hook
+      const resultFromHook = await handleImport(file, importTargetOption);
+
+      if (resultFromHook && resultFromHook.success) {
+        // Set a global success message (optional, if you want it outside the dialog too)
+        setUiError(resultFromHook.message || "Import successful!");
+
+        // After a short delay (for the user to see the message in the dialog if any),
+        // close the dialog and clear the global message.
+        setTimeout(() => {
+          setImportDialogState({ isOpen: false, context: null });
+          setUiError(""); // Clear the success message
+        }, 1500); // Adjust delay as needed
+
+        // Return a success status to the ImportDialog's handler
+        return {
+          success: true,
+          message: resultFromHook.message || "Import successful!",
+        };
+      } else {
+        // An error occurred during import
+        const errorMessage =
+          resultFromHook?.error || "An unknown error occurred during import.";
+        // Set a global error message (optional)
+        setUiError(errorMessage);
+
+        // Return an error status to the ImportDialog's handler
+        // The ImportDialog will use this to display its internal error message
+        return { success: false, error: errorMessage };
+      }
     },
-    [handleImport, setUiError]
+    [handleImport, setImportDialogState, setUiError] // Ensure all dependencies are correct
   );
 
   const handlePasteWrapper = useCallback(
@@ -1035,7 +1062,6 @@ const App = () => {
                   onSaveContent={
                     selectedItem.type === "task"
                       ? async (id, content) => {
-                          
                           const result = await updateTask(id, { content }); // updateTask should be from useTree
                           if (!result.success)
                             setUiError(
@@ -1043,7 +1069,6 @@ const App = () => {
                             );
                         }
                       : async (id, content) => {
-                          
                           const result = await updateNoteContent(id, content); // updateNoteContent from useTree
                           if (!result.success)
                             setUiError(
