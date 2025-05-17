@@ -1,7 +1,5 @@
-// src/components/EditorPane.jsx
-// Based on the uploaded EditorPane.jsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useTree } from "../hooks/useTree";
+import { useTree } from "../hooks/useTree"; // Assuming this is still needed for direct updates
 import {
   Undo,
   Redo,
@@ -31,7 +29,7 @@ const FONT_FAMILIES = [
   "Georgia",
   "Verdana",
 ];
-const FONT_SIZES = ["1", "2", "3", "4", "5", "6", "7"]; // Corresponds to HTML <font size> which is deprecated. Consider mapping to actual px/rem.
+const FONT_SIZES = ["1", "2", "3", "4", "5", "6", "7"];
 const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
 
 const ensureProtocol = (url) => {
@@ -78,28 +76,35 @@ const EditorPane = ({
   const [fontFamily, setFontFamily] = useState(
     defaultFontFamily || FONT_FAMILIES[0]
   );
-  const { updateNoteContent, updateTask, selectedItemId, selectedItem } =
-    useTree();
-
-  const handleContentChange = useCallback(
-    (newHtml) => {
-      onChange(newHtml);
-      if (selectedItem && selectedItemId) {
-        if (selectedItem.type === "task") {
-          updateTask(selectedItemId, { content: newHtml }); // Ensure content is passed correctly
-        } else {
-          updateNoteContent(selectedItemId, newHtml);
-        }
-      }
-    },
-    [onChange, updateNoteContent, updateTask, selectedItemId, selectedItem]
-  );
   const [fontSize, setFontSize] = useState(defaultFontSize || FONT_SIZES[2]);
-
   const [isRTL, setIsRTL] = useState(false);
   const editorRef = useRef(null);
   const propUpdateInProgress = useRef(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
+
+  const { updateNoteContent, updateTask, selectedItemId, selectedItem } =
+    useTree(); // If direct updates are needed
+
+  const handleContentChangeInternal = useCallback(
+    (newHtml) => {
+      if (onChange) {
+        // onChange is onSaveContent from App.jsx via ContentEditor
+        onChange(newHtml);
+      }
+      // The following direct update from EditorPane might be redundant if ContentEditor already calls useTree functions
+      // Consider if this is necessary or if all updates should go through ContentEditor's onSaveContent
+      /*
+      if (selectedItem && selectedItemId) {
+        if (selectedItem.type === "task") {
+          updateTask(selectedItemId, { content: newHtml });
+        } else {
+          updateNoteContent(selectedItemId, newHtml);
+        }
+      }
+      */
+    },
+    [onChange /*, updateNoteContent, updateTask, selectedItemId, selectedItem*/] // Adjust dependencies if direct update is kept
+  );
 
   useEffect(() => {
     if (editorRef.current && html !== editorRef.current.innerHTML) {
@@ -110,10 +115,8 @@ const EditorPane = ({
         selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
       const startContainer = range?.startContainer;
       const startOffset = range?.startOffset;
-
       editorRef.current.innerHTML = html;
       editorRef.current.scrollTop = currentScrollTop;
-
       try {
         if (selection && range && isValidNode(startContainer)) {
           const newRange = document.createRange();
@@ -172,7 +175,7 @@ const EditorPane = ({
       if (editorRef.current) {
         requestAnimationFrame(() => {
           if (editorRef.current)
-            handleContentChange(editorRef.current.innerHTML);
+            handleContentChangeInternal(editorRef.current.innerHTML);
         });
       }
     };
@@ -182,7 +185,7 @@ const EditorPane = ({
         editorRef.current.removeEventListener("paste", handlePasteEvent);
       }
     };
-  }, [handleContentChange]); // Added handleContentChange as dependency
+  }, [handleContentChangeInternal]);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -233,24 +236,19 @@ const EditorPane = ({
       editorRef.current?.focus();
       try {
         const success = document.execCommand(cmd, false, value);
-        if (!success) {
-          console.warn(
-            `execCommand(${cmd}) was not successful. It might be unsupported or blocked.`
-          );
-        }
+        if (!success) console.warn(`execCommand(${cmd}) was not successful.`);
       } catch (error) {
         console.error(`Error executing command ${cmd}:`, error);
       }
       editorRef.current?.focus();
       if (cmd !== "paste") {
         requestAnimationFrame(() => {
-          if (editorRef.current) {
-            handleContentChange(editorRef.current.innerHTML);
-          }
+          if (editorRef.current)
+            handleContentChangeInternal(editorRef.current.innerHTML);
         });
       }
     },
-    [handleContentChange] // Changed onChange to handleContentChange
+    [handleContentChangeInternal]
   );
 
   const handleInput = useCallback(
@@ -274,11 +272,10 @@ const EditorPane = ({
           const walker = document.createTreeWalker(
             tempDiv,
             NodeFilter.SHOW_TEXT,
-            (node) => {
-              return node.parentNode.nodeName !== "A"
+            (node) =>
+              node.parentNode.nodeName !== "A"
                 ? NodeFilter.FILTER_ACCEPT
-                : NodeFilter.FILTER_REJECT;
-            },
+                : NodeFilter.FILTER_REJECT,
             false
           );
           let node;
@@ -379,19 +376,18 @@ const EditorPane = ({
                   }
                 }
               }
-              handleContentChange(finalHtml);
+              handleContentChangeInternal(finalHtml);
             });
           }
         }, 700)
       );
-      handleContentChange(newHtml);
+      handleContentChangeInternal(newHtml); // Immediate update for responsiveness
     },
-    [handleContentChange, typingTimeout] // Changed onChange to handleContentChange
+    [handleContentChangeInternal, typingTimeout]
   );
 
   const handlePasteFromClipboard = useCallback(async () => {
     if (!navigator.clipboard?.readText) {
-      console.warn("Clipboard API (readText) not supported by this browser.");
       applyCommand("paste");
       return;
     }
@@ -409,19 +405,17 @@ const EditorPane = ({
         document.execCommand("insertHTML", false, htmlToInsert);
       }
       requestAnimationFrame(() => {
-        if (editorRef.current) {
-          handleContentChange(editorRef.current.innerHTML);
-        }
+        if (editorRef.current)
+          handleContentChangeInternal(editorRef.current.innerHTML);
       });
     } catch (err) {
-      console.error("Failed to read clipboard contents or insert HTML: ", err);
+      console.error("Failed to read clipboard or insert HTML: ", err);
       try {
         const success = document.execCommand("paste", false, null);
         if (success && editorRef.current) {
           requestAnimationFrame(() => {
-            if (editorRef.current) {
-              handleContentChange(editorRef.current.innerHTML);
-            }
+            if (editorRef.current)
+              handleContentChangeInternal(editorRef.current.innerHTML);
           });
         } else if (!success) {
           console.warn("Fallback execCommand('paste') also failed.");
@@ -431,7 +425,7 @@ const EditorPane = ({
       }
     }
     editorRef.current?.focus();
-  }, [applyCommand, handleContentChange]); // Changed onChange to handleContentChange
+  }, [applyCommand, handleContentChangeInternal]);
 
   const applyBlockStyle = useCallback(
     (tag, className = null) => {
@@ -485,7 +479,7 @@ const EditorPane = ({
           startBlock = startBlock.parentNode;
         }
         if (!startBlock || startBlock === editorRef.current) {
-          console.error("Failed to wrap selection in a block element.");
+          console.error("Failed to wrap selection.");
           return;
         }
       }
@@ -527,12 +521,11 @@ const EditorPane = ({
         }
       }
       requestAnimationFrame(() => {
-        if (editorRef.current) {
-          handleContentChange(editorRef.current.innerHTML);
-        }
+        if (editorRef.current)
+          handleContentChangeInternal(editorRef.current.innerHTML);
       });
     },
-    [handleContentChange] // Changed onChange to handleContentChange
+    [handleContentChangeInternal]
   );
 
   const applyInlineStyle = useCallback(
@@ -547,16 +540,15 @@ const EditorPane = ({
         const commonAncestor = range.commonAncestorContainer;
         let isWrapped = false;
         let parentElement = commonAncestor;
-        if (parentElement.nodeType !== Node.ELEMENT_NODE) {
+        if (parentElement.nodeType !== Node.ELEMENT_NODE)
           parentElement = parentElement.parentNode;
-        }
         if (
           parentElement &&
           parentElement.nodeName === tag.toUpperCase() &&
           parentElement.closest(".editor-pane") === editorRef.current
-        ) {
+        )
           isWrapped = true;
-        } else if (
+        else if (
           !range.collapsed &&
           range.startContainer === range.endContainer &&
           range.startContainer.parentNode.nodeName === tag.toUpperCase()
@@ -578,12 +570,11 @@ const EditorPane = ({
         document.execCommand(tag, false, null);
       }
       requestAnimationFrame(() => {
-        if (editorRef.current) {
-          handleContentChange(editorRef.current.innerHTML);
-        }
+        if (editorRef.current)
+          handleContentChangeInternal(editorRef.current.innerHTML);
       });
     },
-    [handleContentChange] // Changed onChange to handleContentChange
+    [handleContentChangeInternal]
   );
 
   const handleCreateLink = useCallback(() => {
@@ -603,16 +594,14 @@ const EditorPane = ({
     const linkHtml = createLinkHtml(fullUrl, selectedText || fullUrl);
     document.execCommand("insertHTML", false, linkHtml);
     requestAnimationFrame(() => {
-      if (editorRef.current) {
-        handleContentChange(editorRef.current.innerHTML);
-      }
+      if (editorRef.current)
+        handleContentChangeInternal(editorRef.current.innerHTML);
     });
-  }, [handleContentChange]); // Changed onChange to handleContentChange
+  }, [handleContentChangeInternal]);
 
   const toggleDirection = useCallback(() => {
-    setIsRTL((prevIsRTL) => !prevIsRTL);
+    setIsRTL((prev) => !prev);
   }, []);
-
   const handleFontChange = useCallback(
     (command, value) => {
       applyCommand(command, value);
@@ -623,13 +612,14 @@ const EditorPane = ({
   );
 
   const buttonBaseClass =
-    "p-1.5 sm:p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"; // Increased base padding
+    "p-1.5 sm:p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded";
 
   return (
-    <div className="flex flex-col flex-grow border rounded bg-white dark:bg-zinc-800 dark:border-zinc-700">
+    <div className="flex flex-col flex-grow border rounded bg-transparent dark:border-zinc-700">
+      {" "}
+      {/* MODIFIED: bg-transparent */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:gap-y-1 p-2 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
-        {" "}
-        {/* Increased gap-y for mobile */}
+        {/* ... All Toolbar Buttons ... */}
         <button
           onClick={() => applyCommand("undo")}
           title="Undo"
@@ -760,7 +750,6 @@ const EditorPane = ({
           onClick={toggleDirection}
           title={`Text Direction: ${isRTL ? "RTL" : "LTR"}`}
           className={`p-1.5 sm:p-1 flex items-center ${
-            // Adjusted padding
             isRTL ? "bg-blue-100 dark:bg-blue-900" : ""
           } hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded`}
         >
@@ -769,7 +758,7 @@ const EditorPane = ({
         </button>
         <select
           title="Font Family"
-          className="p-1.5 sm:p-1 text-base md:text-sm border rounded bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500" // Adjusted padding and font
+          className="p-1.5 sm:p-1 text-base md:text-sm border rounded bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={fontFamily}
           onChange={(e) => handleFontChange("fontName", e.target.value)}
         >
@@ -781,7 +770,7 @@ const EditorPane = ({
         </select>
         <select
           title="Font Size"
-          className="p-1.5 sm:p-1 text-base md:text-sm border rounded bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500" // Adjusted padding and font
+          className="p-1.5 sm:p-1 text-base md:text-sm border rounded bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={fontSize}
           onChange={(e) => handleFontChange("fontSize", e.target.value)}
         >
@@ -798,7 +787,8 @@ const EditorPane = ({
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
-        className="editor-pane prose prose-base md:prose-sm dark:prose-invert max-w-none w-full flex-grow p-3 border-t border-zinc-300 dark:border-zinc-600 rounded-b resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 bg-white dark:bg-zinc-900 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline whitespace-pre-wrap prose-code:before:content-none prose-code:after:content-none prose-pre:bg-inherit dark:prose-pre:bg-inherit prose-pre:p-0" // Adjusted prose class for mobile
+        // MODIFIED: Removed explicit bg-white dark:bg-zinc-900. Inherits from Panel in App.jsx now.
+        className="editor-pane prose prose-base md:prose-sm dark:prose-invert max-w-none w-full flex-grow p-3 border-t border-zinc-300 dark:border-zinc-600 rounded-b resize-y overflow-auto focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-zinc-100 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline whitespace-pre-wrap prose-code:before:content-none prose-code:after:content-none prose-pre:bg-inherit dark:prose-pre:bg-inherit prose-pre:p-0"
         role="textbox"
         aria-multiline="true"
       />

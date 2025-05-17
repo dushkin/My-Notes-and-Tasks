@@ -1,7 +1,7 @@
 {
   "name": "my-notes-and-tasks-modern",
-  "version": "3.0.1",
-  "commitMessage": "aaaaa",
+  "version": "3.0.2",
+  "commitMessage": "Fix importing a file under a folder; Add Registration capability",
   "private": true,
   "scripts": {
     "dev": "vite",

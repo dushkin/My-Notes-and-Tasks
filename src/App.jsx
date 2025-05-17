@@ -11,7 +11,10 @@ import ImportDialog from "./components/ImportDialog";
 import SettingsDialog from "./components/SettingsDialog";
 import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
-import { findItemById, findParentAndSiblings } from "./utils/treeUtils";
+import {
+  findItemById as findItemByIdUtil,
+  findParentAndSiblings as findParentAndSiblingsUtil,
+} from "./utils/treeUtils";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Search as SearchIcon,
@@ -21,14 +24,17 @@ import {
   Settings as SettingsIcon,
   Undo,
   Redo,
-  LogOut, // Added for logout button
+  LogOut,
+  FileJson,
 } from "lucide-react";
 import SearchResultsPane from "./components/SearchResultsPane";
-import { matchText } from "./utils/searchUtils"; // escapeRegex might not be needed here
+import { matchText } from "./utils/searchUtils";
 import { Sheet } from "react-modal-sheet";
-import Login from "./components/Login"; // Import the Login component
+import Login from "./components/Login";
+import Register from "./components/Register";
 
 function htmlToPlainTextWithNewlines(html) {
+  /* ... (same as before) ... */
   if (!html) return "";
   let text = html;
   text = text.replace(
@@ -47,30 +53,38 @@ function htmlToPlainTextWithNewlines(html) {
   return text.replace(/(\r?\n|\r){2,}/g, "\n").trim();
 }
 
-const ErrorDisplay = ({ message, onClose }) => {
+const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
+
+const ErrorDisplay = ({ message, type = "error", onClose }) => {
+  /* ... (same as before, with success styling) ... */
   if (!message) return null;
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 5000);
+    const timer = setTimeout(() => onClose(), 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
-
+  const baseClasses =
+    "fixed top-3 right-3 left-3 md:left-auto md:max-w-lg z-[100] px-4 py-3 rounded-lg shadow-xl flex justify-between items-center text-sm transition-all duration-300 ease-in-out";
+  let typeClasses =
+    type === "success"
+      ? "bg-green-100 dark:bg-green-800/80 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-200"
+      : "bg-red-100 dark:bg-red-800/80 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200";
+  const iconColor =
+    type === "success"
+      ? "text-green-500 hover:text-green-700 dark:text-green-300 dark:hover:text-green-100"
+      : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
   return (
-    <div className="absolute top-2 right-2 left-2 md:left-auto md:max-w-md z-[60] bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded shadow-lg flex justify-between items-center">
-      <span className="text-sm">{message}</span>
+    <div className={`${baseClasses} ${typeClasses}`}>
+      <span>{message}</span>
       <button
         onClick={onClose}
-        className="ml-2 text-red-500 hover:text-red-700"
-        aria-label="Close error message"
+        className={`ml-3 -mr-1 -my-1 p-1 ${iconColor} rounded-full focus:outline-none focus:ring-2 focus:ring-current`}
+        aria-label="Close message"
       >
-        <XCircle className="w-4 h-4" />
+        <XCircle className="w-5 h-5" />
       </button>
     </div>
   );
 };
-
-const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const App = () => {
   const { settings } = useSettings();
@@ -93,27 +107,26 @@ const App = () => {
     setDraggedId,
     handleDrop,
     clipboardItem,
-    clipboardMode,
     copyItem,
     cutItem,
     pasteItem,
     addItem,
     duplicateItem,
     handleExport,
-    handleImport,
+    handleImport: handleImportFromHook, // Renamed to avoid conflict
     searchItems,
     undoTreeChange,
     redoTreeChange,
     canUndoTree,
     canRedoTree,
-    // It's good practice to get resetTreeHistory if you might clear the tree on logout
-    resetState: resetTreeHistory, // from useUndoRedo, aliased as resetTreeHistory in useTree
+    resetState: resetTreeHistory,
+    fetchUserTree,
+    isFetchingTree, // Get these from useTree
   } = useTree();
 
-  // Authentication State
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
-
+  const [currentView, setCurrentView] = useState("login");
   const [searchSheetOpen, setSearchSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
@@ -141,42 +154,282 @@ const App = () => {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const topMenuRef = useRef(null);
-  const [uiError, setUiError] = useState("");
+  const [uiMessage, setUiMessage] = useState("");
+  const [uiMessageType, setUiMessageType] = useState("error");
 
-  // Check for existing token on initial app load
-  useEffect(() => {
-    const token = localStorage.getItem("userToken");
-    if (token) {
-      // Here, you might want to verify the token with the backend
-      // and fetch user details if the token is valid.
-      // For now, we'll assume if a token exists, the user is "logged in"
-      // The useTree hook will then attempt to fetch the tree using this token.
-      setCurrentUser({ token }); // Minimal user object indicating logged-in state
+  const showMessage = useCallback(
+    (message, type = "error", duration = 5000) => {
+      setUiMessage(message);
+      setUiMessageType(type);
+      // ErrorDisplay will auto-hide
+    },
+    []
+  );
+
+  const startInlineRename = useCallback(
+    (item) => {
+      if (!item || draggedId === item.id || inlineRenameId) return;
+      showMessage("", "error");
+      setInlineRenameId(item.id);
+      setInlineRenameValue(item.label);
+      setContextMenu((m) => ({ ...m, visible: false }));
+    },
+    [draggedId, inlineRenameId, showMessage]
+  );
+
+  const cancelInlineRename = useCallback(() => {
+    setInlineRenameId(null);
+    setInlineRenameValue("");
+    showMessage("", "error");
+    requestAnimationFrame(() =>
+      document
+        .querySelector('nav[aria-label="Notes and Tasks Tree"]')
+        ?.focus({ preventScroll: true })
+    );
+  }, [showMessage]);
+
+  const findItemByIdFromTree = useCallback(
+    (id) => findItemByIdUtil(tree, id),
+    [tree]
+  );
+  const findParentAndSiblingsFromTree = useCallback(
+    (id) => findParentAndSiblingsUtil(tree, id),
+    [tree]
+  );
+
+  const handleAttemptRename = useCallback(async () => {
+    if (!inlineRenameId) return;
+    const newLabel = inlineRenameValue.trim();
+    const originalItem = findItemByIdFromTree(inlineRenameId);
+    if (!newLabel) {
+      showMessage("Name cannot be empty.", "error");
+      return;
     }
-    setIsAuthCheckComplete(true); // Mark initial auth check as complete
+    if (newLabel === originalItem?.label) {
+      cancelInlineRename();
+      return;
+    }
+    const result = await renameItem(inlineRenameId, newLabel);
+    if (result.success) {
+      cancelInlineRename();
+      showMessage("Item renamed.", "success", 3000);
+    } else {
+      showMessage(result.error || "Rename failed.", "error");
+    }
+  }, [
+    inlineRenameId,
+    inlineRenameValue,
+    renameItem,
+    cancelInlineRename,
+    findItemByIdFromTree,
+    showMessage,
+  ]);
+
+  const openAddDialog = useCallback(
+    (type, parent) => {
+      setNewItemType(type);
+      setParentItemForAdd(parent);
+      setNewItemLabel("");
+      setAddDialogErrorMessage("");
+      showMessage("", "error");
+      setAddDialogOpen(true);
+      setContextMenu((m) => ({ ...m, visible: false }));
+      setTopMenuOpen(false);
+    },
+    [showMessage]
+  );
+
+  const handleAdd = useCallback(async () => {
+    const tl = newItemLabel.trim();
+    if (!tl) {
+      setAddDialogErrorMessage("Name cannot be empty.");
+      return;
+    }
+    const newItemData = {
+      type: newItemType,
+      label: tl,
+      ...(newItemType === "task" ? { completed: false, content: "" } : {}),
+      ...(newItemType === "note" ? { content: "" } : {}),
+    };
+    const pid = parentItemForAdd?.id ?? null;
+    const result = await addItem(newItemData, pid);
+    if (result.success) {
+      setAddDialogOpen(false);
+      setNewItemLabel("");
+      setParentItemForAdd(null);
+      setAddDialogErrorMessage("");
+      showMessage(`${newItemType} added.`, "success", 3000);
+      if (result.item?.id) {
+        selectItemById(result.item.id);
+        if (result.item.type === "folder" && settings.autoExpandNewFolders) {
+          if (pid) expandFolderPath(pid);
+          else expandFolderPath(result.item.id);
+        }
+      }
+    } else {
+      setAddDialogErrorMessage(result.error || "Add operation failed.");
+    }
+  }, [
+    newItemLabel,
+    newItemType,
+    parentItemForAdd,
+    addItem,
+    showMessage,
+    selectItemById,
+    settings.autoExpandNewFolders,
+    expandFolderPath,
+  ]);
+
+  const handleToggleTask = useCallback(
+    async (id, currentCompletedStatus) => {
+      const result = await updateTask(id, {
+        completed: !currentCompletedStatus,
+      });
+      if (!result.success)
+        showMessage(result.error || "Failed to update task status.", "error");
+      else showMessage("Task status updated.", "success", 2000);
+    },
+    [updateTask, showMessage]
+  );
+
+  const handleDragEnd = useCallback(() => setDraggedId(null), []);
+  const openExportDialog = useCallback((context) => {
+    setExportDialogState({ isOpen: true, context });
+    setContextMenu((m) => ({ ...m, visible: false }));
+    setTopMenuOpen(false);
+  }, []);
+  const openImportDialog = useCallback((context) => {
+    setImportDialogState({ isOpen: true, context });
+    setContextMenu((m) => ({ ...m, visible: false }));
+    setTopMenuOpen(false);
   }, []);
 
-  const handleLoginSuccess = (userData) => {
-    setCurrentUser(userData); // userData from server should not include token, token is already in localStorage
-    // The useEffect in useTree hook should re-run due to resetTreeHistory or if its dependencies change
-    // in a way that makes it re-fetch based on the new auth state (e.g., if it depended on a user context).
-    // Forcing a reload is a simple way to ensure everything re-initializes with the new token.
-    window.location.reload();
+  const handleFileImport = useCallback(
+    async (file, importTargetOption) => {
+      showMessage("", "error");
+      const result = await handleImportFromHook(file, importTargetOption); // Use renamed hook function
+      if (result && result.success) {
+        showMessage(result.message || "Import successful!", "success");
+        setTimeout(() => {
+          setImportDialogState({ isOpen: false, context: null });
+          showMessage("", "success");
+        }, 1500);
+        return {
+          success: true,
+          message: result.message || "Import successful!",
+        };
+      } else {
+        showMessage(result?.error || "Import operation failed.", "error");
+        return {
+          success: false,
+          error: result?.error || "Import operation failed.",
+        };
+      }
+    },
+    [handleImportFromHook, setImportDialogState, showMessage]
+  );
+
+  const handlePasteWrapper = useCallback(
+    async (targetId) => {
+      const result = await pasteItem(targetId);
+      if (!result.success)
+        showMessage(result.error || "Paste operation failed.", "error");
+      else showMessage("Item pasted.", "success", 3000);
+    },
+    [pasteItem, showMessage]
+  );
+
+  const handleDeleteConfirm = useCallback(
+    async (itemIdToDelete) => {
+      if (itemIdToDelete) {
+        const result = await deleteItem(itemIdToDelete);
+        if (!result.success)
+          showMessage(result.error || "Delete operation failed.", "error");
+        else showMessage("Item deleted.", "success", 3000);
+      }
+      setContextMenu((m) => ({ ...m, visible: false }));
+    },
+    [deleteItem, showMessage]
+  );
+
+  const handleShowItemMenu = useCallback(
+    (item, buttonElement) => {
+      /* ... (as before) ... */
+      if (!item || !buttonElement) return;
+      const rect = buttonElement.getBoundingClientRect();
+      let x = rect.left,
+        y = rect.bottom + 2;
+      const menuWidth = 190,
+        menuHeight = item.type === "folder" ? 350 : 280;
+      if (x + menuWidth > window.innerWidth - 10)
+        x = window.innerWidth - menuWidth - 10;
+      if (x < 10) x = 10;
+      if (y + menuHeight > window.innerHeight - 10)
+        y = rect.top - menuHeight - 2;
+      if (y < 10) y = 10;
+      selectItemById(item.id);
+      setContextMenu({ visible: true, x, y, item, isEmptyArea: false });
+    },
+    [selectItemById]
+  );
+
+  const handleNativeContextMenu = useCallback(
+    (event, item) => {
+      /* ... (as before) ... */
+      if (draggedId || inlineRenameId) {
+        event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      selectItemById(item?.id ?? null);
+      let x = event.clientX,
+        y = event.clientY;
+      const menuWidth = 190,
+        menuHeight = item ? (item.type === "folder" ? 350 : 280) : 180;
+      if (x + menuWidth > window.innerWidth - 10)
+        x = window.innerWidth - menuWidth - 10;
+      if (x < 10) x = 10;
+      if (y + menuHeight > window.innerHeight - 10)
+        y = window.innerHeight - menuHeight - 10;
+      if (y < 10) y = 10;
+      setContextMenu({ visible: true, x, y, item, isEmptyArea: !item });
+    },
+    [draggedId, inlineRenameId, selectItemById]
+  );
+
+  useEffect(() => {
+    // Handles initial auth check and tree loading
+    const token = localStorage.getItem("userToken");
+    if (token) {
+      setCurrentUser({ token }); // Set minimal current user
+      setCurrentView("app");
+      if (fetchUserTree) fetchUserTree(token); // Pass token directly for clarity
+    } else {
+      setCurrentView("login");
+      if (resetTreeHistory) resetTreeHistory([]);
+    }
+    setIsAuthCheckComplete(true);
+  }, [fetchUserTree, resetTreeHistory]); // fetchUserTree and resetTreeHistory are stable
+
+  const handleLoginSuccess = async (userData) => {
+    setCurrentUser(userData); // userData from backend (token already set in localStorage by Login.jsx)
+    setCurrentView("app");
+    if (fetchUserTree) {
+      await fetchUserTree(localStorage.getItem("userToken")); // Fetch tree using the new token
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem("userToken");
     setCurrentUser(null);
-    if (resetTreeHistory) {
-      // Ensure resetTreeHistory is available from useTree
-      resetTreeHistory([]); // Clear the local tree state
-    }
-    setUiError(""); // Clear any existing errors
-    // No need to reload, the component will re-render to show Login
+    if (resetTreeHistory) resetTreeHistory([]);
+    showMessage("");
+    setCurrentView("login");
   };
 
   useEffect(() => {
-    // Global Keybindings
+    /* ... (Global Keydown for Undo/Redo, Search Toggle - as before) ... */
     const handler = (e) => {
       const activeElement = document.activeElement;
       const isInput =
@@ -188,7 +441,6 @@ const App = () => {
         !!inlineRenameId &&
         activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
           activeElement;
-
       if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "z" &&
@@ -240,570 +492,116 @@ const App = () => {
   ]);
 
   useEffect(() => {
-    // Disable Regex search option
-    const isRegexCurrentlyDisabledInPane = true;
-    if (isRegexCurrentlyDisabledInPane && searchOptions.useRegex) {
-      setSearchOptions((prev) => ({ ...prev, useRegex: false }));
-    }
-  }, [searchOptions.useRegex]);
-
-  useEffect(() => {
-    // Generate search results
-    if (searchQuery && searchSheetOpen) {
-      const currentSearchOpts = { ...searchOptions, useRegex: false };
-      const rawHits = searchItems(searchQuery, currentSearchOpts);
-      const CONTEXT_CHARS_BEFORE = 20,
-        CONTEXT_CHARS_AFTER = 20,
-        MAX_SNIPPET_LENGTH = 80;
-      let resultCounter = 0;
-      const processedResults = rawHits.map((hit) => {
-        const path = getItemPath(tree, hit.id);
-        const originalLabel =
-          typeof hit.label === "string"
-            ? hit.label
-            : typeof hit.title === "string"
-            ? hit.title
-            : "";
-        const originalContentHtml =
-          typeof hit.content === "string" ? hit.content : "";
-        const plainTextContent =
-          htmlToPlainTextWithNewlines(originalContentHtml);
-        let displaySnippetText = "",
-          highlightStartIndexInSnippet = -1,
-          highlightEndIndexInSnippet = -1,
-          matchSource = "";
-        let pathLabelHighlightDetails = {
-          start: -1,
-          end: -1,
-          originalMatchInLabel: "",
-        };
-        const labelMatchInfo = matchText(
-          originalLabel,
-          searchQuery,
-          currentSearchOpts
-        );
-        if (labelMatchInfo) {
-          matchSource = "label";
-          displaySnippetText = originalLabel;
-          highlightStartIndexInSnippet = labelMatchInfo.startIndex;
-          highlightEndIndexInSnippet =
-            labelMatchInfo.startIndex + labelMatchInfo.matchedString.length;
-          pathLabelHighlightDetails = {
-            start: labelMatchInfo.startIndex,
-            end: highlightStartIndexInSnippet,
-            originalMatchInLabel: labelMatchInfo.matchedString,
-          };
-        }
-        if ((hit.type === "note" || hit.type === "task") && plainTextContent) {
-          const contentMatchInfo = matchText(
-            plainTextContent,
-            searchQuery,
-            currentSearchOpts
-          );
-          if (contentMatchInfo) {
-            if (matchSource === "label") matchSource = "label & content";
-            else {
-              matchSource = "content";
-              const { matchedString, startIndex: startIndexInPlainText } =
-                contentMatchInfo;
-              let snippetStart = Math.max(
-                0,
-                startIndexInPlainText - CONTEXT_CHARS_BEFORE
-              );
-              let snippetEnd = Math.min(
-                plainTextContent.length,
-                startIndexInPlainText +
-                  matchedString.length +
-                  CONTEXT_CHARS_AFTER
-              );
-              displaySnippetText = plainTextContent.substring(
-                snippetStart,
-                snippetEnd
-              );
-              highlightStartIndexInSnippet =
-                startIndexInPlainText - snippetStart;
-              highlightEndIndexInSnippet =
-                highlightStartIndexInSnippet + matchedString.length;
-              let prefixEllipsis = snippetStart > 0,
-                suffixEllipsis = snippetEnd < plainTextContent.length;
-              if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
-                const overflow = displaySnippetText.length - MAX_SNIPPET_LENGTH;
-                let reduceBefore = Math.floor(overflow / 2);
-                if (highlightStartIndexInSnippet < reduceBefore)
-                  reduceBefore = highlightStartIndexInSnippet;
-                if (reduceBefore > 0) {
-                  displaySnippetText =
-                    displaySnippetText.substring(reduceBefore);
-                  highlightStartIndexInSnippet -= reduceBefore;
-                  highlightEndIndexInSnippet -= reduceBefore;
-                  prefixEllipsis = true;
-                }
-                if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
-                  const cutFromEnd =
-                    displaySnippetText.length - MAX_SNIPPET_LENGTH;
-                  displaySnippetText = displaySnippetText.substring(
-                    0,
-                    displaySnippetText.length - cutFromEnd
-                  );
-                  suffixEllipsis = true;
-                }
-                highlightStartIndexInSnippet = Math.max(
-                  0,
-                  highlightStartIndexInSnippet
-                );
-                highlightEndIndexInSnippet = Math.min(
-                  displaySnippetText.length,
-                  highlightEndIndexInSnippet
-                );
-                if (
-                  highlightStartIndexInSnippet >= highlightEndIndexInSnippet
-                ) {
-                  highlightStartIndexInSnippet = -1;
-                  highlightEndIndexInSnippet = -1;
-                }
-              }
-              if (prefixEllipsis && !displaySnippetText.startsWith("..."))
-                displaySnippetText = "..." + displaySnippetText;
-              if (suffixEllipsis && !displaySnippetText.endsWith("..."))
-                displaySnippetText = displaySnippetText + "...";
-            }
-          }
-        }
-        if (!matchSource) {
-          displaySnippetText = originalLabel;
-          matchSource = "unknown";
-        }
-        return {
-          id: `${hit.id}-${matchSource}-${resultCounter++}`,
-          originalId: hit.id,
-          ...hit,
-          path,
-          displaySnippetText,
-          highlightStartIndexInSnippet,
-          highlightEndIndexInSnippet,
-          matchSource,
-          pathLabelHighlight:
-            pathLabelHighlightDetails.start !== -1
-              ? pathLabelHighlightDetails
-              : undefined,
-        };
-      });
-      setSearchResults(
-        processedResults.filter(
-          (r) => r && r.matchSource && r.matchSource !== "unknown"
-        )
-      );
-    } else {
-      setSearchResults([]);
-    }
-  }, [
-    searchQuery,
-    searchOptions,
-    searchItems,
-    tree,
-    getItemPath,
-    searchSheetOpen,
-  ]);
-
-  useEffect(() => {
-    // Close top menu on outside click
-    const handleClickOutside = (e) => {
-      if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
-        setTopMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const startInlineRename = useCallback(
-    (item) => {
-      if (!item || draggedId === item.id || inlineRenameId) return;
-      setUiError("");
-      setInlineRenameId(item.id);
-      setInlineRenameValue(item.label);
-      setContextMenu((m) => ({ ...m, visible: false }));
-    },
-    [draggedId, inlineRenameId]
-  );
-
-  const cancelInlineRename = useCallback(() => {
-    setInlineRenameId(null);
-    setInlineRenameValue("");
-    setUiError("");
-    requestAnimationFrame(() =>
-      document
-        .querySelector('nav[aria-label="Notes and Tasks Tree"]')
-        ?.focus({ preventScroll: true })
-    );
-  }, []);
-
-  const handleAttemptRename = useCallback(async () => {
-    if (!inlineRenameId) return;
-    const newLabel = inlineRenameValue.trim();
-    const originalItem = findItemById(tree, inlineRenameId);
-    if (!newLabel) {
-      setUiError("Name cannot be empty.");
-      return;
-    }
-    if (newLabel === originalItem?.label) {
-      cancelInlineRename();
-      return;
-    }
-    const result = await renameItem(inlineRenameId, newLabel);
-    if (result.success) cancelInlineRename();
-    else setUiError(result.error || "Rename failed.");
-  }, [
-    inlineRenameId,
-    inlineRenameValue,
-    renameItem,
-    tree,
-    cancelInlineRename,
-    setUiError,
-  ]);
-
-  const openAddDialog = useCallback((type, parent) => {
-    setNewItemType(type);
-    setParentItemForAdd(parent);
-    setNewItemLabel("");
-    setAddDialogErrorMessage("");
-    setUiError("");
-    setAddDialogOpen(true);
-    setContextMenu((m) => ({ ...m, visible: false }));
-    setTopMenuOpen(false);
-  }, []);
-
-  const handleAdd = useCallback(async () => {
-    const tl = newItemLabel.trim();
-    if (!tl) {
-      setAddDialogErrorMessage("Name cannot be empty.");
-      return;
-    }
-    const newItemData = {
-      type: newItemType,
-      label: tl,
-      ...(newItemType === "task" ? { completed: false, content: "" } : {}),
-      ...(newItemType === "note" ? { content: "" } : {}),
-    };
-    const pid = parentItemForAdd?.id ?? null;
-    const result = await addItem(newItemData, pid);
-    if (result.success) {
-      setAddDialogOpen(false);
-      setNewItemLabel("");
-      setParentItemForAdd(null);
-      setAddDialogErrorMessage("");
-      setUiError("");
-      // if (result.item && result.item.id) selectItemById(result.item.id);
-    } else {
-      setAddDialogErrorMessage(result.error || "Add operation failed.");
-    }
-  }, [
-    newItemLabel,
-    newItemType,
-    parentItemForAdd,
-    addItem /* selectItemById */,
-  ]);
-
-  const handleToggleTask = useCallback(
-    async (id, currentCompletedStatus) => {
-      const result = await updateTask(id, {
-        completed: !currentCompletedStatus,
-      });
-      if (!result.success)
-        setUiError(result.error || "Failed to update task status.");
-    },
-    [updateTask, setUiError]
-  );
-
-  const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
-
-  const openExportDialog = useCallback((context) => {
-    setExportDialogState({ isOpen: true, context });
-    setContextMenu((m) => ({ ...m, visible: false }));
-    setTopMenuOpen(false);
-  }, []);
-
-  const openImportDialog = useCallback((context) => {
-    setImportDialogState({ isOpen: true, context });
-    setContextMenu((m) => ({ ...m, visible: false }));
-    setTopMenuOpen(false);
-  }, []);
-
-  const handleFileImport = useCallback(
-    async (file, importTargetOption) => {
-      setUiError(""); // Clear any previous global UI error
-
-      // Call the import logic from the useTree hook
-      const resultFromHook = await handleImport(file, importTargetOption);
-
-      if (resultFromHook && resultFromHook.success) {
-        // Set a global success message (optional, if you want it outside the dialog too)
-        setUiError(resultFromHook.message || "Import successful!");
-
-        // After a short delay (for the user to see the message in the dialog if any),
-        // close the dialog and clear the global message.
-        setTimeout(() => {
-          setImportDialogState({ isOpen: false, context: null });
-          setUiError(""); // Clear the success message
-        }, 1500); // Adjust delay as needed
-
-        // Return a success status to the ImportDialog's handler
-        return {
-          success: true,
-          message: resultFromHook.message || "Import successful!",
-        };
-      } else {
-        // An error occurred during import
-        const errorMessage =
-          resultFromHook?.error || "An unknown error occurred during import.";
-        // Set a global error message (optional)
-        setUiError(errorMessage);
-
-        // Return an error status to the ImportDialog's handler
-        // The ImportDialog will use this to display its internal error message
-        return { success: false, error: errorMessage };
-      }
-    },
-    [handleImport, setImportDialogState, setUiError] // Ensure all dependencies are correct
-  );
-
-  const handlePasteWrapper = useCallback(
-    async (targetId) => {
-      const result = await pasteItem(targetId);
-      if (!result.success)
-        setUiError(result.error || "Paste operation failed.");
-      else setUiError("");
-    },
-    [pasteItem, setUiError]
-  );
-
-  const handleDeleteConfirm = useCallback(async () => {
-    if (contextMenu.item && contextMenu.item.id) {
-      const result = await deleteItem(contextMenu.item.id);
-      if (!result.success)
-        setUiError(result.error || "Delete operation failed.");
-      else setUiError("");
-    }
-    setContextMenu((m) => ({ ...m, visible: false }));
-  }, [contextMenu.item, deleteItem, setUiError]);
-
-  const handleShowItemMenu = useCallback(
-    (item, buttonElement) => {
-      if (!item || !buttonElement) return;
-      const rect = buttonElement.getBoundingClientRect();
-      let x = rect.left,
-        y = rect.bottom + 2;
-      const menuWidth = 180,
-        menuHeight = 250;
-      if (x + menuWidth > window.innerWidth - 10)
-        x = window.innerWidth - menuWidth - 10;
-      if (x < 10) x = 10;
-      if (y + menuHeight > window.innerHeight - 10)
-        y = rect.top - menuHeight - 2;
-      if (y < 10) y = 10;
-      selectItemById(item.id);
-      setContextMenu({ visible: true, x, y, item, isEmptyArea: false });
-    },
-    [selectItemById]
-  );
-
-  const handleNativeContextMenu = useCallback(
-    (event, item) => {
-      if (draggedId || inlineRenameId) {
-        event.preventDefault();
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      selectItemById(item?.id ?? null);
-      let x = event.clientX,
-        y = event.clientY;
-      const menuWidth = 180,
-        menuHeight = item ? 250 : 150;
-      if (x + menuWidth > window.innerWidth - 10)
-        x = window.innerWidth - menuWidth - 10;
-      if (x < 10) x = 10;
-      if (y + menuHeight > window.innerHeight - 10)
-        y = window.innerHeight - menuHeight - 10;
-      if (y < 10) y = 10;
-      setContextMenu({ visible: true, x, y, item, isEmptyArea: !item });
-    },
-    [draggedId, inlineRenameId, selectItemById]
-  );
-
-  useEffect(() => {
-    const handleGlobalKeyDown = async (e) => {
+    /* ... (Global Keydown for Tree Item Operations - as refined before) ... */
+    const handleGlobalTreeOpsKeyDown = async (e) => {
       const activeEl = document.activeElement;
       const isRenameActive =
         !!inlineRenameId &&
         activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
           activeEl;
-
-      // If inline rename is active, let its own onKeyDown handler manage Enter/Escape
-      if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) {
-        return;
-      }
-
-      // Standard input fields like search, add dialog, rename dialog input
+      if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) return;
       const isStandardInputFocused =
         activeEl &&
         (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA") &&
-        activeEl.id !== "tree-navigation-area" && // Exclude the tree itself from this check
-        !activeEl.closest(`li[data-item-id="${inlineRenameId}"] input`); // Exclude active rename input
-
-      // Specifically check if the ContentEditor's contentEditable div is focused
+        activeEl.id !== "tree-navigation-area" &&
+        !isRenameActive;
       const isContentEditorFocused =
         activeEl &&
         (activeEl.classList.contains("editor-pane") ||
           activeEl.closest(".editor-pane"));
-
-      // --- Ctrl/Meta + Z (Undo) & Ctrl/Meta + Y (Redo) ---
       if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "z" &&
-        !e.shiftKey
+        (isStandardInputFocused || isContentEditorFocused) &&
+        !(
+          (e.ctrlKey || e.metaKey) &&
+          ["c", "x", "v"].includes(e.key.toLowerCase())
+        )
       ) {
-        // Allow undo in specific inputs, otherwise global undo
-        if (isStandardInputFocused || isContentEditorFocused) {
-          // Let browser/editor handle its own undo if it's not the global search or tree nav
-          if (
-            activeEl.id === "global-search-input" ||
-            activeEl.id === "tree-navigation-area" ||
-            document.body === activeEl
-          ) {
-            e.preventDefault();
-            if (canUndoTree) undoTreeChange();
-          }
-          // else: do nothing, let the input field handle its own undo.
-        } else {
-          // Focus is not on a specific input that handles undo, or it's the tree itself
-          e.preventDefault();
-          if (canUndoTree) undoTreeChange();
-        }
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        (e.key.toLowerCase() === "y" ||
-          (e.shiftKey && e.key.toLowerCase() === "z"))
-      ) {
-        // Similar logic for redo
-        if (isStandardInputFocused || isContentEditorFocused) {
-          if (
-            activeEl.id === "global-search-input" ||
-            activeEl.id === "tree-navigation-area" ||
-            document.body === activeEl
-          ) {
-            e.preventDefault();
-            if (canRedoTree) redoTreeChange();
-          }
-        } else {
-          e.preventDefault();
-          if (canRedoTree) redoTreeChange();
-        }
+        if (e.key === "F2" && isContentEditorFocused) return;
+        else if (e.key === "Delete" || e.key === "Backspace") return;
       }
-      // --- Ctrl/Meta + Shift + F (Search) ---
-      else if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.key.toUpperCase() === "F"
-      ) {
-        if (isStandardInputFocused && activeEl.id === "global-search-input")
-          return;
-        e.preventDefault();
-        setSearchSheetOpen((s) => !s);
-      }
-      // --- F2 (Rename) ---
-      else if (
+      const treeNav = document.querySelector(
+        'nav[aria-label="Notes and Tasks Tree"]'
+      );
+      const isTreeAreaLikelyFocused =
+        treeNav &&
+        (treeNav === activeEl ||
+          treeNav.contains(activeEl) ||
+          document.body === activeEl);
+      if (
         e.key === "F2" &&
         selectedItemId &&
         !isRenameActive &&
-        !isStandardInputFocused &&
         !isContentEditorFocused
       ) {
-        e.preventDefault();
-        const item = findItemById(tree, selectedItemId);
-        if (item) startInlineRename(item);
-      }
-      // --- Ctrl/Meta + C (Copy) & Ctrl/Meta + X (Cut) ---
-      else if (
+        if (isTreeAreaLikelyFocused || document.body === activeEl) {
+          e.preventDefault();
+          const item = findItemByIdFromTree(selectedItemId);
+          if (item) startInlineRename(item);
+        }
+      } else if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "c" &&
         selectedItemId &&
         !isRenameActive &&
-        !isContentEditorFocused &&
-        !isStandardInputFocused
+        !isContentEditorFocused
       ) {
         e.preventDefault();
         copyItem(selectedItemId);
+        showMessage("Item copied.", "success", 2000);
       } else if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "x" &&
         selectedItemId &&
         !isRenameActive &&
-        !isContentEditorFocused &&
-        !isStandardInputFocused
+        !isContentEditorFocused
       ) {
         e.preventDefault();
         cutItem(selectedItemId);
-      }
-      // --- Ctrl/Meta + V (Paste) ---
-      else if (
+        showMessage("Item cut.", "success", 2000);
+      } else if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "v" &&
         clipboardItem &&
         !isRenameActive &&
-        !isContentEditorFocused &&
-        !isStandardInputFocused
+        !isContentEditorFocused
       ) {
         e.preventDefault();
-        const currentItem = findItemById(tree, selectedItemId);
+        const currentItem = findItemByIdFromTree(selectedItemId);
         const targetIdForPaste =
           currentItem?.type === "folder"
             ? selectedItemId
-            : findParentAndSiblings(tree, selectedItemId)?.parent?.id ?? null;
+            : findParentAndSiblingsFromTree(selectedItemId)?.parent?.id ?? null;
         await handlePasteWrapper(targetIdForPaste);
-      }
-      // --- Delete / Backspace for Item Deletion ---
-      else if (
+      } else if (
         (e.key === "Delete" || e.key === "Backspace") &&
         selectedItemId &&
         !isRenameActive
       ) {
-        // CRITICAL: Only proceed if focus is NOT within ContentEditor or a standard input field
-        if (isContentEditorFocused || isStandardInputFocused) {
-          // If focus is inside editor or a text input (not rename), let the input handle the key press.
+        if (
+          isContentEditorFocused ||
+          (isStandardInputFocused && activeEl.id !== "tree-navigation-area")
+        )
           return;
-        }
-        // Allow if focus is on body, tree nav, or an element that doesn't trap these keys for text editing.
         if (
           activeEl.id === "global-search-input" &&
-          searchQuery !== "" &&
-          e.key === "Backspace"
-        ) {
-          // Let backspace work in search input if it has content
+          ((e.key === "Backspace" && searchQuery !== "") || e.key === "Delete")
+        )
           return;
-        }
-        if (activeEl.id === "global-search-input" && e.key === "Delete") {
-          // Let delete work in search input
-          return;
-        }
-
-        e.preventDefault(); // Prevent default only if we are handling item deletion
-        const item = findItemById(tree, selectedItemId);
-        if (
-          item &&
-          window.confirm(`Delete "${item.label}"? This cannot be undone.`)
-        ) {
-          const result = await deleteItem(selectedItemId);
-          if (!result.success) {
-            setUiError(result.error || "Delete operation failed via keydown.");
-          } else {
-            setUiError("");
+        if (isTreeAreaLikelyFocused || document.body === activeEl) {
+          e.preventDefault();
+          const item = findItemByIdFromTree(selectedItemId);
+          if (
+            item &&
+            window.confirm(`Delete "${item.label}"? This cannot be undone.`)
+          ) {
+            await handleDeleteConfirm(selectedItemId);
           }
         }
       }
     };
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+    window.addEventListener("keydown", handleGlobalTreeOpsKeyDown);
+    return () =>
+      window.removeEventListener("keydown", handleGlobalTreeOpsKeyDown);
   }, [
     selectedItemId,
     inlineRenameId,
@@ -816,149 +614,340 @@ const App = () => {
     deleteItem,
     startInlineRename,
     handlePasteWrapper,
-    setUiError,
+    showMessage,
+    findItemByIdFromTree,
+    findParentAndSiblingsFromTree,
   ]);
 
-  // Conditional rendering based on auth state
+  useEffect(() => {
+    /* ... (Search Results processing - as before) ... */
+    if (searchQuery && searchSheetOpen) {
+      const currentSearchOpts = { ...searchOptions, useRegex: false };
+      const rawHits = searchItems(searchQuery, currentSearchOpts);
+      const CONTEXT_CHARS_BEFORE = 20,
+        CONTEXT_CHARS_AFTER = 20,
+        MAX_SNIPPET_LENGTH = 80;
+      let resultCounter = 0;
+      const processedResults = rawHits
+        .map((hit) => {
+          if (!hit || !hit.id) return null;
+          const pathString = getItemPath(hit.id);
+          const originalLabel =
+            typeof hit.label === "string"
+              ? hit.label
+              : typeof hit.title === "string"
+              ? hit.title
+              : "";
+          const originalContentHtml =
+            typeof hit.content === "string" ? hit.content : "";
+          const plainTextContent =
+            htmlToPlainTextWithNewlines(originalContentHtml);
+          let displaySnippetText = "",
+            hlStartIndex = -1,
+            hlEndIndex = -1,
+            matchSrc = "";
+          let pathLabelHlDetails = {
+            start: -1,
+            end: -1,
+            originalMatchInLabel: "",
+          };
+          const labelMatchInfo = matchText(
+            originalLabel,
+            searchQuery,
+            currentSearchOpts
+          );
+          if (labelMatchInfo) {
+            matchSrc = "label";
+            displaySnippetText = originalLabel;
+            hlStartIndex = labelMatchInfo.startIndex;
+            hlEndIndex =
+              labelMatchInfo.startIndex + labelMatchInfo.matchedString.length;
+            pathLabelHlDetails = {
+              start: labelMatchInfo.startIndex,
+              end: hlEndIndex,
+              originalMatchInLabel: labelMatchInfo.matchedString,
+            };
+          }
+          if (
+            (hit.type === "note" || hit.type === "task") &&
+            plainTextContent
+          ) {
+            const contentMatchInfo = matchText(
+              plainTextContent,
+              searchQuery,
+              currentSearchOpts
+            );
+            if (contentMatchInfo) {
+              if (matchSrc === "label") matchSrc = "label & content";
+              else {
+                matchSrc = "content";
+                const { matchedString, startIndex: siInPlainText } =
+                  contentMatchInfo;
+                let snipStart = Math.max(
+                  0,
+                  siInPlainText - CONTEXT_CHARS_BEFORE
+                );
+                let snipEnd = Math.min(
+                  plainTextContent.length,
+                  siInPlainText + matchedString.length + CONTEXT_CHARS_AFTER
+                );
+                displaySnippetText = plainTextContent.substring(
+                  snipStart,
+                  snipEnd
+                );
+                hlStartIndex = siInPlainText - snipStart;
+                hlEndIndex = hlStartIndex + matchedString.length;
+                let preEll = snipStart > 0,
+                  sufEll = snipEnd < plainTextContent.length;
+                if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
+                  const ovf = displaySnippetText.length - MAX_SNIPPET_LENGTH;
+                  let redPre = Math.floor(ovf / 2);
+                  if (hlStartIndex < redPre) redPre = hlStartIndex;
+                  if (redPre > 0) {
+                    displaySnippetText = displaySnippetText.substring(redPre);
+                    hlStartIndex -= redPre;
+                    hlEndIndex -= redPre;
+                    preEll = true;
+                  }
+                  if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
+                    const cutEnd =
+                      displaySnippetText.length - MAX_SNIPPET_LENGTH;
+                    displaySnippetText = displaySnippetText.substring(
+                      0,
+                      displaySnippetText.length - cutEnd
+                    );
+                    sufEll = true;
+                  }
+                  hlStartIndex = Math.max(0, hlStartIndex);
+                  hlEndIndex = Math.min(displaySnippetText.length, hlEndIndex);
+                  if (hlStartIndex >= hlEndIndex) {
+                    hlStartIndex = -1;
+                    hlEndIndex = -1;
+                  }
+                }
+                if (preEll && !displaySnippetText.startsWith("..."))
+                  displaySnippetText = "..." + displaySnippetText;
+                if (sufEll && !displaySnippetText.endsWith("..."))
+                  displaySnippetText = displaySnippetText + "...";
+              }
+            }
+          }
+          if (!matchSrc) {
+            displaySnippetText = originalLabel;
+            matchSrc = "unknown";
+          }
+          return {
+            id: `${hit.id}-${matchSrc}-${resultCounter++}`,
+            originalId: hit.id,
+            ...hit,
+            path: pathString,
+            displaySnippetText,
+            highlightStartIndexInSnippet: hlStartIndex,
+            highlightEndIndexInSnippet: hlEndIndex,
+            matchSource: matchSrc,
+            pathLabelHighlight:
+              pathLabelHlDetails.start !== -1 ? pathLabelHlDetails : undefined,
+          };
+        })
+        .filter(Boolean);
+      setSearchResults(
+        processedResults.filter(
+          (r) => r && r.matchSource && r.matchSource !== "unknown"
+        )
+      );
+    } else {
+      setSearchResults([]);
+    }
+  }, [
+    searchQuery,
+    searchOptions,
+    searchItems,
+    getItemPath,
+    searchSheetOpen,
+    tree,
+    matchText,
+  ]);
+
+  useEffect(() => {
+    /* ... (Top Menu Outside Click Handler - as before) ... */
+    const handleClickOutside = (e) => {
+      if (topMenuRef.current && !topMenuRef.current.contains(e.target))
+        setTopMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   if (!isAuthCheckComplete) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
+      <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-100">
+        Loading application...
       </div>
-    ); // Or a spinner
+    );
   }
 
-  if (
-    !currentUser &&
-    !localStorage.getItem("userToken") /* More robust check might be needed */
-  ) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+  if (currentView === "login") {
+    return (
+      <Login
+        onLoginSuccess={handleLoginSuccess}
+        onSwitchToRegister={() => setCurrentView("register")}
+      />
+    );
+  }
+  if (currentView === "register") {
+    return (
+      <Register
+        onRegisterSuccess={() => setCurrentView("login")}
+        onSwitchToLogin={() => setCurrentView("login")}
+      />
+    );
   }
 
+  // currentView === 'app'
   return (
-    <div className="relative flex flex-col h-screen bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
-      <ErrorDisplay message={uiError} onClose={() => setUiError("")} />
-      {/* Logout Button - Example Placement */}
-      <button
-        onClick={handleLogout}
-        className="absolute top-3 right-3 z-50 p-1.5 sm:p-1 bg-red-500 hover:bg-red-600 text-white rounded"
-        title="Logout"
+    <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
+      <ErrorDisplay
+        message={uiMessage}
+        type={uiMessageType}
+        onClose={() => setUiMessage("")}
+      />
+      <header
+        className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
       >
-        <LogOut className="w-5 h-5" />
-      </button>
-
-      <PanelGroup direction="horizontal" className="flex-1 min-h-0 pt-12">
-        {" "}
-        {/* Added pt-12 for header spacing */}
-        <Panel
-          id="tree-panel"
-          order={0}
-          defaultSize={30}
-          minSize={20}
-          maxSize={60}
-          className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700"
-        >
-          <div className="flex flex-col h-full">
-            {/* Header is now part of the main app layout, not inside panel if logout is outside */}
-            <div
-              className={`p-2 sm:p-3 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0 ${APP_HEADER_HEIGHT_CLASS}`}
+        {/* ... Header JSX as before ... */}
+        <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
+          <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis mr-2 text-zinc-800 dark:text-zinc-100">
+            Notes & Tasks
+          </h1>
+          <div
+            className="flex items-center space-x-0.5 sm:space-x-1 relative"
+            ref={topMenuRef}
+          >
+            <button
+              onClick={undoTreeChange}
+              disabled={!canUndoTree}
+              title="Undo (Ctrl+Z)"
+              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                !canUndoTree
+                  ? "opacity-40 cursor-not-allowed"
+                  : "text-zinc-600 dark:text-zinc-300"
+              }`}
             >
-              <h2 className="font-medium text-base sm:text-lg md:text-xl whitespace-nowrap overflow-hidden text-ellipsis mr-2">
-                Notes & Tasks
-              </h2>
-              <div
-                className="flex items-center space-x-1 sm:space-x-1.5 relative"
-                ref={topMenuRef}
-              >
+              {" "}
+              <Undo className="w-5 h-5" />{" "}
+            </button>
+            <button
+              onClick={redoTreeChange}
+              disabled={!canRedoTree}
+              title="Redo (Ctrl+Y)"
+              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                !canRedoTree
+                  ? "opacity-40 cursor-not-allowed"
+                  : "text-zinc-600 dark:text-zinc-300"
+              }`}
+            >
+              {" "}
+              <Redo className="w-5 h-5" />{" "}
+            </button>
+            <button
+              onClick={() => setSearchSheetOpen((s) => !s)}
+              title="Search (Ctrl+Shift+F)"
+              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                searchSheetOpen
+                  ? "bg-blue-100 dark:bg-blue-700/50 text-blue-600 dark:text-blue-300"
+                  : "text-zinc-600 dark:text-zinc-300"
+              }`}
+            >
+              {" "}
+              <SearchIcon className="w-5 h-5" />{" "}
+            </button>
+            <button
+              onClick={() => setSettingsDialogOpen(true)}
+              className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+              title="Settings"
+            >
+              {" "}
+              <SettingsIcon className="w-5 h-5" />{" "}
+            </button>
+            <button
+              onClick={() => setTopMenuOpen((p) => !p)}
+              className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+              title="More actions"
+            >
+              {" "}
+              <EllipsisVertical className="w-5 h-5" />{" "}
+            </button>
+            {topMenuOpen && (
+              <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
                 <button
-                  onClick={undoTreeChange}
-                  disabled={!canUndoTree}
-                  title="Undo (Ctrl+Z)"
-                  className={`p-1.5 sm:p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
-                    !canUndoTree
-                      ? "opacity-50 cursor-not-allowed"
-                      : "text-zinc-500 dark:text-zinc-400"
-                  }`}
+                  onClick={() => {
+                    openAddDialog("folder", null);
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
                   {" "}
-                  <Undo className="w-5 h-5" />{" "}
+                  <FileJson className="w-4 h-4 opacity-70" /> Add Root Folder{" "}
                 </button>
                 <button
-                  onClick={redoTreeChange}
-                  disabled={!canRedoTree}
-                  title="Redo (Ctrl+Y)"
-                  className={`p-1.5 sm:p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
-                    !canRedoTree
-                      ? "opacity-50 cursor-not-allowed"
-                      : "text-zinc-500 dark:text-zinc-400"
-                  }`}
+                  onClick={() => {
+                    openExportDialog("tree");
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
                   {" "}
-                  <Redo className="w-5 h-5" />{" "}
+                  <FileJson className="w-4 h-4 opacity-70" /> Export Full
+                  Tree...{" "}
                 </button>
                 <button
-                  onClick={() => setSearchSheetOpen((s) => !s)}
-                  title="Search (Ctrl+Shift+F)"
-                  className={`p-1.5 sm:p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded ${
-                    searchSheetOpen
-                      ? "bg-blue-600 text-white hover:bg-blue-700"
-                      : "text-zinc-500 dark:text-zinc-400"
-                  }`}
+                  onClick={() => {
+                    openImportDialog("tree");
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
                   {" "}
-                  <SearchIcon className="w-5 h-5" />{" "}
+                  <FileJson className="w-4 h-4 opacity-70" /> Import Full
+                  Tree...{" "}
+                </button>
+                <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
+                <button
+                  onClick={() => {
+                    setAboutDialogOpen(true);
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  {" "}
+                  <Info className="w-4 h-4 opacity-70" /> About{" "}
                 </button>
                 <button
-                  onClick={() => setSettingsDialogOpen(true)}
-                  className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
-                  title="Settings"
+                  onClick={() => {
+                    handleLogout();
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-700/30"
                 >
                   {" "}
-                  <SettingsIcon className="w-5 h-5 sm:w-4 sm:h-4" />{" "}
+                  <LogOut className="w-4 h-4 opacity-70" /> Logout{" "}
                 </button>
-                <button
-                  onClick={() => setAboutDialogOpen(true)}
-                  className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
-                  title="About"
-                >
-                  {" "}
-                  <Info className="w-5 h-5 sm:w-4 sm:h-4" />{" "}
-                </button>
-                <button
-                  onClick={() => setTopMenuOpen((p) => !p)}
-                  className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
-                  title="More"
-                >
-                  {" "}
-                  <EllipsisVertical className="w-5 h-5 sm:w-4 sm:h-4" />{" "}
-                </button>
-                {topMenuOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded shadow-lg z-40 text-sm">
-                    <button
-                      onClick={() => openAddDialog("folder", null)}
-                      className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    >
-                      {" "}
-                      Add Root Folder{" "}
-                    </button>
-                    <button
-                      onClick={() => openExportDialog("tree")}
-                      className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    >
-                      {" "}
-                      Export Full Tree...{" "}
-                    </button>
-                    <button
-                      onClick={() => openImportDialog("tree")}
-                      className="block w-full px-4 py-2.5 sm:py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    >
-                      {" "}
-                      Import Full Tree...{" "}
-                    </button>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
+          </div>
+        </div>
+      </header>
+      <main className={`flex-1 flex min-h-0 pt-14 sm:pt-12`}>
+        <PanelGroup direction="horizontal" className="flex-1">
+          <Panel
+            id="tree-panel"
+            order={0}
+            defaultSize={30}
+            minSize={20}
+            maxSize={60}
+            className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-800/30 border-r border-zinc-200 dark:border-zinc-700/50"
+          >
+            {/* ... Tree Panel JSX as before ... */}
             <div
               className="flex-grow overflow-auto"
               id="tree-navigation-area"
@@ -990,7 +979,7 @@ const App = () => {
                     setDraggedId(id);
                   } catch (err) {
                     console.error("Drag error:", err);
-                    setUiError("Drag operation failed to start.");
+                    showMessage("Drag operation failed.", "error");
                   }
                 }}
                 onDrop={(targetId) => handleDrop(targetId, draggedId)}
@@ -998,123 +987,125 @@ const App = () => {
                 onNativeContextMenu={handleNativeContextMenu}
                 onShowItemMenu={handleShowItemMenu}
                 onRename={startInlineRename}
-                uiError={uiError}
-                setUiError={setUiError}
+                uiError={uiMessage}
+                setUiError={(msg) => showMessage(msg, "error")}
               />
             </div>
-          </div>
-        </Panel>
-        <PanelResizeHandle className="w-1 bg-zinc-300 dark:bg-zinc-600 hover:bg-blue-500 data-[resize-handle-active]:bg-blue-600 cursor-col-resize z-20 flex-shrink-0" />
-        <Panel
-          id="content-panel"
-          order={1}
-          defaultSize={70}
-          minSize={40}
-          className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-800"
-        >
-          <div className="flex-grow p-2 sm:p-4 overflow-auto h-full">
-            {selectedItem ? (
-              selectedItem.type === "folder" ? (
-                <div className="p-3">
-                  <h2 className="text-lg sm:text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100 break-words">
-                    {selectedItem.label}
-                  </h2>
-                  <FolderContents
-                    folder={selectedItem}
-                    onSelect={selectItemById}
-                    handleDragStart={(e, id) => {
-                      if (inlineRenameId) e.preventDefault();
-                      else setDraggedId(id);
-                    }}
-                    handleDragEnter={(e, id) => {
-                      /* Placeholder */
-                    }}
-                    handleDragOver={(e) => {
-                      /* Placeholder */
-                    }}
-                    handleDragLeave={(e) => {
-                      /* Placeholder */
-                    }}
-                    handleDrop={(e, id) => {
-                      if (
-                        draggedId &&
-                        id !== draggedId &&
-                        selectedItem?.id === id
-                      ) {
-                        handleDrop(id, draggedId);
-                      }
-                    }}
-                    handleDragEnd={handleDragEnd}
-                    draggedId={draggedId}
-                    dragOverItemId={null}
-                    onToggleExpand={toggleFolderExpand}
-                    expandedItems={expandedFolders}
-                    onShowItemMenu={handleShowItemMenu}
+          </Panel>
+          <PanelResizeHandle className="w-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-500 data-[resize-handle-active=true]:bg-blue-600 transition-colors cursor-col-resize z-20 flex-shrink-0" />
+          <Panel
+            id="content-panel"
+            order={1}
+            defaultSize={70}
+            minSize={30}
+            className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-900"
+          >
+            {" "}
+            {/* CHANGED to dark:bg-zinc-900 for panel */}
+            <div className="flex-grow overflow-auto h-full">
+              {selectedItem ? (
+                selectedItem.type === "folder" ? (
+                  <div className="p-3 sm:p-4">
+                    <h2 className="text-lg sm:text-xl font-semibold mb-3 text-zinc-800 dark:text-zinc-100 break-words">
+                      {" "}
+                      {/* Added dark text color */}
+                      {selectedItem.label}
+                    </h2>
+                    <FolderContents
+                      folder={selectedItem}
+                      onSelect={selectItemById}
+                      handleDragStart={(e, id) => {
+                        if (inlineRenameId) e.preventDefault();
+                        else setDraggedId(id);
+                      }}
+                      handleDragEnter={(e, id) => {}}
+                      handleDragOver={(e) => e.preventDefault()}
+                      handleDragLeave={(e) => {}}
+                      handleDrop={(e, targetItemId) => {
+                        if (draggedId && targetItemId === selectedItem.id) {
+                          handleDrop(targetItemId, draggedId);
+                        }
+                      }}
+                      handleDragEnd={handleDragEnd}
+                      draggedId={draggedId}
+                      onToggleExpand={toggleFolderExpand}
+                      expandedItems={expandedFolders}
+                      onShowItemMenu={handleShowItemMenu}
+                    />
+                  </div>
+                ) : selectedItem.type === "note" ||
+                  selectedItem.type === "task" ? (
+                  <ContentEditor
+                    key={selectedItemId}
+                    item={selectedItem}
+                    defaultFontFamily={settings.editorFontFamily}
+                    defaultFontSize={settings.editorFontSize}
+                    onSaveContent={
+                      selectedItem.type === "task"
+                        ? async (id, content) => {
+                            const result = await updateTask(id, { content });
+                            if (!result.success)
+                              showMessage(
+                                result.error || "Failed to save task content.",
+                                "error"
+                              );
+                          }
+                        : async (id, content) => {
+                            const result = await updateNoteContent(id, content);
+                            if (!result.success)
+                              showMessage(
+                                result.error || "Failed to save note content.",
+                                "error"
+                              );
+                          }
+                    }
                   />
+                ) : null
+              ) : (
+                <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
+                  {" "}
+                  Select or create an item to view or edit its content.{" "}
                 </div>
-              ) : selectedItem.type === "note" ||
-                selectedItem.type === "task" ? (
-                <ContentEditor
-                  key={selectedItemId}
-                  item={selectedItem}
-                  defaultFontFamily={settings.editorFontFamily}
-                  defaultFontSize={settings.editorFontSize}
-                  onSaveContent={
-                    selectedItem.type === "task"
-                      ? async (id, content) => {
-                          const result = await updateTask(id, { content }); // updateTask should be from useTree
-                          if (!result.success)
-                            setUiError(
-                              result.error || "Failed to save task content."
-                            );
-                        }
-                      : async (id, content) => {
-                          const result = await updateNoteContent(id, content); // updateNoteContent from useTree
-                          if (!result.success)
-                            setUiError(
-                              result.error || "Failed to save note content."
-                            );
-                        }
-                  }
-                />
-              ) : null
-            ) : (
-              <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
-                Select or create an item to view or edit its content.
-              </div>
-            )}
-          </div>
-        </Panel>
-      </PanelGroup>
-
+              )}
+            </div>
+          </Panel>
+        </PanelGroup>
+      </main>
+      {/* ... Sheet, ContextMenu, AddDialog, AboutDialog, ExportDialog, ImportDialog, SettingsDialog JSX as before ... */}
       <Sheet
         isOpen={searchSheetOpen}
         onClose={() => setSearchSheetOpen(false)}
-        snapPoints={[0.75, 0.5, 0.25]}
+        snapPoints={[0.85, 0.6, 0.3]}
         initialSnap={1}
+        className="z-40"
       >
-        <Sheet.Container>
+        <Sheet.Container className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl">
           <Sheet.Header>
-            <div className="flex justify-center py-2 cursor-grab">
-              {" "}
-              <div className="w-8 h-1 bg-zinc-400 dark:bg-zinc-600 rounded-full"></div>{" "}
+            <div className="flex justify-center py-2.5 cursor-grab">
+              <div className="w-10 h-1.5 bg-zinc-300 dark:bg-zinc-600 rounded-full"></div>
             </div>
           </Sheet.Header>
-          <Sheet.Content>
+          <Sheet.Content className="!pb-0">
             <div className="overflow-y-auto h-full">
               <SearchResultsPane
-                headerHeightClass="h-12"
+                headerHeightClass={APP_HEADER_HEIGHT_CLASS}
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
                 results={searchResults}
                 onSelectResult={(item) => {
-                  expandFolderPath(item.originalId);
-                  selectItemById(item.originalId);
-                  setTimeout(() => {
-                    document
-                      .querySelector(`li[data-item-id="${item.originalId}"]`)
-                      ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                  }, 50);
+                  if (item.originalId) {
+                    expandFolderPath(item.originalId);
+                    selectItemById(item.originalId);
+                    setSearchSheetOpen(false);
+                    setTimeout(() => {
+                      document
+                        .querySelector(`li[data-item-id="${item.originalId}"]`)
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                    }, 100);
+                  }
                 }}
                 onClose={() => setSearchSheetOpen(false)}
                 opts={searchOptions}
@@ -1123,11 +1114,11 @@ const App = () => {
             </div>
           </Sheet.Content>
         </Sheet.Container>
+        <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} />
       </Sheet>
-
       {contextMenu.visible && (
         <ContextMenu
-          visible={true}
+          visible={contextMenu.visible}
           x={contextMenu.x}
           y={contextMenu.y}
           item={contextMenu.item}
@@ -1153,7 +1144,7 @@ const App = () => {
                   `Delete "${contextMenu.item.label}"? This cannot be undone.`
                 )
               ) {
-                handleDeleteConfirm();
+                handleDeleteConfirm(contextMenu.item.id);
               } else {
                 setContextMenu((m) => ({ ...m, visible: false }));
               }
@@ -1165,19 +1156,30 @@ const App = () => {
             if (contextMenu.item) {
               const result = await duplicateItem(contextMenu.item.id);
               if (!result.success)
-                setUiError(result.error || "Duplicate failed");
+                showMessage(result.error || "Duplicate failed", "error");
+              else showMessage("Item duplicated.", "success", 3000);
             }
           }}
           onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
-          onCopy={() => contextMenu.item && copyItem(contextMenu.item.id)}
-          onCut={() => contextMenu.item && cutItem(contextMenu.item.id)}
+          onCopy={() => {
+            if (contextMenu.item) {
+              copyItem(contextMenu.item.id);
+              showMessage("Item copied.", "success", 2000);
+            }
+          }}
+          onCut={() => {
+            if (contextMenu.item) {
+              cutItem(contextMenu.item.id);
+              showMessage("Item cut.", "success", 2000);
+            }
+          }}
           onPaste={async () => {
             const tid = contextMenu.isEmptyArea
               ? null
               : contextMenu.item?.type === "folder"
               ? contextMenu.item.id
-              : findParentAndSiblings(tree, contextMenu.item?.id)?.parent?.id ??
-                null;
+              : findParentAndSiblingsFromTree(contextMenu.item?.id)?.parent
+                  ?.id ?? null;
             await handlePasteWrapper(tid);
           }}
           onExportItem={() => openExportDialog("item")}
@@ -1199,7 +1201,7 @@ const App = () => {
         onCancel={() => {
           setAddDialogOpen(false);
           setAddDialogErrorMessage("");
-          setUiError("");
+          showMessage("", "error");
         }}
       />
       <AboutDialog
@@ -1215,7 +1217,12 @@ const App = () => {
       />
       <ImportDialog
         isOpen={importDialogState.isOpen}
-        onClose={() => setImportDialogState({ isOpen: false, context: null })}
+        context={importDialogState.context}
+        selectedItem={selectedItem}
+        onClose={() => {
+          setImportDialogState({ isOpen: false, context: null });
+          showMessage("", "success");
+        }}
         onImport={handleFileImport}
       />
       <SettingsDialog
