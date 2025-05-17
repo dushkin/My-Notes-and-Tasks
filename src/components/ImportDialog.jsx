@@ -1,29 +1,37 @@
 // src/components/ImportDialog.jsx
 import React, { useState, useEffect } from "react";
 
-const ImportDialog = ({ isOpen, context, onClose, onImport }) => {
-  const [target, setTarget] = useState(() => {
-    return context === "tree" ? "entire" : "selected";
-  });
+const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
+  // target will be 'entire' (for full tree) or 'selected' (for under item)
+  const [target, setTarget] = useState("entire"); // Default, will be overridden by context
   const [file, setFile] = useState(null);
-  const [importing, setImporting] = useState(false); // To show loading state
-  const [importMessage, setImportMessage] = useState(""); // For success/error messages
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      setTarget(context === "tree" ? "entire" : "selected");
+      // Set target based on the context the dialog was opened with
+      if (context === "tree") {
+        setTarget("entire");
+      } else if (context === "item") {
+        setTarget("selected");
+      } else {
+        // Fallback or default if context is not specific
+        // e.g., default to 'entire' if no item selected, else 'selected'
+        setTarget(selectedItem ? "selected" : "entire");
+      }
       setFile(null);
       setImporting(false);
       setImportMessage("");
     }
-  }, [context, isOpen]);
+  }, [context, isOpen, selectedItem]); // Add selectedItem to dependencies
 
   if (!isOpen) return null;
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
-      setImportMessage(""); // Clear previous messages
+      setImportMessage("");
     } else {
       setFile(null);
     }
@@ -33,75 +41,94 @@ const ImportDialog = ({ isOpen, context, onClose, onImport }) => {
     if (file) {
       setImporting(true);
       setImportMessage("Importing...");
-      const result = await onImport(file, target); // onImport should be async
+      const result = await onImport(file, target); // onImport is async handleFileImport from App.jsx
       setImporting(false);
       if (result && result.success) {
         setImportMessage(result.message || "Import successful!");
-        // Dialog will be closed by App.jsx after this resolves successfully
+        // Dialog is closed by App.jsx by calling onClose via setImportDialogState
       } else {
-        setImportMessage(result.error || "Import failed. Please try again.");
+        setImportMessage(result?.error || "Import failed. Please try again.");
       }
     } else {
       setImportMessage("Please select a file first.");
     }
   };
 
-  const dialogTitle =
-    target === "entire" ? "Import Tree" : "Import Under Selected Item";
+  const isFullTreeImportContext = context === "tree";
+  const isImportUnderItemContext = context === "item";
+
+  let dialogTitle = "Import Data";
+  if (isFullTreeImportContext) {
+    dialogTitle = "Import Tree (Overwrite Existing)";
+  } else if (isImportUnderItemContext && selectedItem) {
+    dialogTitle = `Import Under "${selectedItem.label}"`;
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
       <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-xl w-full max-w-md sm:max-w-sm">
         <h2 className="text-lg sm:text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">
           {dialogTitle}
         </h2>
 
-        <div className="mb-4">
-          <p className="mb-2 font-medium text-sm text-zinc-700 dark:text-zinc-300">
-            Import Target
-          </p>
-          <div className="space-y-2">
-            <label className="flex items-center cursor-pointer p-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
-              <input
-                type="radio"
-                name="importTarget"
-                value="selected"
-                checked={target === "selected"}
-                onChange={() => {
-                  setTarget("selected");
-                  setImportMessage("");
-                }}
-                disabled={context === "tree" || importing}
-                className="form-radio h-4 w-4 text-blue-600 disabled:opacity-50 dark:focus:ring-blue-500 focus:ring-offset-0 dark:bg-zinc-700 dark:border-zinc-600"
-              />
-              <span
-                className={`ml-2 text-sm text-zinc-700 dark:text-zinc-200 ${
-                  context === "tree" ? "opacity-50" : ""
-                }`}
-              >
-                Under Selected Item
-              </span>
-            </label>
-            <label className="flex items-center cursor-pointer p-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
-              <input
-                type="radio"
-                name="importTarget"
-                value="entire"
-                checked={target === "entire"}
-                onChange={() => {
-                  setTarget("entire");
-                  setImportMessage("");
-                }}
-                disabled={importing}
-                className="form-radio h-4 w-4 text-blue-600 dark:focus:ring-blue-500 focus:ring-offset-0 dark:bg-zinc-700 dark:border-zinc-600"
-              />
-              <span className="ml-2 text-sm text-zinc-700 dark:text-zinc-200">
-                Into empty tree or overwrite existing data{" "}
-                {/* Text Change Here */}
-              </span>
-            </label>
+        {/* Only show target options if the context doesn't strictly define it */}
+        {/* Or if you always want to allow changing, but pre-select based on context */}
+        {!isFullTreeImportContext && ( // Don't show radio buttons if importing full tree via specific menu action
+          <div className="mb-4">
+            <p className="mb-2 font-medium text-sm text-zinc-700 dark:text-zinc-300">
+              Import Target
+            </p>
+            <div className="space-y-2">
+              <label className="flex items-center cursor-pointer p-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
+                <input
+                  type="radio"
+                  name="importTarget"
+                  value="selected"
+                  checked={target === "selected"}
+                  onChange={() => {
+                    setTarget("selected");
+                    setImportMessage("");
+                  }}
+                  disabled={importing || !selectedItem} // Disable if no item is selected for this option
+                  className="form-radio h-4 w-4 text-blue-600 disabled:opacity-50 dark:focus:ring-blue-500 focus:ring-offset-0 dark:bg-zinc-700 dark:border-zinc-600"
+                />
+                <span
+                  className={`ml-2 text-sm text-zinc-700 dark:text-zinc-200 ${
+                    !selectedItem ? "opacity-50" : ""
+                  }`}
+                >
+                  Under Selected Item{" "}
+                  {selectedItem
+                    ? `(${selectedItem.label})`
+                    : "(No item selected)"}
+                </span>
+              </label>
+              <label className="flex items-center cursor-pointer p-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
+                <input
+                  type="radio"
+                  name="importTarget"
+                  value="entire"
+                  checked={target === "entire"}
+                  onChange={() => {
+                    setTarget("entire");
+                    setImportMessage("");
+                  }}
+                  disabled={importing}
+                  className="form-radio h-4 w-4 text-blue-600 dark:focus:ring-blue-500 focus:ring-offset-0 dark:bg-zinc-700 dark:border-zinc-600"
+                />
+                <span className="ml-2 text-sm text-zinc-700 dark:text-zinc-200">
+                  Into empty tree or overwrite existing data
+                </span>
+              </label>
+            </div>
           </div>
-        </div>
+        )}
+        {isFullTreeImportContext && (
+          <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+            This will replace your entire current tree with the contents of the
+            JSON file.
+          </p>
+        )}
 
         <div className="mb-6">
           <label
@@ -110,7 +137,7 @@ const ImportDialog = ({ isOpen, context, onClose, onImport }) => {
           >
             Select JSON File
           </label>
-          <input
+          <input /* ... (input field as before) ... */
             type="file"
             id="import-file"
             accept=".json,application/json"
@@ -136,10 +163,12 @@ const ImportDialog = ({ isOpen, context, onClose, onImport }) => {
         {importMessage && (
           <p
             className={`text-sm mb-4 p-2 rounded ${
-              importMessage.startsWith("Import successful") ||
-              importMessage.startsWith("Tree imported")
-                ? "bg-green-100 dark:bg-green-800/30 text-green-700 dark:text-green-300"
-                : "bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-300"
+              (importMessage.toLowerCase().includes("successful") ||
+                importMessage.toLowerCase().includes("saved")) &&
+              !importMessage.toLowerCase().includes("failed") &&
+              !importMessage.toLowerCase().includes("error")
+                ? "bg-green-100 dark:bg-green-900/60 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700"
+                : "bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700"
             }`}
           >
             {importMessage}
@@ -147,14 +176,20 @@ const ImportDialog = ({ isOpen, context, onClose, onImport }) => {
         )}
 
         <div className="mt-6 flex flex-col sm:flex-row-reverse gap-3">
-          <button
+          <button /* ... (Import button as before) ... */
             onClick={handleImportClick}
-            disabled={!file || importing}
+            disabled={
+              !file ||
+              importing ||
+              (target === "selected" &&
+                !selectedItem &&
+                !isFullTreeImportContext)
+            } // Also disable "Import" if target is "selected" but no item is selected
             className="w-full sm:w-auto inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 focus:ring-blue-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {importing ? "Importing..." : "Import"}
           </button>
-          <button
+          <button /* ... (Cancel button as before) ... */
             type="button"
             onClick={onClose}
             disabled={importing}
