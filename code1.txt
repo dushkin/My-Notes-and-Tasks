@@ -1,0 +1,2603 @@
+--- src\components\SettingsDialog.jsx ---
+// src/components/SettingsDialog.jsx
+//
+// Complete, uncommented implementation with safe fallback when no SettingsProvider
+//
+import React, { useState, useMemo } from 'react';
+import { X, Search, RotateCcw, AlertTriangle } from 'lucide-react';
+import {
+  useSettings,
+  defaultSettings,
+  themeOptions,
+  sortOrderOptions,
+  exportFormatOptions,
+  editorFontFamilyOptions,
+  editorFontSizeOptions,
+} from '../contexts/SettingsContext';
+
+/** Convert a setting's current value to human‑readable text for search */
+function valueLabel(setting, settings) {
+  const v = settings[setting.id];
+  if (typeof v === 'boolean') return v ? 'Enabled' : 'Disabled';
+  if (setting.options) {
+    const o = setting.options.find(opt => opt.value === v);
+    if (o) return o.label;
+  }
+  if (setting.id === 'defaultExportFormat') {
+    const o = exportFormatOptions.find(opt => opt.value === v);
+    if (o) return o.label;
+  }
+  return String(v);
+}
+
+export default function SettingsDialog({ isOpen, onClose }) {
+  // Safe context attempt
+  let context;
+  try {
+    context = useSettings();
+  } catch {
+    // Render tests mount without provider – use defaults & no‑ops
+    context = {
+      settings: defaultSettings,
+      updateSetting: () => {},
+      resetSettings: () => {},
+      resetApplicationData: () => {},
+    };
+  }
+  const { settings, updateSetting, resetSettings, resetApplicationData } = context;
+  const [search, setSearch] = useState('');
+
+  /** All setting descriptors (memoised) */
+  const all = useMemo(() => [
+    {
+      id: 'theme',
+      label: 'Theme',
+      desc: 'Select the application color scheme.',
+      options: themeOptions,
+      control: (
+        <select
+          id="theme"
+          data-item-id="setting-theme-select"
+          value={settings.theme}
+          onChange={e => updateSetting('theme', e.target.value)}
+          className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
+        >
+          {themeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      ),
+    },
+    {
+      id: 'autoExpandNewFolders',
+      label: 'Auto‑Expand New Folders',
+      desc: 'Automatically expand parent folders when adding a new item.',
+      control: (
+        <input
+          id="autoExpandNewFolders"
+          type="checkbox"
+          data-item-id="setting-autoexpand-checkbox"
+          checked={settings.autoExpandNewFolders}
+          onChange={e => updateSetting('autoExpandNewFolders', e.target.checked)}
+          className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+        />
+      ),
+    },
+    {
+      id: 'editorFontFamily',
+      label: 'Default Editor Font',
+      desc: 'Default font family for the note/task editor.',
+      options: editorFontFamilyOptions,
+      control: (
+        <select
+          id="editorFontFamily"
+          data-item-id="setting-fontfamily-select"
+          value={settings.editorFontFamily}
+          onChange={e => updateSetting('editorFontFamily', e.target.value)}
+          className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
+        >
+          {editorFontFamilyOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      ),
+    },
+    {
+      id: 'editorFontSize',
+      label: 'Default Editor Font Size',
+      desc: 'Default font size for the note/task editor.',
+      options: editorFontSizeOptions,
+      control: (
+        <select
+          id="editorFontSize"
+          data-item-id="setting-fontsize-select"
+          value={settings.editorFontSize}
+          onChange={e => updateSetting('editorFontSize', e.target.value)}
+          className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
+        >
+          {editorFontSizeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      ),
+    },
+    {
+      id: 'defaultExportFormat',
+      label: 'Default Export Format',
+      desc: 'Pre‑selected format when exporting items or the tree.',
+      control: (
+        <div className="flex space-x-3">
+          {exportFormatOptions.map(o => (
+            <label key={o.value} className="flex items-center space-x-1 cursor-pointer">
+              <input
+                type="radio"
+                name="defaultExportFormat"
+                data-item-id={`setting-exportformat-${o.value}`}
+                value={o.value}
+                checked={settings.defaultExportFormat === o.value}
+                onChange={e => updateSetting('defaultExportFormat', e.target.value)}
+                className="form-radio text-blue-600 cursor-pointer"
+              />
+              <span>{o.label}</span>
+            </label>
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: 'resetSettings',
+      label: 'Reset Settings',
+      desc: 'Reset all settings to their default values.',
+      control: (
+        <button
+          type="button"
+          data-item-id="setting-resetsettings-button"
+          onClick={() => {
+            if (window.confirm('Reset all settings to default?')) resetSettings();
+          }}
+          className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 flex items-center"
+        >
+          <RotateCcw className="w-4 h-4 mr-1" /> Reset
+        </button>
+      ),
+    },
+    {
+      id: 'resetData',
+      label: 'Reset Application Data',
+      desc: 'WARNING: Deletes all notes, tasks, folders, and resets settings.',
+      control: (
+        <button
+          type="button"
+          data-item-id="setting-resetdata-button"
+          onClick={() => {
+            if (window.confirm('WARNING: This will permanently delete all data and reset settings.')) {
+              resetApplicationData();
+            }
+          }}
+          className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
+        >
+          <AlertTriangle className="w-4 h-4 mr-1" /> Reset All Data
+        </button>
+      ),
+    },
+  ], [settings, updateSetting, resetSettings, resetApplicationData]);
+
+  const filtered = useMemo(() => {
+    if (!search) return all;
+    const term = search.toLowerCase();
+    return all.filter(s =>
+      s.label.toLowerCase().includes(term) ||
+      s.desc.toLowerCase().includes(term) ||
+      valueLabel(s, settings).toLowerCase().includes(term),
+    );
+  }, [all, search, settings]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      data-item-id="settings-dialog-overlay"
+      className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm transition-opacity duration-200"
+    >
+      <div
+        data-item-id="settings-dialog-content"
+        className="bg-white dark:bg-zinc-800 p-5 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-zinc-200 dark:border-zinc-700"
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4 border-b pb-3 dark:border-zinc-600 flex-shrink-0">
+          <h2 className="text-xl font-semibold">Settings</h2>
+          <button
+            aria-label="Close Settings"
+            data-item-id="settings-close-button-header"
+            onClick={onClose}
+            className="p-1 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="mb-4 relative flex-shrink-0">
+          <input
+            data-item-id="settings-search-input"
+            type="text"
+            placeholder="Search settings..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full p-2 pl-10 border rounded dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <Search className="w-5 h-5 text-zinc-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+        </div>
+
+        {/* Settings list */}
+        <div className="flex-grow overflow-y-auto space-y-5 pr-2 -mr-2 custom-scrollbar">
+          {filtered.length ? filtered.map(s => (
+            <div
+              key={s.id}
+              data-item-id={`setting-row-${s.id}`}
+              className="flex flex-col sm:flex-row sm:items-start sm:justify-between pb-4 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
+            >
+              <div className="mb-2 sm:mb-0 sm:mr-4 flex-1">
+                <label htmlFor={s.id} className={`font-medium block ${s.id === 'resetData' ? 'text-red-600 dark:text-red-400' : ''}`}>
+                  {s.label}
+                </label>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">{s.desc}</p>
+              </div>
+              <div className="flex-shrink-0 flex items-center mt-1 sm:mt-0">
+                {React.cloneElement(s.control, { id: s.id })}
+              </div>
+            </div>
+          )) : (
+            <p
+              data-item-id="settings-no-results"
+              className="text-zinc-500 dark:text-zinc-400 text-center py-6"
+            >
+              No settings found matching your search.
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 pt-4 border-t dark:border-zinc-600 flex justify-end flex-shrink-0">
+          <button
+            data-item-id="settings-close-button-footer"
+            onClick={onClose}
+            className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+--- src\contexts\SettingsContext.jsx ---
+// src/contexts/SettingsContext.jsx
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
+export const themeOptions = [ /* ... your existing themeOptions ... */ ];
+export const sortOrderOptions = [ /* ... your existing sortOrderOptions ... */ ];
+export const exportFormatOptions = [ /* ... your existing exportFormatOptions ... */ ];
+export const editorFontFamilyOptions = [ /* ... your existing editorFontFamilyOptions ... */ ];
+export const editorFontSizeOptions = [ /* ... your existing editorFontSizeOptions ... */ ];
+
+export const defaultSettings = {
+  theme: 'system',
+  autoExpandNewFolders: true,
+  editorFontFamily: editorFontFamilyOptions.length > 0 ? editorFontFamilyOptions[0].value : 'Arial',
+  editorFontSize: editorFontSizeOptions.length > 2 ? editorFontSizeOptions[2].value : '3', // Assuming '3' is a medium size
+  defaultExportFormat: 'json',
+  // --- New Auto Export Settings ---
+  autoExportEnabled: false,
+  autoExportIntervalMinutes: 30, // Default to 30 minutes
+  autoExportDirectory: '', // Stores user's preferred path as a string (for reference)
+  // --- End New Auto Export Settings ---
+};
+
+const SettingsContext = createContext();
+
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (!context) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return context;
+};
+
+export const SettingsProvider = ({ children }) => {
+  const [settings, setSettings] = useState(() => {
+    try {
+      const storedSettings = localStorage.getItem('appSettings');
+      return storedSettings ? { ...defaultSettings, ...JSON.parse(storedSettings) } : defaultSettings;
+    } catch (error) {
+      console.error("Failed to load settings from localStorage:", error);
+      return defaultSettings;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('appSettings', JSON.stringify(settings));
+      // Apply theme to body or html element if needed
+      document.documentElement.className = ''; // Clear existing theme classes
+      if (settings.theme === 'dark' || (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (error) {
+      console.error("Failed to save settings to localStorage:", error);
+    }
+  }, [settings]);
+
+  const updateSetting = useCallback((key, value) => {
+    setSettings(prevSettings => ({
+      ...prevSettings,
+      [key]: value,
+    }));
+  }, []);
+
+  const resetSettings = useCallback(() => {
+    setSettings(defaultSettings);
+  }, []);
+
+  // Placeholder for full application data reset if you have one
+  const resetApplicationData = useCallback(() => {
+    console.warn("resetApplicationData called - ensure LOCAL_STORAGE_KEY for tree data is also cleared here.");
+    // Example: localStorage.removeItem(LOCAL_STORAGE_KEY_FOR_TREE_DATA);
+    resetSettings(); // Resets settings to default
+    // Potentially trigger a reload or state reset in App.jsx for tree data
+    alert("Application settings have been reset. Tree data reset needs specific implementation.");
+  }, [resetSettings]);
+
+
+  return (
+    <SettingsContext.Provider value={{ settings, updateSetting, resetSettings, resetApplicationData, defaultSettings }}>
+      {children}
+    </SettingsContext.Provider>
+  );
+};
+
+--- src\App.jsx ---
+// src/App.jsx
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import Tree from "./components/Tree";
+import FolderContents from "./components/FolderContents";
+import ContentEditor from "./components/ContentEditor";
+import ContextMenu from "./components/ContextMenu";
+import AddDialog from "./components/AddDialog";
+import AboutDialog from "./components/AboutDialog";
+import ExportDialog from "./components/ExportDialog";
+import ImportDialog from "./components/ImportDialog";
+import SettingsDialog from "./components/SettingsDialog";
+import { useTree } from "./hooks/useTree.jsx";
+import { useSettings } from "./contexts/SettingsContext";
+import {
+  findItemById as findItemByIdUtil,
+  findParentAndSiblings as findParentAndSiblingsUtil,
+} from "./utils/treeUtils";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import {
+  Search as SearchIcon,
+  Info,
+  EllipsisVertical,
+  XCircle,
+  Settings as SettingsIcon,
+  Undo,
+  Redo,
+  LogOut,
+  FileJson,
+} from "lucide-react";
+import SearchResultsPane from "./components/SearchResultsPane";
+import { matchText } from "./utils/searchUtils";
+import { Sheet } from "react-modal-sheet";
+import Login from "./components/Login";
+import Register from "./components/Register";
+
+function htmlToPlainTextWithNewlines(html) {
+  /* ... (same as before) ... */
+  if (!html) return "";
+  let text = html;
+  text = text.replace(
+    /<(div|p|h[1-6]|li|blockquote|pre|tr|hr)[^>]*>/gi,
+    "\n$&"
+  );
+  text = text.replace(/<br\s*\/?>/gi, "\n");
+  text = text.replace(/<[^>]+>/g, "");
+  try {
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = text;
+    text = tempDiv.textContent || tempDiv.innerText || "";
+  } catch (e) {
+    /* ignore */
+  }
+  return text.replace(/(\r?\n|\r){2,}/g, "\n").trim();
+}
+
+const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
+
+const ErrorDisplay = ({ message, type = "error", onClose }) => {
+  /* ... (same as before, with success styling) ... */
+  if (!message) return null;
+  useEffect(() => {
+    const timer = setTimeout(() => onClose(), 5000);
+    return () => clearTimeout(timer);
+  }, [message, onClose]);
+  const baseClasses =
+    "fixed top-3 right-3 left-3 md:left-auto md:max-w-lg z-[100] px-4 py-3 rounded-lg shadow-xl flex justify-between items-center text-sm transition-all duration-300 ease-in-out";
+  let typeClasses =
+    type === "success"
+      ? "bg-green-100 dark:bg-green-800/80 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-200"
+      : "bg-red-100 dark:bg-red-800/80 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200";
+  const iconColor =
+    type === "success"
+      ? "text-green-500 hover:text-green-700 dark:text-green-300 dark:hover:text-green-100"
+      : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
+  return (
+    <div className={`${baseClasses} ${typeClasses}`}>
+      <span>{message}</span>
+      <button
+        onClick={onClose}
+        className={`ml-3 -mr-1 -my-1 p-1 ${iconColor} rounded-full focus:outline-none focus:ring-2 focus:ring-current`}
+        aria-label="Close message"
+      >
+        <XCircle className="w-5 h-5" />
+      </button>
+    </div>
+  );
+};
+
+const App = () => {
+  const { settings } = useSettings();
+  const {
+    tree,
+    selectedItem,
+    selectedItemId,
+    selectItemById,
+    contextMenu,
+    setContextMenu,
+    expandedFolders,
+    toggleFolderExpand,
+    expandFolderPath,
+    getItemPath,
+    updateNoteContent,
+    updateTask,
+    renameItem,
+    deleteItem,
+    draggedId,
+    setDraggedId,
+    handleDrop,
+    clipboardItem,
+    copyItem,
+    cutItem,
+    pasteItem,
+    addItem,
+    duplicateItem,
+    handleExport,
+    handleImport: handleImportFromHook, // Renamed to avoid conflict
+    searchItems,
+    undoTreeChange,
+    redoTreeChange,
+    canUndoTree,
+    canRedoTree,
+    resetState: resetTreeHistory,
+    fetchUserTree,
+    isFetchingTree, // Get these from useTree
+  } = useTree();
+
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
+  const [currentView, setCurrentView] = useState("login");
+  const [searchSheetOpen, setSearchSheetOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOptions, setSearchOptions] = useState({
+    caseSensitive: false,
+    wholeWord: false,
+    useRegex: false,
+  });
+  const [searchResults, setSearchResults] = useState([]);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newItemType, setNewItemType] = useState("folder");
+  const [newItemLabel, setNewItemLabel] = useState("");
+  const [addDialogErrorMessage, setAddDialogErrorMessage] = useState("");
+  const [parentItemForAdd, setParentItemForAdd] = useState(null);
+  const [inlineRenameId, setInlineRenameId] = useState(null);
+  const [inlineRenameValue, setInlineRenameValue] = useState("");
+  const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
+  const [exportDialogState, setExportDialogState] = useState({
+    isOpen: false,
+    context: null,
+  });
+  const [importDialogState, setImportDialogState] = useState({
+    isOpen: false,
+    context: null,
+  });
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [topMenuOpen, setTopMenuOpen] = useState(false);
+  const topMenuRef = useRef(null);
+  const [uiMessage, setUiMessage] = useState("");
+  const [uiMessageType, setUiMessageType] = useState("error");
+
+  const showMessage = useCallback(
+    (message, type = "error", duration = 5000) => {
+      setUiMessage(message);
+      setUiMessageType(type);
+      // ErrorDisplay will auto-hide
+    },
+    []
+  );
+
+  const startInlineRename = useCallback(
+    (item) => {
+      if (!item || draggedId === item.id || inlineRenameId) return;
+      showMessage("", "error");
+      setInlineRenameId(item.id);
+      setInlineRenameValue(item.label);
+      setContextMenu((m) => ({ ...m, visible: false }));
+    },
+    [draggedId, inlineRenameId, showMessage]
+  );
+
+  const cancelInlineRename = useCallback(() => {
+    setInlineRenameId(null);
+    setInlineRenameValue("");
+    showMessage("", "error");
+    requestAnimationFrame(() =>
+      document
+        .querySelector('nav[aria-label="Notes and Tasks Tree"]')
+        ?.focus({ preventScroll: true })
+    );
+  }, [showMessage]);
+
+  const findItemByIdFromTree = useCallback(
+    (id) => findItemByIdUtil(tree, id),
+    [tree]
+  );
+  const findParentAndSiblingsFromTree = useCallback(
+    (id) => findParentAndSiblingsUtil(tree, id),
+    [tree]
+  );
+
+  const handleAttemptRename = useCallback(async () => {
+    if (!inlineRenameId) return;
+    const newLabel = inlineRenameValue.trim();
+    const originalItem = findItemByIdFromTree(inlineRenameId);
+    if (!newLabel) {
+      showMessage("Name cannot be empty.", "error");
+      return;
+    }
+    if (newLabel === originalItem?.label) {
+      cancelInlineRename();
+      return;
+    }
+    const result = await renameItem(inlineRenameId, newLabel);
+    if (result.success) {
+      cancelInlineRename();
+      showMessage("Item renamed.", "success", 3000);
+    } else {
+      showMessage(result.error || "Rename failed.", "error");
+    }
+  }, [
+    inlineRenameId,
+    inlineRenameValue,
+    renameItem,
+    cancelInlineRename,
+    findItemByIdFromTree,
+    showMessage,
+  ]);
+
+  const openAddDialog = useCallback(
+    (type, parent) => {
+      setNewItemType(type);
+      setParentItemForAdd(parent);
+      setNewItemLabel("");
+      setAddDialogErrorMessage("");
+      showMessage("", "error");
+      setAddDialogOpen(true);
+      setContextMenu((m) => ({ ...m, visible: false }));
+      setTopMenuOpen(false);
+    },
+    [showMessage]
+  );
+
+  const handleAdd = useCallback(async () => {
+    const tl = newItemLabel.trim();
+    if (!tl) {
+      setAddDialogErrorMessage("Name cannot be empty.");
+      return;
+    }
+    const newItemData = {
+      type: newItemType,
+      label: tl,
+      ...(newItemType === "task" ? { completed: false, content: "" } : {}),
+      ...(newItemType === "note" ? { content: "" } : {}),
+    };
+    const pid = parentItemForAdd?.id ?? null;
+    const result = await addItem(newItemData, pid);
+    if (result.success) {
+      setAddDialogOpen(false);
+      setNewItemLabel("");
+      setParentItemForAdd(null);
+      setAddDialogErrorMessage("");
+      showMessage(`${newItemType} added.`, "success", 3000);
+      if (result.item?.id) {
+        selectItemById(result.item.id);
+        if (result.item.type === "folder" && settings.autoExpandNewFolders) {
+          if (pid) expandFolderPath(pid);
+          else expandFolderPath(result.item.id);
+        }
+      }
+    } else {
+      setAddDialogErrorMessage(result.error || "Add operation failed.");
+    }
+  }, [
+    newItemLabel,
+    newItemType,
+    parentItemForAdd,
+    addItem,
+    showMessage,
+    selectItemById,
+    settings.autoExpandNewFolders,
+    expandFolderPath,
+  ]);
+
+  const handleToggleTask = useCallback(
+    async (id, currentCompletedStatus) => {
+      const result = await updateTask(id, {
+        completed: !currentCompletedStatus,
+      });
+      if (!result.success)
+        showMessage(result.error || "Failed to update task status.", "error");
+      else showMessage("Task status updated.", "success", 2000);
+    },
+    [updateTask, showMessage]
+  );
+
+  const handleDragEnd = useCallback(() => setDraggedId(null), []);
+  const openExportDialog = useCallback((context) => {
+    setExportDialogState({ isOpen: true, context });
+    setContextMenu((m) => ({ ...m, visible: false }));
+    setTopMenuOpen(false);
+  }, []);
+  const openImportDialog = useCallback((context) => {
+    setImportDialogState({ isOpen: true, context });
+    setContextMenu((m) => ({ ...m, visible: false }));
+    setTopMenuOpen(false);
+  }, []);
+
+  const handleFileImport = useCallback(
+    async (file, importTargetOption) => {
+      showMessage("", "error");
+      const result = await handleImportFromHook(file, importTargetOption); // Use renamed hook function
+      if (result && result.success) {
+        showMessage(result.message || "Import successful!", "success");
+        setTimeout(() => {
+          setImportDialogState({ isOpen: false, context: null });
+          showMessage("", "success");
+        }, 1500);
+        return {
+          success: true,
+          message: result.message || "Import successful!",
+        };
+      } else {
+        showMessage(result?.error || "Import operation failed.", "error");
+        return {
+          success: false,
+          error: result?.error || "Import operation failed.",
+        };
+      }
+    },
+    [handleImportFromHook, setImportDialogState, showMessage]
+  );
+
+  const handlePasteWrapper = useCallback(
+    async (targetId) => {
+      const result = await pasteItem(targetId);
+      if (!result.success)
+        showMessage(result.error || "Paste operation failed.", "error");
+      else showMessage("Item pasted.", "success", 3000);
+    },
+    [pasteItem, showMessage]
+  );
+
+  const handleDeleteConfirm = useCallback(
+    async (itemIdToDelete) => {
+      if (itemIdToDelete) {
+        const result = await deleteItem(itemIdToDelete);
+        if (!result.success)
+          showMessage(result.error || "Delete operation failed.", "error");
+        else showMessage("Item deleted.", "success", 3000);
+      }
+      setContextMenu((m) => ({ ...m, visible: false }));
+    },
+    [deleteItem, showMessage]
+  );
+
+  const handleShowItemMenu = useCallback(
+    (item, buttonElement) => {
+      /* ... (as before) ... */
+      if (!item || !buttonElement) return;
+      const rect = buttonElement.getBoundingClientRect();
+      let x = rect.left,
+        y = rect.bottom + 2;
+      const menuWidth = 190,
+        menuHeight = item.type === "folder" ? 350 : 280;
+      if (x + menuWidth > window.innerWidth - 10)
+        x = window.innerWidth - menuWidth - 10;
+      if (x < 10) x = 10;
+      if (y + menuHeight > window.innerHeight - 10)
+        y = rect.top - menuHeight - 2;
+      if (y < 10) y = 10;
+      selectItemById(item.id);
+      setContextMenu({ visible: true, x, y, item, isEmptyArea: false });
+    },
+    [selectItemById]
+  );
+
+  const handleNativeContextMenu = useCallback(
+    (event, item) => {
+      /* ... (as before) ... */
+      if (draggedId || inlineRenameId) {
+        event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      selectItemById(item?.id ?? null);
+      let x = event.clientX,
+        y = event.clientY;
+      const menuWidth = 190,
+        menuHeight = item ? (item.type === "folder" ? 350 : 280) : 180;
+      if (x + menuWidth > window.innerWidth - 10)
+        x = window.innerWidth - menuWidth - 10;
+      if (x < 10) x = 10;
+      if (y + menuHeight > window.innerHeight - 10)
+        y = window.innerHeight - menuHeight - 10;
+      if (y < 10) y = 10;
+      setContextMenu({ visible: true, x, y, item, isEmptyArea: !item });
+    },
+    [draggedId, inlineRenameId, selectItemById]
+  );
+
+  useEffect(() => {
+    // Handles initial auth check and tree loading
+    const token = localStorage.getItem("userToken");
+    if (token) {
+      setCurrentUser({ token }); // Set minimal current user
+      setCurrentView("app");
+      if (fetchUserTree) fetchUserTree(token); // Pass token directly for clarity
+    } else {
+      setCurrentView("login");
+      if (resetTreeHistory) resetTreeHistory([]);
+    }
+    setIsAuthCheckComplete(true);
+  }, [fetchUserTree, resetTreeHistory]); // fetchUserTree and resetTreeHistory are stable
+
+  const handleLoginSuccess = async (userData) => {
+    setCurrentUser(userData); // userData from backend (token already set in localStorage by Login.jsx)
+    setCurrentView("app");
+    if (fetchUserTree) {
+      await fetchUserTree(localStorage.getItem("userToken")); // Fetch tree using the new token
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("userToken");
+    setCurrentUser(null);
+    if (resetTreeHistory) resetTreeHistory([]);
+    showMessage("");
+    setCurrentView("login");
+  };
+
+  useEffect(() => {
+    /* ... (Global Keydown for Undo/Redo, Search Toggle - as before) ... */
+    const handler = (e) => {
+      const activeElement = document.activeElement;
+      const isInput =
+        activeElement &&
+        (activeElement.tagName === "INPUT" ||
+          activeElement.tagName === "TEXTAREA" ||
+          activeElement.isContentEditable);
+      const isRenameActive =
+        !!inlineRenameId &&
+        activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
+          activeElement;
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "z" &&
+        !e.shiftKey
+      ) {
+        if (
+          isInput &&
+          !isRenameActive &&
+          activeElement.id !== "tree-navigation-area" &&
+          activeElement.id !== "global-search-input" &&
+          !activeElement.classList.contains("editor-pane")
+        )
+          return;
+        e.preventDefault();
+        if (canUndoTree) undoTreeChange();
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "y" ||
+          (e.shiftKey && e.key.toLowerCase() === "z"))
+      ) {
+        if (
+          isInput &&
+          !isRenameActive &&
+          activeElement.id !== "tree-navigation-area" &&
+          activeElement.id !== "global-search-input" &&
+          !activeElement.classList.contains("editor-pane")
+        )
+          return;
+        e.preventDefault();
+        if (canRedoTree) redoTreeChange();
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        e.key.toUpperCase() === "F"
+      ) {
+        if (isInput && activeElement.id === "global-search-input") return;
+        e.preventDefault();
+        setSearchSheetOpen((s) => !s);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    canUndoTree,
+    undoTreeChange,
+    canRedoTree,
+    redoTreeChange,
+    inlineRenameId,
+  ]);
+
+  useEffect(() => {
+    /* ... (Global Keydown for Tree Item Operations - as refined before) ... */
+    const handleGlobalTreeOpsKeyDown = async (e) => {
+      const activeEl = document.activeElement;
+      const isRenameActive =
+        !!inlineRenameId &&
+        activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
+          activeEl;
+      if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) return;
+      const isStandardInputFocused =
+        activeEl &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA") &&
+        activeEl.id !== "tree-navigation-area" &&
+        !isRenameActive;
+      const isContentEditorFocused =
+        activeEl &&
+        (activeEl.classList.contains("editor-pane") ||
+          activeEl.closest(".editor-pane"));
+      if (
+        (isStandardInputFocused || isContentEditorFocused) &&
+        !(
+          (e.ctrlKey || e.metaKey) &&
+          ["c", "x", "v"].includes(e.key.toLowerCase())
+        )
+      ) {
+        if (e.key === "F2" && isContentEditorFocused) return;
+        else if (e.key === "Delete" || e.key === "Backspace") return;
+      }
+      const treeNav = document.querySelector(
+        'nav[aria-label="Notes and Tasks Tree"]'
+      );
+      const isTreeAreaLikelyFocused =
+        treeNav &&
+        (treeNav === activeEl ||
+          treeNav.contains(activeEl) ||
+          document.body === activeEl);
+      if (
+        e.key === "F2" &&
+        selectedItemId &&
+        !isRenameActive &&
+        !isContentEditorFocused
+      ) {
+        if (isTreeAreaLikelyFocused || document.body === activeEl) {
+          e.preventDefault();
+          const item = findItemByIdFromTree(selectedItemId);
+          if (item) startInlineRename(item);
+        }
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "c" &&
+        selectedItemId &&
+        !isRenameActive &&
+        !isContentEditorFocused
+      ) {
+        e.preventDefault();
+        copyItem(selectedItemId);
+        showMessage("Item copied.", "success", 2000);
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "x" &&
+        selectedItemId &&
+        !isRenameActive &&
+        !isContentEditorFocused
+      ) {
+        e.preventDefault();
+        cutItem(selectedItemId);
+        showMessage("Item cut.", "success", 2000);
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "v" &&
+        clipboardItem &&
+        !isRenameActive &&
+        !isContentEditorFocused
+      ) {
+        e.preventDefault();
+        const currentItem = findItemByIdFromTree(selectedItemId);
+        const targetIdForPaste =
+          currentItem?.type === "folder"
+            ? selectedItemId
+            : findParentAndSiblingsFromTree(selectedItemId)?.parent?.id ?? null;
+        await handlePasteWrapper(targetIdForPaste);
+      } else if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedItemId &&
+        !isRenameActive
+      ) {
+        if (
+          isContentEditorFocused ||
+          (isStandardInputFocused && activeEl.id !== "tree-navigation-area")
+        )
+          return;
+        if (
+          activeEl.id === "global-search-input" &&
+          ((e.key === "Backspace" && searchQuery !== "") || e.key === "Delete")
+        )
+          return;
+        if (isTreeAreaLikelyFocused || document.body === activeEl) {
+          e.preventDefault();
+          const item = findItemByIdFromTree(selectedItemId);
+          if (
+            item &&
+            window.confirm(`Delete "${item.label}"? This cannot be undone.`)
+          ) {
+            await handleDeleteConfirm(selectedItemId);
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalTreeOpsKeyDown);
+    return () =>
+      window.removeEventListener("keydown", handleGlobalTreeOpsKeyDown);
+  }, [
+    selectedItemId,
+    inlineRenameId,
+    tree,
+    clipboardItem,
+    searchQuery,
+    copyItem,
+    cutItem,
+    pasteItem,
+    deleteItem,
+    startInlineRename,
+    handlePasteWrapper,
+    showMessage,
+    findItemByIdFromTree,
+    findParentAndSiblingsFromTree,
+  ]);
+
+  useEffect(() => {
+    /* ... (Search Results processing - as before) ... */
+    if (searchQuery && searchSheetOpen) {
+      const currentSearchOpts = { ...searchOptions, useRegex: false };
+      const rawHits = searchItems(searchQuery, currentSearchOpts);
+      const CONTEXT_CHARS_BEFORE = 20,
+        CONTEXT_CHARS_AFTER = 20,
+        MAX_SNIPPET_LENGTH = 80;
+      let resultCounter = 0;
+      const processedResults = rawHits
+        .map((hit) => {
+          if (!hit || !hit.id) return null;
+          const pathString = getItemPath(hit.id);
+          const originalLabel =
+            typeof hit.label === "string"
+              ? hit.label
+              : typeof hit.title === "string"
+              ? hit.title
+              : "";
+          const originalContentHtml =
+            typeof hit.content === "string" ? hit.content : "";
+          const plainTextContent =
+            htmlToPlainTextWithNewlines(originalContentHtml);
+          let displaySnippetText = "",
+            hlStartIndex = -1,
+            hlEndIndex = -1,
+            matchSrc = "";
+          let pathLabelHlDetails = {
+            start: -1,
+            end: -1,
+            originalMatchInLabel: "",
+          };
+          const labelMatchInfo = matchText(
+            originalLabel,
+            searchQuery,
+            currentSearchOpts
+          );
+          if (labelMatchInfo) {
+            matchSrc = "label";
+            displaySnippetText = originalLabel;
+            hlStartIndex = labelMatchInfo.startIndex;
+            hlEndIndex =
+              labelMatchInfo.startIndex + labelMatchInfo.matchedString.length;
+            pathLabelHlDetails = {
+              start: labelMatchInfo.startIndex,
+              end: hlEndIndex,
+              originalMatchInLabel: labelMatchInfo.matchedString,
+            };
+          }
+          if (
+            (hit.type === "note" || hit.type === "task") &&
+            plainTextContent
+          ) {
+            const contentMatchInfo = matchText(
+              plainTextContent,
+              searchQuery,
+              currentSearchOpts
+            );
+            if (contentMatchInfo) {
+              if (matchSrc === "label") matchSrc = "label & content";
+              else {
+                matchSrc = "content";
+                const { matchedString, startIndex: siInPlainText } =
+                  contentMatchInfo;
+                let snipStart = Math.max(
+                  0,
+                  siInPlainText - CONTEXT_CHARS_BEFORE
+                );
+                let snipEnd = Math.min(
+                  plainTextContent.length,
+                  siInPlainText + matchedString.length + CONTEXT_CHARS_AFTER
+                );
+                displaySnippetText = plainTextContent.substring(
+                  snipStart,
+                  snipEnd
+                );
+                hlStartIndex = siInPlainText - snipStart;
+                hlEndIndex = hlStartIndex + matchedString.length;
+                let preEll = snipStart > 0,
+                  sufEll = snipEnd < plainTextContent.length;
+                if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
+                  const ovf = displaySnippetText.length - MAX_SNIPPET_LENGTH;
+                  let redPre = Math.floor(ovf / 2);
+                  if (hlStartIndex < redPre) redPre = hlStartIndex;
+                  if (redPre > 0) {
+                    displaySnippetText = displaySnippetText.substring(redPre);
+                    hlStartIndex -= redPre;
+                    hlEndIndex -= redPre;
+                    preEll = true;
+                  }
+                  if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
+                    const cutEnd =
+                      displaySnippetText.length - MAX_SNIPPET_LENGTH;
+                    displaySnippetText = displaySnippetText.substring(
+                      0,
+                      displaySnippetText.length - cutEnd
+                    );
+                    sufEll = true;
+                  }
+                  hlStartIndex = Math.max(0, hlStartIndex);
+                  hlEndIndex = Math.min(displaySnippetText.length, hlEndIndex);
+                  if (hlStartIndex >= hlEndIndex) {
+                    hlStartIndex = -1;
+                    hlEndIndex = -1;
+                  }
+                }
+                if (preEll && !displaySnippetText.startsWith("..."))
+                  displaySnippetText = "..." + displaySnippetText;
+                if (sufEll && !displaySnippetText.endsWith("..."))
+                  displaySnippetText = displaySnippetText + "...";
+              }
+            }
+          }
+          if (!matchSrc) {
+            displaySnippetText = originalLabel;
+            matchSrc = "unknown";
+          }
+          return {
+            id: `${hit.id}-${matchSrc}-${resultCounter++}`,
+            originalId: hit.id,
+            ...hit,
+            path: pathString,
+            displaySnippetText,
+            highlightStartIndexInSnippet: hlStartIndex,
+            highlightEndIndexInSnippet: hlEndIndex,
+            matchSource: matchSrc,
+            pathLabelHighlight:
+              pathLabelHlDetails.start !== -1 ? pathLabelHlDetails : undefined,
+          };
+        })
+        .filter(Boolean);
+      setSearchResults(
+        processedResults.filter(
+          (r) => r && r.matchSource && r.matchSource !== "unknown"
+        )
+      );
+    } else {
+      setSearchResults([]);
+    }
+  }, [
+    searchQuery,
+    searchOptions,
+    searchItems,
+    getItemPath,
+    searchSheetOpen,
+    tree,
+    matchText,
+  ]);
+
+  useEffect(() => {
+    /* ... (Top Menu Outside Click Handler - as before) ... */
+    const handleClickOutside = (e) => {
+      if (topMenuRef.current && !topMenuRef.current.contains(e.target))
+        setTopMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  if (!isAuthCheckComplete) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-100">
+        Loading application...
+      </div>
+    );
+  }
+
+  if (currentView === "login") {
+    return (
+      <Login
+        onLoginSuccess={handleLoginSuccess}
+        onSwitchToRegister={() => setCurrentView("register")}
+      />
+    );
+  }
+  if (currentView === "register") {
+    return (
+      <Register
+        onRegisterSuccess={() => setCurrentView("login")}
+        onSwitchToLogin={() => setCurrentView("login")}
+      />
+    );
+  }
+
+  // currentView === 'app'
+  return (
+    <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
+      <ErrorDisplay
+        message={uiMessage}
+        type={uiMessageType}
+        onClose={() => setUiMessage("")}
+      />
+      <header
+        className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
+      >
+        {/* ... Header JSX as before ... */}
+        <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
+          <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis mr-2 text-zinc-800 dark:text-zinc-100">
+            Notes & Tasks
+          </h1>
+          <div
+            className="flex items-center space-x-0.5 sm:space-x-1 relative"
+            ref={topMenuRef}
+          >
+            <button
+              onClick={undoTreeChange}
+              disabled={!canUndoTree}
+              title="Undo (Ctrl+Z)"
+              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                !canUndoTree
+                  ? "opacity-40 cursor-not-allowed"
+                  : "text-zinc-600 dark:text-zinc-300"
+              }`}
+            >
+              {" "}
+              <Undo className="w-5 h-5" />{" "}
+            </button>
+            <button
+              onClick={redoTreeChange}
+              disabled={!canRedoTree}
+              title="Redo (Ctrl+Y)"
+              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                !canRedoTree
+                  ? "opacity-40 cursor-not-allowed"
+                  : "text-zinc-600 dark:text-zinc-300"
+              }`}
+            >
+              {" "}
+              <Redo className="w-5 h-5" />{" "}
+            </button>
+            <button
+              onClick={() => setSearchSheetOpen((s) => !s)}
+              title="Search (Ctrl+Shift+F)"
+              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                searchSheetOpen
+                  ? "bg-blue-100 dark:bg-blue-700/50 text-blue-600 dark:text-blue-300"
+                  : "text-zinc-600 dark:text-zinc-300"
+              }`}
+            >
+              {" "}
+              <SearchIcon className="w-5 h-5" />{" "}
+            </button>
+            <button
+              onClick={() => setSettingsDialogOpen(true)}
+              className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+              title="Settings"
+            >
+              {" "}
+              <SettingsIcon className="w-5 h-5" />{" "}
+            </button>
+            <button
+              onClick={() => setTopMenuOpen((p) => !p)}
+              className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+              title="More actions"
+            >
+              {" "}
+              <EllipsisVertical className="w-5 h-5" />{" "}
+            </button>
+            {topMenuOpen && (
+              <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
+                <button
+                  onClick={() => {
+                    openAddDialog("folder", null);
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  {" "}
+                  <FileJson className="w-4 h-4 opacity-70" /> Add Root Folder{" "}
+                </button>
+                <button
+                  onClick={() => {
+                    openExportDialog("tree");
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  {" "}
+                  <FileJson className="w-4 h-4 opacity-70" /> Export Full
+                  Tree...{" "}
+                </button>
+                <button
+                  onClick={() => {
+                    openImportDialog("tree");
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  {" "}
+                  <FileJson className="w-4 h-4 opacity-70" /> Import Full
+                  Tree...{" "}
+                </button>
+                <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
+                <button
+                  onClick={() => {
+                    setAboutDialogOpen(true);
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  {" "}
+                  <Info className="w-4 h-4 opacity-70" /> About{" "}
+                </button>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setTopMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-700/30"
+                >
+                  {" "}
+                  <LogOut className="w-4 h-4 opacity-70" /> Logout{" "}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+      <main className={`flex-1 flex min-h-0 pt-14 sm:pt-12`}>
+        <PanelGroup direction="horizontal" className="flex-1">
+          <Panel
+            id="tree-panel"
+            order={0}
+            defaultSize={30}
+            minSize={20}
+            maxSize={60}
+            className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-800/30 border-r border-zinc-200 dark:border-zinc-700/50"
+          >
+            {/* ... Tree Panel JSX as before ... */}
+            <div
+              className="flex-grow overflow-auto"
+              id="tree-navigation-area"
+              tabIndex={-1}
+            >
+              <Tree
+                items={tree || []}
+                selectedItemId={selectedItemId}
+                onSelect={selectItemById}
+                inlineRenameId={inlineRenameId}
+                inlineRenameValue={inlineRenameValue}
+                setInlineRenameValue={setInlineRenameValue}
+                onAttemptRename={handleAttemptRename}
+                cancelInlineRename={cancelInlineRename}
+                expandedFolders={expandedFolders}
+                onToggleExpand={toggleFolderExpand}
+                onToggleTask={handleToggleTask}
+                draggedId={draggedId}
+                onDragStart={(e, id) => {
+                  if (inlineRenameId) {
+                    e.preventDefault();
+                    return;
+                  }
+                  try {
+                    if (e.dataTransfer) {
+                      e.dataTransfer.setData("text/plain", id);
+                      e.dataTransfer.effectAllowed = "move";
+                    }
+                    setDraggedId(id);
+                  } catch (err) {
+                    console.error("Drag error:", err);
+                    showMessage("Drag operation failed.", "error");
+                  }
+                }}
+                onDrop={(targetId) => handleDrop(targetId, draggedId)}
+                onDragEnd={handleDragEnd}
+                onNativeContextMenu={handleNativeContextMenu}
+                onShowItemMenu={handleShowItemMenu}
+                onRename={startInlineRename}
+                uiError={uiMessage}
+                setUiError={(msg) => showMessage(msg, "error")}
+              />
+            </div>
+          </Panel>
+          <PanelResizeHandle className="w-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-500 data-[resize-handle-active=true]:bg-blue-600 transition-colors cursor-col-resize z-20 flex-shrink-0" />
+          <Panel
+            id="content-panel"
+            order={1}
+            defaultSize={70}
+            minSize={30}
+            className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-900"
+          >
+            {" "}
+            {/* CHANGED to dark:bg-zinc-900 for panel */}
+            <div className="flex-grow overflow-auto h-full">
+              {selectedItem ? (
+                selectedItem.type === "folder" ? (
+                  <div className="p-3 sm:p-4">
+                    <h2 className="text-lg sm:text-xl font-semibold mb-3 text-zinc-800 dark:text-zinc-100 break-words">
+                      {" "}
+                      {/* Added dark text color */}
+                      {selectedItem.label}
+                    </h2>
+                    <FolderContents
+                      folder={selectedItem}
+                      onSelect={selectItemById}
+                      handleDragStart={(e, id) => {
+                        if (inlineRenameId) e.preventDefault();
+                        else setDraggedId(id);
+                      }}
+                      handleDragEnter={(e, id) => {}}
+                      handleDragOver={(e) => e.preventDefault()}
+                      handleDragLeave={(e) => {}}
+                      handleDrop={(e, targetItemId) => {
+                        if (draggedId && targetItemId === selectedItem.id) {
+                          handleDrop(targetItemId, draggedId);
+                        }
+                      }}
+                      handleDragEnd={handleDragEnd}
+                      draggedId={draggedId}
+                      onToggleExpand={toggleFolderExpand}
+                      expandedItems={expandedFolders}
+                      onShowItemMenu={handleShowItemMenu}
+                    />
+                  </div>
+                ) : selectedItem.type === "note" ||
+                  selectedItem.type === "task" ? (
+                  <ContentEditor
+                    key={selectedItemId}
+                    item={selectedItem}
+                    defaultFontFamily={settings.editorFontFamily}
+                    defaultFontSize={settings.editorFontSize}
+                    onSaveContent={
+                      selectedItem.type === "task"
+                        ? async (id, content) => {
+                            const result = await updateTask(id, { content });
+                            if (!result.success)
+                              showMessage(
+                                result.error || "Failed to save task content.",
+                                "error"
+                              );
+                          }
+                        : async (id, content) => {
+                            const result = await updateNoteContent(id, content);
+                            if (!result.success)
+                              showMessage(
+                                result.error || "Failed to save note content.",
+                                "error"
+                              );
+                          }
+                    }
+                  />
+                ) : null
+              ) : (
+                <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
+                  {" "}
+                  Select or create an item to view or edit its content.{" "}
+                </div>
+              )}
+            </div>
+          </Panel>
+        </PanelGroup>
+      </main>
+      {/* ... Sheet, ContextMenu, AddDialog, AboutDialog, ExportDialog, ImportDialog, SettingsDialog JSX as before ... */}
+      <Sheet
+        isOpen={searchSheetOpen}
+        onClose={() => setSearchSheetOpen(false)}
+        snapPoints={[0.85, 0.6, 0.3]}
+        initialSnap={1}
+        className="z-40"
+      >
+        <Sheet.Container className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl">
+          <Sheet.Header>
+            <div className="flex justify-center py-2.5 cursor-grab">
+              <div className="w-10 h-1.5 bg-zinc-300 dark:bg-zinc-600 rounded-full"></div>
+            </div>
+          </Sheet.Header>
+          <Sheet.Content className="!pb-0">
+            <div className="overflow-y-auto h-full">
+              <SearchResultsPane
+                headerHeightClass={APP_HEADER_HEIGHT_CLASS}
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                results={searchResults}
+                onSelectResult={(item) => {
+                  if (item.originalId) {
+                    expandFolderPath(item.originalId);
+                    selectItemById(item.originalId);
+                    setSearchSheetOpen(false);
+                    setTimeout(() => {
+                      document
+                        .querySelector(`li[data-item-id="${item.originalId}"]`)
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                    }, 100);
+                  }
+                }}
+                onClose={() => setSearchSheetOpen(false)}
+                opts={searchOptions}
+                setOpts={setSearchOptions}
+              />
+            </div>
+          </Sheet.Content>
+        </Sheet.Container>
+        <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} />
+      </Sheet>
+      {contextMenu.visible && (
+        <ContextMenu
+          visible={contextMenu.visible}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          item={contextMenu.item}
+          isEmptyArea={contextMenu.isEmptyArea}
+          clipboardItem={clipboardItem}
+          onAddRootFolder={() => openAddDialog("folder", null)}
+          onAddFolder={() =>
+            contextMenu.item && openAddDialog("folder", contextMenu.item)
+          }
+          onAddNote={() =>
+            contextMenu.item && openAddDialog("note", contextMenu.item)
+          }
+          onAddTask={() =>
+            contextMenu.item && openAddDialog("task", contextMenu.item)
+          }
+          onRename={() =>
+            contextMenu.item && startInlineRename(contextMenu.item)
+          }
+          onDelete={() => {
+            if (contextMenu.item) {
+              if (
+                window.confirm(
+                  `Delete "${contextMenu.item.label}"? This cannot be undone.`
+                )
+              ) {
+                handleDeleteConfirm(contextMenu.item.id);
+              } else {
+                setContextMenu((m) => ({ ...m, visible: false }));
+              }
+            } else {
+              setContextMenu((m) => ({ ...m, visible: false }));
+            }
+          }}
+          onDuplicate={async () => {
+            if (contextMenu.item) {
+              const result = await duplicateItem(contextMenu.item.id);
+              if (!result.success)
+                showMessage(result.error || "Duplicate failed", "error");
+              else showMessage("Item duplicated.", "success", 3000);
+            }
+          }}
+          onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
+          onCopy={() => {
+            if (contextMenu.item) {
+              copyItem(contextMenu.item.id);
+              showMessage("Item copied.", "success", 2000);
+            }
+          }}
+          onCut={() => {
+            if (contextMenu.item) {
+              cutItem(contextMenu.item.id);
+              showMessage("Item cut.", "success", 2000);
+            }
+          }}
+          onPaste={async () => {
+            const tid = contextMenu.isEmptyArea
+              ? null
+              : contextMenu.item?.type === "folder"
+              ? contextMenu.item.id
+              : findParentAndSiblingsFromTree(contextMenu.item?.id)?.parent
+                  ?.id ?? null;
+            await handlePasteWrapper(tid);
+          }}
+          onExportItem={() => openExportDialog("item")}
+          onImportItem={() => openImportDialog("item")}
+          onExportTree={() => openExportDialog("tree")}
+          onImportTree={() => openImportDialog("tree")}
+        />
+      )}
+      <AddDialog
+        isOpen={addDialogOpen}
+        newItemType={newItemType}
+        newItemLabel={newItemLabel}
+        errorMessage={addDialogErrorMessage}
+        onLabelChange={(e) => {
+          setNewItemLabel(e.target.value);
+          if (addDialogOpen) setAddDialogErrorMessage("");
+        }}
+        onAdd={handleAdd}
+        onCancel={() => {
+          setAddDialogOpen(false);
+          setAddDialogErrorMessage("");
+          showMessage("", "error");
+        }}
+      />
+      <AboutDialog
+        isOpen={aboutDialogOpen}
+        onClose={() => setAboutDialogOpen(false)}
+      />
+      <ExportDialog
+        isOpen={exportDialogState.isOpen}
+        context={exportDialogState.context}
+        defaultFormat={settings.defaultExportFormat}
+        onClose={() => setExportDialogState({ isOpen: false, context: null })}
+        onExport={handleExport}
+      />
+      <ImportDialog
+        isOpen={importDialogState.isOpen}
+        context={importDialogState.context}
+        selectedItem={selectedItem}
+        onClose={() => {
+          setImportDialogState({ isOpen: false, context: null });
+          showMessage("", "success");
+        }}
+        onImport={handleFileImport}
+      />
+      <SettingsDialog
+        isOpen={settingsDialogOpen}
+        onClose={() => setSettingsDialogOpen(false)}
+      />
+    </div>
+  );
+};
+export default App;
+
+
+--- src\hooks\useTree.jsx ---
+// src/hooks/useTree.jsx
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { LOCAL_STORAGE_KEY } from "../utils/constants";
+import {
+  sortItems,
+  handleDrop as treeHandleDropUtil,
+  deleteItemRecursive,
+  renameItemRecursive,
+  insertItemRecursive,
+  isSelfOrDescendant,
+  findItemById,
+  findParentAndSiblings,
+  hasSiblingWithName,
+  getItemPath,
+} from "../utils/treeUtils";
+import { jsPDF } from "jspdf";
+import * as bidiNS from "unicode-bidirectional";
+import { notoSansHebrewBase64 } from "../fonts/NotoSansHebrewBase64";
+import { useSettings } from "../contexts/SettingsContext";
+import { itemMatches } from "../utils/searchUtils";
+import { useUndoRedo } from "./useUndoRedo";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+
+const getAuthToken = () => {
+  return localStorage.getItem("userToken");
+};
+
+const embeddingLevels = bidiNS.embeddingLevels || bidiNS.getEmbeddingLevels;
+const reorder = bidiNS.reorder || bidiNS.getReorderedString;
+
+function htmlToPlainTextWithNewlines(html) {
+  if (!html) return "";
+  let text = html;
+  text = text.replace(
+    /<(div|p|h[1-6]|li|blockquote|pre|tr|hr)[^>]*>/gi,
+    "\n$&"
+  );
+  text = text.replace(/<br\s*\/?>/gi, "\n");
+  text = text.replace(/<[^>]+>/g, "");
+  try {
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = text;
+    text = tempDiv.textContent || tempDiv.innerText || "";
+  } catch (e) {
+    console.error("Error decoding HTML entities for PDF export:", e);
+  }
+  return text.trim().replace(/(\r\n|\r|\n){2,}/g, "\n");
+}
+
+export const assignNewIds = (item, isDuplication = false) => {
+  // Ensure this line is correct
+  const newItem = { ...item };
+  if (
+    isDuplication ||
+    !item.id ||
+    item.id.startsWith("temp-") ||
+    item.id.startsWith("client-")
+  ) {
+    newItem.id = `client-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .substring(2, 9)}`;
+  }
+  if (item.type === "folder") {
+    newItem.children = Array.isArray(item.children)
+      ? item.children.map((child) => assignNewIds(child, isDuplication))
+      : [];
+  }
+  return newItem;
+};
+
+export const useTree = () => {
+  const EXPANDED_KEY = `${LOCAL_STORAGE_KEY}_expanded`;
+  const { settings } = useSettings();
+
+  const initialTreeState = (() => {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error("Failed to load tree from localStorage:", error);
+      return [];
+    }
+  })();
+
+  const {
+    state: tree,
+    setState: setTreeWithUndo,
+    resetState: resetTreeHistory,
+    undo: undoTreeChange,
+    redo: redoTreeChange,
+    canUndo: canUndoTree,
+    canRedo: canRedoTree,
+  } = useUndoRedo(initialTreeState);
+
+  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [contextMenu, setContextMenu] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    item: null,
+    isEmptyArea: false,
+  });
+  const [expandedFolders, setExpandedFolders] = useState(() => {
+    try {
+      const stored = localStorage.getItem(EXPANDED_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [draggedId, setDraggedId] = useState(null);
+  const [clipboardItem, setClipboardItem] = useState(null);
+  const [clipboardMode, setClipboardMode] = useState(null);
+  const [cutItemId, setCutItemId] = useState(null);
+  const [isFetchingTree, setIsFetchingTree] = useState(false); // For loading state
+
+  const selectedItem = useMemo(
+    () => findItemById(tree, selectedItemId),
+    [tree, selectedItemId]
+  );
+
+  const fetchUserTreeInternal = useCallback(
+    async (token) => {
+      if (!token) {
+        console.log(
+          "fetchUserTreeInternal: No token provided, clearing/resetting tree."
+        );
+        resetTreeHistory([]); // Or load from localStorage if preferred for logged-out
+        setIsFetchingTree(false);
+        return;
+      }
+      setIsFetchingTree(true);
+      console.log(
+        "fetchUserTreeInternal: Token found, fetching tree from server."
+      );
+      try {
+        const response = await fetch(`${API_BASE_URL}/items/tree`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log(
+          "fetchUserTreeInternal: fetchTreeFromServer response status:",
+          response.status
+        );
+        if (!response.ok) {
+          const errorData = await response
+            .json()
+            .catch(() => ({ error: "Failed to parse error response" }));
+          if (response.status === 401) {
+            console.error(
+              "fetchUserTreeInternal: Unauthorized (401). Token might be invalid."
+            );
+            localStorage.removeItem("userToken"); // Critical: remove invalid token
+            // Consider calling a global logout handler if App.jsx passes one down
+          } else {
+            console.error(
+              "fetchUserTreeInternal: Server error fetching tree:",
+              response.status,
+              errorData
+            );
+          }
+          resetTreeHistory([]); // Clear tree on error
+          setIsFetchingTree(false);
+          return; // Explicitly return on error
+        }
+        const data = await response.json();
+        if (data && Array.isArray(data.notesTree)) {
+          console.log(
+            "fetchUserTreeInternal: Successfully fetched tree, resetting local state."
+          );
+          resetTreeHistory(data.notesTree);
+        } else {
+          console.warn(
+            "fetchUserTreeInternal: Fetched tree data is not in expected format, using empty tree."
+          );
+          resetTreeHistory([]);
+        }
+      } catch (error) {
+        console.error(
+          "fetchUserTreeInternal: Network or other error fetching tree:",
+          error
+        );
+        resetTreeHistory([]); // Clear tree on error
+      } finally {
+        setIsFetchingTree(false);
+      }
+    },
+    [resetTreeHistory]
+  ); // API_BASE_URL is stable
+
+  // Effect for initial load and when token changes (e.g., after login)
+  // This will be triggered by App.jsx calling fetchUserTree after login.
+  // For initial load, App.jsx will also call this if a token is found.
+  // The useEffect that was here before is effectively replaced by App.jsx controlling the fetch.
+
+  useEffect(() => {
+    // Persist tree to localStorage
+    try {
+      if (Array.isArray(tree))
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tree));
+    } catch (error) {
+      console.error("Failed to save tree to localStorage:", error);
+    }
+  }, [tree]);
+
+  useEffect(() => {
+    // Persist expanded folders
+    try {
+      localStorage.setItem(EXPANDED_KEY, JSON.stringify(expandedFolders));
+    } catch (error) {
+      console.error("Failed to save expanded folders:", error);
+    }
+  }, [expandedFolders]);
+
+  const selectItemById = useCallback((id) => setSelectedItemId(id), []);
+  const replaceTree = useCallback(
+    (newTreeData) => {
+      if (Array.isArray(newTreeData)) {
+        resetTreeHistory(newTreeData);
+        setSelectedItemId(null);
+        setExpandedFolders({});
+        return { success: true };
+      }
+      console.error("replaceTree failed: Data is not an array.", newTreeData);
+      return { success: false, error: "Import failed: Invalid data format." };
+    },
+    [resetTreeHistory]
+  );
+
+  const expandFolderPath = useCallback(
+    /* ... (Your existing robust expandFolderPath) ... */
+    (itemIdToExpand) => {
+      if (!itemIdToExpand) return;
+      const pathIds = [];
+      const findPathRecursive = (nodes, targetId, currentPathSegmentsIds) => {
+        for (const node of nodes) {
+          if (!node || !node.id) continue;
+          if (node.id === targetId) {
+            pathIds.push(...currentPathSegmentsIds, node.id);
+            return true;
+          }
+          if (node.type === "folder" && Array.isArray(node.children)) {
+            if (
+              findPathRecursive(node.children, targetId, [
+                ...currentPathSegmentsIds,
+                node.id,
+              ])
+            ) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+      findPathRecursive(tree, itemIdToExpand, []);
+      setExpandedFolders((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        pathIds.forEach((id) => {
+          const item = findItemById(tree, id);
+          if (item && item.type === "folder" && !next[id]) {
+            next[id] = true;
+            changed = true;
+          }
+        });
+        const targetItem = findItemById(tree, itemIdToExpand);
+        if (
+          targetItem &&
+          targetItem.type === "folder" &&
+          !next[itemIdToExpand]
+        ) {
+          next[itemIdToExpand] = true;
+          changed = true;
+        }
+        return changed ? next : prev;
+      });
+    },
+    [tree]
+  );
+
+  const toggleFolderExpand = useCallback((id, forceState) => {
+    if (!id) return;
+    setExpandedFolders((prev) => ({
+      ...prev,
+      [id]: forceState !== undefined ? Boolean(forceState) : !prev[id],
+    }));
+  }, []);
+
+  const addItem = useCallback(
+    /* ... (Your existing addItem with API calls) ... */
+    async (newItemData, parentId) => {
+      const trimmedLabel = newItemData?.label?.trim();
+      if (!trimmedLabel) return { success: false, error: "Label is required." };
+      if (!["folder", "note", "task"].includes(newItemData.type))
+        return { success: false, error: "Invalid item type." };
+      const token = getAuthToken();
+      if (!token) return { success: false, error: "Authentication required." };
+      const payload = { label: trimmedLabel, type: newItemData.type };
+      if (newItemData.type === "note" || newItemData.type === "task")
+        payload.content = newItemData.content || "";
+      if (newItemData.type === "task")
+        payload.completed = !!newItemData.completed;
+      try {
+        const endpoint = parentId
+          ? `${API_BASE_URL}/items/${parentId}`
+          : `${API_BASE_URL}/items`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        const responseData = await response.json();
+        if (!response.ok)
+          return {
+            success: false,
+            error:
+              responseData.error || `Failed to add item: ${response.status}`,
+          };
+        const createdItemFromServer = responseData;
+        const newTreeState = insertItemRecursive(
+          tree,
+          parentId,
+          createdItemFromServer
+        );
+        setTreeWithUndo(newTreeState);
+        if (parentId && settings.autoExpandNewFolders) {
+          setTimeout(() => expandFolderPath(parentId), 0);
+        } else if (
+          !parentId &&
+          createdItemFromServer.type === "folder" &&
+          settings.autoExpandNewFolders
+        ) {
+          setTimeout(() => expandFolderPath(createdItemFromServer.id), 0);
+        } // Expand new root folder
+        return { success: true, item: createdItemFromServer };
+      } catch (error) {
+        console.error("addItem API error:", error);
+        return { success: false, error: "Network error adding item." };
+      }
+    },
+    [tree, setTreeWithUndo, expandFolderPath, settings.autoExpandNewFolders]
+  );
+
+  const updateNoteContent = useCallback(
+    /* ... (Your existing updateNoteContent with API calls) ... */
+    async (itemId, content) => {
+      const token = getAuthToken();
+      if (!token) return { success: false, error: "Authentication required." };
+      try {
+        const response = await fetch(`${API_BASE_URL}/items/${itemId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content }),
+        });
+        const updatedItemFromServer = await response.json();
+        if (!response.ok)
+          return {
+            success: false,
+            error: updatedItemFromServer.error || "Failed to update note.",
+          };
+        const mapRecursive = (items, id, serverUpdates) =>
+          items.map((i) =>
+            i.id === id
+              ? { ...i, ...serverUpdates }
+              : Array.isArray(i.children)
+              ? { ...i, children: mapRecursive(i.children, id, serverUpdates) }
+              : i
+          );
+        const newTreeState = mapRecursive(tree, itemId, updatedItemFromServer);
+        setTreeWithUndo(newTreeState);
+        return { success: true, item: updatedItemFromServer };
+      } catch (error) {
+        console.error("updateNoteContent API error:", error);
+        return { success: false, error: "Network error updating note." };
+      }
+    },
+    [tree, setTreeWithUndo]
+  );
+
+  const updateTask = useCallback(
+    /* ... (Your existing updateTask with API calls) ... */
+    async (taskId, clientUpdates) => {
+      const token = getAuthToken();
+      if (!token) return { success: false, error: "Authentication required." };
+      try {
+        const response = await fetch(`${API_BASE_URL}/items/${taskId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(clientUpdates),
+        });
+        const updatedItemFromServer = await response.json();
+        if (!response.ok)
+          return {
+            success: false,
+            error: updatedItemFromServer.error || "Failed to update task.",
+          };
+        const mapRecursiveTask = (items, id, serverUpdates) =>
+          items.map((i) =>
+            i.id === id && i.type === "task"
+              ? { ...i, ...serverUpdates }
+              : Array.isArray(i.children)
+              ? {
+                  ...i,
+                  children: mapRecursiveTask(i.children, id, serverUpdates),
+                }
+              : i
+          );
+        const newTreeState = mapRecursiveTask(
+          tree,
+          taskId,
+          updatedItemFromServer
+        );
+        setTreeWithUndo(newTreeState);
+        return { success: true, item: updatedItemFromServer };
+      } catch (error) {
+        console.error("updateTask API error:", error);
+        return { success: false, error: "Network error updating task." };
+      }
+    },
+    [tree, setTreeWithUndo]
+  );
+
+  const renameItem = useCallback(
+    /* ... (Your existing renameItem with API calls) ... */
+    async (itemId, newLabel) => {
+      const trimmedLabel = newLabel?.trim();
+      if (!trimmedLabel || !itemId)
+        return { success: false, error: "Invalid ID or name." };
+      const token = getAuthToken();
+      if (!token) return { success: false, error: "Authentication required." };
+      const { parentArray } = findParentAndSiblings(tree, itemId);
+      if (hasSiblingWithName(parentArray || [], trimmedLabel, itemId)) {
+        return {
+          success: false,
+          error: `Item "${trimmedLabel}" already exists.`,
+        };
+      }
+      try {
+        const response = await fetch(`${API_BASE_URL}/items/${itemId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ label: trimmedLabel }),
+        });
+        const updatedItemFromServer = await response.json();
+        if (!response.ok)
+          return {
+            success: false,
+            error: updatedItemFromServer.error || "Rename failed.",
+          };
+        const newTreeState = renameItemRecursive(
+          tree,
+          itemId,
+          updatedItemFromServer.label
+        );
+        setTreeWithUndo(newTreeState);
+        return { success: true, item: updatedItemFromServer };
+      } catch (error) {
+        console.error("renameItem API error:", error);
+        return { success: false, error: "Network error renaming." };
+      }
+    },
+    [tree, setTreeWithUndo]
+  );
+
+  const deleteItem = useCallback(
+    /* ... (Your existing deleteItem with API calls) ... */
+    async (idToDelete) => {
+      if (!idToDelete) return { success: false, error: "No ID for deletion." };
+      const token = getAuthToken();
+      if (!token) return { success: false, error: "Authentication required." };
+      try {
+        const response = await fetch(`${API_BASE_URL}/items/${idToDelete}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok && response.status !== 404) {
+          const errorData = await response.json().catch(() => ({}));
+          return {
+            success: false,
+            error: errorData.error || "Delete failed on server.",
+          };
+        }
+        const newTreeState = deleteItemRecursive(tree, idToDelete);
+        setTreeWithUndo(newTreeState);
+        if (selectedItemId === idToDelete) setSelectedItemId(null);
+        setExpandedFolders((prev) => {
+          const next = { ...prev };
+          if (prev.hasOwnProperty(idToDelete)) delete next[idToDelete];
+          return next;
+        });
+        // setContextMenu((m) => (m.visible ? { ...m, visible: false } : m)); // Usually handled by App.jsx
+        return { success: true };
+      } catch (error) {
+        console.error("deleteItem API error:", error);
+        return { success: false, error: "Network error deleting." };
+      }
+    },
+    [tree, selectedItemId, setTreeWithUndo /* setContextMenu not a direct dep*/]
+  );
+
+  const duplicateItem = useCallback(
+    /* ... (Your existing duplicateItem, ensure it calls addItem for DB persistence) ... */
+    async (itemId) => {
+      const itemToDuplicate = findItemById(tree, itemId);
+      if (!itemToDuplicate)
+        return { success: false, error: "Item to duplicate not found." };
+      const { parent } = findParentAndSiblings(tree, itemId);
+      const parentId = parent?.id ?? null;
+      let newDuplicate = assignNewIds(structuredClone(itemToDuplicate), true);
+      let baseName = itemToDuplicate.label;
+      let newLabel = `${baseName} (copy)`;
+      let counter = 1;
+      const targetSiblings = parentId
+        ? findItemById(tree, parentId)?.children || []
+        : tree;
+      while (hasSiblingWithName(targetSiblings, newLabel, null)) {
+        counter++;
+        newLabel = `${baseName} (copy ${counter})`;
+      }
+      newDuplicate.label = newLabel;
+      const result = await addItem(newDuplicate, parentId);
+      if (result.success && result.item) {
+        if (parentId && settings.autoExpandNewFolders) {
+          setTimeout(() => expandFolderPath(parentId), 0);
+        }
+        return { success: true, item: result.item };
+      } else {
+        return {
+          success: false,
+          error: result.error || "Failed to save duplicated item.",
+        };
+      }
+    },
+    [tree, addItem, settings.autoExpandNewFolders, expandFolderPath]
+  );
+
+  const handleDrop = useCallback(
+    /* ... (Your existing handleDrop, still mostly client-side for DB) ... */
+    async (targetFolderId, droppedItemId) => {
+      console.warn(
+        "useTree: handleDrop (moving items) is client-side for DB persistence. Needs server endpoint."
+      );
+      const currentDraggedId = droppedItemId || draggedId;
+      setDraggedId(null);
+      if (!currentDraggedId || targetFolderId === currentDraggedId)
+        return { success: false, error: "Invalid drop." };
+      const itemToDrop = findItemById(tree, currentDraggedId);
+      const targetFolder = findItemById(tree, targetFolderId);
+      if (!itemToDrop || !targetFolder || targetFolder.type !== "folder")
+        return { success: false, error: "Invalid item or target folder." };
+      if (
+        itemToDrop.type === "folder" &&
+        isSelfOrDescendant(tree, itemToDrop.id, targetFolderId)
+      ) {
+        return {
+          success: false,
+          error: "Cannot drop folder into itself or one of its descendants.",
+        };
+      }
+      if (
+        hasSiblingWithName(targetFolder.children || [], itemToDrop.label, null)
+      ) {
+        return {
+          success: false,
+          error: `Item named "${itemToDrop.label}" already exists in the target folder.`,
+        };
+      }
+      const newTreeState = treeHandleDropUtil(
+        tree,
+        targetFolderId,
+        currentDraggedId
+      );
+      if (newTreeState) {
+        setTreeWithUndo(newTreeState);
+        if (settings.autoExpandNewFolders && targetFolderId) {
+          setTimeout(() => expandFolderPath(targetFolderId), 0);
+        }
+        return {
+          success: true,
+          message:
+            "Local drop successful. Server persistence for item move not yet implemented.",
+        };
+      }
+      return { success: false, error: "Local drop simulation failed." };
+    },
+    [
+      tree,
+      draggedId,
+      setTreeWithUndo,
+      settings.autoExpandNewFolders,
+      expandFolderPath,
+      treeHandleDropUtil,
+    ]
+  );
+
+  const copyItem = useCallback(
+    /* ... (Your existing copyItem) ... */
+    (itemId) => {
+      const itemToCopy = findItemById(tree, itemId);
+      if (itemToCopy) {
+        try {
+          const deepCopy = structuredClone(itemToCopy);
+          setClipboardItem(deepCopy);
+          setClipboardMode("copy");
+          setCutItemId(null);
+        } catch (e) {
+          console.error("Error copying item:", e);
+          setClipboardItem(null);
+          setClipboardMode(null);
+          setCutItemId(null);
+        }
+      }
+    },
+    [tree]
+  );
+
+  const cutItem = useCallback(
+    /* ... (Your existing cutItem) ... */
+    (itemId) => {
+      const itemToCut = findItemById(tree, itemId);
+      if (itemToCut) {
+        try {
+          const deepCopy = structuredClone(itemToCut);
+          setClipboardItem(deepCopy);
+          setClipboardMode("cut");
+          setCutItemId(itemId);
+        } catch (e) {
+          console.error("Error cutting item:", e);
+          setClipboardItem(null);
+          setClipboardMode(null);
+          setCutItemId(null);
+        }
+      }
+    },
+    [tree]
+  );
+
+  const pasteItem = useCallback(
+    /* ... (Your existing pasteItem, 'copy' uses addItem, 'cut' is client-side for DB) ... */
+    async (targetFolderId) => {
+      console.warn(
+        "useTree: pasteItem: 'cut' persistence needs backend. 'copy' uses addItem."
+      );
+      if (!clipboardItem)
+        return { success: false, error: "Clipboard is empty." };
+      const targetParent = targetFolderId
+        ? findItemById(tree, targetFolderId)
+        : null;
+      if (targetFolderId && (!targetParent || targetParent.type !== "folder")) {
+        return {
+          success: false,
+          error: "Target for paste must be a valid folder or root.",
+        };
+      }
+      if (
+        clipboardItem.type === "folder" &&
+        isSelfOrDescendant(tree, clipboardItem.id, targetFolderId)
+      ) {
+        return {
+          success: false,
+          error: "Cannot paste a folder into itself or one of its descendants.",
+        };
+      }
+      const targetSiblings = targetFolderId
+        ? targetParent?.children || []
+        : tree;
+      let itemToInsert = structuredClone(clipboardItem);
+      if (clipboardMode === "copy") {
+        itemToInsert = assignNewIds(itemToInsert, true);
+        let baseName = itemToInsert.label;
+        let newLabel = baseName;
+        let copyCounter = 0;
+        while (hasSiblingWithName(targetSiblings, newLabel, null)) {
+          copyCounter++;
+          newLabel = `${baseName} (copy${
+            copyCounter > 1 ? ` ${copyCounter}` : ""
+          })`;
+        }
+        itemToInsert.label = newLabel;
+        const addResult = await addItem(itemToInsert, targetFolderId);
+        if (
+          addResult.success &&
+          targetFolderId &&
+          settings.autoExpandNewFolders
+        )
+          expandFolderPath(targetFolderId);
+        return addResult;
+      } else if (clipboardMode === "cut" && cutItemId) {
+        if (
+          cutItemId === targetFolderId &&
+          findParentAndSiblings(tree, cutItemId)?.parent?.id === targetFolderId
+        ) {
+          setClipboardItem(null);
+          setClipboardMode(null);
+          setCutItemId(null);
+          return {
+            success: true,
+            item: itemToInsert,
+            message: "Item 'pasted' in the same location.",
+          };
+        }
+        if (
+          findParentAndSiblings(tree, cutItemId)?.parent?.id !==
+            targetFolderId &&
+          hasSiblingWithName(targetSiblings, itemToInsert.label, null)
+        ) {
+          // Check if name exists unless it's the same item not changing name context
+          return {
+            success: false,
+            error: `An item named "${itemToInsert.label}" already exists in the target folder.`,
+          };
+        }
+        console.warn(
+          "Cut & Paste: Persistence of item move not fully implemented on backend. Simulating client-side."
+        );
+        let tempTree = deleteItemRecursive(tree, cutItemId);
+        tempTree = insertItemRecursive(tempTree, targetFolderId, itemToInsert);
+        setTreeWithUndo(tempTree);
+        setClipboardItem(null);
+        setClipboardMode(null);
+        setCutItemId(null);
+        if (targetFolderId && settings.autoExpandNewFolders)
+          expandFolderPath(targetFolderId);
+        return {
+          success: true,
+          item: itemToInsert,
+          message:
+            "Item moved locally. Server persistence for move needs to be implemented.",
+        };
+      }
+      return { success: false, error: "Invalid paste operation." };
+    },
+    [
+      tree,
+      clipboardItem,
+      clipboardMode,
+      cutItemId,
+      setTreeWithUndo,
+      settings.autoExpandNewFolders,
+      expandFolderPath,
+      addItem,
+    ]
+  );
+
+  const handleExport = useCallback(
+    /* ... (Your existing handleExport, no DB interaction) ... */
+    (target, format) => {
+      let dataToExport;
+      let fileName;
+      const currentSelectedItem = findItemById(tree, selectedItemId);
+      if (target === "selected") {
+        if (!currentSelectedItem) {
+          alert("No item selected.");
+          return;
+        }
+        dataToExport = currentSelectedItem;
+        fileName = `${currentSelectedItem.label}-export`;
+      } else {
+        dataToExport = tree;
+        fileName = "tree-export";
+      }
+      if (format === "json") {
+        try {
+          const jsonStr = JSON.stringify(dataToExport, null, 2);
+          const blob = new Blob([jsonStr], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = fileName + ".json";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error("JSON export failed:", error);
+          alert("Failed to export JSON.");
+        }
+      } else if (format === "pdf") {
+        /* ... your PDF logic ... */
+      }
+    },
+    [tree, selectedItemId]
+  );
+
+  // ** MODIFIED handleImport to use PUT for both "entire" and "selected" (by sending full tree) **
+  const handleImport = useCallback(
+    async (file, importTargetOption) => {
+      return new Promise((resolveOuter) => {
+        if (!file || file.type !== "application/json") {
+          resolveOuter({ success: false, error: "Please select a JSON file." });
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const importedData = JSON.parse(e.target.result);
+            const token = getAuthToken();
+            if (!token) {
+              resolveOuter({
+                success: false,
+                error: "Authentication required to save imported data.",
+              });
+              return;
+            }
+
+            let processedTreeForServer;
+
+            if (importTargetOption === "entire") {
+              processedTreeForServer = Array.isArray(importedData)
+                ? importedData.map((i) =>
+                    assignNewIds(structuredClone(i), true)
+                  )
+                : [assignNewIds(structuredClone(i), true)];
+              console.log(
+                "Attempting to save entire imported tree to server (from 'entire' option):",
+                processedTreeForServer.length,
+                "items"
+              );
+            } else {
+              // "selected" - import under an item
+              const currentSel = findItemById(tree, selectedItemId);
+              if (currentSel && currentSel.type === "folder") {
+                const itemsToInsert = Array.isArray(importedData)
+                  ? importedData.map((i) =>
+                      assignNewIds(structuredClone(i), true)
+                    )
+                  : [assignNewIds(structuredClone(importedData), true)];
+
+                let tempTree = [...tree]; // Start with a fresh copy of the current tree
+                itemsToInsert.forEach((it) => {
+                  if (!it.label || !it.type || !it.id) {
+                    console.warn(
+                      "Skipping invalid item during import under selected:",
+                      it
+                    );
+                    return;
+                  }
+                  // Ensure no name conflicts before inserting
+                  const parentForInsert = findItemById(tempTree, currentSel.id); // Find parent in potentially modified tempTree
+                  const siblingsForInsert = parentForInsert?.children || [];
+                  if (hasSiblingWithName(siblingsForInsert, it.label, null)) {
+                    // Handle name conflict, e.g., by renaming 'it' or skipping
+                    console.warn(
+                      `Name conflict for "${it.label}" under "${currentSel.label}". Skipping item or implement renaming.`
+                    );
+                    // For now, skip: (or you could try to auto-rename 'it.label' here)
+                    // return; // Or, if you must insert, it might overwrite or backend might reject
+                  }
+                  tempTree = insertItemRecursive(tempTree, currentSel.id, it);
+                });
+                processedTreeForServer = tempTree;
+                console.log(
+                  "Attempting to save modified tree (import under selected) to server:",
+                  processedTreeForServer.length,
+                  "root items"
+                );
+              } else {
+                resolveOuter({
+                  success: false,
+                  error: "Target for import must be a selected folder.",
+                });
+                return;
+              }
+            }
+
+            const response = await fetch(`${API_BASE_URL}/items/tree`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ newTree: processedTreeForServer }),
+            });
+            const responseData = await response.json();
+
+            if (!response.ok) {
+              console.error("Server error saving imported tree:", responseData);
+              resolveOuter({
+                success: false,
+                error:
+                  responseData.error ||
+                  "Failed to save imported tree to server.",
+              });
+              return;
+            }
+
+            replaceTree(responseData.notesTree || processedTreeForServer);
+
+            if (
+              importTargetOption === "selected" &&
+              selectedItemId &&
+              settings.autoExpandNewFolders
+            ) {
+              expandFolderPath(selectedItemId);
+            } else if (
+              importTargetOption === "entire" &&
+              responseData.notesTree?.length > 0 &&
+              responseData.notesTree[0].type === "folder" &&
+              settings.autoExpandNewFolders
+            ) {
+              expandFolderPath(responseData.notesTree[0].id); // Expand first root folder if any
+            }
+
+            resolveOuter({
+              success: true,
+              message:
+                responseData.message || "Data imported and saved successfully.",
+            });
+          } catch (err) {
+            console.error("Import processing error:", err);
+            resolveOuter({
+              success: false,
+              error: `Import error: ${err.message}`,
+            });
+          }
+        };
+        reader.onerror = () => {
+          console.error("File read error during import.");
+          resolveOuter({ success: false, error: "File read error." });
+        };
+        reader.readAsText(file);
+      });
+    },
+    [
+      tree,
+      selectedItemId,
+      replaceTree,
+      settings.autoExpandNewFolders,
+      expandFolderPath,
+    ]
+  );
+
+  const searchItems = useCallback(
+    (query, opts) => {
+      // Your existing searchItems
+      if (!query) return [];
+      const results = [];
+      const currentTree = tree || [];
+      const walk = (nodes, currentPathSegments = []) => {
+        if (!Array.isArray(nodes)) return;
+        nodes.forEach((it) => {
+          if (!it || typeof it.label !== "string") return;
+          const itemPath = [...currentPathSegments, it.label].join(" / ");
+          if (itemMatches(it, query, opts)) {
+            results.push({ ...it, path: itemPath });
+          }
+          if (it.type === "folder" && Array.isArray(it.children)) {
+            walk(it.children, [...currentPathSegments, it.label]);
+          }
+        });
+      };
+      walk(currentTree, []);
+      return results;
+    },
+    [tree]
+  );
+
+  return {
+    tree,
+    selectedItem,
+    selectedItemId,
+    contextMenu,
+    expandedFolders,
+    draggedId,
+    clipboardItem,
+    clipboardMode,
+    cutItemId,
+    setContextMenu,
+    setDraggedId,
+    selectItemById,
+    toggleFolderExpand,
+    updateNoteContent,
+    updateTask,
+    addItem,
+    renameItem,
+    deleteItem,
+    duplicateItem,
+    handleDrop,
+    copyItem,
+    cutItem,
+    pasteItem,
+    handleExport,
+    handleImport,
+    searchItems,
+    getItemPath,
+    expandFolderPath,
+    undoTreeChange,
+    redoTreeChange,
+    canUndoTree,
+    canRedoTree,
+    resetState: resetTreeHistory,
+    fetchUserTree: fetchUserTreeInternal, // Expose the internal fetch function
+    isFetchingTree, // Expose loading state
+  };
+};
+
+
