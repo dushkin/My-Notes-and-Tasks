@@ -1,33 +1,50 @@
+// src/components/Login.jsx
 import React, { useState } from "react";
-// import { useNavigate } from 'react-router-dom'; // If using React Router
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  process.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
-  // Added onSwitchToRegister
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  // const navigate = useNavigate();
+
+  // console.log(`[Login.jsx RENDER] Initial state for this render - email: '${email}', password: '${password}', error: '${error}'`);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log(
+      `-----> [Login.jsx handleSubmit ENTRY] email: '${email}', password: '${password}' <-----`
+    );
+
     setError("");
     setIsLoading(true);
+
     if (!email || !password) {
+      console.log(
+        `-----> [Login.jsx handleSubmit DEBUG] EMPTY FIELDS VALIDATION HIT! Setting error.`
+      );
       setError("Please enter both email and password.");
       setIsLoading(false);
       return;
     }
 
+    console.log(
+      `-----> [Login.jsx handleSubmit DEBUG] Fields were NOT empty. Proceeding...`
+    );
+
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const fetchUrl = `${API_BASE_URL}/auth/login`;
+      const fetchOptions = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-      });
+      };
+      // console.log(`[Login.jsx DEBUG] Fetching URL: ${fetchUrl}`);
+      // console.log("[Login.jsx DEBUG] Fetching Options:", JSON.stringify(fetchOptions, null, 2));
+
+      const response = await fetch(fetchUrl, fetchOptions);
       const data = await response.json();
       setIsLoading(false);
 
@@ -38,17 +55,16 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
 
       if (data.token) {
         localStorage.setItem("userToken", data.token);
-        console.log("Login successful, token saved.");
+        // console.log("Login successful, token saved.");
         if (onLoginSuccess) {
-          onLoginSuccess(data.user); // Pass user data which might include more than just token
+          onLoginSuccess(data.user);
         }
-        // if (navigate) navigate('/app'); // Or your main app route
       } else {
         setError("Login failed: No token received from server.");
       }
     } catch (err) {
       setIsLoading(false);
-      console.error("Login request error:", err);
+      // console.error("Login request error:", err);
       setError("Network error or server issue. Please try again.");
     }
   };
@@ -60,11 +76,16 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
           Login to Notes & Tasks
         </h2>
         {error && (
-          <p className="text-red-500 dark:text-red-400 text-sm mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded">
+          <p
+            data-item-id="login-error-message"
+            className="text-red-500 dark:text-red-400 text-sm mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded"
+          >
             {error}
           </p>
         )}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} data-item-id="login-form">
+          {" "}
+          {/* Changed to data-item-id */}
           <div className="mb-4">
             <label
               className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
@@ -110,7 +131,7 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
         <p className="mt-6 text-sm text-center text-zinc-600 dark:text-zinc-400">
           Don't have an account?{" "}
           <button
-            onClick={onSwitchToRegister} // Ensure this calls the prop
+            onClick={onSwitchToRegister}
             className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Create one

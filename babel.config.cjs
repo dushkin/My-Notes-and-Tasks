@@ -1,10 +1,22 @@
-// babel.config.cjs
 module.exports = {
-    presets: [
-      // compile modern JS to your current Node target (used by jest)
-      ['@babel/preset-env', { targets: { node: 'current' } }],
-      // compile JSX
-      '@babel/preset-react'
-    ]
-  };
-  
+  presets: [
+    ['@babel/preset-env', { targets: { node: 'current' } }],
+    '@babel/preset-react',
+  ],
+  env: {
+    production: {
+      plugins: [
+        [
+          'transform-define',
+          {
+            'process.env.VITE_API_BASE_URL': process.env.VITE_API_BASE_URL || 'http://localhost:5001/api',
+          },
+        ],
+      ],
+    },
+    // In the test environment, no plugins are applied.
+    test: {
+      plugins: []
+    }
+  },
+};

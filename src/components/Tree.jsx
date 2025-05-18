@@ -263,7 +263,7 @@ const Tree = ({
             >
               {isDragOverTarget && (
                 <div
-                  data-testid="drag-over-indicator"
+                  data-item-id="drag-over-indicator"
                   className="absolute inset-y-0 left-0 right-0 bg-blue-200 dark:bg-blue-800 opacity-30 rounded pointer-events-none z-0"
                   aria-hidden="true"
                 ></div>

@@ -1,7 +1,8 @@
+// src/components/Register.jsx
 import React, { useState } from "react";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  process.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [email, setEmail] = useState("");
@@ -10,29 +11,56 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // console.log(`[Register.jsx RENDER] email: '${email}', password: '${password}', confirmPassword: '${confirmPassword}', error: '${error}'`);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    console.log(
+      `[Register.jsx handleSubmit DEBUG] ENTRY - email: '${email}', password: '${password}', confirmPassword: '${confirmPassword}'`
+    );
+
+    setError(""); // Clear previous errors
+
     if (!email || !password || !confirmPassword) {
+      console.log(
+        "[Register.jsx handleSubmit DEBUG] Empty fields validation hit! Setting error."
+      );
       setError("Please fill in all fields.");
       return;
     }
     if (password !== confirmPassword) {
+      console.log(
+        "[Register.jsx handleSubmit DEBUG] Passwords do not match! Setting error."
+      );
       setError("Passwords do not match.");
       return;
     }
     if (password.length < 8) {
+      console.log(
+        "[Register.jsx handleSubmit DEBUG] Password too short! Setting error."
+      );
       setError("Password must be at least 8 characters long.");
       return;
     }
 
+    console.log(
+      "[Register.jsx handleSubmit DEBUG] All validations passed. Proceeding to fetch."
+    );
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const fetchUrl = `${API_BASE_URL}/auth/register`;
+      const fetchOptions = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-      });
+      };
+      console.log(`[Register.jsx DEBUG] Fetching URL: ${fetchUrl}`);
+      console.log(
+        "[Register.jsx DEBUG] Fetching Options:",
+        JSON.stringify(fetchOptions)
+      );
+
+      const response = await fetch(fetchUrl, fetchOptions);
       const data = await response.json();
       setIsLoading(false);
 
@@ -40,9 +68,9 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
         setError(data.error || "Registration failed. Please try again.");
         return;
       }
-      alert("Registration successful! Please log in.");
+      alert("Registration successful! Please log in."); // Consider replacing alert in tests
       if (onRegisterSuccess) {
-        onRegisterSuccess(); // This should switch the view to Login in App.jsx
+        onRegisterSuccess();
       }
     } catch (err) {
       setIsLoading(false);
@@ -58,11 +86,15 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
           Create Account
         </h2>
         {error && (
-          <p className="text-red-500 dark:text-red-400 text-sm mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded">
+          // Ensure your tests look for data-item-id if your environment expects it
+          <p
+            data-item-id="register-error-message"
+            className="text-red-500 dark:text-red-400 text-sm mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded"
+          >
             {error}
           </p>
         )}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} data-item-id="register-form">
           <div className="mb-4">
             <label
               className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
@@ -125,7 +157,7 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
         <p className="mt-6 text-sm text-center text-zinc-600 dark:text-zinc-400">
           Already have an account?{" "}
           <button
-            onClick={onSwitchToLogin} // Ensure this calls the prop
+            onClick={onSwitchToLogin}
             className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Log In

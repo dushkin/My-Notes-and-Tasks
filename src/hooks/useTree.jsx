@@ -21,7 +21,7 @@ import { itemMatches } from "../utils/searchUtils";
 import { useUndoRedo } from "./useUndoRedo";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  process.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 const getAuthToken = () => {
   return localStorage.getItem("userToken");
@@ -49,7 +49,7 @@ function htmlToPlainTextWithNewlines(html) {
   return text.trim().replace(/(\r\n|\r|\n){2,}/g, "\n");
 }
 
-const assignNewIds = (item, isDuplication = false) => {
+export const assignNewIds = (item, isDuplication = false) => {
   // Ensure this line is correct
   const newItem = { ...item };
   if (

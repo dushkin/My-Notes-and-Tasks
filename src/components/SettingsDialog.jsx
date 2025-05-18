@@ -56,7 +56,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
       control: (
         <select
           id="theme"
-          data-testid="setting-theme-select"
+          data-item-id="setting-theme-select"
           value={settings.theme}
           onChange={e => updateSetting('theme', e.target.value)}
           className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
@@ -73,7 +73,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
         <input
           id="autoExpandNewFolders"
           type="checkbox"
-          data-testid="setting-autoexpand-checkbox"
+          data-item-id="setting-autoexpand-checkbox"
           checked={settings.autoExpandNewFolders}
           onChange={e => updateSetting('autoExpandNewFolders', e.target.checked)}
           className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
@@ -88,7 +88,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
       control: (
         <select
           id="editorFontFamily"
-          data-testid="setting-fontfamily-select"
+          data-item-id="setting-fontfamily-select"
           value={settings.editorFontFamily}
           onChange={e => updateSetting('editorFontFamily', e.target.value)}
           className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
@@ -105,7 +105,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
       control: (
         <select
           id="editorFontSize"
-          data-testid="setting-fontsize-select"
+          data-item-id="setting-fontsize-select"
           value={settings.editorFontSize}
           onChange={e => updateSetting('editorFontSize', e.target.value)}
           className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
@@ -125,7 +125,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
               <input
                 type="radio"
                 name="defaultExportFormat"
-                data-testid={`setting-exportformat-${o.value}`}
+                data-item-id={`setting-exportformat-${o.value}`}
                 value={o.value}
                 checked={settings.defaultExportFormat === o.value}
                 onChange={e => updateSetting('defaultExportFormat', e.target.value)}
@@ -144,7 +144,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
       control: (
         <button
           type="button"
-          data-testid="setting-resetsettings-button"
+          data-item-id="setting-resetsettings-button"
           onClick={() => {
             if (window.confirm('Reset all settings to default?')) resetSettings();
           }}
@@ -161,7 +161,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
       control: (
         <button
           type="button"
-          data-testid="setting-resetdata-button"
+          data-item-id="setting-resetdata-button"
           onClick={() => {
             if (window.confirm('WARNING: This will permanently delete all data and reset settings.')) {
               resetApplicationData();
@@ -189,11 +189,11 @@ export default function SettingsDialog({ isOpen, onClose }) {
 
   return (
     <div
-      data-testid="settings-dialog-overlay"
+      data-item-id="settings-dialog-overlay"
       className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm transition-opacity duration-200"
     >
       <div
-        data-testid="settings-dialog-content"
+        data-item-id="settings-dialog-content"
         className="bg-white dark:bg-zinc-800 p-5 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-zinc-200 dark:border-zinc-700"
       >
         {/* Header */}
@@ -201,7 +201,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
           <h2 className="text-xl font-semibold">Settings</h2>
           <button
             aria-label="Close Settings"
-            data-testid="settings-close-button-header"
+            data-item-id="settings-close-button-header"
             onClick={onClose}
             className="p-1 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
           >
@@ -212,7 +212,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
         {/* Search */}
         <div className="mb-4 relative flex-shrink-0">
           <input
-            data-testid="settings-search-input"
+            data-item-id="settings-search-input"
             type="text"
             placeholder="Search settings..."
             value={search}
@@ -227,7 +227,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
           {filtered.length ? filtered.map(s => (
             <div
               key={s.id}
-              data-testid={`setting-row-${s.id}`}
+              data-item-id={`setting-row-${s.id}`}
               className="flex flex-col sm:flex-row sm:items-start sm:justify-between pb-4 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
             >
               <div className="mb-2 sm:mb-0 sm:mr-4 flex-1">
@@ -242,7 +242,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
             </div>
           )) : (
             <p
-              data-testid="settings-no-results"
+              data-item-id="settings-no-results"
               className="text-zinc-500 dark:text-zinc-400 text-center py-6"
             >
               No settings found matching your search.
@@ -253,7 +253,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
         {/* Footer */}
         <div className="mt-6 pt-4 border-t dark:border-zinc-600 flex justify-end flex-shrink-0">
           <button
-            data-testid="settings-close-button-footer"
+            data-item-id="settings-close-button-footer"
             onClick={onClose}
             className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
