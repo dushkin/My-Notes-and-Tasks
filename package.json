@@ -1,7 +1,8 @@
 {
+  "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "3.0.2",
-  "commitMessage": "Fix importing a file under a folder; Add Registration capability",
+  "version": "3.1.0",
+  "commitMessage": "Added and modified tests - All pass",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -21,7 +22,9 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.27.1",
+    "@babel/core": "^7.27.1",
+    "@babel/plugin-syntax-import-meta": "^7.10.4",
+    "@babel/preset-env": "^7.27.2",
     "@babel/preset-react": "^7.27.1",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/dom": "^10.4.0",
@@ -31,6 +34,9 @@
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.12",
     "babel-jest": "^29.7.0",
+    "babel-npm": "^0.0.1",
+    "babel-plugin-transform-define": "^2.1.4",
+    "install": "^0.13.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.4.18",

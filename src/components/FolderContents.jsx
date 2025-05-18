@@ -44,7 +44,7 @@ const FolderContents = ({
           return (
             <li
               key={child.id}
-              data-testid={`item-${child.id}`}
+              data-item-id={`item-${child.id}`}
               // --- MODIFICATION: Added group class for hover effect on button ---
               className={`group relative flex items-center p-3 sm:p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer ${
                 isBeingDragged ? "opacity-40" : ""
@@ -78,7 +78,7 @@ const FolderContents = ({
             >
               {isDragOverTarget && (
                 <div
-                  data-testid="drag-over-indicator"
+                  data-item-id="drag-over-indicator"
                   className="absolute inset-y-0 left-0 right-0 bg-blue-200 dark:bg-blue-800 opacity-30 rounded pointer-events-none z-0"
                   aria-hidden="true"
                 ></div>

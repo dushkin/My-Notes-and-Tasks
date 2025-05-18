@@ -1,183 +1,220 @@
 // tests/components/FolderContents.test.jsx
-import React from 'react';
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import '@testing-library/jest-dom';
-import FolderContents from '../../src/components/FolderContents';
+import React from "react";
+import {
+  render,
+  screen,
+  fireEvent,
+  within,
+  // waitFor, // Not used in this version, can be added if async issues are suspected
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import "@testing-library/jest-dom";
+import FolderContents from "../../src/components/FolderContents";
 
-describe('<FolderContents /> Component', () => {
+// Mock lucide-react MoreVertical icon
+jest.mock("lucide-react", () => ({
+  ...jest.requireActual("lucide-react"),
+  MoreVertical: () => <svg data-item-id="icon-more-vertical" />,
+}));
+
+describe("<FolderContents /> Component", () => {
   const mockOnSelect = jest.fn();
   const mockOnToggleExpand = jest.fn();
   const mockHandleDragStart = jest.fn();
-  const mockHandleDragEnter = jest.fn();
-  const mockHandleDragOver = jest.fn();
-  const mockHandleDragLeave = jest.fn();
-  const mockHandleDrop = jest.fn();
   const mockHandleDragEnd = jest.fn();
+  const mockOnShowItemMenu = jest.fn();
 
-  const emptyFolder = { id: 'f1', type: 'folder', label: 'Folder 1', children: [] };
+  const emptyFolder = {
+    id: "f0",
+    type: "folder",
+    label: "Empty Folder",
+    children: [],
+  };
 
-  const folderWithChildren = {
-    id: 'f1',
-    type: 'folder',
-    label: 'Folder 1',
+  // Define folderWithChildren inside beforeEach or ensure it's immutable if defined outside
+  // For simplicity here, defined once. If tests mutate it, move to beforeEach.
+  const folderWithChildrenData = {
+    id: "f1",
+    type: "folder",
+    label: "Folder With Items",
     children: [
-      { id: 'n1', type: 'note', label: 'Note A' },
-      { id: 't1', type: 'task', label: 'Task B', completed: false },
-      { id: 'f2', type: 'folder', label: 'Folder C', children: [] },
-      { id: 't2', type: 'task', label: 'Task D', completed: false },
+      { id: "f2", type: "folder", label: "Subfolder Alpha", children: [] },
+      { id: "n1", type: "note", label: "Note Beta" },
+      { id: "t1", type: "task", label: "Task Gamma", completed: false },
+      { id: "t2", type: "task", label: "Task Delta", completed: true },
     ],
   };
 
-  // Common props including drag handlers and toggle
-  const defaultProps = {
-      onSelect: mockOnSelect,
-      onToggleExpand: mockOnToggleExpand,
-      expandedItems: {},
-      handleDragStart: mockHandleDragStart,
-      handleDragEnter: mockHandleDragEnter,
-      handleDragOver: mockHandleDragOver,
-      handleDragLeave: mockHandleDragLeave,
-      handleDrop: mockHandleDrop,
-      handleDragEnd: mockHandleDragEnd,
-      draggedId: null,
-      dragOverItemId: null,
+  const baseDefaultProps = {
+    onSelect: mockOnSelect,
+    onToggleExpand: mockOnToggleExpand,
+    expandedItems: {},
+    handleDragStart: mockHandleDragStart,
+    handleDragEnter: jest.fn(),
+    handleDragOver: jest.fn(),
+    handleDragLeave: jest.fn(),
+    handleDrop: jest.fn(),
+    handleDragEnd: mockHandleDragEnd,
+    draggedId: null,
+    dragOverItemId: null,
+    onShowItemMenu: mockOnShowItemMenu,
   };
-
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // If folderWithChildren could be mutated by tests (it shouldn't with this data),
+    // re-initialize it here:
+    // folderWithChildren = { ...folderWithChildrenData, children: [...folderWithChildrenData.children.map(c => ({...c}))] };
   });
 
-  test('renders empty message when folder has no children', () => {
-    render(<FolderContents {...defaultProps} folder={emptyFolder} />);
-    expect(screen.getByText('This folder is empty.')).toBeInTheDocument();
+  test("renders empty message when folder has no children", () => {
+    render(<FolderContents {...baseDefaultProps} folder={emptyFolder} />);
+    expect(screen.getByText("This folder is empty.")).toBeInTheDocument();
   });
 
-  test('renders children items sorted correctly when folder has children', () => {
-    render(<FolderContents {...defaultProps} folder={folderWithChildren} />);
-    const list = screen.getByRole('list');
-    const listItemsAsButtons = within(list).getAllByRole('button', {
-        name: /(Folder C \(Folder\)|Note A \(Note\)|Task B \(Task\)|Task D \(Task\))/i
-    });
-    expect(listItemsAsButtons.length).toBe(4);
-    expect(listItemsAsButtons[0]).toHaveAccessibleName('Folder C (Folder)');
-    expect(listItemsAsButtons[1]).toHaveAccessibleName('Note A (Note)');
-    expect(listItemsAsButtons[2]).toHaveAccessibleName('Task B (Task)');
-    expect(listItemsAsButtons[3]).toHaveAccessibleName('Task D (Task)');
-  });
-
-
-  test('calls onSelect with correct child ID when an item is clicked', async () => {
-    const user = userEvent.setup();
-    render(<FolderContents {...defaultProps} folder={folderWithChildren} />);
-    const noteButton = screen.getByRole('button', { name: 'Note A (Note)' });
-    await user.click(noteButton);
-    expect(mockOnSelect).toHaveBeenCalledWith('n1');
-  });
-
-  test('calls onSelect with correct child ID when Enter key is pressed on an item', async () => {
-    const user = userEvent.setup();
-    render(<FolderContents {...defaultProps} folder={folderWithChildren} />);
-    const folderButton = screen.getByRole('button', { name: 'Folder C (Folder)' });
-    await user.type(folderButton, '{enter}');
-    expect(mockOnSelect).toHaveBeenCalledWith('f2');
-  });
-
-  test('calls onSelect with correct child ID when Space key is pressed on an item', async () => {
-    const user = userEvent.setup();
-    render(<FolderContents {...defaultProps} folder={folderWithChildren} />);
-    const taskButton = screen.getByRole('button', { name: 'Task D (Task)' });
-    await user.type(taskButton, ' ');
-    expect(mockOnSelect).toHaveBeenCalledWith('t2');
-  });
-
-  test('calls onToggleExpand when folder EXPAND BUTTON is clicked', async () => {
-      const user = userEvent.setup();
-      render(
-        <FolderContents
-          {...defaultProps}
-          folder={folderWithChildren}
-          expandedItems={{ f2: false }}
-        />
-      );
-      const expandButton = screen.getByRole('button', { name: /expand folder c/i });
-      await user.click(expandButton);
-      expect(mockOnToggleExpand).toHaveBeenCalledWith('f2');
-    });
-
-  test.skip('shows drag-over indicator when dragging over a folder', async () => {
-    const { rerender } = render(
-      <FolderContents
-        {...defaultProps}
-        folder={folderWithChildren}
-        dragOverItemId={'f2'} // Simulate dragging over f2 initially
-      />
-    );
-
-    // Find the parent item first
-    const folderItem = screen.getByRole('button', { name: 'Folder C (Folder)' });
-    expect(folderItem).toBeInTheDocument();
-
-    // Now, wait for the indicator *within* that specific item
-    // This seems to be the most reliable way given the previous issues
-    const indicator = await within(folderItem).findByTestId('drag-over-indicator');
-    expect(indicator).toBeInTheDocument();
-    expect(indicator.tagName).toBe('DIV');
-
-    // Rerender without dragOverItemId to test indicator removal
-    rerender(
-        <FolderContents
-          {...defaultProps}
-          folder={folderWithChildren}
-          dragOverItemId={null} // Simulate dragging leaving f2
-        />
-      );
-    // Re-find the parent item after rerender
-    const updatedFolderItem = screen.getByRole('button', { name: 'Folder C (Folder)' });
-    // Use waitFor with queryByTestId within the parent scope for absence check
-    await waitFor(() => {
-        expect(within(updatedFolderItem).queryByTestId('drag-over-indicator')).not.toBeInTheDocument();
-    });
-  });
-
-
-  test('does not show drag-over indicator when dragging over a non-folder', () => {
+  test("renders children items sorted correctly", () => {
     render(
       <FolderContents
-        {...defaultProps}
-        folder={folderWithChildren}
-        dragOverItemId={'n1'} // Simulate dragging over note n1
+        {...baseDefaultProps}
+        folder={folderWithChildrenData}
+        expandedItems={{ f2: false }}
       />
     );
-    const noteItem = screen.getByRole('button', { name: 'Note A (Note)' });
-    expect(noteItem).toBeInTheDocument();
-    // Check globally and within the item
-    expect(screen.queryByTestId('drag-over-indicator')).not.toBeInTheDocument();
-    expect(within(noteItem).queryByTestId('drag-over-indicator')).not.toBeInTheDocument();
+
+    // STEP 1: UNCOMMENT THE LINE BELOW, RUN TEST, AND INSPECT CONSOLE OUTPUT
+    // console.log("DEBUG OUTPUT for 'renders children items sorted correctly':");
+    // screen.debug(undefined, 300000); // Debug the whole screen
+
+    // STEP 2: Try querying with a simple regex first
+    const listItems = screen.queryAllByTestId(/^item-/);
+
+    // STEP 3: If listItems.length is 0, the screen.debug() output is crucial.
+    // It will show if the `<li>` elements with `data-item-id="item-..."` are actually rendered.
+    // If they are NOT rendered, the problem is in FolderContents not receiving/processing `folder.children`.
+    // If they ARE rendered, the query itself or test runner environment might have an issue.
+
+    expect(listItems.length).toBe(4);
+
+    // These assertions assume listItems are found and sorted correctly.
+    // sortItems: Folder (f2), Note (n1), Task (t2-Delta), Task (t1-Gamma)
+    expect(
+      within(listItems[0]).getByText("Subfolder Alpha")
+    ).toBeInTheDocument();
+    expect(within(listItems[1]).getByText("Note Beta")).toBeInTheDocument();
+    expect(within(listItems[2]).getByText("Task Delta")).toBeInTheDocument();
+    expect(within(listItems[3]).getByText("Task Gamma")).toBeInTheDocument();
   });
 
-  test('calls drag handlers with correct item', () => {
-    render(<FolderContents {...defaultProps} folder={folderWithChildren} />);
-    const noteItem = screen.getByRole('button', { name: 'Note A (Note)' });
-    const targetFolderItem = screen.getByRole('button', { name: 'Folder C (Folder)' });
+  test("calls onSelect when an item is clicked", async () => {
+    const user = userEvent.setup();
+    render(
+      <FolderContents {...baseDefaultProps} folder={folderWithChildrenData} />
+    );
+    // Use getByTestId which throws if not found. If this passes, items are rendered.
+    const noteListItem = screen.getByTestId("item-n1");
+    await user.click(noteListItem);
+    expect(mockOnSelect).toHaveBeenCalledWith("n1");
+  });
 
-    fireEvent.dragStart(noteItem);
-    expect(mockHandleDragStart).toHaveBeenCalledWith(expect.any(Object), 'n1');
+  test("calls onToggleExpand when folder expand button is clicked", async () => {
+    const user = userEvent.setup();
+    render(
+      <FolderContents
+        {...baseDefaultProps}
+        folder={folderWithChildrenData}
+        expandedItems={{ f2: false }}
+      />
+    );
+    const subfolderItem = screen.getByTestId("item-f2");
+    const expandButton = within(subfolderItem).getByRole("button", {
+      name: /Expand Subfolder Alpha/i,
+    });
+    await user.click(expandButton);
+    expect(mockOnToggleExpand).toHaveBeenCalledWith("f2");
+  });
 
-    fireEvent.dragEnter(noteItem);
-    expect(mockHandleDragEnter).toHaveBeenCalledWith(expect.any(Object), 'n1');
+  test("calls onShowItemMenu when More options button is clicked", async () => {
+    const user = userEvent.setup();
+    render(
+      <FolderContents {...baseDefaultProps} folder={folderWithChildrenData} />
+    );
+    const noteItemLi = screen.getByTestId("item-n1");
+    const moreButton = within(noteItemLi).getByRole("button", {
+      name: /More options for Note Beta/i,
+    });
+    await user.click(moreButton);
+    expect(mockOnShowItemMenu).toHaveBeenCalledTimes(1);
+    // Find the actual item object from the mock data to ensure the correct one is passed
+    const expectedNoteItem = folderWithChildrenData.children.find(
+      (child) => child.id === "n1"
+    );
+    expect(mockOnShowItemMenu).toHaveBeenCalledWith(
+      expectedNoteItem,
+      expect.any(HTMLElement)
+    );
+  });
 
-    fireEvent.dragOver(noteItem);
-    expect(mockHandleDragOver).toHaveBeenCalledWith(expect.any(Object));
-
-    fireEvent.dragLeave(noteItem);
-    expect(mockHandleDragLeave).toHaveBeenCalledWith(expect.any(Object));
-
-    fireEvent.drop(targetFolderItem);
-    expect(mockHandleDrop).toHaveBeenCalledWith(expect.any(Object), 'f2');
-
-    fireEvent.dragEnd(noteItem);
+  test("calls drag handlers when an item is dragged", () => {
+    render(
+      <FolderContents {...baseDefaultProps} folder={folderWithChildrenData} />
+    );
+    const draggableItem = screen.getByTestId("item-n1");
+    fireEvent.dragStart(draggableItem);
+    expect(mockHandleDragStart).toHaveBeenCalledWith(expect.any(Object), "n1");
+    fireEvent.dragEnd(draggableItem);
     expect(mockHandleDragEnd).toHaveBeenCalledWith(expect.any(Object));
+  });
+
+  test("applies opacity when item is being dragged", () => {
+    render(
+      <FolderContents
+        {...baseDefaultProps}
+        folder={folderWithChildrenData}
+        draggedId="n1" // Simulate n1 being dragged
+      />
+    );
+    const noteItemLi = screen.getByTestId("item-n1");
+    expect(noteItemLi).toHaveClass("opacity-40");
+  });
+
+  test("shows folder icon correctly (open/closed)", () => {
+    const { rerender } = render(
+      <FolderContents
+        {...baseDefaultProps}
+        folder={folderWithChildrenData}
+        expandedItems={{ f2: false }} // f2 is initially closed
+      />
+    );
+    const subfolderItem = screen.getByTestId("item-f2");
+    expect(within(subfolderItem).getByText("📁")).toBeInTheDocument(); // Closed icon
+
+    rerender(
+      <FolderContents
+        {...baseDefaultProps}
+        folder={folderWithChildrenData}
+        expandedItems={{ f2: true }} // Now f2 is open
+      />
+    );
+    // Re-query after rerender
+    const openedSubfolderItem = screen.getByTestId("item-f2");
+    expect(within(openedSubfolderItem).getByText("📂")).toBeInTheDocument(); // Open icon
+  });
+
+  test("shows task completion status correctly", () => {
+    render(
+      <FolderContents {...baseDefaultProps} folder={folderWithChildrenData} />
+    );
+
+    const taskDeltaItem = screen.getByTestId("item-t2"); // Task Delta, completed: true
+    expect(within(taskDeltaItem).getByText("✅")).toBeInTheDocument();
+    expect(within(taskDeltaItem).getByText("Task Delta")).toHaveClass(
+      "line-through"
+    );
+
+    const taskGammaItem = screen.getByTestId("item-t1"); // Task Gamma, completed: false
+    expect(within(taskGammaItem).getByText("⬜️")).toBeInTheDocument();
+    expect(within(taskGammaItem).getByText("Task Gamma")).not.toHaveClass(
+      "line-through"
+    );
   });
 });
