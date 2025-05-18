@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "3.1.0",
-  "commitMessage": "Added and modified tests - All pass",
+  "version": "3.1.1",
+  "commitMessage": "Mainly renamed postcss.config.js to cjs to fix build",
   "private": true,
   "scripts": {
     "dev": "vite",
