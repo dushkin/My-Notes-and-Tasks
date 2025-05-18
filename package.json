@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "3.3.0",
-  "commitMessage": "Added Auto Export Feature",
+  "version": "3.4.0",
+  "commitMessage": "Add spport for images in item content",
   "private": true,
   "scripts": {
     "dev": "vite",
