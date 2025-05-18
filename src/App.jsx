@@ -1,5 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
+// ... (all your existing imports, ensure useSettings and useTree are present)
 import Tree from "./components/Tree";
 import FolderContents from "./components/FolderContents";
 import ContentEditor from "./components/ContentEditor";
@@ -33,8 +34,19 @@ import { Sheet } from "react-modal-sheet";
 import Login from "./components/Login";
 import Register from "./components/Register";
 
+// Helper function to generate timestamped filename
+function getTimestampedFilename(baseName = "tree-export", extension = "json") {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, "0");
+  const day = now.getDate().toString().padStart(2, "0");
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  const seconds = now.getSeconds().toString().padStart(2, "0");
+  return `${baseName}-${year}${month}${day}-${hours}${minutes}${seconds}.${extension}`;
+}
+
 function htmlToPlainTextWithNewlines(html) {
-  /* ... (same as before) ... */
   if (!html) return "";
   let text = html;
   text = text.replace(
@@ -56,22 +68,28 @@ function htmlToPlainTextWithNewlines(html) {
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose }) => {
-  /* ... (same as before, with success styling) ... */
   if (!message) return null;
   useEffect(() => {
     const timer = setTimeout(() => onClose(), 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
+
   const baseClasses =
     "fixed top-3 right-3 left-3 md:left-auto md:max-w-lg z-[100] px-4 py-3 rounded-lg shadow-xl flex justify-between items-center text-sm transition-all duration-300 ease-in-out";
   let typeClasses =
     type === "success"
       ? "bg-green-100 dark:bg-green-800/80 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-200"
+      : type === "info"
+      ? "bg-sky-100 dark:bg-sky-800/80 border border-sky-400 dark:border-sky-600 text-sky-700 dark:text-sky-200"
       : "bg-red-100 dark:bg-red-800/80 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200";
+
   const iconColor =
     type === "success"
       ? "text-green-500 hover:text-green-700 dark:text-green-300 dark:hover:text-green-100"
+      : type === "info"
+      ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
+
   return (
     <div className={`${baseClasses} ${typeClasses}`}>
       <span>{message}</span>
@@ -113,7 +131,7 @@ const App = () => {
     addItem,
     duplicateItem,
     handleExport,
-    handleImport: handleImportFromHook, // Renamed to avoid conflict
+    handleImport: handleImportFromHook,
     searchItems,
     undoTreeChange,
     redoTreeChange,
@@ -121,12 +139,17 @@ const App = () => {
     canRedoTree,
     resetState: resetTreeHistory,
     fetchUserTree,
-    isFetchingTree, // Get these from useTree
+    isFetchingTree,
   } = useTree();
 
+  // Moved State Declarations to the top
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
-  const [currentView, setCurrentView] = useState("login");
+  const [currentView, setCurrentView] = useState("login"); // Now declared before use in useEffects
+
+  const [uiMessage, setUiMessage] = useState("");
+  const [uiMessageType, setUiMessageType] = useState("error");
+
   const [searchSheetOpen, setSearchSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
@@ -154,18 +177,146 @@ const App = () => {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const topMenuRef = useRef(null);
-  const [uiMessage, setUiMessage] = useState("");
-  const [uiMessageType, setUiMessageType] = useState("error");
 
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
       setUiMessage(message);
       setUiMessageType(type);
-      // ErrorDisplay will auto-hide
     },
     []
   );
 
+  // --- Auto Export Logic ---
+  const autoExportIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (autoExportIntervalRef.current) {
+      clearInterval(autoExportIntervalRef.current);
+      autoExportIntervalRef.current = null;
+    }
+
+    const canRunAutoExport =
+      settings.autoExportEnabled &&
+      settings.autoExportIntervalMinutes >= 1 &&
+      currentView === "app" &&
+      currentUser;
+
+    if (canRunAutoExport) {
+      const intervalMs = settings.autoExportIntervalMinutes * 60 * 1000;
+      const performAutoExport = () => {
+        if (!tree || tree.length === 0) {
+          console.info("Auto Export: Tree is empty, skipping export.");
+          return;
+        }
+        const exportFormat = settings.defaultExportFormat || "json";
+        const filename = getTimestampedFilename(
+          "auto-tree-export",
+          exportFormat
+        );
+        console.log(`Auto Export: Triggering export of tree as ${filename}`);
+        showMessage(`Auto-exporting as ${filename}...`, "info", 2000);
+        try {
+          const dataToExport = tree;
+          if (exportFormat === "json") {
+            const jsonStr = JSON.stringify(dataToExport, null, 2);
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            console.log(
+              `Auto Export: Successfully triggered download for ${filename}`
+            );
+          } else if (exportFormat === "pdf") {
+            console.warn(
+              `PDF auto-export for ${filename} needs specific PDF generation logic.`
+            );
+            showMessage(
+              `PDF Auto-export for ${filename} (not implemented).`,
+              "info",
+              3000
+            );
+          }
+        } catch (error) {
+          console.error("Auto Export: Failed to export data.", error);
+          showMessage("Auto export failed.", "error");
+        }
+      };
+      autoExportIntervalRef.current = setInterval(
+        performAutoExport,
+        intervalMs
+      );
+      console.log(
+        `Auto Export: Enabled. Interval set to ${settings.autoExportIntervalMinutes} minutes.`
+      );
+      showMessage(
+        `Auto-export active: every ${settings.autoExportIntervalMinutes} min.`,
+        "info",
+        4000
+      );
+    } else {
+      if (
+        settings.autoExportEnabled &&
+        (currentView !== "app" || !currentUser)
+      ) {
+        console.log("Auto Export: Paused (not in app view or no user).");
+      } else if (!settings.autoExportEnabled) {
+        console.log("Auto Export: Disabled.");
+      }
+    }
+    return () => {
+      if (autoExportIntervalRef.current) {
+        clearInterval(autoExportIntervalRef.current);
+        autoExportIntervalRef.current = null;
+        console.log("Auto Export: Interval cleared.");
+      }
+    };
+  }, [
+    settings.autoExportEnabled,
+    settings.autoExportIntervalMinutes,
+    settings.defaultExportFormat,
+    tree,
+    showMessage,
+    currentView,
+    currentUser,
+  ]);
+  // --- End Auto Export Logic ---
+
+  useEffect(() => {
+    // Initial Auth Check
+    const token = localStorage.getItem("userToken");
+    if (token && fetchUserTree) {
+      setCurrentUser({ token });
+      setCurrentView("app");
+      fetchUserTree(token).finally(() => setIsAuthCheckComplete(true));
+    } else {
+      setCurrentView("login");
+      if (resetTreeHistory) resetTreeHistory([]);
+      setIsAuthCheckComplete(true);
+    }
+  }, [fetchUserTree, resetTreeHistory]);
+
+  const handleLoginSuccess = async (userData) => {
+    setCurrentUser(userData);
+    setCurrentView("app");
+    if (fetchUserTree) {
+      await fetchUserTree(localStorage.getItem("userToken"));
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("userToken");
+    setCurrentUser(null);
+    if (resetTreeHistory) resetTreeHistory([]);
+    showMessage("");
+    setCurrentView("login");
+  };
+
+  // ... (all other useCallback and useEffect hooks from your App.jsx)
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -174,20 +325,19 @@ const App = () => {
       setInlineRenameValue(item.label);
       setContextMenu((m) => ({ ...m, visible: false }));
     },
-    [draggedId, inlineRenameId, showMessage]
+    [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
-
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
     showMessage("", "error");
-    requestAnimationFrame(() =>
-      document
-        .querySelector('nav[aria-label="Notes and Tasks Tree"]')
-        ?.focus({ preventScroll: true })
-    );
+    requestAnimationFrame(() => {
+      const treeNav = document.querySelector(
+        'nav[aria-label="Notes and Tasks Tree"]'
+      );
+      treeNav?.focus({ preventScroll: true });
+    });
   }, [showMessage]);
-
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
@@ -196,7 +346,6 @@ const App = () => {
     (id) => findParentAndSiblingsUtil(tree, id),
     [tree]
   );
-
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
@@ -212,7 +361,7 @@ const App = () => {
     const result = await renameItem(inlineRenameId, newLabel);
     if (result.success) {
       cancelInlineRename();
-      showMessage("Item renamed.", "success", 3000);
+      showMessage("Item renamed successfully.", "success", 3000);
     } else {
       showMessage(result.error || "Rename failed.", "error");
     }
@@ -224,7 +373,6 @@ const App = () => {
     findItemByIdFromTree,
     showMessage,
   ]);
-
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -236,34 +384,52 @@ const App = () => {
       setContextMenu((m) => ({ ...m, visible: false }));
       setTopMenuOpen(false);
     },
-    [showMessage]
+    [showMessage, setContextMenu]
   );
-
   const handleAdd = useCallback(async () => {
-    const tl = newItemLabel.trim();
-    if (!tl) {
+    const trimmedLabel = newItemLabel.trim();
+    if (!trimmedLabel) {
       setAddDialogErrorMessage("Name cannot be empty.");
+      return;
+    }
+    const parentId = parentItemForAdd?.id ?? null;
+    const siblings = parentId
+      ? findItemByIdFromTree(parentId)?.children || []
+      : tree;
+    if (
+      siblings.some(
+        (sibling) => sibling.label.toLowerCase() === trimmedLabel.toLowerCase()
+      )
+    ) {
+      setAddDialogErrorMessage(
+        `An item named "${trimmedLabel}" already exists here.`
+      );
       return;
     }
     const newItemData = {
       type: newItemType,
-      label: tl,
+      label: trimmedLabel,
       ...(newItemType === "task" ? { completed: false, content: "" } : {}),
       ...(newItemType === "note" ? { content: "" } : {}),
     };
-    const pid = parentItemForAdd?.id ?? null;
-    const result = await addItem(newItemData, pid);
+    const result = await addItem(newItemData, parentId);
     if (result.success) {
       setAddDialogOpen(false);
       setNewItemLabel("");
       setParentItemForAdd(null);
       setAddDialogErrorMessage("");
-      showMessage(`${newItemType} added.`, "success", 3000);
+      showMessage(
+        `${newItemType.charAt(0).toUpperCase() + newItemType.slice(1)} added.`,
+        "success",
+        3000
+      );
       if (result.item?.id) {
         selectItemById(result.item.id);
         if (result.item.type === "folder" && settings.autoExpandNewFolders) {
-          if (pid) expandFolderPath(pid);
-          else expandFolderPath(result.item.id);
+          expandFolderPath(result.item.id);
+        }
+        if (parentId && settings.autoExpandNewFolders) {
+          expandFolderPath(parentId);
         }
       }
     } else {
@@ -278,41 +444,47 @@ const App = () => {
     selectItemById,
     settings.autoExpandNewFolders,
     expandFolderPath,
+    tree,
+    findItemByIdFromTree,
   ]);
-
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       const result = await updateTask(id, {
         completed: !currentCompletedStatus,
       });
-      if (!result.success)
+      if (!result.success) {
         showMessage(result.error || "Failed to update task status.", "error");
-      else showMessage("Task status updated.", "success", 2000);
+      } else {
+        showMessage("Task status updated.", "success", 2000);
+      }
     },
     [updateTask, showMessage]
   );
-
-  const handleDragEnd = useCallback(() => setDraggedId(null), []);
-  const openExportDialog = useCallback((context) => {
-    setExportDialogState({ isOpen: true, context });
-    setContextMenu((m) => ({ ...m, visible: false }));
-    setTopMenuOpen(false);
-  }, []);
-  const openImportDialog = useCallback((context) => {
-    setImportDialogState({ isOpen: true, context });
-    setContextMenu((m) => ({ ...m, visible: false }));
-    setTopMenuOpen(false);
-  }, []);
-
+  const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
+  const openExportDialog = useCallback(
+    (context) => {
+      setExportDialogState({ isOpen: true, context });
+      setContextMenu((m) => ({ ...m, visible: false }));
+      setTopMenuOpen(false);
+    },
+    [setContextMenu]
+  ); // Added setContextMenu dependency
+  const openImportDialog = useCallback(
+    (context) => {
+      setImportDialogState({ isOpen: true, context });
+      setContextMenu((m) => ({ ...m, visible: false }));
+      setTopMenuOpen(false);
+    },
+    [setContextMenu]
+  ); // Added setContextMenu dependency
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
-      const result = await handleImportFromHook(file, importTargetOption); // Use renamed hook function
+      const result = await handleImportFromHook(file, importTargetOption);
       if (result && result.success) {
         showMessage(result.message || "Import successful!", "success");
         setTimeout(() => {
           setImportDialogState({ isOpen: false, context: null });
-          showMessage("", "success");
         }, 1500);
         return {
           success: true,
@@ -328,39 +500,39 @@ const App = () => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
-
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
-      if (!result.success)
+      if (!result.success) {
         showMessage(result.error || "Paste operation failed.", "error");
-      else showMessage("Item pasted.", "success", 3000);
+      } else {
+        showMessage("Item pasted.", "success", 3000);
+      }
     },
     [pasteItem, showMessage]
   );
-
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
         const result = await deleteItem(itemIdToDelete);
-        if (!result.success)
+        if (!result.success) {
           showMessage(result.error || "Delete operation failed.", "error");
-        else showMessage("Item deleted.", "success", 3000);
+        } else {
+          showMessage("Item deleted.", "success", 3000);
+        }
       }
       setContextMenu((m) => ({ ...m, visible: false }));
     },
-    [deleteItem, showMessage]
+    [deleteItem, showMessage, setContextMenu]
   );
-
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
-      /* ... (as before) ... */
       if (!item || !buttonElement) return;
       const rect = buttonElement.getBoundingClientRect();
       let x = rect.left,
         y = rect.bottom + 2;
-      const menuWidth = 190,
-        menuHeight = item.type === "folder" ? 350 : 280;
+      const menuWidth = 190;
+      const menuHeight = item.type === "folder" ? 350 : 280;
       if (x + menuWidth > window.innerWidth - 10)
         x = window.innerWidth - menuWidth - 10;
       if (x < 10) x = 10;
@@ -370,12 +542,10 @@ const App = () => {
       selectItemById(item.id);
       setContextMenu({ visible: true, x, y, item, isEmptyArea: false });
     },
-    [selectItemById]
+    [selectItemById, setContextMenu]
   );
-
   const handleNativeContextMenu = useCallback(
     (event, item) => {
-      /* ... (as before) ... */
       if (draggedId || inlineRenameId) {
         event.preventDefault();
         return;
@@ -385,8 +555,8 @@ const App = () => {
       selectItemById(item?.id ?? null);
       let x = event.clientX,
         y = event.clientY;
-      const menuWidth = 190,
-        menuHeight = item ? (item.type === "folder" ? 350 : 280) : 180;
+      const menuWidth = 190;
+      const menuHeight = item ? (item.type === "folder" ? 350 : 280) : 180;
       if (x + menuWidth > window.innerWidth - 10)
         x = window.innerWidth - menuWidth - 10;
       if (x < 10) x = 10;
@@ -395,65 +565,42 @@ const App = () => {
       if (y < 10) y = 10;
       setContextMenu({ visible: true, x, y, item, isEmptyArea: !item });
     },
-    [draggedId, inlineRenameId, selectItemById]
+    [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
-
   useEffect(() => {
-    // Handles initial auth check and tree loading
-    const token = localStorage.getItem("userToken");
-    if (token) {
-      setCurrentUser({ token }); // Set minimal current user
-      setCurrentView("app");
-      if (fetchUserTree) fetchUserTree(token); // Pass token directly for clarity
-    } else {
-      setCurrentView("login");
-      if (resetTreeHistory) resetTreeHistory([]);
-    }
-    setIsAuthCheckComplete(true);
-  }, [fetchUserTree, resetTreeHistory]); // fetchUserTree and resetTreeHistory are stable
-
-  const handleLoginSuccess = async (userData) => {
-    setCurrentUser(userData); // userData from backend (token already set in localStorage by Login.jsx)
-    setCurrentView("app");
-    if (fetchUserTree) {
-      await fetchUserTree(localStorage.getItem("userToken")); // Fetch tree using the new token
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    setCurrentUser(null);
-    if (resetTreeHistory) resetTreeHistory([]);
-    showMessage("");
-    setCurrentView("login");
-  };
-
-  useEffect(() => {
-    /* ... (Global Keydown for Undo/Redo, Search Toggle - as before) ... */
-    const handler = (e) => {
+    /* Global Keydown for Undo/Redo, Search Toggle */ const handler = (e) => {
       const activeElement = document.activeElement;
-      const isInput =
+      const isInputFocused =
         activeElement &&
         (activeElement.tagName === "INPUT" ||
           activeElement.tagName === "TEXTAREA" ||
           activeElement.isContentEditable);
-      const isRenameActive =
+      const isRenameInputActive =
         !!inlineRenameId &&
         activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
           activeElement;
+      if (
+        isInputFocused &&
+        !isRenameInputActive &&
+        !activeElement.classList.contains("editor-pane") &&
+        activeElement.id !== "tree-navigation-area" &&
+        activeElement.id !== "global-search-input"
+      ) {
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y")
+        ) {
+          return;
+        }
+      }
       if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "z" &&
         !e.shiftKey
       ) {
-        if (
-          isInput &&
-          !isRenameActive &&
-          activeElement.id !== "tree-navigation-area" &&
-          activeElement.id !== "global-search-input" &&
-          !activeElement.classList.contains("editor-pane")
-        )
+        if (isRenameInputActive) {
           return;
+        }
         e.preventDefault();
         if (canUndoTree) undoTreeChange();
       } else if (
@@ -461,14 +608,9 @@ const App = () => {
         (e.key.toLowerCase() === "y" ||
           (e.shiftKey && e.key.toLowerCase() === "z"))
       ) {
-        if (
-          isInput &&
-          !isRenameActive &&
-          activeElement.id !== "tree-navigation-area" &&
-          activeElement.id !== "global-search-input" &&
-          !activeElement.classList.contains("editor-pane")
-        )
+        if (isRenameInputActive) {
           return;
+        }
         e.preventDefault();
         if (canRedoTree) redoTreeChange();
       } else if (
@@ -476,7 +618,8 @@ const App = () => {
         e.shiftKey &&
         e.key.toUpperCase() === "F"
       ) {
-        if (isInput && activeElement.id === "global-search-input") return;
+        if (isInputFocused && activeElement.id === "global-search-input")
+          return;
         e.preventDefault();
         setSearchSheetOpen((s) => !s);
       }
@@ -490,115 +633,130 @@ const App = () => {
     redoTreeChange,
     inlineRenameId,
   ]);
-
   useEffect(() => {
-    /* ... (Global Keydown for Tree Item Operations - as refined before) ... */
-    const handleGlobalTreeOpsKeyDown = async (e) => {
-      const activeEl = document.activeElement;
-      const isRenameActive =
-        !!inlineRenameId &&
-        activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-          activeEl;
-      if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) return;
-      const isStandardInputFocused =
-        activeEl &&
-        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA") &&
-        activeEl.id !== "tree-navigation-area" &&
-        !isRenameActive;
-      const isContentEditorFocused =
-        activeEl &&
-        (activeEl.classList.contains("editor-pane") ||
-          activeEl.closest(".editor-pane"));
-      if (
-        (isStandardInputFocused || isContentEditorFocused) &&
-        !(
-          (e.ctrlKey || e.metaKey) &&
-          ["c", "x", "v"].includes(e.key.toLowerCase())
-        )
-      ) {
-        if (e.key === "F2" && isContentEditorFocused) return;
-        else if (e.key === "Delete" || e.key === "Backspace") return;
-      }
-      const treeNav = document.querySelector(
-        'nav[aria-label="Notes and Tasks Tree"]'
-      );
-      const isTreeAreaLikelyFocused =
-        treeNav &&
-        (treeNav === activeEl ||
-          treeNav.contains(activeEl) ||
-          document.body === activeEl);
-      if (
-        e.key === "F2" &&
-        selectedItemId &&
-        !isRenameActive &&
-        !isContentEditorFocused
-      ) {
-        if (isTreeAreaLikelyFocused || document.body === activeEl) {
-          e.preventDefault();
-          const item = findItemByIdFromTree(selectedItemId);
-          if (item) startInlineRename(item);
+    /* Global Keydown for Tree Item Operations */ const handleGlobalTreeOpsKeyDown =
+      async (e) => {
+        const activeEl = document.activeElement;
+        const isRenameActive =
+          !!inlineRenameId &&
+          activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
+            activeEl;
+        if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) {
+          return;
         }
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "c" &&
-        selectedItemId &&
-        !isRenameActive &&
-        !isContentEditorFocused
-      ) {
-        e.preventDefault();
-        copyItem(selectedItemId);
-        showMessage("Item copied.", "success", 2000);
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "x" &&
-        selectedItemId &&
-        !isRenameActive &&
-        !isContentEditorFocused
-      ) {
-        e.preventDefault();
-        cutItem(selectedItemId);
-        showMessage("Item cut.", "success", 2000);
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "v" &&
-        clipboardItem &&
-        !isRenameActive &&
-        !isContentEditorFocused
-      ) {
-        e.preventDefault();
-        const currentItem = findItemByIdFromTree(selectedItemId);
-        const targetIdForPaste =
-          currentItem?.type === "folder"
-            ? selectedItemId
-            : findParentAndSiblingsFromTree(selectedItemId)?.parent?.id ?? null;
-        await handlePasteWrapper(targetIdForPaste);
-      } else if (
-        (e.key === "Delete" || e.key === "Backspace") &&
-        selectedItemId &&
-        !isRenameActive
-      ) {
-        if (
-          isContentEditorFocused ||
-          (isStandardInputFocused && activeEl.id !== "tree-navigation-area")
-        )
-          return;
-        if (
-          activeEl.id === "global-search-input" &&
-          ((e.key === "Backspace" && searchQuery !== "") || e.key === "Delete")
-        )
-          return;
-        if (isTreeAreaLikelyFocused || document.body === activeEl) {
-          e.preventDefault();
-          const item = findItemByIdFromTree(selectedItemId);
+        const isStandardInputFocused =
+          activeEl &&
+          (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA") &&
+          activeEl.id !== "tree-navigation-area" &&
+          !isRenameActive;
+        const isContentEditorFocused =
+          activeEl &&
+          (activeEl.classList.contains("editor-pane") ||
+            activeEl.closest(".editor-pane"));
+        const isTreeAreaLikelyFocused = () => {
+          const treeNav = document.querySelector(
+            'nav[aria-label="Notes and Tasks Tree"]'
+          );
+          return (
+            treeNav &&
+            (treeNav === activeEl ||
+              treeNav.contains(activeEl) ||
+              document.body === activeEl)
+          );
+        };
+        if (isStandardInputFocused || isContentEditorFocused) {
           if (
-            item &&
-            window.confirm(`Delete "${item.label}"? This cannot be undone.`)
+            (e.ctrlKey || e.metaKey) &&
+            ["c", "x", "v"].includes(e.key.toLowerCase())
+          )
+            return;
+          if (e.key === "F2" && isContentEditorFocused && !selectedItemId)
+            return;
+          if (e.key === "F2" && isStandardInputFocused) return;
+          if (
+            (e.key === "Delete" || e.key === "Backspace") &&
+            !isTreeAreaLikelyFocused()
+          )
+            return;
+        }
+        if (
+          e.key === "F2" &&
+          selectedItemId &&
+          !isRenameActive &&
+          (!isContentEditorFocused || isTreeAreaLikelyFocused())
+        ) {
+          if (
+            isTreeAreaLikelyFocused() ||
+            (isContentEditorFocused && selectedItemId)
           ) {
-            await handleDeleteConfirm(selectedItemId);
+            e.preventDefault();
+            const item = findItemByIdFromTree(selectedItemId);
+            if (item) startInlineRename(item);
+          }
+        } else if (
+          (e.ctrlKey || e.metaKey) &&
+          e.key.toLowerCase() === "c" &&
+          selectedItemId &&
+          !isRenameActive &&
+          !isContentEditorFocused
+        ) {
+          e.preventDefault();
+          copyItem(selectedItemId);
+          showMessage("Item copied.", "success", 2000);
+        } else if (
+          (e.ctrlKey || e.metaKey) &&
+          e.key.toLowerCase() === "x" &&
+          selectedItemId &&
+          !isRenameActive &&
+          !isContentEditorFocused
+        ) {
+          e.preventDefault();
+          cutItem(selectedItemId);
+          showMessage("Item cut.", "success", 2000);
+        } else if (
+          (e.ctrlKey || e.metaKey) &&
+          e.key.toLowerCase() === "v" &&
+          clipboardItem &&
+          !isRenameActive &&
+          !isContentEditorFocused
+        ) {
+          e.preventDefault();
+          const currentItem = findItemByIdFromTree(selectedItemId);
+          const targetIdForPaste =
+            currentItem?.type === "folder"
+              ? selectedItemId
+              : findParentAndSiblingsFromTree(selectedItemId)?.parent?.id ??
+                null;
+          await handlePasteWrapper(targetIdForPaste);
+        } else if (
+          (e.key === "Delete" ||
+            (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) &&
+          selectedItemId &&
+          !isRenameActive
+        ) {
+          if (
+            isContentEditorFocused ||
+            (isStandardInputFocused && activeEl.id !== "tree-navigation-area")
+          )
+            return;
+          if (
+            activeEl.id === "global-search-input" &&
+            ((e.key === "Backspace" && searchQuery !== "") ||
+              e.key === "Delete")
+          )
+            return;
+          if (isTreeAreaLikelyFocused() || document.body === activeEl) {
+            e.preventDefault();
+            const item = findItemByIdFromTree(selectedItemId);
+            if (
+              item &&
+              window.confirm(`Delete "${item.label}"? This cannot be undone.`)
+            ) {
+              await handleDeleteConfirm(selectedItemId);
+            }
           }
         }
-      }
-    };
+      };
     window.addEventListener("keydown", handleGlobalTreeOpsKeyDown);
     return () =>
       window.removeEventListener("keydown", handleGlobalTreeOpsKeyDown);
@@ -617,11 +775,11 @@ const App = () => {
     showMessage,
     findItemByIdFromTree,
     findParentAndSiblingsFromTree,
+    handleDeleteConfirm,
+    setContextMenu /* Added setContextMenu dependency for completeness */,
   ]);
-
   useEffect(() => {
-    /* ... (Search Results processing - as before) ... */
-    if (searchQuery && searchSheetOpen) {
+    /* Search Results processing */ if (searchQuery && searchSheetOpen) {
       const currentSearchOpts = { ...searchOptions, useRegex: false };
       const rawHits = searchItems(searchQuery, currentSearchOpts);
       const CONTEXT_CHARS_BEFORE = 20,
@@ -631,7 +789,7 @@ const App = () => {
       const processedResults = rawHits
         .map((hit) => {
           if (!hit || !hit.id) return null;
-          const pathString = getItemPath(hit.id);
+          const pathString = getItemPath(hit.id) || "";
           const originalLabel =
             typeof hit.label === "string"
               ? hit.label
@@ -642,10 +800,10 @@ const App = () => {
             typeof hit.content === "string" ? hit.content : "";
           const plainTextContent =
             htmlToPlainTextWithNewlines(originalContentHtml);
-          let displaySnippetText = "",
-            hlStartIndex = -1,
-            hlEndIndex = -1,
-            matchSrc = "";
+          let displaySnippetText = "";
+          let hlStartIndex = -1;
+          let hlEndIndex = -1;
+          let matchSrc = "";
           let pathLabelHlDetails = {
             start: -1,
             end: -1,
@@ -678,8 +836,9 @@ const App = () => {
               currentSearchOpts
             );
             if (contentMatchInfo) {
-              if (matchSrc === "label") matchSrc = "label & content";
-              else {
+              if (matchSrc === "label") {
+                matchSrc = "label & content";
+              } else {
                 matchSrc = "content";
                 const { matchedString, startIndex: siInPlainText } =
                   contentMatchInfo;
@@ -697,25 +856,35 @@ const App = () => {
                 );
                 hlStartIndex = siInPlainText - snipStart;
                 hlEndIndex = hlStartIndex + matchedString.length;
-                let preEll = snipStart > 0,
-                  sufEll = snipEnd < plainTextContent.length;
+                let preEll = snipStart > 0;
+                let sufEll = snipEnd < plainTextContent.length;
                 if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
-                  const ovf = displaySnippetText.length - MAX_SNIPPET_LENGTH;
-                  let redPre = Math.floor(ovf / 2);
-                  if (hlStartIndex < redPre) redPre = hlStartIndex;
-                  if (redPre > 0) {
-                    displaySnippetText = displaySnippetText.substring(redPre);
-                    hlStartIndex -= redPre;
-                    hlEndIndex -= redPre;
-                    preEll = true;
-                  }
-                  if (displaySnippetText.length > MAX_SNIPPET_LENGTH) {
-                    const cutEnd =
-                      displaySnippetText.length - MAX_SNIPPET_LENGTH;
+                  const overflow =
+                    displaySnippetText.length - MAX_SNIPPET_LENGTH;
+                  let reduceStart = Math.floor(overflow / 2);
+                  let reduceEnd = overflow - reduceStart;
+                  if (hlStartIndex < reduceStart) {
                     displaySnippetText = displaySnippetText.substring(
                       0,
-                      displaySnippetText.length - cutEnd
+                      MAX_SNIPPET_LENGTH
                     );
+                    sufEll = true;
+                  } else if (
+                    hlEndIndex >
+                    displaySnippetText.length - reduceEnd
+                  ) {
+                    displaySnippetText = displaySnippetText.substring(overflow);
+                    hlStartIndex -= overflow;
+                    hlEndIndex -= overflow;
+                    preEll = true;
+                  } else {
+                    displaySnippetText = displaySnippetText.substring(
+                      reduceStart,
+                      displaySnippetText.length - reduceEnd
+                    );
+                    hlStartIndex -= reduceStart;
+                    hlEndIndex -= reduceStart;
+                    preEll = true;
                     sufEll = true;
                   }
                   hlStartIndex = Math.max(0, hlStartIndex);
@@ -733,11 +902,14 @@ const App = () => {
             }
           }
           if (!matchSrc) {
-            displaySnippetText = originalLabel;
+            displaySnippetText =
+              originalLabel.substring(0, MAX_SNIPPET_LENGTH) +
+              (originalLabel.length > MAX_SNIPPET_LENGTH ? "..." : "");
             matchSrc = "unknown";
           }
+          resultCounter++;
           return {
-            id: `${hit.id}-${matchSrc}-${resultCounter++}`,
+            id: `${hit.id}-${matchSrc}-${resultCounter}`,
             originalId: hit.id,
             ...hit,
             path: pathString,
@@ -764,46 +936,41 @@ const App = () => {
     searchItems,
     getItemPath,
     searchSheetOpen,
-    tree,
-    matchText,
+    tree /* matchText removed as direct dep */,
   ]);
-
   useEffect(() => {
-    /* ... (Top Menu Outside Click Handler - as before) ... */
-    const handleClickOutside = (e) => {
-      if (topMenuRef.current && !topMenuRef.current.contains(e.target))
+    /* Top Menu Outside Click Handler */ const handleClickOutside = (e) => {
+      if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
         setTopMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (!isAuthCheckComplete) {
+  // -- Render logic --
+  if (!isAuthCheckComplete)
     return (
       <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-100">
         Loading application...
       </div>
     );
-  }
-
-  if (currentView === "login") {
+  // Use the state variables currentView and setCurrentView for rendering logic
+  if (currentView === "login")
     return (
       <Login
         onLoginSuccess={handleLoginSuccess}
         onSwitchToRegister={() => setCurrentView("register")}
       />
     );
-  }
-  if (currentView === "register") {
+  if (currentView === "register")
     return (
       <Register
         onRegisterSuccess={() => setCurrentView("login")}
         onSwitchToLogin={() => setCurrentView("login")}
       />
     );
-  }
 
-  // currentView === 'app'
   return (
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <ErrorDisplay
@@ -814,7 +981,6 @@ const App = () => {
       <header
         className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
       >
-        {/* ... Header JSX as before ... */}
         <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
           <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis mr-2 text-zinc-800 dark:text-zinc-100">
             Notes & Tasks
@@ -947,7 +1113,6 @@ const App = () => {
             maxSize={60}
             className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-800/30 border-r border-zinc-200 dark:border-zinc-700/50"
           >
-            {/* ... Tree Panel JSX as before ... */}
             <div
               className="flex-grow overflow-auto"
               id="tree-navigation-area"
@@ -1000,16 +1165,13 @@ const App = () => {
             minSize={30}
             className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-900"
           >
-            {" "}
-            {/* CHANGED to dark:bg-zinc-900 for panel */}
             <div className="flex-grow overflow-auto h-full">
               {selectedItem ? (
                 selectedItem.type === "folder" ? (
                   <div className="p-3 sm:p-4">
                     <h2 className="text-lg sm:text-xl font-semibold mb-3 text-zinc-800 dark:text-zinc-100 break-words">
                       {" "}
-                      {/* Added dark text color */}
-                      {selectedItem.label}
+                      {selectedItem.label}{" "}
                     </h2>
                     <FolderContents
                       folder={selectedItem}
@@ -1071,7 +1233,6 @@ const App = () => {
           </Panel>
         </PanelGroup>
       </main>
-      {/* ... Sheet, ContextMenu, AddDialog, AboutDialog, ExportDialog, ImportDialog, SettingsDialog JSX as before ... */}
       <Sheet
         isOpen={searchSheetOpen}
         onClose={() => setSearchSheetOpen(false)}

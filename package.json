@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "3.2.0",
-  "commitMessage": "Editor title and toolbar are fixed in place. ",
+  "version": "3.3.0",
+  "commitMessage": "Added Auto Export Feature",
   "private": true,
   "scripts": {
     "dev": "vite",
