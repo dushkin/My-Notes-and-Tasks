@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 
 const API_BASE_URL =
-  process.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [email, setEmail] = useState("");

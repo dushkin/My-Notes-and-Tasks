@@ -1,8 +1,9 @@
 // src/components/Login.jsx
 import React, { useState } from "react";
 
+// Use import.meta.env for Vite environment variables in client-side code
 const API_BASE_URL =
-  process.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api/fallback";
 
 const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   const [email, setEmail] = useState("");
@@ -10,28 +11,33 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // console.log(`[Login.jsx RENDER] Initial state for this render - email: '${email}', password: '${password}', error: '${error}'`);
+  // Optional: Log state on every render for debugging this specific test
+  // console.log(`[Login.jsx RENDER] email: '${email}', password: '${password}', error: '${error}'`);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // ----- VERY IMPORTANT LOG: This should be the FIRST line executed in handleSubmit -----
     console.log(
-      `-----> [Login.jsx handleSubmit ENTRY] email: '${email}', password: '${password}' <-----`
+      `-----> [Login.jsx handleSubmit ENTRY] email_state_is: '${email}', password_state_is: '${password}' <-----`
     );
+    // ------------------------------------------------------------------------------------
 
     setError("");
     setIsLoading(true);
 
     if (!email || !password) {
+      // This log is also critical for the failing test:
       console.log(
-        `-----> [Login.jsx handleSubmit DEBUG] EMPTY FIELDS VALIDATION HIT! Setting error.`
+        `-----> [Login.jsx handleSubmit] EMPTY FIELDS VALIDATION HIT! Setting error to "Please enter both email and password."`
       );
       setError("Please enter both email and password.");
-      setIsLoading(false);
+      setIsLoading(false); // Ensure isLoading is reset on validation failure
       return;
     }
 
+    // This log should only appear if the condition above was false.
     console.log(
-      `-----> [Login.jsx handleSubmit DEBUG] Fields were NOT empty. Proceeding...`
+      `-----> [Login.jsx handleSubmit] Fields were NOT empty. Proceeding...`
     );
 
     try {
@@ -83,9 +89,8 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
             {error}
           </p>
         )}
+        {/* Ensure your test environment's getByTestId looks for "data-item-id" if you use that here */}
         <form onSubmit={handleSubmit} data-item-id="login-form">
-          {" "}
-          {/* Changed to data-item-id */}
           <div className="mb-4">
             <label
               className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
