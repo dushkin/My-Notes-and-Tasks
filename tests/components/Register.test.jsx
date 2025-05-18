@@ -17,14 +17,14 @@ const mockOnSwitchToLogin = jest.fn();
 global.fetch = jest.fn();
 const originalAlert = window.alert;
 
-const originalEnv = { ...process.env };
+const originalEnv = { ...import.meta.env };
 // Adjust this based on your test environment's VITE_API_BASE_URL resolution
 const EXPECTED_API_BASE_URL =
-  process.env.VITE_API_BASE_URL || "http://localhost:5001/api/test";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api/test";
 const EXPECTED_API_REGISTER_ENDPOINT = `${EXPECTED_API_BASE_URL}/auth/register`;
 
 afterAll(() => {
-  process.env = originalEnv;
+  import.meta.env = originalEnv;
   window.alert = originalAlert; // Restore original alert
 });
 

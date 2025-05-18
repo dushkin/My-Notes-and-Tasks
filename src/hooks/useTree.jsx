@@ -21,7 +21,7 @@ import { itemMatches } from "../utils/searchUtils";
 import { useUndoRedo } from "./useUndoRedo";
 
 const API_BASE_URL =
-  process.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 const getAuthToken = () => {
   return localStorage.getItem("userToken");
