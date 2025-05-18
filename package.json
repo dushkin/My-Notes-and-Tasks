@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "3.1.2",
-  "commitMessage": "Fixed production pointing to render issue - may be unstable.",
+  "version": "3.1.3",
+  "commitMessage": "Fixed too quick typing issue",
   "private": true,
   "scripts": {
     "dev": "vite",
