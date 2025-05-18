@@ -1,5 +1,16 @@
-import React, { useState, useEffect } from "react"; // Removed useCallback as it's not used here
+import React, { useState, useEffect, useCallback } from "react"; // [!] Added useCallback
 import EditorPane from "./EditorPane";
+
+// Debounce function
+function debounce(func, delay) {
+  let timeoutId;
+  return function (...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      func.apply(this, args);
+    }, delay);
+  };
+}
 
 const ContentEditor = ({
   item,
@@ -18,21 +29,26 @@ const ContentEditor = ({
     );
   }
 
-  // Initialize state using the key prop in App.jsx to trigger re-initialization
-  // The 'key' prop on ContentEditor in App.jsx (key={selectedItemId}) handles re-initialization.
-  // So, useState can directly use item.content.
   const [body, setBody] = useState(item.content ?? "");
 
-  // This useEffect will sync internal 'body' state if the 'item.content' prop changes
-  // externally (e.g., due to undo/redo or another operation updating the item).
   useEffect(() => {
     setBody(item.content ?? "");
-  }, [item.content, item.id]); // Depend on item.id as well if you want to reset for new item
+  }, [item.content, item.id]);
+
+  // Create a debounced version of onSaveContent
+  // We use useCallback to ensure the debounced function is not recreated on every render
+  // unless item.id or onSaveContent changes.
+  const debouncedSaveContent = useCallback(
+    debounce((itemId, newHtml) => {
+      onSaveContent(itemId, newHtml);
+    }, 1000), // Delay of 1000ms (1 second) - adjust as needed
+    [onSaveContent] // onSaveContent should be stable if passed from App.jsx correctly
+  );
 
   const handleChange = (html) => {
-    // console.log(`ContentEditor: handleChange for item ${item.id}, new html:`, html.substring(0, 50) + "...");
     setBody(html); // Update internal state for responsiveness
-    onSaveContent(item.id, html); // Propagate change up for saving
+    // Call the debounced save function instead of the original
+    debouncedSaveContent(item.id, html);
   };
 
   return (
@@ -45,7 +61,7 @@ const ContentEditor = ({
         {item.label}
       </h2>
       <EditorPane
-        html={body} // Use internal body state
+        html={body}
         onChange={handleChange}
         defaultFontFamily={defaultFontFamily}
         defaultFontSize={defaultFontSize}
