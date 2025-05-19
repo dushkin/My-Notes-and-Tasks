@@ -107,7 +107,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
 const App = () => {
   const { settings } = useSettings();
   const {
-    tree,
+    tree, // We still need tree here for the ref update
     selectedItem,
     selectedItemId,
     selectItemById,
@@ -142,10 +142,9 @@ const App = () => {
     isFetchingTree,
   } = useTree();
 
-  // Moved State Declarations to the top
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
-  const [currentView, setCurrentView] = useState("login"); // Now declared before use in useEffects
+  const [currentView, setCurrentView] = useState("login");
 
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
@@ -153,9 +152,7 @@ const App = () => {
   const [searchSheetOpen, setSearchSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
-    caseSensitive: false,
-    wholeWord: false,
-    useRegex: false,
+    /* ... */
   });
   const [searchResults, setSearchResults] = useState([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -188,70 +185,100 @@ const App = () => {
 
   // --- Auto Export Logic ---
   const autoExportIntervalRef = useRef(null);
+  const performAutoExportRef = useRef(null); // Ref to hold the export function
 
+  // Effect to update the function in the ref whenever its dependencies change
+  // This allows the setInterval callback to always call the latest version of performAutoExport
+  useEffect(() => {
+    performAutoExportRef.current = () => {
+      // This function now has access to the latest `tree`, `settings`, etc. from the App component's scope
+      if (
+        !settings.autoExportEnabled ||
+        currentView !== "app" ||
+        !currentUser
+      ) {
+        console.log(
+          "Auto Export: Conditions not met, skipping actual export execution within ref function."
+        );
+        return;
+      }
+      if (!tree || tree.length === 0) {
+        console.info(
+          "Auto Export: Tree is empty, skipping export (from ref function)."
+        );
+        return;
+      }
+
+      const exportFormat = settings.defaultExportFormat || "json";
+      const filename = getTimestampedFilename("auto-tree-export", exportFormat);
+
+      console.log(`Auto Export: Interval Fired. Exporting tree as ${filename}`);
+      // showMessage(`Auto-exporting as ${filename}...`, "info", 2000); // Optional: less noisy
+
+      try {
+        const dataToExport = tree; // `tree` here is the latest from App's scope due to closure
+        if (exportFormat === "json") {
+          const jsonStr = JSON.stringify(dataToExport, null, 2);
+          const blob = new Blob([jsonStr], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log(
+            `Auto Export: Successfully triggered download for ${filename}`
+          );
+        } else if (exportFormat === "pdf") {
+          console.warn(
+            `PDF auto-export for ${filename} needs specific PDF generation logic.`
+          );
+          // showMessage(`PDF Auto-export for ${filename} (not implemented).`, "info", 3000);
+        }
+      } catch (error) {
+        console.error("Auto Export: Failed to export data.", error);
+        showMessage("Auto export failed.", "error");
+      }
+    };
+  }, [
+    tree,
+    settings.autoExportEnabled,
+    settings.defaultExportFormat,
+    settings.autoExportIntervalMinutes,
+    currentView,
+    currentUser,
+    showMessage,
+  ]);
+
+  // Effect to set up and clear the interval.
+  // This effect's dependencies ONLY determine when the interval itself should be reset (e.g., when interval time changes).
+  // It does NOT depend on `tree` directly.
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
       autoExportIntervalRef.current = null;
+      // console.log("Auto Export: Previous interval cleared."); // Less verbose
     }
 
-    const canRunAutoExport =
+    const canSetupInterval =
       settings.autoExportEnabled &&
       settings.autoExportIntervalMinutes >= 1 &&
       currentView === "app" &&
       currentUser;
 
-    if (canRunAutoExport) {
+    if (canSetupInterval) {
       const intervalMs = settings.autoExportIntervalMinutes * 60 * 1000;
-      const performAutoExport = () => {
-        if (!tree || tree.length === 0) {
-          console.info("Auto Export: Tree is empty, skipping export.");
-          return;
+
+      autoExportIntervalRef.current = setInterval(() => {
+        if (performAutoExportRef.current) {
+          performAutoExportRef.current(); // Call the latest version of the export function
         }
-        const exportFormat = settings.defaultExportFormat || "json";
-        const filename = getTimestampedFilename(
-          "auto-tree-export",
-          exportFormat
-        );
-        console.log(`Auto Export: Triggering export of tree as ${filename}`);
-        showMessage(`Auto-exporting as ${filename}...`, "info", 2000);
-        try {
-          const dataToExport = tree;
-          if (exportFormat === "json") {
-            const jsonStr = JSON.stringify(dataToExport, null, 2);
-            const blob = new Blob([jsonStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            console.log(
-              `Auto Export: Successfully triggered download for ${filename}`
-            );
-          } else if (exportFormat === "pdf") {
-            console.warn(
-              `PDF auto-export for ${filename} needs specific PDF generation logic.`
-            );
-            showMessage(
-              `PDF Auto-export for ${filename} (not implemented).`,
-              "info",
-              3000
-            );
-          }
-        } catch (error) {
-          console.error("Auto Export: Failed to export data.", error);
-          showMessage("Auto export failed.", "error");
-        }
-      };
-      autoExportIntervalRef.current = setInterval(
-        performAutoExport,
-        intervalMs
-      );
+      }, intervalMs);
+
       console.log(
-        `Auto Export: Enabled. Interval set to ${settings.autoExportIntervalMinutes} minutes.`
+        `Auto Export: Interval set. Exports every ${settings.autoExportIntervalMinutes} minutes.`
       );
       showMessage(
         `Auto-export active: every ${settings.autoExportIntervalMinutes} min.`,
@@ -263,26 +290,30 @@ const App = () => {
         settings.autoExportEnabled &&
         (currentView !== "app" || !currentUser)
       ) {
-        console.log("Auto Export: Paused (not in app view or no user).");
+        console.log(
+          "Auto Export: Paused (conditions not met for interval setup)."
+        );
       } else if (!settings.autoExportEnabled) {
-        console.log("Auto Export: Disabled.");
+        console.log("Auto Export: Disabled (interval not set).");
       }
     }
+
     return () => {
       if (autoExportIntervalRef.current) {
         clearInterval(autoExportIntervalRef.current);
         autoExportIntervalRef.current = null;
-        console.log("Auto Export: Interval cleared.");
+        console.log(
+          "Auto Export: Interval cleared on cleanup or settings change."
+        );
       }
     };
   }, [
     settings.autoExportEnabled,
-    settings.autoExportIntervalMinutes,
-    settings.defaultExportFormat,
-    tree,
-    showMessage,
+    settings.autoExportIntervalMinutes, // Interval resets if this specific setting changes
     currentView,
     currentUser,
+    showMessage, // To show the "Auto-export active" message
+    // `tree` and `settings.defaultExportFormat` are NOT dependencies here anymore
   ]);
   // --- End Auto Export Logic ---
 
@@ -298,7 +329,7 @@ const App = () => {
       if (resetTreeHistory) resetTreeHistory([]);
       setIsAuthCheckComplete(true);
     }
-  }, [fetchUserTree, resetTreeHistory]);
+  }, [fetchUserTree, resetTreeHistory]); // fetchUserTree and resetTreeHistory are stable from useTree
 
   const handleLoginSuccess = async (userData) => {
     setCurrentUser(userData);
@@ -316,7 +347,7 @@ const App = () => {
     setCurrentView("login");
   };
 
-  // ... (all other useCallback and useEffect hooks from your App.jsx)
+  // ... (all other useCallback and useEffect hooks from your App.jsx, they should remain unchanged)
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -468,7 +499,7 @@ const App = () => {
       setTopMenuOpen(false);
     },
     [setContextMenu]
-  ); // Added setContextMenu dependency
+  );
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -476,7 +507,7 @@ const App = () => {
       setTopMenuOpen(false);
     },
     [setContextMenu]
-  ); // Added setContextMenu dependency
+  );
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
@@ -776,7 +807,7 @@ const App = () => {
     findItemByIdFromTree,
     findParentAndSiblingsFromTree,
     handleDeleteConfirm,
-    setContextMenu /* Added setContextMenu dependency for completeness */,
+    setContextMenu,
   ]);
   useEffect(() => {
     /* Search Results processing */ if (searchQuery && searchSheetOpen) {
@@ -936,7 +967,7 @@ const App = () => {
     searchItems,
     getItemPath,
     searchSheetOpen,
-    tree /* matchText removed as direct dep */,
+    tree,
   ]);
   useEffect(() => {
     /* Top Menu Outside Click Handler */ const handleClickOutside = (e) => {
@@ -948,14 +979,12 @@ const App = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // -- Render logic --
   if (!isAuthCheckComplete)
     return (
       <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-100">
         Loading application...
       </div>
     );
-  // Use the state variables currentView and setCurrentView for rendering logic
   if (currentView === "login")
     return (
       <Login
