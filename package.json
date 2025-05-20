@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "3.4.1",
-  "commitMessage": "Fixed Auto Export interval reset issue",
+  "version": "3.5.0",
+  "commitMessage": "Use TipTap library for editing items; Add TT to About dialog",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,16 @@
     "test": "jest"
   },
   "dependencies": {
+    "@tiptap/extension-font-family": "^2.12.0",
+    "@tiptap/extension-image": "^2.12.0",
+    "@tiptap/extension-link": "^2.12.0",
+    "@tiptap/extension-placeholder": "^2.12.0",
+    "@tiptap/extension-text-align": "^2.12.0",
+    "@tiptap/extension-text-style": "^2.12.0",
+    "@tiptap/extension-underline": "^2.12.0",
+    "@tiptap/pm": "^2.12.0",
+    "@tiptap/react": "^2.12.0",
+    "@tiptap/starter-kit": "^2.12.0",
     "jspdf": "^3.0.1",
     "lucide-react": "^0.503.0",
     "prismjs": "^1.30.0",
