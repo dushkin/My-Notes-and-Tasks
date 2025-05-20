@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { SettingsProvider } from "./contexts/SettingsContext"; // <-- Import Provider
 import "./styles/index.css";
+import './TipTap.css'
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

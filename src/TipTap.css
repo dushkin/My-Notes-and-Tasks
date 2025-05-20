@@ -1,0 +1,62 @@
+/* src/TipTap.css (or import into your main CSS) */
+
+/* Ensure the editor content area takes up available space and looks like an input */
+.tiptap-editor-content-area .ProseMirror {
+    flex-grow: 1;
+    min-height: 200px;
+    /* Adjust as needed */
+    outline: none;
+    /* Handled by Tailwind focus:outline-none on attributes */
+    width: 100%;
+    height: 100%;
+    /* Allow it to fill the scrollable container */
+    overflow-y: auto;
+    /* Should not be needed if wrapper div scrolls */
+}
+
+/* Styling for the placeholder text */
+.tiptap-editor-content-area .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: #adb5bd;
+    /* Tailwind gray-400 or similar */
+    pointer-events: none;
+    height: 0;
+}
+
+/* Default image styling (already in Image extension, but can be overridden) */
+.tiptap-editor-content-area .ProseMirror img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+/* Basic styling for code blocks if not fully covered by prose */
+.tiptap-editor-content-area .ProseMirror pre {
+    background: #f3f4f6;
+    /* Tailwind gray-100 */
+    color: #1f2937;
+    /* Tailwind gray-800 */
+    font-family: monospace;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    white-space: pre-wrap;
+    /* Ensure long lines wrap */
+}
+
+.dark .tiptap-editor-content-area .ProseMirror pre {
+    background: #374151;
+    /* Tailwind gray-700 */
+    color: #f3f4f6;
+    /* Tailwind gray-100 */
+}
+
+.tiptap-editor-content-area .ProseMirror pre code {
+    color: inherit;
+    padding: 0;
+    background: none;
+    font-size: 0.9em;
+    /* Slightly smaller */
+}

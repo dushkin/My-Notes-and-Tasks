@@ -15,6 +15,7 @@ const AboutDialog = ({ isOpen, onClose }) => {
         <h2 className="text-xl font-bold mb-4">About {appName}</h2>
         <div className="space-y-2 mb-6 text-zinc-800 dark:text-zinc-200">
           <p>{appName} &copy; {currentYear}</p>
+          <p>&copy; TT</p>
           <p>Version: {appVersion}</p>
         </div>
         <button
