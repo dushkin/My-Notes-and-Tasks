@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "commonjs", // Or "ESNext" if your project supports it
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./dist", // Optional: if you want to compile TS files
+    "rootDir": "./",
+    "resolveJsonModule": true,
+    "noEmit": true, // Playwright typically runs TS files directly with its own transpilation
+    "allowImportingTsExtensions": true,
+    "moduleResolution": "node",
+    "types": ["@playwright/test", "node"]
+  },
+  "include": [
+    "tests/**/*.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
