@@ -1,9 +1,8 @@
 // src/App.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
-// ... (all your existing imports, ensure useSettings and useTree are present)
 import Tree from "./components/Tree";
 import FolderContents from "./components/FolderContents";
-import ContentEditor from "./components/ContentEditor";
+import ContentEditor from "./components/ContentEditor"; // Uses TipTapEditor inside
 import ContextMenu from "./components/ContextMenu";
 import AddDialog from "./components/AddDialog";
 import AboutDialog from "./components/AboutDialog";
@@ -107,7 +106,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
 const App = () => {
   const { settings } = useSettings();
   const {
-    tree, // We still need tree here for the ref update
+    tree,
     selectedItem,
     selectedItemId,
     selectItemById,
@@ -152,7 +151,9 @@ const App = () => {
   const [searchSheetOpen, setSearchSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
-    /* ... */
+    caseSensitive: false,
+    wholeWord: false,
+    useRegex: false,
   });
   const [searchResults, setSearchResults] = useState([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -183,40 +184,22 @@ const App = () => {
     []
   );
 
-  // --- Auto Export Logic ---
   const autoExportIntervalRef = useRef(null);
-  const performAutoExportRef = useRef(null); // Ref to hold the export function
+  const performAutoExportRef = useRef(null);
 
-  // Effect to update the function in the ref whenever its dependencies change
-  // This allows the setInterval callback to always call the latest version of performAutoExport
   useEffect(() => {
     performAutoExportRef.current = () => {
-      // This function now has access to the latest `tree`, `settings`, etc. from the App component's scope
-      if (
-        !settings.autoExportEnabled ||
-        currentView !== "app" ||
-        !currentUser
-      ) {
-        console.log(
-          "Auto Export: Conditions not met, skipping actual export execution within ref function."
-        );
+      if (!settings.autoExportEnabled || currentView !== "app" || !currentUser)
         return;
-      }
       if (!tree || tree.length === 0) {
-        console.info(
-          "Auto Export: Tree is empty, skipping export (from ref function)."
-        );
+        console.info("Auto Export: Tree is empty, skipping.");
         return;
       }
-
       const exportFormat = settings.defaultExportFormat || "json";
       const filename = getTimestampedFilename("auto-tree-export", exportFormat);
-
       console.log(`Auto Export: Interval Fired. Exporting tree as ${filename}`);
-      // showMessage(`Auto-exporting as ${filename}...`, "info", 2000); // Optional: less noisy
-
       try {
-        const dataToExport = tree; // `tree` here is the latest from App's scope due to closure
+        const dataToExport = tree;
         if (exportFormat === "json") {
           const jsonStr = JSON.stringify(dataToExport, null, 2);
           const blob = new Blob([jsonStr], { type: "application/json" });
@@ -235,7 +218,6 @@ const App = () => {
           console.warn(
             `PDF auto-export for ${filename} needs specific PDF generation logic.`
           );
-          // showMessage(`PDF Auto-export for ${filename} (not implemented).`, "info", 3000);
         }
       } catch (error) {
         console.error("Auto Export: Failed to export data.", error);
@@ -252,31 +234,23 @@ const App = () => {
     showMessage,
   ]);
 
-  // Effect to set up and clear the interval.
-  // This effect's dependencies ONLY determine when the interval itself should be reset (e.g., when interval time changes).
-  // It does NOT depend on `tree` directly.
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
       autoExportIntervalRef.current = null;
-      // console.log("Auto Export: Previous interval cleared."); // Less verbose
     }
-
     const canSetupInterval =
       settings.autoExportEnabled &&
       settings.autoExportIntervalMinutes >= 1 &&
       currentView === "app" &&
       currentUser;
-
     if (canSetupInterval) {
       const intervalMs = settings.autoExportIntervalMinutes * 60 * 1000;
-
       autoExportIntervalRef.current = setInterval(() => {
         if (performAutoExportRef.current) {
-          performAutoExportRef.current(); // Call the latest version of the export function
+          performAutoExportRef.current();
         }
       }, intervalMs);
-
       console.log(
         `Auto Export: Interval set. Exports every ${settings.autoExportIntervalMinutes} minutes.`
       );
@@ -286,18 +260,8 @@ const App = () => {
         4000
       );
     } else {
-      if (
-        settings.autoExportEnabled &&
-        (currentView !== "app" || !currentUser)
-      ) {
-        console.log(
-          "Auto Export: Paused (conditions not met for interval setup)."
-        );
-      } else if (!settings.autoExportEnabled) {
-        console.log("Auto Export: Disabled (interval not set).");
-      }
+      /* ... logging for disabled/paused ... */
     }
-
     return () => {
       if (autoExportIntervalRef.current) {
         clearInterval(autoExportIntervalRef.current);
@@ -309,16 +273,13 @@ const App = () => {
     };
   }, [
     settings.autoExportEnabled,
-    settings.autoExportIntervalMinutes, // Interval resets if this specific setting changes
+    settings.autoExportIntervalMinutes,
     currentView,
     currentUser,
-    showMessage, // To show the "Auto-export active" message
-    // `tree` and `settings.defaultExportFormat` are NOT dependencies here anymore
+    showMessage,
   ]);
-  // --- End Auto Export Logic ---
 
   useEffect(() => {
-    // Initial Auth Check
     const token = localStorage.getItem("userToken");
     if (token && fetchUserTree) {
       setCurrentUser({ token });
@@ -329,7 +290,7 @@ const App = () => {
       if (resetTreeHistory) resetTreeHistory([]);
       setIsAuthCheckComplete(true);
     }
-  }, [fetchUserTree, resetTreeHistory]); // fetchUserTree and resetTreeHistory are stable from useTree
+  }, [fetchUserTree, resetTreeHistory]);
 
   const handleLoginSuccess = async (userData) => {
     setCurrentUser(userData);
@@ -338,7 +299,6 @@ const App = () => {
       await fetchUserTree(localStorage.getItem("userToken"));
     }
   };
-
   const handleLogout = () => {
     localStorage.removeItem("userToken");
     setCurrentUser(null);
@@ -347,7 +307,6 @@ const App = () => {
     setCurrentView("login");
   };
 
-  // ... (all other useCallback and useEffect hooks from your App.jsx, they should remain unchanged)
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -598,8 +557,9 @@ const App = () => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
+
   useEffect(() => {
-    /* Global Keydown for Undo/Redo, Search Toggle */ const handler = (e) => {
+    const handler = (e) => {
       const activeElement = document.activeElement;
       const isInputFocused =
         activeElement &&
@@ -610,10 +570,15 @@ const App = () => {
         !!inlineRenameId &&
         activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
           activeElement;
+      const isTipTapEditorFocused =
+        activeElement &&
+        (activeElement.classList.contains("ProseMirror") ||
+          activeElement.closest(".ProseMirror"));
+
       if (
         isInputFocused &&
         !isRenameInputActive &&
-        !activeElement.classList.contains("editor-pane") &&
+        !isTipTapEditorFocused &&
         activeElement.id !== "tree-navigation-area" &&
         activeElement.id !== "global-search-input"
       ) {
@@ -624,14 +589,13 @@ const App = () => {
           return;
         }
       }
+
       if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "z" &&
         !e.shiftKey
       ) {
-        if (isRenameInputActive) {
-          return;
-        }
+        if (isRenameInputActive || isTipTapEditorFocused) return;
         e.preventDefault();
         if (canUndoTree) undoTreeChange();
       } else if (
@@ -639,9 +603,7 @@ const App = () => {
         (e.key.toLowerCase() === "y" ||
           (e.shiftKey && e.key.toLowerCase() === "z"))
       ) {
-        if (isRenameInputActive) {
-          return;
-        }
+        if (isRenameInputActive || isTipTapEditorFocused) return;
         e.preventDefault();
         if (canRedoTree) redoTreeChange();
       } else if (
@@ -664,130 +626,131 @@ const App = () => {
     redoTreeChange,
     inlineRenameId,
   ]);
+
   useEffect(() => {
-    /* Global Keydown for Tree Item Operations */ const handleGlobalTreeOpsKeyDown =
-      async (e) => {
-        const activeEl = document.activeElement;
-        const isRenameActive =
-          !!inlineRenameId &&
-          activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-            activeEl;
-        if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) {
-          return;
-        }
-        const isStandardInputFocused =
-          activeEl &&
-          (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA") &&
-          activeEl.id !== "tree-navigation-area" &&
-          !isRenameActive;
-        const isContentEditorFocused =
-          activeEl &&
-          (activeEl.classList.contains("editor-pane") ||
-            activeEl.closest(".editor-pane"));
-        const isTreeAreaLikelyFocused = () => {
-          const treeNav = document.querySelector(
-            'nav[aria-label="Notes and Tasks Tree"]'
-          );
-          return (
-            treeNav &&
-            (treeNav === activeEl ||
-              treeNav.contains(activeEl) ||
-              document.body === activeEl)
-          );
-        };
-        if (isStandardInputFocused || isContentEditorFocused) {
-          if (
-            (e.ctrlKey || e.metaKey) &&
-            ["c", "x", "v"].includes(e.key.toLowerCase())
-          )
-            return;
-          if (e.key === "F2" && isContentEditorFocused && !selectedItemId)
-            return;
-          if (e.key === "F2" && isStandardInputFocused) return;
-          if (
-            (e.key === "Delete" || e.key === "Backspace") &&
-            !isTreeAreaLikelyFocused()
-          )
-            return;
-        }
-        if (
-          e.key === "F2" &&
-          selectedItemId &&
-          !isRenameActive &&
-          (!isContentEditorFocused || isTreeAreaLikelyFocused())
-        ) {
-          if (
-            isTreeAreaLikelyFocused() ||
-            (isContentEditorFocused && selectedItemId)
-          ) {
-            e.preventDefault();
-            const item = findItemByIdFromTree(selectedItemId);
-            if (item) startInlineRename(item);
-          }
-        } else if (
-          (e.ctrlKey || e.metaKey) &&
-          e.key.toLowerCase() === "c" &&
-          selectedItemId &&
-          !isRenameActive &&
-          !isContentEditorFocused
-        ) {
-          e.preventDefault();
-          copyItem(selectedItemId);
-          showMessage("Item copied.", "success", 2000);
-        } else if (
-          (e.ctrlKey || e.metaKey) &&
-          e.key.toLowerCase() === "x" &&
-          selectedItemId &&
-          !isRenameActive &&
-          !isContentEditorFocused
-        ) {
-          e.preventDefault();
-          cutItem(selectedItemId);
-          showMessage("Item cut.", "success", 2000);
-        } else if (
-          (e.ctrlKey || e.metaKey) &&
-          e.key.toLowerCase() === "v" &&
-          clipboardItem &&
-          !isRenameActive &&
-          !isContentEditorFocused
-        ) {
-          e.preventDefault();
-          const currentItem = findItemByIdFromTree(selectedItemId);
-          const targetIdForPaste =
-            currentItem?.type === "folder"
-              ? selectedItemId
-              : findParentAndSiblingsFromTree(selectedItemId)?.parent?.id ??
-                null;
-          await handlePasteWrapper(targetIdForPaste);
-        } else if (
-          (e.key === "Delete" ||
-            (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) &&
-          selectedItemId &&
-          !isRenameActive
-        ) {
-          if (
-            isContentEditorFocused ||
-            (isStandardInputFocused && activeEl.id !== "tree-navigation-area")
-          )
-            return;
-          if (
-            activeEl.id === "global-search-input" &&
-            ((e.key === "Backspace" && searchQuery !== "") ||
-              e.key === "Delete")
-          )
-            return;
-          if (isTreeAreaLikelyFocused() || document.body === activeEl) {
-            e.preventDefault();
-            const item = findItemByIdFromTree(selectedItemId);
-            if (
-              item &&
-              window.confirm(`Delete "${item.label}"? This cannot be undone.`)
-            ) {
-              await handleDeleteConfirm(selectedItemId);
-            }
-          }
-        }
+    const handleGlobalTreeOpsKeyDown = async (e) => {
+      const activeEl = document.activeElement;
+      const isRenameActive =
+        !!inlineRenameId &&
+        activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
+          activeEl;
+
+      if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) {
+        return;
+      }
+
+      const isTipTapEditorFocused =
+        activeEl &&
+        (activeEl.classList.contains("ProseMirror") ||
+          activeEl.closest(".ProseMirror"));
+      const isStandardInputFocused =
+        activeEl &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA") &&
+        activeEl.id !== "tree-navigation-area" &&
+        !isRenameActive &&
+        !isTipTapEditorFocused;
+
+      const isTreeAreaLikelyFocused = () => {
+        const treeNav = document.querySelector(
+          'nav[aria-label="Notes and Tasks Tree"]'
+        );
+        return (
+          treeNav &&
+          (treeNav === activeEl ||
+            treeNav.contains(activeEl) ||
+            document.body === activeEl)
+        );
       };
+
+      if (isStandardInputFocused) {
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          ["c", "x", "v"].includes(e.key.toLowerCase())
+        )
+          return;
+        if (e.key === "F2") return;
+        if (
+          (e.key === "Delete" || e.key === "Backspace") &&
+          !isTreeAreaLikelyFocused()
+        )
+          return;
+      }
+
+      if (isTipTapEditorFocused) {
+        // Allow TipTap to handle its own C/X/V, Delete, Backspace
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          ["c", "x", "v"].includes(e.key.toLowerCase())
+        )
+          return;
+        if (e.key === "Delete" || e.key === "Backspace") return;
+        // F2 for rename might still be triggered if a tree item is selected, even if TipTap is focused
+        // This is handled by the F2 logic below.
+      }
+
+      if (e.key === "F2" && selectedItemId && !isRenameActive) {
+        // Allow rename if tree area is focused OR if TipTap is focused AND a tree item is selected
+        if (
+          isTreeAreaLikelyFocused() ||
+          (isTipTapEditorFocused && selectedItemId)
+        ) {
+          e.preventDefault();
+          const item = findItemByIdFromTree(selectedItemId);
+          if (item) startInlineRename(item);
+        }
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "c" &&
+        selectedItemId &&
+        !isRenameActive &&
+        !isTipTapEditorFocused
+      ) {
+        e.preventDefault();
+        copyItem(selectedItemId);
+        showMessage("Item copied.", "success", 2000);
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "x" &&
+        selectedItemId &&
+        !isRenameActive &&
+        !isTipTapEditorFocused
+      ) {
+        e.preventDefault();
+        cutItem(selectedItemId);
+        showMessage("Item cut.", "success", 2000);
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "v" &&
+        clipboardItem &&
+        !isRenameActive &&
+        !isTipTapEditorFocused
+      ) {
+        e.preventDefault();
+        const currentItem = findItemByIdFromTree(selectedItemId);
+        const targetIdForPaste =
+          currentItem?.type === "folder"
+            ? selectedItemId
+            : findParentAndSiblingsFromTree(selectedItemId)?.parent?.id ?? null;
+        await handlePasteWrapper(targetIdForPaste);
+      } else if (
+        (e.key === "Delete" ||
+          (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) &&
+        selectedItemId &&
+        !isRenameActive &&
+        !isTipTapEditorFocused
+      ) {
+        if (isTreeAreaLikelyFocused() || document.body === activeEl) {
+          e.preventDefault();
+          const item = findItemByIdFromTree(selectedItemId);
+          if (
+            item &&
+            window.confirm(`Delete "${item.label}"? This cannot be undone.`)
+          ) {
+            await handleDeleteConfirm(selectedItemId);
+          }
+        }
+      }
+    };
     window.addEventListener("keydown", handleGlobalTreeOpsKeyDown);
     return () =>
       window.removeEventListener("keydown", handleGlobalTreeOpsKeyDown);
@@ -809,8 +772,12 @@ const App = () => {
     handleDeleteConfirm,
     setContextMenu,
   ]);
+
   useEffect(() => {
-    /* Search Results processing */ if (searchQuery && searchSheetOpen) {
+    /* Search Results processing - same as before */ if (
+      searchQuery &&
+      searchSheetOpen
+    ) {
       const currentSearchOpts = { ...searchOptions, useRegex: false };
       const rawHits = searchItems(searchQuery, currentSearchOpts);
       const CONTEXT_CHARS_BEFORE = 20,
@@ -970,11 +937,12 @@ const App = () => {
     tree,
   ]);
   useEffect(() => {
-    /* Top Menu Outside Click Handler */ const handleClickOutside = (e) => {
-      if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
-        setTopMenuOpen(false);
-      }
-    };
+    /* Top Menu Outside Click Handler - same as before */ const handleClickOutside =
+      (e) => {
+        if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
+          setTopMenuOpen(false);
+        }
+      };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -1230,7 +1198,6 @@ const App = () => {
                     key={selectedItemId}
                     item={selectedItem}
                     defaultFontFamily={settings.editorFontFamily}
-                    defaultFontSize={settings.editorFontSize}
                     onSaveContent={
                       selectedItem.type === "task"
                         ? async (id, content) => {

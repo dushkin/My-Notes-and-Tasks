@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "3.5.0",
-  "commitMessage": "Use TipTap library for editing items; Add TT to About dialog",
+  "version": "3.5.1",
+  "commitMessage": "Content Editor bugs fix",
   "private": true,
   "scripts": {
     "dev": "vite",

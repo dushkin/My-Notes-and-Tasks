@@ -1,6 +1,6 @@
 // src/components/ContentEditor.jsx
-import React, { useCallback } from "react";
-import TipTapEditor from "./TipTapEditor";
+import React, { useState, useEffect, useCallback } from "react";
+import TipTapEditor from "./TipTapEditor"; // Assuming TipTapEditor is your new editor component
 
 function debounce(func, delay) {
   let timeoutId;
@@ -16,7 +16,7 @@ const ContentEditor = ({
   item,
   onSaveContent,
   defaultFontFamily,
-  // defaultFontSize, // TipTap handles font sizes via CSS/headings primarily
+  // defaultFontSize, // TipTap handles font sizes differently
 }) => {
   if (!item) {
     console.error(
@@ -29,15 +29,28 @@ const ContentEditor = ({
     );
   }
 
+  // Local state for TipTap's initial content.
+  // It only updates when item.id changes (i.e., a new note is selected).
+  // This prevents prop-driven re-renders of TipTap with stale content during active editing.
+  const [initialEditorContent, setInitialEditorContent] = useState(
+    item.content ?? ""
+  );
+
+  useEffect(() => {
+    // When a new item is selected (item.id changes), reset TipTap's initial content.
+    setInitialEditorContent(item.content ?? "");
+  }, [item.id, item.content]); // Also update if item.content changes due to external source (e.g. undo from app state)
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSaveContent = useCallback(
     debounce((itemId, newHtml) => {
       onSaveContent(itemId, newHtml);
     }, 1000),
-    [onSaveContent] // Assuming onSaveContent from App.jsx is stable
+    [onSaveContent] // onSaveContent from App.jsx should be stable
   );
 
-  const handleChange = (newHtml) => {
+  const handleEditorChange = (newHtml) => {
+    // This function is called by TipTapEditor's onUpdate
     debouncedSaveContent(item.id, newHtml);
   };
 
@@ -48,9 +61,11 @@ const ContentEditor = ({
       </h2>
 
       <TipTapEditor
+        // The key is crucial: when item.id changes, TipTapEditor will re-mount,
+        // ensuring it initializes with the new initialEditorContent.
         key={item.id}
-        content={item.content ?? ""}
-        onChange={handleChange}
+        content={initialEditorContent} // Pass the initial content for this item
+        onChange={handleEditorChange} // Callback for when content changes within TipTap
         defaultFontFamily={defaultFontFamily}
       />
     </div>
