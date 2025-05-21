@@ -1,14 +1,17 @@
 // src/components/TipTapEditor.jsx
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
-import Image from "@tiptap/extension-image";
+import Image from "@tiptap/extension-image"; // TipTap's Image extension
 import TextStyle from "@tiptap/extension-text-style";
+import { Extension } from "@tiptap/core";
 import FontFamily from "@tiptap/extension-font-family";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
+// TextSelection might not be explicitly needed in paste handlers if TipTap handles inline insertion well
+// import { TextSelection } from '@tiptap/pm/state';
 
 import {
   Undo,
@@ -28,13 +31,12 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Type, // For LTR/RTL toggle
-  Image as ImageIconLucide, // For a dedicated image upload button
+  Type,
+  Image as ImageIconLucide,
 } from "lucide-react";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api"; // Or your actual API base
-
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 const FONT_FAMILIES = [
   "Arial",
   "Times New Roman",
@@ -42,24 +44,65 @@ const FONT_FAMILIES = [
   "Georgia",
   "Verdana",
 ];
+const FONT_SIZE_OPTIONS = [
+  { label: "Small", value: "0.8em" }, // Using relative units for inline
+  { label: "Normal", value: "1em" },
+  { label: "Large", value: "1.2em" },
+  { label: "Extra Large", value: "1.5em" },
+];
 
-// This is the function that will handle image uploads
+const FontSizeExtension = Extension.create({
+  name: "fontSize",
+  addOptions() {
+    return { types: ["textStyle"] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) =>
+              element.style.fontSize?.replace(/['"]+/g, ""),
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) {
+                return {};
+              }
+              return { style: `font-size: ${attributes.fontSize}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize:
+        (fontSize) =>
+        ({ chain }) =>
+          chain().setMark("textStyle", { fontSize: fontSize }).run(),
+      unsetFontSize:
+        () =>
+        ({ chain }) =>
+          chain()
+            .setMark("textStyle", { fontSize: null })
+            .removeEmptyTextStyle()
+            .run(),
+    };
+  },
+});
+
 const uploadImageToServer = async (file) => {
   const formData = new FormData();
-  formData.append("image", file); // 'image' should match your backend's expected field name
-
+  formData.append("image", file);
   try {
-    const token = localStorage.getItem("userToken"); // Get auth token if your endpoint is protected
+    const token = localStorage.getItem("userToken");
     const response = await fetch(`${API_BASE_URL}/images/upload`, {
-      // Ensure this endpoint exists on your backend
       method: "POST",
-      headers: {
-        // 'Content-Type': 'multipart/form-data' is automatically set by browser for FormData
-        ...(token && { Authorization: `Bearer ${token}` }), // Add auth header if needed
-      },
+      headers: { ...(token && { Authorization: `Bearer ${token}` }) },
       body: formData,
     });
-
     if (!response.ok) {
       const errorData = await response
         .json()
@@ -69,15 +112,11 @@ const uploadImageToServer = async (file) => {
       );
     }
     const data = await response.json();
-    if (data.url) {
-      return data.url; // Backend should return { url: "..." }
-    } else {
-      throw new Error("Server did not return an image URL.");
-    }
+    return data.url || null;
   } catch (error) {
     console.error("Image upload error:", error);
-    alert(`Image upload failed: ${error.message}`); // Notify user
-    return null; // Indicate failure
+    alert(`Image upload failed: ${error.message}`);
+    return null;
   }
 };
 
@@ -98,30 +137,33 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
         },
       }),
       Image.configure({
-        inline: false,
-        allowBase64: false, // [IMPORTANT] Disable Base64 embedding
+        inline: true, // <<<<<<< CHANGED TO TRUE for inline images
+        allowBase64: false,
         HTMLAttributes: {
+          // Style for inline images: adjust max-height as needed
           style:
-            "max-width: 100%; height: auto; display: block; margin: 10px 0;",
+            "display: inline-block; max-height: 2em; vertical-align: middle; margin: 0 0.2em; max-width: 100%;",
+          // class: 'tiptap-inline-image', // Optional: for CSS targeting
         },
       }),
       TextStyle,
       FontFamily.configure({ types: ["textStyle"] }),
+      FontSizeExtension,
       Placeholder.configure({
         placeholder:
           "Start typing, paste an image, or click the image icon to upload...",
       }),
       Underline,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }), // TextAlign typically applies to block nodes
     ],
-    content: content,
+    content: content, // Initial content for this instance
     onUpdate: ({ editor: currentEditor }) => {
-      onChange(currentEditor.getHTML());
+      onChange(currentEditor.getHTML()); // Propagate changes upwards
     },
     editorProps: {
       attributes: {
         class:
-          "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3", // Added p-3 for padding
+          "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",
       },
       handleDrop: (view, event, slice, moved) => {
         if (
@@ -134,26 +176,24 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           if (file.type.startsWith("image/")) {
             event.preventDefault();
             uploadImageToServer(file).then((url) => {
-              if (url) {
-                const { schema } = view.state;
+              if (url && view.editable) {
+                const { schema, tr } = view.state;
                 const coordinates = view.posAtCoords({
                   left: event.clientX,
                   top: event.clientY,
                 });
                 if (coordinates) {
-                  const node = schema.nodes.image.create({ src: url });
-                  const transaction = view.state.tr.insert(
-                    coordinates.pos,
-                    node
-                  );
-                  view.dispatch(transaction);
+                  const imageNode = schema.nodes.image.create({ src: url });
+                  tr.insert(coordinates.pos, imageNode);
+                  view.dispatch(tr);
+                  view.focus();
                 }
               }
             });
-            return true; // We handled the drop
+            return true;
           }
         }
-        return false; // Let TipTap handle other drops
+        return false;
       },
       handlePaste: (view, event, slice) => {
         if (
@@ -165,26 +205,34 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           if (file.type.startsWith("image/")) {
             event.preventDefault();
             uploadImageToServer(file).then((url) => {
-              if (url) {
-                const { schema } = view.state;
-                const node = schema.nodes.image.create({ src: url });
-                const transaction = view.state.tr.replaceSelectionWith(node);
-                view.dispatch(transaction);
+              if (url && view.editable) {
+                const { schema, tr } = view.state;
+                const imageNode = schema.nodes.image.create({ src: url });
+                tr.replaceSelectionWith(imageNode);
+                view.dispatch(tr);
+                view.focus();
               }
             });
-            return true; // We handled the paste
+            return true;
           }
         }
-        return false; // Let TipTap handle other pastes
+        return false;
       },
     },
   });
 
+  // This useEffect is now primarily for when the editor instance itself is created/destroyed
+  // or if external (non-user-edit) changes to 'content' prop were to be handled directly,
+  // but ContentEditor now controls re-initialization via the 'key' prop.
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
+      // This might still be needed if `item.content` is updated externally (e.g. by app-level undo)
+      // while the same item is being edited.
       editor.commands.setContent(content, false);
     }
-  }, [content, editor]);
+    // If you want to reset lastContentEmittedRef when editor is re-initialized for a new item:
+    // return () => { lastContentEmittedRef.current = ""; } // Or initial content of new item
+  }, [content, editor]); // Runs when `content` prop or `editor` instance changes
 
   const [editorDir, setEditorDir] = useState("ltr");
   const toggleEditorDirection = () =>
@@ -206,12 +254,25 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
         const file = input.files[0];
         const url = await uploadImageToServer(file);
         if (url) {
-          editor.chain().focus().setImage({ src: url }).run();
+          editor.chain().focus().setImage({ src: url }).run(); // TipTap's setImage command
         }
       }
     };
     input.click();
   }, [editor]);
+
+  const handleFontSizeChange = (e) => {
+    const size = e.target.value;
+    if (size) {
+      editor.chain().focus().setFontSize(size).run();
+    } else {
+      editor.chain().focus().unsetFontSize().run();
+    }
+    e.target.value =
+      FONT_SIZE_OPTIONS.find(
+        (opt) => opt.value === editor.getAttributes("textStyle").fontSize
+      )?.value || "";
+  };
 
   if (!editor) {
     return <div className="p-4 text-zinc-500">Loading editor...</div>;
@@ -220,6 +281,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
   return (
     <div className="flex flex-col flex-grow overflow-hidden border rounded bg-white dark:bg-zinc-900 dark:border-zinc-700">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 p-2 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
+        {/* ... Toolbar buttons ... */}
         <button
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run()}
@@ -238,7 +300,6 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           {" "}
           <Redo className="w-5 h-5" />{" "}
         </button>
-
         <select
           title="Text Style"
           className="p-1.5 text-sm border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -257,13 +318,10 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
         >
           <option value="" disabled>
             Style
-          </option>
-          <option value="p">Paragraph</option>
-          <option value="h1">H1</option>
-          <option value="h2">H2</option>
-          <option value="h3">H3</option>
+          </option>{" "}
+          <option value="p">Paragraph</option> <option value="h1">H1</option>{" "}
+          <option value="h2">H2</option> <option value="h3">H3</option>
         </select>
-
         <select
           title="Font Family"
           className="p-1.5 text-sm border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -286,7 +344,19 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             </option>
           ))}
         </select>
-
+        <select
+          title="Font Size"
+          className="p-1.5 text-sm border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          value={editor.getAttributes("textStyle").fontSize || ""}
+          onChange={handleFontSizeChange}
+        >
+          <option value="">Default Size</option>
+          {FONT_SIZE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
           title="Bold"
@@ -317,7 +387,6 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           {" "}
           <UnderlineIcon className="w-5 h-5" />{" "}
         </button>
-
         <button
           onClick={() => {
             const url = window.prompt("Enter URL:");
@@ -337,7 +406,6 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           {" "}
           <LinkIcon className="w-5 h-5" />{" "}
         </button>
-
         <button
           onClick={addImageFromFilePicker}
           title="Upload Image"
@@ -346,7 +414,6 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           {" "}
           <ImageIconLucide className="w-5 h-5" />{" "}
         </button>
-
         <button
           onClick={() => editor.chain().focus().toggleCode().run()}
           title="Inline Code"
@@ -367,7 +434,6 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           {" "}
           <CodeBlockIcon className="w-5 h-5" />{" "}
         </button>
-
         <button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           title="Bulleted List"
@@ -388,7 +454,6 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           {" "}
           <OrderedListIcon className="w-5 h-5" />{" "}
         </button>
-
         <button
           onClick={() => editor.chain().focus().setTextAlign("left").run()}
           title="Align Left"
@@ -425,7 +490,6 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           {" "}
           <AlignRight className="w-5 h-5" />{" "}
         </button>
-
         <button
           onClick={toggleEditorDirection}
           title={`Text Direction: ${editorDir.toUpperCase()}`}
@@ -435,7 +499,6 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           <Type className="w-5 h-5" /> {editorDir.toUpperCase()}{" "}
         </button>
       </div>
-
       <div className="flex-grow overflow-auto tiptap-editor-content-area">
         <EditorContent editor={editor} className="h-full" />
       </div>
