@@ -11,56 +11,30 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // console.log(`[Register.jsx RENDER] email: '${email}', password: '${password}', confirmPassword: '${confirmPassword}', error: '${error}'`);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(
-      `[Register.jsx handleSubmit DEBUG] ENTRY - email: '${email}', password: '${password}', confirmPassword: '${confirmPassword}'`
-    );
-
     setError(""); // Clear previous errors
 
     if (!email || !password || !confirmPassword) {
-      console.log(
-        "[Register.jsx handleSubmit DEBUG] Empty fields validation hit! Setting error."
-      );
       setError("Please fill in all fields.");
       return;
     }
     if (password !== confirmPassword) {
-      console.log(
-        "[Register.jsx handleSubmit DEBUG] Passwords do not match! Setting error."
-      );
       setError("Passwords do not match.");
       return;
     }
     if (password.length < 8) {
-      console.log(
-        "[Register.jsx handleSubmit DEBUG] Password too short! Setting error."
-      );
       setError("Password must be at least 8 characters long.");
       return;
     }
 
-    console.log(
-      "[Register.jsx handleSubmit DEBUG] All validations passed. Proceeding to fetch."
-    );
     setIsLoading(true);
     try {
-      const fetchUrl = `${API_BASE_URL}/auth/register`;
-      const fetchOptions = {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-      };
-      console.log(`[Register.jsx DEBUG] Fetching URL: ${fetchUrl}`);
-      console.log(
-        "[Register.jsx DEBUG] Fetching Options:",
-        JSON.stringify(fetchOptions)
-      );
-
-      const response = await fetch(fetchUrl, fetchOptions);
+      });
       const data = await response.json();
       setIsLoading(false);
 
@@ -68,14 +42,15 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
         setError(data.error || "Registration failed. Please try again.");
         return;
       }
-      alert("Registration successful! Please log in."); // Consider replacing alert in tests
+      alert("Registration successful! Please log in."); // This is a standard browser alert
       if (onRegisterSuccess) {
         onRegisterSuccess();
       }
     } catch (err) {
+      // Added err parameter to catch block
       setIsLoading(false);
-      console.error("Registration request error:", err);
       setError("Network error or server issue. Please try again.");
+      console.error("Registration request error:", err); // It's good practice to log the actual error
     }
   };
 
@@ -86,7 +61,6 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
           Create Account
         </h2>
         {error && (
-          // Ensure your tests look for data-item-id if your environment expects it
           <p
             data-item-id="register-error-message"
             className="text-red-500 dark:text-red-400 text-sm mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded"
@@ -94,7 +68,7 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
             {error}
           </p>
         )}
-        <form onSubmit={handleSubmit} data-item-id="register-form">
+        <form onSubmit={handleSubmit} data-item-id="register-form" noValidate>
           <div className="mb-4">
             <label
               className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
@@ -108,7 +82,6 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-              required
               placeholder="you@example.com"
             />
           </div>
@@ -125,10 +98,10 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-              required
               placeholder="••••••••"
             />
           </div>
+          {/* Added Confirm Password Field */}
           <div className="mb-6">
             <label
               className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
@@ -142,7 +115,6 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-              required
               placeholder="••••••••"
             />
           </div>
