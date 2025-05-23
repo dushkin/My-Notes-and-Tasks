@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.0.0",
-  "commitMessage": "Added first E2E Playwright tests - Chromium only",
+  "version": "4.0.1",
+  "commitMessage": "More tests including some bugs fix",
   "private": true,
   "scripts": {
     "dev": "vite",

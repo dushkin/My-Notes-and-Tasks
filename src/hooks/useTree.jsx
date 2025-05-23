@@ -26,7 +26,6 @@ const API_BASE_URL =
 const getAuthToken = () => {
   return localStorage.getItem("userToken");
 };
-
 const embeddingLevels = bidiNS.embeddingLevels || bidiNS.getEmbeddingLevels;
 const reorder = bidiNS.reorder || bidiNS.getReorderedString;
 
@@ -50,7 +49,6 @@ function htmlToPlainTextWithNewlines(html) {
 }
 
 export const assignNewIds = (item, isDuplication = false) => {
-  // Ensure this line is correct
   const newItem = { ...item };
   if (
     isDuplication ||
@@ -73,7 +71,6 @@ export const assignNewIds = (item, isDuplication = false) => {
 export const useTree = () => {
   const EXPANDED_KEY = `${LOCAL_STORAGE_KEY}_expanded`;
   const { settings } = useSettings();
-
   const initialTreeState = (() => {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -84,7 +81,6 @@ export const useTree = () => {
       return [];
     }
   })();
-
   const {
     state: tree,
     setState: setTreeWithUndo,
@@ -94,7 +90,6 @@ export const useTree = () => {
     canUndo: canUndoTree,
     canRedo: canRedoTree,
   } = useUndoRedo(initialTreeState);
-
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [contextMenu, setContextMenu] = useState({
     visible: false,
@@ -115,7 +110,7 @@ export const useTree = () => {
   const [clipboardItem, setClipboardItem] = useState(null);
   const [clipboardMode, setClipboardMode] = useState(null);
   const [cutItemId, setCutItemId] = useState(null);
-  const [isFetchingTree, setIsFetchingTree] = useState(false); // For loading state
+  const [isFetchingTree, setIsFetchingTree] = useState(false);
 
   const selectedItem = useMemo(
     () => findItemById(tree, selectedItemId),
@@ -125,56 +120,35 @@ export const useTree = () => {
   const fetchUserTreeInternal = useCallback(
     async (token) => {
       if (!token) {
-        console.log(
-          "fetchUserTreeInternal: No token provided, clearing/resetting tree."
-        );
-        resetTreeHistory([]); // Or load from localStorage if preferred for logged-out
+        resetTreeHistory([]);
         setIsFetchingTree(false);
         return;
       }
       setIsFetchingTree(true);
-      console.log(
-        "fetchUserTreeInternal: Token found, fetching tree from server."
-      );
       try {
         const response = await fetch(`${API_BASE_URL}/items/tree`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log(
-          "fetchUserTreeInternal: fetchTreeFromServer response status:",
-          response.status
-        );
         if (!response.ok) {
           const errorData = await response
             .json()
             .catch(() => ({ error: "Failed to parse error response" }));
           if (response.status === 401) {
-            console.error(
-              "fetchUserTreeInternal: Unauthorized (401). Token might be invalid."
-            );
-            localStorage.removeItem("userToken"); // Critical: remove invalid token
-            // Consider calling a global logout handler if App.jsx passes one down
-          } else {
-            console.error(
-              "fetchUserTreeInternal: Server error fetching tree:",
-              response.status,
-              errorData
-            );
+            localStorage.removeItem("userToken");
           }
-          resetTreeHistory([]); // Clear tree on error
+          console.error(
+            "fetchUserTreeInternal: Server error fetching tree:",
+            response.status,
+            errorData
+          );
+          resetTreeHistory([]);
           setIsFetchingTree(false);
-          return; // Explicitly return on error
+          return;
         }
         const data = await response.json();
         if (data && Array.isArray(data.notesTree)) {
-          console.log(
-            "fetchUserTreeInternal: Successfully fetched tree, resetting local state."
-          );
           resetTreeHistory(data.notesTree);
         } else {
-          console.warn(
-            "fetchUserTreeInternal: Fetched tree data is not in expected format, using empty tree."
-          );
           resetTreeHistory([]);
         }
       } catch (error) {
@@ -182,21 +156,15 @@ export const useTree = () => {
           "fetchUserTreeInternal: Network or other error fetching tree:",
           error
         );
-        resetTreeHistory([]); // Clear tree on error
+        resetTreeHistory([]);
       } finally {
         setIsFetchingTree(false);
       }
     },
     [resetTreeHistory]
-  ); // API_BASE_URL is stable
-
-  // Effect for initial load and when token changes (e.g., after login)
-  // This will be triggered by App.jsx calling fetchUserTree after login.
-  // For initial load, App.jsx will also call this if a token is found.
-  // The useEffect that was here before is effectively replaced by App.jsx controlling the fetch.
+  );
 
   useEffect(() => {
-    // Persist tree to localStorage
     try {
       if (Array.isArray(tree))
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tree));
@@ -206,7 +174,6 @@ export const useTree = () => {
   }, [tree]);
 
   useEffect(() => {
-    // Persist expanded folders
     try {
       localStorage.setItem(EXPANDED_KEY, JSON.stringify(expandedFolders));
     } catch (error) {
@@ -215,6 +182,7 @@ export const useTree = () => {
   }, [expandedFolders]);
 
   const selectItemById = useCallback((id) => setSelectedItemId(id), []);
+
   const replaceTree = useCallback(
     (newTreeData) => {
       if (Array.isArray(newTreeData)) {
@@ -230,7 +198,6 @@ export const useTree = () => {
   );
 
   const expandFolderPath = useCallback(
-    /* ... (Your existing robust expandFolderPath) ... */
     (itemIdToExpand) => {
       if (!itemIdToExpand) return;
       const pathIds = [];
@@ -289,7 +256,6 @@ export const useTree = () => {
   }, []);
 
   const addItem = useCallback(
-    /* ... (Your existing addItem with API calls) ... */
     async (newItemData, parentId) => {
       const trimmedLabel = newItemData?.label?.trim();
       if (!trimmedLabel) return { success: false, error: "Label is required." };
@@ -297,15 +263,24 @@ export const useTree = () => {
         return { success: false, error: "Invalid item type." };
       const token = getAuthToken();
       if (!token) return { success: false, error: "Authentication required." };
-      const payload = { label: trimmedLabel, type: newItemData.type };
-      if (newItemData.type === "note" || newItemData.type === "task")
+
+      const payload = {
+        label: trimmedLabel,
+        type: newItemData.type,
+      };
+      if (newItemData.type === "note" || newItemData.type === "task") {
         payload.content = newItemData.content || "";
-      if (newItemData.type === "task")
+        payload.direction = newItemData.direction || "ltr"; // Add direction
+      }
+      if (newItemData.type === "task") {
         payload.completed = !!newItemData.completed;
+      }
+
       try {
         const endpoint = parentId
           ? `${API_BASE_URL}/items/${parentId}`
           : `${API_BASE_URL}/items`;
+
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {
@@ -336,7 +311,7 @@ export const useTree = () => {
           settings.autoExpandNewFolders
         ) {
           setTimeout(() => expandFolderPath(createdItemFromServer.id), 0);
-        } // Expand new root folder
+        }
         return { success: true, item: createdItemFromServer };
       } catch (error) {
         console.error("addItem API error:", error);
@@ -347,8 +322,7 @@ export const useTree = () => {
   );
 
   const updateNoteContent = useCallback(
-    /* ... (Your existing updateNoteContent with API calls) ... */
-    async (itemId, content) => {
+    async (itemId, updates) => {
       const token = getAuthToken();
       if (!token) return { success: false, error: "Authentication required." };
       try {
@@ -358,7 +332,7 @@ export const useTree = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ content }),
+          body: JSON.stringify(updates),
         });
         const updatedItemFromServer = await response.json();
         if (!response.ok)
@@ -366,6 +340,7 @@ export const useTree = () => {
             success: false,
             error: updatedItemFromServer.error || "Failed to update note.",
           };
+
         const mapRecursive = (items, id, serverUpdates) =>
           items.map((i) =>
             i.id === id
@@ -374,6 +349,7 @@ export const useTree = () => {
               ? { ...i, children: mapRecursive(i.children, id, serverUpdates) }
               : i
           );
+
         const newTreeState = mapRecursive(tree, itemId, updatedItemFromServer);
         setTreeWithUndo(newTreeState);
         return { success: true, item: updatedItemFromServer };
@@ -386,8 +362,7 @@ export const useTree = () => {
   );
 
   const updateTask = useCallback(
-    /* ... (Your existing updateTask with API calls) ... */
-    async (taskId, clientUpdates) => {
+    async (taskId, updates) => {
       const token = getAuthToken();
       if (!token) return { success: false, error: "Authentication required." };
       try {
@@ -397,7 +372,7 @@ export const useTree = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(clientUpdates),
+          body: JSON.stringify(updates),
         });
         const updatedItemFromServer = await response.json();
         if (!response.ok)
@@ -405,9 +380,10 @@ export const useTree = () => {
             success: false,
             error: updatedItemFromServer.error || "Failed to update task.",
           };
+
         const mapRecursiveTask = (items, id, serverUpdates) =>
           items.map((i) =>
-            i.id === id && i.type === "task"
+            i.id === id
               ? { ...i, ...serverUpdates }
               : Array.isArray(i.children)
               ? {
@@ -416,6 +392,7 @@ export const useTree = () => {
                 }
               : i
           );
+
         const newTreeState = mapRecursiveTask(
           tree,
           taskId,
@@ -432,7 +409,6 @@ export const useTree = () => {
   );
 
   const renameItem = useCallback(
-    /* ... (Your existing renameItem with API calls) ... */
     async (itemId, newLabel) => {
       const trimmedLabel = newLabel?.trim();
       if (!trimmedLabel || !itemId)
@@ -440,6 +416,7 @@ export const useTree = () => {
       const token = getAuthToken();
       if (!token) return { success: false, error: "Authentication required." };
       const { parentArray } = findParentAndSiblings(tree, itemId);
+
       if (hasSiblingWithName(parentArray || [], trimmedLabel, itemId)) {
         return {
           success: false,
@@ -477,7 +454,6 @@ export const useTree = () => {
   );
 
   const deleteItem = useCallback(
-    /* ... (Your existing deleteItem with API calls) ... */
     async (idToDelete) => {
       if (!idToDelete) return { success: false, error: "No ID for deletion." };
       const token = getAuthToken();
@@ -502,18 +478,16 @@ export const useTree = () => {
           if (prev.hasOwnProperty(idToDelete)) delete next[idToDelete];
           return next;
         });
-        // setContextMenu((m) => (m.visible ? { ...m, visible: false } : m)); // Usually handled by App.jsx
         return { success: true };
       } catch (error) {
         console.error("deleteItem API error:", error);
         return { success: false, error: "Network error deleting." };
       }
     },
-    [tree, selectedItemId, setTreeWithUndo /* setContextMenu not a direct dep*/]
+    [tree, selectedItemId, setTreeWithUndo]
   );
 
   const duplicateItem = useCallback(
-    /* ... (Your existing duplicateItem, ensure it calls addItem for DB persistence) ... */
     async (itemId) => {
       const itemToDuplicate = findItemById(tree, itemId);
       if (!itemToDuplicate)
@@ -521,6 +495,7 @@ export const useTree = () => {
       const { parent } = findParentAndSiblings(tree, itemId);
       const parentId = parent?.id ?? null;
       let newDuplicate = assignNewIds(structuredClone(itemToDuplicate), true);
+
       let baseName = itemToDuplicate.label;
       let newLabel = `${baseName} (copy)`;
       let counter = 1;
@@ -532,6 +507,11 @@ export const useTree = () => {
         newLabel = `${baseName} (copy ${counter})`;
       }
       newDuplicate.label = newLabel;
+      // Ensure direction is set for duplicated notes/tasks
+      if (newDuplicate.type === "note" || newDuplicate.type === "task") {
+        newDuplicate.direction = itemToDuplicate.direction || "ltr";
+      }
+
       const result = await addItem(newDuplicate, parentId);
       if (result.success && result.item) {
         if (parentId && settings.autoExpandNewFolders) {
@@ -549,7 +529,6 @@ export const useTree = () => {
   );
 
   const handleDrop = useCallback(
-    /* ... (Your existing handleDrop, still mostly client-side for DB) ... */
     async (targetFolderId, droppedItemId) => {
       console.warn(
         "useTree: handleDrop (moving items) is client-side for DB persistence. Needs server endpoint."
@@ -603,12 +582,10 @@ export const useTree = () => {
       setTreeWithUndo,
       settings.autoExpandNewFolders,
       expandFolderPath,
-      treeHandleDropUtil,
     ]
   );
 
   const copyItem = useCallback(
-    /* ... (Your existing copyItem) ... */
     (itemId) => {
       const itemToCopy = findItemById(tree, itemId);
       if (itemToCopy) {
@@ -629,7 +606,6 @@ export const useTree = () => {
   );
 
   const cutItem = useCallback(
-    /* ... (Your existing cutItem) ... */
     (itemId) => {
       const itemToCut = findItemById(tree, itemId);
       if (itemToCut) {
@@ -650,7 +626,6 @@ export const useTree = () => {
   );
 
   const pasteItem = useCallback(
-    /* ... (Your existing pasteItem, 'copy' uses addItem, 'cut' is client-side for DB) ... */
     async (targetFolderId) => {
       console.warn(
         "useTree: pasteItem: 'cut' persistence needs backend. 'copy' uses addItem."
@@ -691,6 +666,11 @@ export const useTree = () => {
           })`;
         }
         itemToInsert.label = newLabel;
+        // Ensure direction is copied for notes/tasks
+        if (itemToInsert.type === "note" || itemToInsert.type === "task") {
+          itemToInsert.direction = clipboardItem.direction || "ltr";
+        }
+
         const addResult = await addItem(itemToInsert, targetFolderId);
         if (
           addResult.success &&
@@ -718,7 +698,6 @@ export const useTree = () => {
             targetFolderId &&
           hasSiblingWithName(targetSiblings, itemToInsert.label, null)
         ) {
-          // Check if name exists unless it's the same item not changing name context
           return {
             success: false,
             error: `An item named "${itemToInsert.label}" already exists in the target folder.`,
@@ -757,7 +736,6 @@ export const useTree = () => {
   );
 
   const handleExport = useCallback(
-    /* ... (Your existing handleExport, no DB interaction) ... */
     (target, format) => {
       let dataToExport;
       let fileName;
@@ -790,13 +768,11 @@ export const useTree = () => {
           alert("Failed to export JSON.");
         }
       } else if (format === "pdf") {
-        /* ... your PDF logic ... */
+        // PDF export logic to be implemented
       }
     },
     [tree, selectedItemId]
   );
-
-  // ** MODIFIED handleImport to use PUT for both "entire" and "selected" (by sending full tree) **
   const handleImport = useCallback(
     async (file, importTargetOption) => {
       return new Promise((resolveOuter) => {
@@ -824,23 +800,16 @@ export const useTree = () => {
                 ? importedData.map((i) =>
                     assignNewIds(structuredClone(i), true)
                   )
-                : [assignNewIds(structuredClone(i), true)];
-              console.log(
-                "Attempting to save entire imported tree to server (from 'entire' option):",
-                processedTreeForServer.length,
-                "items"
-              );
+                : [assignNewIds(structuredClone(importedData), true)]; // Corrected variable name
             } else {
-              // "selected" - import under an item
               const currentSel = findItemById(tree, selectedItemId);
               if (currentSel && currentSel.type === "folder") {
                 const itemsToInsert = Array.isArray(importedData)
                   ? importedData.map((i) =>
                       assignNewIds(structuredClone(i), true)
                     )
-                  : [assignNewIds(structuredClone(importedData), true)];
-
-                let tempTree = [...tree]; // Start with a fresh copy of the current tree
+                  : [assignNewIds(structuredClone(importedData), true)]; // Corrected variable name
+                let tempTree = [...tree];
                 itemsToInsert.forEach((it) => {
                   if (!it.label || !it.type || !it.id) {
                     console.warn(
@@ -849,25 +818,18 @@ export const useTree = () => {
                     );
                     return;
                   }
-                  // Ensure no name conflicts before inserting
-                  const parentForInsert = findItemById(tempTree, currentSel.id); // Find parent in potentially modified tempTree
+                  const parentForInsert = findItemById(tempTree, currentSel.id);
                   const siblingsForInsert = parentForInsert?.children || [];
                   if (hasSiblingWithName(siblingsForInsert, it.label, null)) {
-                    // Handle name conflict, e.g., by renaming 'it' or skipping
                     console.warn(
-                      `Name conflict for "${it.label}" under "${currentSel.label}". Skipping item or implement renaming.`
+                      `Name conflict for "${it.label}" under "${currentSel.label}". Implement renaming or skip.`
                     );
-                    // For now, skip: (or you could try to auto-rename 'it.label' here)
-                    // return; // Or, if you must insert, it might overwrite or backend might reject
+                    // For now, let's allow it and let backend handle or overwrite if needed.
+                    // Or modify 'it.label' here to ensure uniqueness.
                   }
                   tempTree = insertItemRecursive(tempTree, currentSel.id, it);
                 });
                 processedTreeForServer = tempTree;
-                console.log(
-                  "Attempting to save modified tree (import under selected) to server:",
-                  processedTreeForServer.length,
-                  "root items"
-                );
               } else {
                 resolveOuter({
                   success: false,
@@ -899,7 +861,6 @@ export const useTree = () => {
             }
 
             replaceTree(responseData.notesTree || processedTreeForServer);
-
             if (
               importTargetOption === "selected" &&
               selectedItemId &&
@@ -912,7 +873,7 @@ export const useTree = () => {
               responseData.notesTree[0].type === "folder" &&
               settings.autoExpandNewFolders
             ) {
-              expandFolderPath(responseData.notesTree[0].id); // Expand first root folder if any
+              expandFolderPath(responseData.notesTree[0].id);
             }
 
             resolveOuter({
@@ -946,7 +907,6 @@ export const useTree = () => {
 
   const searchItems = useCallback(
     (query, opts) => {
-      // Your existing searchItems
       if (!query) return [];
       const results = [];
       const currentTree = tree || [];
@@ -1003,7 +963,7 @@ export const useTree = () => {
     canUndoTree,
     canRedoTree,
     resetState: resetTreeHistory,
-    fetchUserTree: fetchUserTreeInternal, // Expose the internal fetch function
-    isFetchingTree, // Expose loading state
+    fetchUserTree: fetchUserTreeInternal,
+    isFetchingTree,
   };
 };
