@@ -1,24 +1,30 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "commonjs", // Or "ESNext" if your project supports it
+    "module": "ESNext", // Changed from 'commonjs' or other to 'ESNext'
+    "moduleResolution": "node", // Or "bundler" or "nodenext" if appropriate for your setup
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist", // Optional: if you want to compile TS files
-    "rootDir": "./",
-    "resolveJsonModule": true,
-    "noEmit": true, // Playwright typically runs TS files directly with its own transpilation
+    "resolveJsonModule": true, // Keep this enabled
+    "noEmit": true, // Playwright runs TS files directly
     "allowImportingTsExtensions": true,
-    "moduleResolution": "node",
     "types": ["@playwright/test", "node"]
+    // "outDir" and "rootDir" might not be strictly necessary if noEmit is true
+    // "outDir": "./dist",
+    // "rootDir": "./",
   },
   "include": [
     "tests/**/*.ts",
     "playwright.config.ts"
+    // If you have other .ts files that are part of your Playwright setup, include them here
   ],
   "exclude": [
     "node_modules"
+    // Ensure your frontend source files (e.g., src/**/*.jsx) are excluded
+    // if they are not meant to be processed by this tsconfig for tests.
+    // However, if AboutDialog.jsx is imported by a .ts test file,
+    // TS will still try to understand its imports.
   ]
 }

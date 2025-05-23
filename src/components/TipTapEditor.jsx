@@ -3,16 +3,13 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
-import Image from "@tiptap/extension-image"; // TipTap's Image extension
+import Image from "@tiptap/extension-image";
 import TextStyle from "@tiptap/extension-text-style";
 import { Extension } from "@tiptap/core";
 import FontFamily from "@tiptap/extension-font-family";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
-// TextSelection might not be explicitly needed in paste handlers if TipTap handles inline insertion well
-// import { TextSelection } from '@tiptap/pm/state';
-
 import {
   Undo,
   Redo,
@@ -45,7 +42,7 @@ const FONT_FAMILIES = [
   "Verdana",
 ];
 const FONT_SIZE_OPTIONS = [
-  { label: "Small", value: "0.8em" }, // Using relative units for inline
+  { label: "Small", value: "0.8em" },
   { label: "Normal", value: "1em" },
   { label: "Large", value: "1.2em" },
   { label: "Extra Large", value: "1.5em" },
@@ -120,7 +117,14 @@ const uploadImageToServer = async (file) => {
   }
 };
 
-const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
+const TipTapEditor = ({
+  content,
+  initialDirection,
+  onUpdate,
+  defaultFontFamily,
+}) => {
+  const [editorDir, setEditorDir] = useState(initialDirection || "ltr");
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -137,13 +141,11 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
         },
       }),
       Image.configure({
-        inline: true, // <<<<<<< CHANGED TO TRUE for inline images
+        inline: true,
         allowBase64: false,
         HTMLAttributes: {
-          // Style for inline images: adjust max-height as needed
           style:
             "display: inline-block; max-height: 2em; vertical-align: middle; margin: 0 0.2em; max-width: 100%;",
-          // class: 'tiptap-inline-image', // Optional: for CSS targeting
         },
       }),
       TextStyle,
@@ -154,16 +156,19 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           "Start typing, paste an image, or click the image icon to upload...",
       }),
       Underline,
-      TextAlign.configure({ types: ["heading", "paragraph"] }), // TextAlign typically applies to block nodes
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
-    content: content, // Initial content for this instance
+    content: content,
     onUpdate: ({ editor: currentEditor }) => {
-      onChange(currentEditor.getHTML()); // Propagate changes upwards
+      if (onUpdate) {
+        onUpdate(currentEditor.getHTML(), editorDir);
+      }
     },
     editorProps: {
       attributes: {
         class:
           "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",
+        dir: editorDir,
       },
       handleDrop: (view, event, slice, moved) => {
         if (
@@ -221,28 +226,34 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
     },
   });
 
-  // This useEffect is now primarily for when the editor instance itself is created/destroyed
-  // or if external (non-user-edit) changes to 'content' prop were to be handled directly,
-  // but ContentEditor now controls re-initialization via the 'key' prop.
+  // Update editor's internal state and DOM attribute if initialDirection prop changes
+  useEffect(() => {
+    if (
+      editor &&
+      initialDirection &&
+      initialDirection !== editor.view.dom.getAttribute("dir")
+    ) {
+      setEditorDir(initialDirection);
+      editor.view.dom.setAttribute("dir", initialDirection);
+    }
+  }, [initialDirection, editor]); // Removed editorDir from deps to avoid potential loop from setEditorDir
+
+  // Ensure content is updated if the external 'content' prop changes after initial mount
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      // This might still be needed if `item.content` is updated externally (e.g. by app-level undo)
-      // while the same item is being edited.
-      editor.commands.setContent(content, false);
+      editor.commands.setContent(content, false); // false to not emit update event
     }
-    // If you want to reset lastContentEmittedRef when editor is re-initialized for a new item:
-    // return () => { lastContentEmittedRef.current = ""; } // Or initial content of new item
-  }, [content, editor]); // Runs when `content` prop or `editor` instance changes
+  }, [content, editor]);
 
-  const [editorDir, setEditorDir] = useState("ltr");
-  const toggleEditorDirection = () =>
-    setEditorDir((prev) => (prev === "ltr" ? "rtl" : "ltr"));
-
-  useEffect(() => {
-    if (editor?.view.dom) {
-      editor.view.dom.setAttribute("dir", editorDir);
+  const toggleEditorDirection = useCallback(() => {
+    if (!editor) return;
+    const newDir = editorDir === "ltr" ? "rtl" : "ltr";
+    setEditorDir(newDir);
+    editor.view.dom.setAttribute("dir", newDir); // Apply to DOM immediately
+    if (onUpdate) {
+      onUpdate(editor.getHTML(), newDir); // Propagate change
     }
-  }, [editorDir, editor]);
+  }, [editor, editorDir, onUpdate]);
 
   const addImageFromFilePicker = useCallback(() => {
     if (!editor) return;
@@ -254,7 +265,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
         const file = input.files[0];
         const url = await uploadImageToServer(file);
         if (url) {
-          editor.chain().focus().setImage({ src: url }).run(); // TipTap's setImage command
+          editor.chain().focus().setImage({ src: url }).run();
         }
       }
     };
@@ -262,16 +273,15 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
   }, [editor]);
 
   const handleFontSizeChange = (e) => {
+    if (!editor) return;
     const size = e.target.value;
     if (size) {
       editor.chain().focus().setFontSize(size).run();
     } else {
       editor.chain().focus().unsetFontSize().run();
     }
-    e.target.value =
-      FONT_SIZE_OPTIONS.find(
-        (opt) => opt.value === editor.getAttributes("textStyle").fontSize
-      )?.value || "";
+    // Reset select to reflect current style or default (not strictly necessary for functionality)
+    e.target.value = editor.getAttributes("textStyle").fontSize || "";
   };
 
   if (!editor) {
@@ -281,15 +291,13 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
   return (
     <div className="flex flex-col flex-grow overflow-hidden border rounded bg-white dark:bg-zinc-900 dark:border-zinc-700">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 p-2 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
-        {/* ... Toolbar buttons ... */}
         <button
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run()}
           title="Undo"
           className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded disabled:opacity-50"
         >
-          {" "}
-          <Undo className="w-5 h-5" />{" "}
+          <Undo className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().redo().run()}
@@ -297,13 +305,13 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
           title="Redo"
           className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded disabled:opacity-50"
         >
-          {" "}
-          <Redo className="w-5 h-5" />{" "}
+          <Redo className="w-5 h-5" />
         </button>
         <select
           title="Text Style"
           className="p-1.5 text-sm border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
           onChange={(e) => {
+            if (!editor) return;
             const value = e.target.value;
             if (value === "p") editor.chain().focus().setParagraph().run();
             else if (value.startsWith("h"))
@@ -318,9 +326,11 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
         >
           <option value="" disabled>
             Style
-          </option>{" "}
-          <option value="p">Paragraph</option> <option value="h1">H1</option>{" "}
-          <option value="h2">H2</option> <option value="h3">H3</option>
+          </option>
+          <option value="p">Paragraph</option>
+          <option value="h1">H1</option>
+          <option value="h2">H2</option>
+          <option value="h3">H3</option>
         </select>
         <select
           title="Font Family"
@@ -330,13 +340,14 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             defaultFontFamily ||
             ""
           }
-          onChange={(e) =>
+          onChange={(e) => {
+            if (!editor) return;
             editor
               .chain()
               .focus()
               .setFontFamily(e.target.value || FONT_FAMILIES[0])
-              .run()
-          }
+              .run();
+          }}
         >
           {FONT_FAMILIES.map((f) => (
             <option key={f} value={f}>
@@ -364,8 +375,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             editor.isActive("bold") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
-          {" "}
-          <BoldIcon className="w-5 h-5" />{" "}
+          <BoldIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleItalic().run()}
@@ -374,8 +384,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             editor.isActive("italic") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
-          {" "}
-          <ItalicIcon className="w-5 h-5" />{" "}
+          <ItalicIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleUnderline().run()}
@@ -384,11 +393,11 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             editor.isActive("underline") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
-          {" "}
-          <UnderlineIcon className="w-5 h-5" />{" "}
+          <UnderlineIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => {
+            if (!editor) return;
             const url = window.prompt("Enter URL:");
             if (url)
               editor
@@ -403,16 +412,14 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             editor.isActive("link") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
-          {" "}
-          <LinkIcon className="w-5 h-5" />{" "}
+          <LinkIcon className="w-5 h-5" />
         </button>
         <button
           onClick={addImageFromFilePicker}
           title="Upload Image"
           className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
         >
-          {" "}
-          <ImageIconLucide className="w-5 h-5" />{" "}
+          <ImageIconLucide className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleCode().run()}
@@ -421,8 +428,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             editor.isActive("code") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
-          {" "}
-          <CodeIcon className="w-5 h-5" />{" "}
+          <CodeIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
@@ -431,8 +437,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             editor.isActive("codeBlock") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
-          {" "}
-          <CodeBlockIcon className="w-5 h-5" />{" "}
+          <CodeBlockIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -441,8 +446,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             editor.isActive("bulletList") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
-          {" "}
-          <UnorderedListIcon className="w-5 h-5" />{" "}
+          <UnorderedListIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -451,8 +455,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
             editor.isActive("orderedList") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
-          {" "}
-          <OrderedListIcon className="w-5 h-5" />{" "}
+          <OrderedListIcon className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().setTextAlign("left").run()}
@@ -463,8 +466,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
               : ""
           }`}
         >
-          {" "}
-          <AlignLeft className="w-5 h-5" />{" "}
+          <AlignLeft className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().setTextAlign("center").run()}
@@ -475,8 +477,7 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
               : ""
           }`}
         >
-          {" "}
-          <AlignCenter className="w-5 h-5" />{" "}
+          <AlignCenter className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().setTextAlign("right").run()}
@@ -487,16 +488,14 @@ const TipTapEditor = ({ content, onChange, defaultFontFamily }) => {
               : ""
           }`}
         >
-          {" "}
-          <AlignRight className="w-5 h-5" />{" "}
+          <AlignRight className="w-5 h-5" />
         </button>
         <button
           onClick={toggleEditorDirection}
           title={`Text Direction: ${editorDir.toUpperCase()}`}
           className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded`}
         >
-          {" "}
-          <Type className="w-5 h-5" /> {editorDir.toUpperCase()}{" "}
+          <Type className="w-5 h-5" /> {editorDir.toUpperCase()}
         </button>
       </div>
       <div className="flex-grow overflow-auto tiptap-editor-content-area">

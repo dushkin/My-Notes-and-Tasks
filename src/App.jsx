@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Tree from "./components/Tree";
 import FolderContents from "./components/FolderContents";
-import ContentEditor from "./components/ContentEditor"; // Uses TipTapEditor inside
+import ContentEditor from "./components/ContentEditor";
 import ContextMenu from "./components/ContextMenu";
 import AddDialog from "./components/AddDialog";
 import AboutDialog from "./components/AboutDialog";
@@ -33,7 +33,6 @@ import { Sheet } from "react-modal-sheet";
 import Login from "./components/Login";
 import Register from "./components/Register";
 
-// Helper function to generate timestamped filename
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
   const year = now.getFullYear();
@@ -81,16 +80,17 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       : type === "info"
       ? "bg-sky-100 dark:bg-sky-800/80 border border-sky-400 dark:border-sky-600 text-sky-700 dark:text-sky-200"
       : "bg-red-100 dark:bg-red-800/80 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200";
-
   const iconColor =
     type === "success"
       ? "text-green-500 hover:text-green-700 dark:text-green-300 dark:hover:text-green-100"
       : type === "info"
       ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
-
   return (
-    <div className={`${baseClasses} ${typeClasses}`}>
+    <div
+      data-item-id="error-display-message"
+      className={`${baseClasses} ${typeClasses}`}
+    >
       <span>{message}</span>
       <button
         onClick={onClose}
@@ -140,7 +140,6 @@ const App = () => {
     fetchUserTree,
     isFetchingTree,
   } = useTree();
-
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
   const [currentView, setCurrentView] = useState("login");
@@ -183,7 +182,6 @@ const App = () => {
     },
     []
   );
-
   const autoExportIntervalRef = useRef(null);
   const performAutoExportRef = useRef(null);
 
@@ -260,7 +258,7 @@ const App = () => {
         4000
       );
     } else {
-      /* ... logging for disabled/paused ... */
+      // console.log("Auto Export: Conditions not met or disabled.");
     }
     return () => {
       if (autoExportIntervalRef.current) {
@@ -299,6 +297,7 @@ const App = () => {
       await fetchUserTree(localStorage.getItem("userToken"));
     }
   };
+
   const handleLogout = () => {
     localStorage.removeItem("userToken");
     setCurrentUser(null);
@@ -317,6 +316,7 @@ const App = () => {
     },
     [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
+
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
@@ -328,18 +328,22 @@ const App = () => {
       treeNav?.focus({ preventScroll: true });
     });
   }, [showMessage]);
+
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
   );
+
   const findParentAndSiblingsFromTree = useCallback(
     (id) => findParentAndSiblingsUtil(tree, id),
     [tree]
   );
+
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
     const originalItem = findItemByIdFromTree(inlineRenameId);
+
     if (!newLabel) {
       showMessage("Name cannot be empty.", "error");
       return;
@@ -348,6 +352,7 @@ const App = () => {
       cancelInlineRename();
       return;
     }
+
     const result = await renameItem(inlineRenameId, newLabel);
     if (result.success) {
       cancelInlineRename();
@@ -363,6 +368,7 @@ const App = () => {
     findItemByIdFromTree,
     showMessage,
   ]);
+
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -376,18 +382,21 @@ const App = () => {
     },
     [showMessage, setContextMenu]
   );
+
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
       setAddDialogErrorMessage("Name cannot be empty.");
       return;
     }
+
     const parentId = parentItemForAdd?.id ?? null;
-    const siblings = parentId
-      ? findItemByIdFromTree(parentId)?.children || []
-      : tree;
+    const { siblings: targetSiblings } = findParentAndSiblingsFromTree(
+      parentId ? parentItemForAdd.id : null
+    );
+
     if (
-      siblings.some(
+      (targetSiblings || tree).some(
         (sibling) => sibling.label.toLowerCase() === trimmedLabel.toLowerCase()
       )
     ) {
@@ -396,11 +405,15 @@ const App = () => {
       );
       return;
     }
+
     const newItemData = {
       type: newItemType,
       label: trimmedLabel,
-      ...(newItemType === "task" ? { completed: false, content: "" } : {}),
-      ...(newItemType === "note" ? { content: "" } : {}),
+      content:
+        newItemType === "note" || newItemType === "task" ? "" : undefined,
+      completed: newItemType === "task" ? false : undefined,
+      direction:
+        newItemType === "note" || newItemType === "task" ? "ltr" : undefined,
     };
     const result = await addItem(newItemData, parentId);
     if (result.success) {
@@ -435,11 +448,13 @@ const App = () => {
     settings.autoExpandNewFolders,
     expandFolderPath,
     tree,
-    findItemByIdFromTree,
+    findParentAndSiblingsFromTree,
   ]);
+
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       const result = await updateTask(id, {
+        // Pass as object
         completed: !currentCompletedStatus,
       });
       if (!result.success) {
@@ -450,7 +465,37 @@ const App = () => {
     },
     [updateTask, showMessage]
   );
+
+  const handleSaveItemData = useCallback(
+    async (itemId, dataToSave) => {
+      const item = findItemByIdFromTree(itemId);
+      if (!item) return;
+
+      let result;
+      // Ensure dataToSave contains only valid fields for the item type
+      const updates = { ...dataToSave };
+      if (item.type === "folder") {
+        // Folders shouldn't save content/direction
+        delete updates.content;
+        delete updates.direction;
+      }
+
+      if (item.type === "note") {
+        result = await updateNoteContent(itemId, updates);
+      } else if (item.type === "task") {
+        result = await updateTask(itemId, updates);
+      }
+
+      if (result && !result.success) {
+        showMessage(result.error || "Failed to save item.", "error");
+      }
+      // Success message can be added here if desired, or rely on optimistic update
+    },
+    [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
+  );
+
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
+
   const openExportDialog = useCallback(
     (context) => {
       setExportDialogState({ isOpen: true, context });
@@ -459,6 +504,7 @@ const App = () => {
     },
     [setContextMenu]
   );
+
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -467,6 +513,7 @@ const App = () => {
     },
     [setContextMenu]
   );
+
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
@@ -481,7 +528,6 @@ const App = () => {
           message: result.message || "Import successful!",
         };
       } else {
-        showMessage(result?.error || "Import operation failed.", "error");
         return {
           success: false,
           error: result?.error || "Import operation failed.",
@@ -490,17 +536,19 @@ const App = () => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
+
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
       if (!result.success) {
         showMessage(result.error || "Paste operation failed.", "error");
       } else {
-        showMessage("Item pasted.", "success", 3000);
+        showMessage(result.message || "Item pasted.", "success", 3000);
       }
     },
     [pasteItem, showMessage]
   );
+
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
@@ -515,6 +563,7 @@ const App = () => {
     },
     [deleteItem, showMessage, setContextMenu]
   );
+
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
       if (!item || !buttonElement) return;
@@ -529,11 +578,13 @@ const App = () => {
       if (y + menuHeight > window.innerHeight - 10)
         y = rect.top - menuHeight - 2;
       if (y < 10) y = 10;
+
       selectItemById(item.id);
       setContextMenu({ visible: true, x, y, item, isEmptyArea: false });
     },
     [selectItemById, setContextMenu]
   );
+
   const handleNativeContextMenu = useCallback(
     (event, item) => {
       if (draggedId || inlineRenameId) {
@@ -542,17 +593,21 @@ const App = () => {
       }
       event.preventDefault();
       event.stopPropagation();
+
       selectItemById(item?.id ?? null);
+
       let x = event.clientX,
         y = event.clientY;
       const menuWidth = 190;
       const menuHeight = item ? (item.type === "folder" ? 350 : 280) : 180;
+
       if (x + menuWidth > window.innerWidth - 10)
         x = window.innerWidth - menuWidth - 10;
       if (x < 10) x = 10;
       if (y + menuHeight > window.innerHeight - 10)
         y = window.innerHeight - menuHeight - 10;
       if (y < 10) y = 10;
+
       setContextMenu({ visible: true, x, y, item, isEmptyArea: !item });
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
@@ -611,8 +666,9 @@ const App = () => {
         e.shiftKey &&
         e.key.toUpperCase() === "F"
       ) {
-        if (isInputFocused && activeElement.id === "global-search-input")
-          return;
+        const el = e.target;
+        if (el.id === "global-search-input") return;
+
         e.preventDefault();
         setSearchSheetOpen((s) => !s);
       }
@@ -625,6 +681,7 @@ const App = () => {
     canRedoTree,
     redoTreeChange,
     inlineRenameId,
+    setSearchSheetOpen,
   ]);
 
   useEffect(() => {
@@ -643,12 +700,15 @@ const App = () => {
         activeEl &&
         (activeEl.classList.contains("ProseMirror") ||
           activeEl.closest(".ProseMirror"));
-      const isStandardInputFocused =
+
+      const isGeneralInputFocused =
         activeEl &&
-        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA") &&
-        activeEl.id !== "tree-navigation-area" &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.isContentEditable) &&
         !isRenameActive &&
-        !isTipTapEditorFocused;
+        !isTipTapEditorFocused &&
+        activeEl.id !== "global-search-input";
 
       const isTreeAreaLikelyFocused = () => {
         const treeNav = document.querySelector(
@@ -662,37 +722,44 @@ const App = () => {
         );
       };
 
-      if (isStandardInputFocused) {
+      if (isGeneralInputFocused) {
         if (
           (e.ctrlKey || e.metaKey) &&
-          ["c", "x", "v"].includes(e.key.toLowerCase())
+          ["c", "x", "v", "a", "z", "y"].includes(e.key.toLowerCase())
         )
           return;
-        if (e.key === "F2") return;
         if (
-          (e.key === "Delete" || e.key === "Backspace") &&
-          !isTreeAreaLikelyFocused()
+          [
+            "Delete",
+            "Backspace",
+            "Enter",
+            "Escape",
+            "ArrowUp",
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowRight",
+            "Tab",
+          ].includes(e.key)
         )
+          return;
+        if (e.key === "F2" && !selectedItemId && !isTreeAreaLikelyFocused())
           return;
       }
 
       if (isTipTapEditorFocused) {
-        // Allow TipTap to handle its own C/X/V, Delete, Backspace
         if (
           (e.ctrlKey || e.metaKey) &&
           ["c", "x", "v"].includes(e.key.toLowerCase())
         )
           return;
-        if (e.key === "Delete" || e.key === "Backspace") return;
-        // F2 for rename might still be triggered if a tree item is selected, even if TipTap is focused
-        // This is handled by the F2 logic below.
+        if (["Delete", "Backspace"].includes(e.key)) return;
       }
 
       if (e.key === "F2" && selectedItemId && !isRenameActive) {
-        // Allow rename if tree area is focused OR if TipTap is focused AND a tree item is selected
         if (
           isTreeAreaLikelyFocused() ||
-          (isTipTapEditorFocused && selectedItemId)
+          (isTipTapEditorFocused && selectedItemId) ||
+          document.body === activeEl
         ) {
           e.preventDefault();
           const item = findItemByIdFromTree(selectedItemId);
@@ -703,7 +770,8 @@ const App = () => {
         e.key.toLowerCase() === "c" &&
         selectedItemId &&
         !isRenameActive &&
-        !isTipTapEditorFocused
+        !isTipTapEditorFocused &&
+        !isGeneralInputFocused
       ) {
         e.preventDefault();
         copyItem(selectedItemId);
@@ -713,7 +781,8 @@ const App = () => {
         e.key.toLowerCase() === "x" &&
         selectedItemId &&
         !isRenameActive &&
-        !isTipTapEditorFocused
+        !isTipTapEditorFocused &&
+        !isGeneralInputFocused
       ) {
         e.preventDefault();
         cutItem(selectedItemId);
@@ -723,7 +792,8 @@ const App = () => {
         e.key.toLowerCase() === "v" &&
         clipboardItem &&
         !isRenameActive &&
-        !isTipTapEditorFocused
+        !isTipTapEditorFocused &&
+        !isGeneralInputFocused
       ) {
         e.preventDefault();
         const currentItem = findItemByIdFromTree(selectedItemId);
@@ -737,14 +807,15 @@ const App = () => {
           (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) &&
         selectedItemId &&
         !isRenameActive &&
-        !isTipTapEditorFocused
+        !isTipTapEditorFocused &&
+        !isGeneralInputFocused
       ) {
         if (isTreeAreaLikelyFocused() || document.body === activeEl) {
           e.preventDefault();
           const item = findItemByIdFromTree(selectedItemId);
           if (
             item &&
-            window.confirm(`Delete "${item.label}"? This cannot be undone.`)
+            window.confirm(`Delete "${item.label}"?\nThis cannot be undone.`)
           ) {
             await handleDeleteConfirm(selectedItemId);
           }
@@ -759,7 +830,6 @@ const App = () => {
     inlineRenameId,
     tree,
     clipboardItem,
-    searchQuery,
     copyItem,
     cutItem,
     pasteItem,
@@ -774,10 +844,7 @@ const App = () => {
   ]);
 
   useEffect(() => {
-    /* Search Results processing - same as before */ if (
-      searchQuery &&
-      searchSheetOpen
-    ) {
+    if (searchQuery && searchSheetOpen) {
       const currentSearchOpts = { ...searchOptions, useRegex: false };
       const rawHits = searchItems(searchQuery, currentSearchOpts);
       const CONTEXT_CHARS_BEFORE = 20,
@@ -787,7 +854,7 @@ const App = () => {
       const processedResults = rawHits
         .map((hit) => {
           if (!hit || !hit.id) return null;
-          const pathString = getItemPath(hit.id) || "";
+          const pathString = getItemPath(tree, hit.id) || "";
           const originalLabel =
             typeof hit.label === "string"
               ? hit.label
@@ -936,13 +1003,13 @@ const App = () => {
     searchSheetOpen,
     tree,
   ]);
+
   useEffect(() => {
-    /* Top Menu Outside Click Handler - same as before */ const handleClickOutside =
-      (e) => {
-        if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
-          setTopMenuOpen(false);
-        }
-      };
+    const handleClickOutside = (e) => {
+      if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
+        setTopMenuOpen(false);
+      }
+    };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -996,8 +1063,7 @@ const App = () => {
                   : "text-zinc-600 dark:text-zinc-300"
               }`}
             >
-              {" "}
-              <Undo className="w-5 h-5" />{" "}
+              <Undo className="w-5 h-5" />
             </button>
             <button
               onClick={redoTreeChange}
@@ -1009,8 +1075,7 @@ const App = () => {
                   : "text-zinc-600 dark:text-zinc-300"
               }`}
             >
-              {" "}
-              <Redo className="w-5 h-5" />{" "}
+              <Redo className="w-5 h-5" />
             </button>
             <button
               onClick={() => setSearchSheetOpen((s) => !s)}
@@ -1021,24 +1086,21 @@ const App = () => {
                   : "text-zinc-600 dark:text-zinc-300"
               }`}
             >
-              {" "}
-              <SearchIcon className="w-5 h-5" />{" "}
+              <SearchIcon className="w-5 h-5" />
             </button>
             <button
               onClick={() => setSettingsDialogOpen(true)}
               className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
               title="Settings"
             >
-              {" "}
-              <SettingsIcon className="w-5 h-5" />{" "}
+              <SettingsIcon className="w-5 h-5" />
             </button>
             <button
               onClick={() => setTopMenuOpen((p) => !p)}
               className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
               title="More actions"
             >
-              {" "}
-              <EllipsisVertical className="w-5 h-5" />{" "}
+              <EllipsisVertical className="w-5 h-5" />
             </button>
             {topMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
@@ -1049,8 +1111,7 @@ const App = () => {
                   }}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
-                  {" "}
-                  <FileJson className="w-4 h-4 opacity-70" /> Add Root Folder{" "}
+                  <FileJson className="w-4 h-4 opacity-70" /> Add Root Folder
                 </button>
                 <button
                   onClick={() => {
@@ -1059,9 +1120,8 @@ const App = () => {
                   }}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
-                  {" "}
                   <FileJson className="w-4 h-4 opacity-70" /> Export Full
-                  Tree...{" "}
+                  Tree...
                 </button>
                 <button
                   onClick={() => {
@@ -1070,9 +1130,8 @@ const App = () => {
                   }}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
-                  {" "}
                   <FileJson className="w-4 h-4 opacity-70" /> Import Full
-                  Tree...{" "}
+                  Tree...
                 </button>
                 <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
                 <button
@@ -1082,8 +1141,7 @@ const App = () => {
                   }}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
-                  {" "}
-                  <Info className="w-4 h-4 opacity-70" /> About{" "}
+                  <Info className="w-4 h-4 opacity-70" /> About
                 </button>
                 <button
                   onClick={() => {
@@ -1092,8 +1150,7 @@ const App = () => {
                   }}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-700/30"
                 >
-                  {" "}
-                  <LogOut className="w-4 h-4 opacity-70" /> Logout{" "}
+                  <LogOut className="w-4 h-4 opacity-70" /> Logout
                 </button>
               </div>
             )}
@@ -1167,8 +1224,7 @@ const App = () => {
                 selectedItem.type === "folder" ? (
                   <div className="p-3 sm:p-4">
                     <h2 className="text-lg sm:text-xl font-semibold mb-3 text-zinc-800 dark:text-zinc-100 break-words">
-                      {" "}
-                      {selectedItem.label}{" "}
+                      {selectedItem.label}
                     </h2>
                     <FolderContents
                       folder={selectedItem}
@@ -1198,31 +1254,12 @@ const App = () => {
                     key={selectedItemId}
                     item={selectedItem}
                     defaultFontFamily={settings.editorFontFamily}
-                    onSaveContent={
-                      selectedItem.type === "task"
-                        ? async (id, content) => {
-                            const result = await updateTask(id, { content });
-                            if (!result.success)
-                              showMessage(
-                                result.error || "Failed to save task content.",
-                                "error"
-                              );
-                          }
-                        : async (id, content) => {
-                            const result = await updateNoteContent(id, content);
-                            if (!result.success)
-                              showMessage(
-                                result.error || "Failed to save note content.",
-                                "error"
-                              );
-                          }
-                    }
+                    onSaveItemData={handleSaveItemData}
                   />
                 ) : null
               ) : (
                 <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
-                  {" "}
-                  Select or create an item to view or edit its content.{" "}
+                  Select or create an item to view or edit its content.
                 </div>
               )}
             </div>
@@ -1236,7 +1273,10 @@ const App = () => {
         initialSnap={1}
         className="z-40"
       >
-        <Sheet.Container className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl">
+        <Sheet.Container
+          data-item-id="search-sheet-container"
+          className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl"
+        >
           <Sheet.Header>
             <div className="flex justify-center py-2.5 cursor-grab">
               <div className="w-10 h-1.5 bg-zinc-300 dark:bg-zinc-600 rounded-full"></div>
@@ -1298,7 +1338,7 @@ const App = () => {
             if (contextMenu.item) {
               if (
                 window.confirm(
-                  `Delete "${contextMenu.item.label}"? This cannot be undone.`
+                  `Delete "${contextMenu.item.label}"?\nThis cannot be undone.`
                 )
               ) {
                 handleDeleteConfirm(contextMenu.item.id);

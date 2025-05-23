@@ -72,3 +72,4 @@ node_modules/
 .dataconnect
 dist/
 consolidated_output.txt
+playwright-report/index.html
