@@ -74,16 +74,24 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
           {item.label}
         </h2>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 space-y-0.5">
-          {item.createdAt && (
-            <p title={new Date(item.createdAt).toISOString()}>
-              נוצר: {formatTimestamp(item.createdAt)}
-            </p>
-          )}
-          {item.updatedAt && (
-            <p title={new Date(item.updatedAt).toISOString()}>
-              עודכן לאחרונה: {formatTimestamp(item.updatedAt)}
-            </p>
-          )}
+          <p
+            title={
+              item.createdAt && !isNaN(new Date(item.createdAt).getTime())
+                ? new Date(item.createdAt).toISOString()
+                : "Invalid or missing date"
+            }
+          >
+            Created: {formatTimestamp(item.createdAt)}
+          </p>
+          <p
+            title={
+              item.updatedAt && !isNaN(new Date(item.updatedAt).getTime())
+                ? new Date(item.updatedAt).toISOString()
+                : "Invalid or missing date"
+            }
+          >
+            Last Modified: {formatTimestamp(item.updatedAt)}
+          </p>
         </div>
       </div>
 

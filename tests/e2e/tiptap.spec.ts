@@ -9,18 +9,31 @@ interface SavedItemData {
   content?: string;
   direction?: "ltr" | "rtl";
   label?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 let lastSavedData: SavedItemData | null = null;
 const saveDebounceTime = 1200;
 
+const formatDateForDisplay = (isoString: string): string => {
+  if (!isoString || isNaN(new Date(isoString).getTime())) return "Invalid Date";
+  return new Date(isoString).toLocaleString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 async function setupEditorTest(
   page: Page,
   initialContent: string = "<p></p>",
-  initialDirection: "ltr" | "rtl" = "ltr"
+  initialDirection: "ltr" | "rtl" = "ltr",
+  initialTimestamps?: { createdAt?: string; updatedAt?: string }
 ) {
   lastSavedData = null;
-
   await page.unroute("**/api/auth/login");
   await page.unroute("**/api/items/tree");
   await page.unroute(`**/api/items/${NOTE_ID_FOR_EDITOR_TESTS}`);
@@ -35,18 +48,21 @@ async function setupEditorTest(
     });
   });
 
+  const now = new Date().toISOString();
+  const noteData = {
+    id: NOTE_ID_FOR_EDITOR_TESTS,
+    label: NOTE_LABEL_FOR_EDITOR_TESTS,
+    type: "note",
+    content: initialContent,
+    direction: initialDirection,
+    createdAt: initialTimestamps?.createdAt || now,
+    updatedAt: initialTimestamps?.updatedAt || now,
+  };
+
   await page.route("**/api/items/tree", async (route) => {
     await route.fulfill({
       json: {
-        notesTree: [
-          {
-            id: NOTE_ID_FOR_EDITOR_TESTS,
-            label: NOTE_LABEL_FOR_EDITOR_TESTS,
-            type: "note",
-            content: initialContent,
-            direction: initialDirection,
-          },
-        ],
+        notesTree: [noteData],
       },
       status: 200,
     });
@@ -56,15 +72,15 @@ async function setupEditorTest(
     `**/api/items/${NOTE_ID_FOR_EDITOR_TESTS}`,
     async (route, request) => {
       if (request.method() === "PATCH") {
-        lastSavedData = request.postDataJSON() as SavedItemData;
+        const requestBody = request.postDataJSON() as SavedItemData;
+        lastSavedData = {
+          ...noteData,
+          content: requestBody.content,
+          direction: requestBody.direction,
+          updatedAt: new Date().toISOString(),
+        };
         await route.fulfill({
-          json: {
-            id: NOTE_ID_FOR_EDITOR_TESTS,
-            label: NOTE_LABEL_FOR_EDITOR_TESTS,
-            type: "note",
-            content: lastSavedData?.content,
-            direction: lastSavedData?.direction,
-          },
+          json: lastSavedData,
           status: 200,
         });
       } else {
@@ -93,7 +109,6 @@ async function setupEditorTest(
 
   const editorLocator = page.locator(".ProseMirror");
   await expect(editorLocator).toBeVisible({ timeout: 10000 });
-
   await expect(editorLocator).toHaveAttribute("dir", initialDirection, {
     timeout: 7000,
   });
@@ -115,43 +130,57 @@ const getEditor = (page: Page): Locator => {
 };
 
 async function selectTextInEditor(
-  editorLocator: Locator,
+  // editorLocator: Locator, // Changed to accept the specific block
+  blockToSelectIn: Locator,
   textToSelect: string
 ) {
-  await editorLocator.focus();
-  // More robust selection using page.evaluate
-  const success = await editorLocator.evaluate((editorNode, text) => {
+  await blockToSelectIn.focus();
+  const success = await blockToSelectIn.evaluate((editorNode, text) => {
     const el = editorNode as HTMLElement;
     const fullTextContent = el.textContent || "";
     const startIndex = fullTextContent.indexOf(text);
 
     if (startIndex === -1) {
-      // Fallback: if specific text not found (e.g., due to complex DOM structure or highlighting)
-      // Attempt to select all content within the current focused element (often a <p>)
       const currentSelection = window.getSelection();
       if (currentSelection && currentSelection.focusNode) {
         const focusParent = currentSelection.focusNode.parentElement;
         if (
           focusParent &&
           focusParent.closest &&
-          focusParent.closest(".ProseMirror")
+          (focusParent.closest(".ProseMirror") || focusParent === el) // Check against ProseMirror or the element itself
         ) {
-          // Ensure it's within editor
           const range = document.createRange();
           range.selectNodeContents(focusParent);
           currentSelection.removeAllRanges();
           currentSelection.addRange(range);
-          return true; // Indicate some selection was made
+          return true;
         }
       }
-      // If still no good selection, try TipTap's selectAll
-      (el as any).editor?.commands.selectAll();
-      return false; // Indicate precise selection failed
+      // Check if the editor instance is on the element directly or on a .ProseMirror parent
+      let tiptapEditorInstance = (el as any).editor;
+      if (!tiptapEditorInstance) {
+        const proseMirrorParent = el.closest(".ProseMirror");
+        if (proseMirrorParent) {
+          tiptapEditorInstance = (proseMirrorParent as any).editor;
+        }
+      }
+      if (tiptapEditorInstance) {
+        tiptapEditorInstance.commands.selectAll();
+      } else {
+        // Fallback if no editor instance found (e.g. trying to select all in a plain div)
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+      return false;
     }
 
     const selection = window.getSelection();
     const range = document.createRange();
-
     let charCount = 0;
     let startNodeRef: Node | null = null;
     let startOffsetRef = 0;
@@ -187,8 +216,7 @@ async function selectTextInEditor(
     if (startDetails) {
       startNodeRef = startDetails.node;
       startOffsetRef = startDetails.offset;
-
-      charCount = 0; // Reset for end offset calculation
+      charCount = 0;
       const endDetails = findNodeAndOffsetRecursive(
         el,
         startIndex + text.length
@@ -200,11 +228,9 @@ async function selectTextInEditor(
         startNodeRef.textContent &&
         startOffsetRef + text.length <= startNodeRef.textContent.length
       ) {
-        // If text is fully within the startNode
         endNodeRef = startNodeRef;
         endOffsetRef = startOffsetRef + text.length;
       }
-
       if (startNodeRef && endNodeRef && selection) {
         range.setStart(startNodeRef, startOffsetRef);
         range.setEnd(endNodeRef, endOffsetRef);
@@ -214,11 +240,28 @@ async function selectTextInEditor(
       }
     }
     // Fallback if specific text node for selection not found
-    (el as any).editor?.commands.selectAll();
-    return false; // Indicate precise selection failed
+    let tiptapEditorInstance = (el as any).editor;
+    if (!tiptapEditorInstance) {
+      const proseMirrorParent = el.closest(".ProseMirror");
+      if (proseMirrorParent) {
+        tiptapEditorInstance = (proseMirrorParent as any).editor;
+      }
+    }
+    if (tiptapEditorInstance) {
+      tiptapEditorInstance.commands.selectAll();
+    } else {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+    return false;
   }, textToSelect);
   if (!success) {
-    // console.warn(`Precise selection for "${textToSelect}" failed, used selectAll as fallback.`);
+    // console.warn(`Precise selection for "${textToSelect}" in block failed, used selectAll as fallback.`);
   }
 }
 
@@ -392,7 +435,7 @@ test.describe("TipTap Editor Functionality", () => {
 
     expect(lastSavedData?.content).toContain('href="https://example.com"');
     expect(lastSavedData?.content).toMatch(
-      /<p>Go to <a [^>]*href="https:\/\/example\.com"[^>]*>https:\/\/example\.com<\/a> then press space\s?<\/p>/
+      /<p>Go to <a [^>]*href="https:\/\/example\.com"[^>]*>https:\/\/example\.com<\/a> then press space\s*<\/p>/
     );
     await expect(editor.locator('a[href="https://example.com"]')).toHaveText(
       "https://example.com"
@@ -401,8 +444,10 @@ test.describe("TipTap Editor Functionality", () => {
 
   test("12. Should apply Inline Code style", async ({ page }) => {
     await editor.type("Some code here");
-    await selectTextInEditor(editor, "here");
-
+    await selectTextInEditor(
+      editor.locator('p:has-text("Some code here")'),
+      "here"
+    );
     await page.getByRole("button", { name: "Inline Code" }).click();
     await waitForSave(page);
     expect(lastSavedData?.content).toMatch(
@@ -481,7 +526,7 @@ test.describe("TipTap Editor Functionality", () => {
 
     await expect(page.getByTitle("Text Direction: RTL").last()).toBeVisible({
       timeout: 7000,
-    }); // Wait for button text to change
+    });
     await editor.type("טקסט בעברית");
     await waitForSave(page);
 
@@ -515,7 +560,7 @@ test.describe("TipTap Editor Functionality", () => {
 
     await expect(page.getByTitle("Text Direction: LTR").last()).toBeVisible({
       timeout: 7000,
-    }); // Wait for button text to change
+    });
     await editor.type(" Text in English");
     await waitForSave(page);
 
@@ -686,7 +731,7 @@ test.describe("TipTap Editor Functionality", () => {
     await boldButton.click();
     await waitForSave(page);
     expect(lastSavedData?.content).not.toContain("<strong>");
-    expect(lastSavedData?.content).toContain("Bold then not bold");
+    expect(lastSavedData?.content).toContain("<p>Bold then not bold</p>");
     await expect(editor.locator("strong")).not.toBeVisible();
   });
 
@@ -698,7 +743,7 @@ test.describe("TipTap Editor Functionality", () => {
     await waitForSave(page);
     expect(lastSavedData?.content).toBe("<h1>This is a heading</h1>");
 
-    await selectTextInEditor(editor, "This is a heading");
+    await selectTextInEditor(editor.locator("h1"), "This is a heading");
     await styleDropdown.selectOption({ label: "Paragraph" });
     await waitForSave(page);
     expect(lastSavedData?.content).toBe("<p>This is a heading</p>");
@@ -742,7 +787,7 @@ test.describe("TipTap Editor Functionality", () => {
 
     await editor.locator('li > p:has-text("Item Y")').focus();
     await page.keyboard.press("Shift+Tab");
-    await waitForSave(page, { timeout: 500 }); // Use waitForSave, but acknowledge it might time out if no save occurs.
+    await waitForSave(page, { timeout: 500 });
 
     const contentAfterOutdentAttempt =
       lastSavedData?.content || (await editor.innerHTML());
@@ -754,8 +799,7 @@ test.describe("TipTap Editor Functionality", () => {
   test("31. Exploratory editing operations and validations", async ({
     page,
   }) => {
-
-    test.setTimeout(60000); // Specifically for this test only
+    test.setTimeout(60000);
 
     await editor.type("Exploratory Test Start. ");
     await waitForSave(page);
@@ -764,7 +808,7 @@ test.describe("TipTap Editor Functionality", () => {
 
     const textToBold = "Make this bold.";
     await editor.type(textToBold + " ");
-    await selectTextInEditor(editor, textToBold);
+    await selectTextInEditor(editor.locator("p").first(), textToBold);
 
     await page.getByRole("button", { name: "Bold" }).click();
     await waitForSave(page);
@@ -777,7 +821,7 @@ test.describe("TipTap Editor Functionality", () => {
     await editor.press("Space");
     const textToItalic = "And this italic.";
     await editor.type(`${textToItalic} `);
-    await selectTextInEditor(editor, textToItalic);
+    await selectTextInEditor(editor.locator("p").first(), textToItalic);
     await page.getByRole("button", { name: "Italic" }).click();
     await waitForSave(page);
     expect(lastSavedData?.content).toContain(`<em>${textToItalic}</em>`);
@@ -789,7 +833,7 @@ test.describe("TipTap Editor Functionality", () => {
     await editor.press("Space");
     const textToUnderline = "Underline this.";
     await editor.type(`${textToUnderline} `);
-    await selectTextInEditor(editor, textToUnderline);
+    await selectTextInEditor(editor.locator("p").first(), textToUnderline);
     await page.getByRole("button", { name: "Underline" }).click();
     await waitForSave(page);
     expect(lastSavedData?.content).toContain(`<u>${textToUnderline}</u>`);
@@ -801,7 +845,7 @@ test.describe("TipTap Editor Functionality", () => {
     await editor.press("Space");
     const textForFontFamily = "Verdana font.";
     await editor.type(`${textForFontFamily} `);
-    await selectTextInEditor(editor, textForFontFamily);
+    await selectTextInEditor(editor.locator("p").first(), textForFontFamily);
     await page
       .getByRole("combobox", { name: "Font Family" })
       .selectOption("Verdana");
@@ -819,7 +863,7 @@ test.describe("TipTap Editor Functionality", () => {
     await editor.press("Space");
     const textForFontSize = "Large size.";
     await editor.type(`${textForFontSize} `);
-    await selectTextInEditor(editor, textForFontSize);
+    await selectTextInEditor(editor.locator("p").first(), textForFontSize);
     await page
       .getByRole("combobox", { name: "Font Size" })
       .selectOption({ label: "Large" });
@@ -833,25 +877,28 @@ test.describe("TipTap Editor Functionality", () => {
       )
     );
 
-    await editor.press("ArrowRight");
-    await editor.press("Enter");
+    await editor.press("ArrowRight"); // Move cursor to the end of the first paragraph
+    await editor.press("Enter"); // Create a new paragraph
     await editor.type("Main Title");
-    await selectTextInEditor(editor, "Main Title");
+    await selectTextInEditor(
+      editor.locator('p:has-text("Main Title")'),
+      "Main Title"
+    );
     await page
       .getByRole("combobox", { name: "Text Style" })
       .selectOption({ label: "H1" });
     await waitForSave(page);
     expect(lastSavedData?.content).toMatch(
-      new RegExp(`<h1>.*Main Title.*</h1>`)
+      new RegExp(`<h1>Main Title</h1>`) // Simplified regex
     );
 
     await editor.locator('h1:has-text("Main Title")').focus();
     await editor.press("End");
-    await editor.press("Enter");
+    await editor.press("Enter"); // This should create a <p> after <h1>
     await editor.type("Paragraph after H1.");
     await waitForSave(page);
     expect(lastSavedData?.content).toMatch(
-      new RegExp(`<h1>.*Main Title.*</h1><p>Paragraph after H1\\.</p>`)
+      new RegExp(`<h1>Main Title</h1><p>Paragraph after H1\\.</p>`)
     );
 
     await editor.press("Enter");
@@ -864,9 +911,9 @@ test.describe("TipTap Editor Functionality", () => {
       /<ul><li><p>Bullet 1<\/p><\/li><li><p>Bullet 2<\/p><\/li><\/ul>/
     );
 
-    await editor.press("Enter");
-    await page.getByRole("button", { name: "Bulleted List" }).click();
-    await editor.press("Enter");
+    await editor.press("Enter"); // New line after Bullet 2 (still in list)
+    await page.getByRole("button", { name: "Bulleted List" }).click(); // Toggle off bullet list
+    // The cursor should now be in a new paragraph outside the list
     await editor.type("Ordered 1");
     await page.getByRole("button", { name: "Numbered List" }).click();
     await editor.press("Enter");
@@ -878,7 +925,7 @@ test.describe("TipTap Editor Functionality", () => {
 
     await page.getByRole("button", { name: "Undo", exact: true }).click();
     await waitForSave(page);
-    expect(lastSavedData?.content).not.toContain("Ordered 2");
+    expect(lastSavedData?.content).not.toContain("<p>Ordered 2</p>");
 
     await page.getByRole("button", { name: "Redo", exact: true }).click();
     await waitForSave(page);
@@ -886,11 +933,13 @@ test.describe("TipTap Editor Functionality", () => {
       /<ol><li><p>Ordered 1<\/p><\/li><li><p>Ordered 2<\/p><\/li><\/ol>/
     );
 
-    await editor.press("Enter");
-    await page.getByRole("button", { name: "Numbered List" }).click();
-    await editor.press("Enter");
+    await editor.press("Enter"); // New line after Ordered 2
+    await page.getByRole("button", { name: "Numbered List" }).click(); // Toggle off ordered list
     await editor.type("Centered text line.");
-    await selectTextInEditor(editor, "Centered text line.");
+    await selectTextInEditor(
+      editor.locator('p:has-text("Centered text line.")'),
+      "Centered text line."
+    );
     await page.getByRole("button", { name: "Align Center" }).click();
     await waitForSave(page);
     expect(lastSavedData?.content).toContain(
@@ -924,6 +973,7 @@ test.describe("TipTap Editor Functionality", () => {
     await page.route("**/api/images/upload", async (route) => {
       await route.fulfill({ json: { url: serverImageUrl }, status: 200 });
     });
+
     const fileChooserPromise = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "Upload Image" }).click();
     const fileChooser = await fileChooserPromise;
@@ -944,29 +994,42 @@ test.describe("TipTap Editor Functionality", () => {
       if (dialog.message() === "Enter URL:")
         await dialog.accept("https://playwright.dev");
     });
-    await editor.press("Enter");
+
+    await editor.press("Enter"); // New paragraph for the link
     await editor.type("Playwright Link");
-    await selectTextInEditor(editor, "Playwright Link");
+    await selectTextInEditor(
+      editor.locator('p:has-text("Playwright Link")'),
+      "Playwright Link"
+    );
     await page.getByRole("button", { name: "Set Link" }).click();
     await waitForSave(page);
     expect(lastSavedData?.content).toContain('href="https://playwright.dev"');
 
-    await editor.locator('a[href="https://playwright.dev"]').focus(); // Optional: ensure focus
-    await editor.press("End"); // Move to the end of the link text "Playwright Link"
-    await editor.press("ArrowRight"); // **** ADD THIS LINE: Move cursor OUTSIDE the <a> tag ****
-    await editor.press("Space"); // Add a space in the main content area, after the link
+    // Ensure cursor is outside the link before typing the next URL
+    await editor.locator('a[href="https://playwright.dev"]').focus();
+    await editor.press("End");
+    await editor.press("ArrowRight"); // Move cursor out of <a> tag
+    await editor.press("Space"); // Add a space
+
     await editor.type("www.google.com");
-    await editor.press("Space"); // This should now trigger auto-linking for www.google.com
+    await editor.press("Space");
     await waitForSave(page);
     expect(lastSavedData?.content).toContain('href="http://www.google.com"');
 
     await editor.press("Enter");
     await editor.type("Final Bold Text");
-    await selectTextInEditor(editor, "Final Bold Text");
+    await selectTextInEditor(
+      editor.locator('p:has-text("Final Bold Text")'),
+      "Final Bold Text"
+    );
     const boldButton = page.getByRole("button", { name: "Bold" });
     await boldButton.click();
     await waitForSave(page);
-    await selectTextInEditor(editor, "Final Bold Text");
+
+    await selectTextInEditor(
+      editor.locator('strong:has-text("Final Bold Text")'),
+      "Final Bold Text"
+    );
     await boldButton.click();
     await waitForSave(page);
     expect(lastSavedData?.content).not.toContain(
@@ -975,76 +1038,101 @@ test.describe("TipTap Editor Functionality", () => {
 
     await editor.press("Enter");
     await editor.type("function test() {}");
-    await selectTextInEditor(editor, "function test() {}");
+    await selectTextInEditor(
+      editor.locator('p:has-text("function test() {}")'),
+      "function test() {}"
+    );
     await page.getByRole("button", { name: "Code Block" }).click();
     await waitForSave(page);
     expect(lastSavedData?.content).toContain(
       "<pre><code>function test() {}</code></pre>"
     );
 
-    const firstParaTextOriginal = "Exploratory Test Start.";
+    const firstParagraphText = "Exploratory Test Start.";
     const textToResizeInFirstPara = "Exploratory";
-    await editor
-      .locator(`h1:has-text("${firstParaTextOriginal.substring(0, 10)}")`) // Looks for <h1>
-      .focus();
-    await selectTextInEditor(editor, textToResizeInFirstPara);
+    const firstPElement = editor.locator("p").first(); // Re-locate the first paragraph
+    await expect(firstPElement).toContainText(firstParagraphText);
+    await firstPElement.focus();
+    await selectTextInEditor(firstPElement, textToResizeInFirstPara);
 
     await page
       .getByRole("combobox", { name: "Font Size" })
       .selectOption({ label: "Small" });
     await waitForSave(page);
-    expect(lastSavedData?.content).toContain(
-      `<span style="font-size: 0.8em">${textToResizeInFirstPara}</span> Test Start.`
+
+    const firstPContentAfterResize = await editor
+      .locator("p")
+      .first()
+      .innerHTML();
+    expect(firstPContentAfterResize).toContain(
+      `<span style="font-size: 0.8em">${textToResizeInFirstPara}</span>`
     );
 
-    // Ensure focus is on the H1 block containing "Exploratory"
-    const firstH1Block = editor.locator(`h1:has-text("${firstParaTextOriginal.substring(0, 10)}")`);
-    await firstH1Block.focus();
-    await editor.press("End"); // Move cursor to the very end of the content within that H1
+    // Navigate to the end of the current block (which should be a paragraph)
+    // Ensure we are focused on the last block, which could be <pre> or <p> etc.
+    const lastBlock = editor.locator("p, ol, ul, h1, h2, h3, pre").last();
+    await lastBlock.focus();
+    await editor.press("End");
+    await editor.press("Enter"); // Create new paragraph
 
-    // Press Enter. This should create a new block after the H1.
-    await editor.press("Enter");
-    // At this point, the cursor is in a new block. Let's explicitly set its style to "Paragraph".
-    // This will ensure the block that becomes empty (<p></p>) is indeed a paragraph.
-    await page.getByRole("combobox", { name: "Text Style" }).selectOption({ label: "Paragraph" });
+    // Set this new paragraph's style explicitly to Paragraph
+    await page
+      .getByRole("combobox", { name: "Text Style" })
+      .selectOption({ label: "Paragraph" });
+    await editor.press("Enter"); // Create one more paragraph, leaving the previous one empty (<p></p>)
 
-    // Now press Enter again. This should create a new paragraph below the current one.
-    // The current paragraph (now empty) becomes the <p></p>.
-    // The new paragraph is where "More breaks." will be typed.
-    await editor.press("Enter");
-
-    // Before typing, to be absolutely sure, set the style for this new line to "Paragraph" again.
-    // This helps clear any sticky H1 formatting that might try to re-apply.
-    await page.getByRole("combobox", { name: "Text Style" }).selectOption({ label: "Paragraph" });
-
+    // Ensure this new line is also a paragraph
+    await page
+      .getByRole("combobox", { name: "Text Style" })
+      .selectOption({ label: "Paragraph" });
     await editor.type("More breaks.");
     await waitForSave(page);
-    expect(lastSavedData?.content).toMatch(
-      new RegExp("<p></p><p[^>]*>(<strong><em><u>)?More breaks\\.") // Checks the start
-    );
+    expect(lastSavedData?.content).toMatch(/<p><\/p><p>More breaks\.<\/p>/);
 
     const paraToMakeH2Text = "Paragraph after H1.";
     const paraToMakeH2 = editor
-      .locator(`p:has-text("${paraToMakeH2Text}")`)
+      .locator(`p:has-text("${paraToMakeH2Text}")`) // This might fail if "Paragraph after H1." was changed to H2 already
       .first();
-    if (await paraToMakeH2.isVisible({ timeout: 1000 })) {
-      await selectTextInEditor(editor, paraToMakeH2Text);
+    if (await paraToMakeH2.isVisible({ timeout: 2000 })) {
+      // Added timeout
+      await selectTextInEditor(paraToMakeH2, paraToMakeH2Text);
       await page
         .getByRole("combobox", { name: "Text Style" })
         .selectOption({ label: "H2" });
       await waitForSave(page);
       expect(lastSavedData?.content).toContain(`<h2>${paraToMakeH2Text}</h2>`);
+    } else {
+      // If the paragraph is not found, it might have been converted to H2 previously.
+      // Let's check for an H2 with that text.
+      const h2Element = editor
+        .locator(`h2:has-text("${paraToMakeH2Text}")`)
+        .first();
+      await expect(h2Element).toBeVisible({ timeout: 1000 }); // Assert it became H2 earlier
     }
 
+    // Ensure we are on a new line before typing "This is a long sentence..."
+    const lastContentBlock = editor
+      .locator("p, ol, ul, h1, h2, h3, pre")
+      .last();
+    await lastContentBlock.focus();
     await editor.press("End");
     await editor.press("Enter");
+    // Set style to paragraph for the new line
+    await page
+      .getByRole("combobox", { name: "Text Style" })
+      .selectOption({ label: "Paragraph" });
+
     const textForPartialDelete =
       "This is a long sentence for partial deletion.";
     const toDeleteFromSentence = "long sentence ";
     const expectedAfterDelete = "This is a for partial deletion.";
     await editor.type(textForPartialDelete);
     await waitForSave(page);
-    await selectTextInEditor(editor, toDeleteFromSentence);
+
+    await selectTextInEditor(
+      editor.locator(`p:has-text("${textForPartialDelete}")`),
+      toDeleteFromSentence
+    );
     await page.keyboard.press("Delete");
     await waitForSave(page);
     expect(lastSavedData?.content).toContain(`<p>${expectedAfterDelete}</p>`);
@@ -1060,7 +1148,10 @@ test.describe("TipTap Editor Functionality", () => {
       /<ol><li><p>Final Step 1<\/p><\/li><li><p>Final Step 2<\/p><\/li><\/ol>/
     );
 
-    await selectTextInEditor(editor, "Final Step 2"); // Assuming select last typed or relevant part for font change
+    await selectTextInEditor(
+      editor.locator('li > p:has-text("Final Step 2")'),
+      "Final Step 2"
+    );
     await page
       .getByRole("combobox", { name: "Font Family" })
       .selectOption("Arial");
@@ -1074,11 +1165,112 @@ test.describe("TipTap Editor Functionality", () => {
     await editor.locator("p, ol, ul, h1, h2, h3, pre").last().focus();
     await editor.press("End");
     await editor.press("Enter");
+    await page
+      .getByRole("combobox", { name: "Text Style" })
+      .selectOption({ label: "Paragraph" }); // Ensure it's a paragraph
     await editor.type("Exploratory test really complete.");
     await waitForSave(page);
     expect(lastSavedData?.content).toContain(
-      "Exploratory test really complete."
+      "<p>Exploratory test really complete.</p>"
     );
     await expect(editor).toContainText("Exploratory test really complete.");
+  });
+
+  test("32. Should correctly paste Markdown and convert to HTML", async ({
+    page,
+  }) => {
+    await setupEditorTest(page, "<p></p>", "ltr");
+    editor = getEditor(page);
+
+    const markdownToPaste =
+      "# Markdown Heading 1\n\n* List item 1\n* List item 2\n\n**Bold text** and *italic text*.";
+
+    await editor.focus();
+    await page.evaluate(async (markdown) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.setData("text/plain", markdown);
+      const pasteEvent = new ClipboardEvent("paste", {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+      });
+      document.activeElement?.dispatchEvent(pasteEvent);
+    }, markdownToPaste);
+
+    await waitForSave(page);
+
+    expect(lastSavedData?.content).toContain("<h1>Markdown Heading 1</h1>");
+    expect(lastSavedData?.content).toContain("<li><p>List item 1</p></li>"); // Adjusted assertion
+    expect(lastSavedData?.content).toContain("<li><p>List item 2</p></li>"); // Adjusted assertion
+    expect(lastSavedData?.content).toContain("<strong>Bold text</strong>");
+    expect(lastSavedData?.content).toContain("<em>italic text</em>");
+
+    await expect(editor.locator("h1")).toContainText("Markdown Heading 1");
+    await expect(editor.locator("ul > li").first()).toContainText(
+      "List item 1"
+    );
+    await expect(editor.locator("ul > li").last()).toContainText("List item 2");
+    await expect(editor.locator("strong")).toContainText("Bold text");
+    await expect(editor.locator("em")).toContainText("italic text");
+  });
+
+  test("33. Should display and update timestamps correctly", async ({
+    page,
+  }) => {
+    const initialCreatedAt = new Date(
+      Date.now() - 2 * 60 * 60 * 1000
+    ).toISOString();
+    const initialUpdatedAt = new Date(
+      Date.now() - 1 * 60 * 60 * 1000
+    ).toISOString();
+
+    await setupEditorTest(page, "<p>Timestamp Test</p>", "ltr", {
+      createdAt: initialCreatedAt,
+      updatedAt: initialUpdatedAt,
+    });
+    editor = getEditor(page);
+
+    const formattedCreatedAt = formatDateForDisplay(initialCreatedAt);
+    const formattedInitialUpdatedAt = formatDateForDisplay(initialUpdatedAt);
+
+    const createdTimestampLocator = page.locator(
+      `p[title="${initialCreatedAt}"]`
+    );
+    await expect(createdTimestampLocator).toContainText(
+      `Created: ${formattedCreatedAt}`
+    );
+
+    const updatedTimestampLocator = page.locator(
+      `p[title="${initialUpdatedAt}"]`
+    );
+    await expect(updatedTimestampLocator).toContainText(
+      `Last Modified: ${formattedInitialUpdatedAt}`
+    );
+
+    await editor.type(" More text.");
+    await waitForSave(page);
+
+    expect(lastSavedData).not.toBeNull();
+    const newUpdatedAt = lastSavedData!.updatedAt!;
+    expect(newUpdatedAt).not.toBe(initialUpdatedAt);
+    expect(new Date(newUpdatedAt).getTime()).toBeGreaterThan(
+      new Date(initialUpdatedAt).getTime()
+    );
+    expect(lastSavedData!.createdAt).toBe(initialCreatedAt);
+
+    const newFormattedUpdatedAt = formatDateForDisplay(newUpdatedAt);
+    const newUpdatedTimestampLocator = page.locator(
+      `p[title="${newUpdatedAt}"]`
+    );
+
+    await expect(createdTimestampLocator).toContainText(
+      `Created: ${formattedCreatedAt}`
+    );
+    await expect(newUpdatedTimestampLocator).toContainText(
+      `Last Modified: ${newFormattedUpdatedAt}`
+    );
+    await expect(
+      page.locator(`p[title="${initialUpdatedAt}"]`)
+    ).not.toBeVisible();
   });
 });

@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.2.0",
-  "commitMessage": "Support items timestamps",
+  "version": "4.2.1",
+  "commitMessage": "Extend tests",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -55,6 +55,7 @@
     "babel-npm": "^0.0.1",
     "babel-plugin-transform-define": "^2.1.4",
     "babel-plugin-transform-import-meta": "^2.3.2",
+    "babel-plugin-transform-vite-meta-env": "^1.0.3",
     "install": "^0.13.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",

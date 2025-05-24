@@ -1,66 +1,61 @@
 // tests/components/SettingsDialog.test.jsx
 import React from "react";
-import { render, screen } from "@testing-library/react"; // fireEvent removed if not directly used
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import SettingsDialog from "../../src/components/SettingsDialog";
-import {
-  SettingsContext,
-  defaultSettings,
-} from "../../src/contexts/SettingsContext";
+import { defaultSettings } from "../../src/contexts/SettingsContext";
 
 const mockUpdateSetting = jest.fn();
 const mockResetSettings = jest.fn();
 const mockResetApplicationData = jest.fn();
 
-const customRender = (ui, { providerProps, ...renderOptions }) => {
-  return render(
-    <SettingsContext.Provider value={providerProps}>
-      {ui}
-    </SettingsContext.Provider>,
-    renderOptions
+jest.mock("../../src/contexts/SettingsContext", () => {
+  const originalModule = jest.requireActual(
+    "../../src/contexts/SettingsContext"
   );
-};
+  return {
+    ...originalModule,
+    useSettings: jest.fn(),
+  };
+});
+const { useSettings } = require("../../src/contexts/SettingsContext");
 
 describe("<SettingsDialog />", () => {
-  let providerProps;
   const originalConfirm = window.confirm;
 
   beforeEach(() => {
     mockUpdateSetting.mockClear();
     mockResetSettings.mockClear();
     mockResetApplicationData.mockClear();
-    providerProps = {
+    useSettings.mockReturnValue({
       settings: { ...defaultSettings },
       updateSetting: mockUpdateSetting,
       resetSettings: mockResetSettings,
       resetApplicationData: mockResetApplicationData,
-    };
-    window.confirm = jest.fn(() => true); // Mock window.confirm
+      defaultSettings: defaultSettings,
+    });
+    window.confirm = jest.fn(() => true);
   });
 
   afterEach(() => {
-    window.confirm = originalConfirm; // Restore window.confirm
+    window.confirm = originalConfirm;
   });
 
   test("does not render when isOpen is false", () => {
-    const { container } = customRender(
-      <SettingsDialog isOpen={false} onClose={jest.fn()} />,
-      { providerProps }
+    const { container } = render(
+      <SettingsDialog isOpen={false} onClose={jest.fn()} />
     );
     expect(container.firstChild).toBeNull();
   });
 
   test("renders correctly when isOpen is true", () => {
-    customRender(<SettingsDialog isOpen={true} onClose={jest.fn()} />, {
-      providerProps,
-    });
+    render(<SettingsDialog isOpen={true} onClose={jest.fn()} />);
     expect(screen.getByTestId("settings-dialog-overlay")).toBeInTheDocument();
     expect(screen.getByTestId("settings-dialog-content")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Settings/i })
     ).toBeInTheDocument();
-    // ... (other getByTestId checks for rows as in your original)
     expect(screen.getByTestId("setting-row-theme")).toBeInTheDocument();
     expect(
       screen.getByTestId("setting-row-autoExpandNewFolders")
@@ -69,37 +64,37 @@ describe("<SettingsDialog />", () => {
 
   test("calls onClose when header Close button is clicked", async () => {
     const mockOnClose = jest.fn();
-    customRender(<SettingsDialog isOpen={true} onClose={mockOnClose} />, {
-      providerProps,
-    });
+    render(<SettingsDialog isOpen={true} onClose={mockOnClose} />);
     await userEvent.click(screen.getByTestId("settings-close-button-header"));
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
   test("calls onClose when footer Close button is clicked", async () => {
     const mockOnClose = jest.fn();
-    customRender(<SettingsDialog isOpen={true} onClose={mockOnClose} />, {
-      providerProps,
-    });
+    render(<SettingsDialog isOpen={true} onClose={mockOnClose} />);
     await userEvent.click(screen.getByTestId("settings-close-button-footer"));
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
   test("updates theme setting when selection changes", async () => {
-    customRender(<SettingsDialog isOpen={true} onClose={jest.fn()} />, {
-      providerProps,
-    });
+    render(<SettingsDialog isOpen={true} onClose={jest.fn()} />);
     const themeSelect = screen.getByTestId("setting-theme-select");
     await userEvent.selectOptions(themeSelect, "dark");
     expect(mockUpdateSetting).toHaveBeenCalledWith("theme", "dark");
   });
 
   test("updates autoExpand setting when checkbox is clicked", async () => {
-    customRender(<SettingsDialog isOpen={true} onClose={jest.fn()} />, {
-      providerProps,
+    useSettings.mockReturnValue({
+      settings: { ...defaultSettings, autoExpandNewFolders: true },
+      updateSetting: mockUpdateSetting,
+      resetSettings: mockResetSettings,
+      resetApplicationData: mockResetApplicationData,
+      defaultSettings: defaultSettings,
     });
+
+    render(<SettingsDialog isOpen={true} onClose={jest.fn()} />);
     const checkbox = screen.getByTestId("setting-autoexpand-checkbox");
-    expect(checkbox).toBeChecked(); // Default is true
+    expect(checkbox).toBeChecked();
     await userEvent.click(checkbox);
     expect(mockUpdateSetting).toHaveBeenCalledWith(
       "autoExpandNewFolders",
@@ -107,12 +102,8 @@ describe("<SettingsDialog />", () => {
     );
   });
 
-  // ... (other specific setting change tests like fontFamily, fontSize, exportFormat as in your original)
-
   test("filters settings based on search term in label", async () => {
-    customRender(<SettingsDialog isOpen={true} onClose={jest.fn()} />, {
-      providerProps,
-    });
+    render(<SettingsDialog isOpen={true} onClose={jest.fn()} />);
     const searchInput = screen.getByTestId("settings-search-input");
     await userEvent.type(searchInput, "Theme");
     expect(screen.getByTestId("setting-row-theme")).toBeInTheDocument();
@@ -122,41 +113,35 @@ describe("<SettingsDialog />", () => {
   });
 
   test('displays "No settings found" message when search yields no results', async () => {
-    customRender(<SettingsDialog isOpen={true} onClose={jest.fn()} />, {
-      providerProps,
-    });
+    render(<SettingsDialog isOpen={true} onClose={jest.fn()} />);
     const searchInput = screen.getByTestId("settings-search-input");
     await userEvent.type(searchInput, "xyznonexistentxyz");
     expect(screen.getByTestId("settings-no-results")).toBeInTheDocument();
   });
 
   test("calls resetSettings when Reset Settings button is clicked and confirmed", async () => {
-    customRender(<SettingsDialog isOpen={true} onClose={jest.fn()} />, {
-      providerProps,
-    });
+    render(<SettingsDialog isOpen={true} onClose={jest.fn()} />);
     await userEvent.click(screen.getByTestId("setting-resetsettings-button"));
     expect(window.confirm).toHaveBeenCalledWith(
-      expect.stringContaining("Reset all settings")
+      expect.stringContaining("Reset all settings to default?")
     );
     expect(mockResetSettings).toHaveBeenCalledTimes(1);
   });
 
   test("calls resetApplicationData when Reset All Data button is clicked and confirmed", async () => {
-    customRender(<SettingsDialog isOpen={true} onClose={jest.fn()} />, {
-      providerProps,
-    });
+    render(<SettingsDialog isOpen={true} onClose={jest.fn()} />);
     await userEvent.click(screen.getByTestId("setting-resetdata-button"));
     expect(window.confirm).toHaveBeenCalledWith(
-      expect.stringContaining("WARNING: This will permanently delete")
+      expect.stringContaining(
+        "WARNING: This will permanently delete all application data"
+      )
     );
     expect(mockResetApplicationData).toHaveBeenCalledTimes(1);
   });
 
   test("does NOT call resetSettings if confirm is cancelled", async () => {
-    window.confirm.mockImplementationOnce(() => false); // Override for this test
-    customRender(<SettingsDialog isOpen={true} onClose={jest.fn()} />, {
-      providerProps,
-    });
+    window.confirm.mockImplementationOnce(() => false);
+    render(<SettingsDialog isOpen={true} onClose={jest.fn()} />);
     await userEvent.click(screen.getByTestId("setting-resetsettings-button"));
     expect(window.confirm).toHaveBeenCalled();
     expect(mockResetSettings).not.toHaveBeenCalled();

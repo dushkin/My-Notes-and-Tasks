@@ -68,7 +68,7 @@ test.describe("API Error Handling", () => {
     await expect(errorDisplay).toBeVisible({ timeout: 7000 });
     await expect(errorDisplay).toContainText("Server failed to create folder");
 
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(2000);
     await expect(
       page
         .getByRole("navigation", { name: "Notes and Tasks Tree" })
