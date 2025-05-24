@@ -32,6 +32,8 @@ import {
   Image as ImageIconLucide,
 } from "lucide-react";
 
+import { marked } from "marked";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 const FONT_FAMILIES = [
@@ -170,6 +172,26 @@ const TipTapEditor = ({
           "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",
         dir: editorDir,
       },
+      transformPastedText(text, htmlAttribute, view) {
+        try {
+          const commonMarkdownPatterns =
+            /^(?:#+\s|\*\s|-\s|>\s|```|\[.*\]\(.*\)|`[^`]+`|\d+\.\s)/m;
+          if (commonMarkdownPatterns.test(text)) {
+            const renderer = new marked.Renderer();
+            renderer.image = (href, title, textAttribute) => {
+              // For this phase, we strip images from pasted Markdown.
+              // Later, you might want to convert them to TipTap image nodes or links.
+              return "";
+            };
+            const parsedHtml = marked.parse(text.trim(), { renderer });
+            return parsedHtml;
+          }
+        } catch (e) {
+          console.error("Error in transformPastedText with Markdown:", e);
+          return text;
+        }
+        return text;
+      },
       handleDrop: (view, event, slice, moved) => {
         if (
           !moved &&
@@ -226,7 +248,6 @@ const TipTapEditor = ({
     },
   });
 
-  // Update editor's internal state and DOM attribute if initialDirection prop changes
   useEffect(() => {
     if (
       editor &&
@@ -236,12 +257,14 @@ const TipTapEditor = ({
       setEditorDir(initialDirection);
       editor.view.dom.setAttribute("dir", initialDirection);
     }
-  }, [initialDirection, editor]); // Removed editorDir from deps to avoid potential loop from setEditorDir
+  }, [initialDirection, editor]);
 
-  // Ensure content is updated if the external 'content' prop changes after initial mount
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content, false); // false to not emit update event
+    if (editor) {
+      const currentEditorHTML = editor.getHTML();
+      if (currentEditorHTML !== content) {
+        editor.commands.setContent(content, false);
+      }
     }
   }, [content, editor]);
 
@@ -249,9 +272,9 @@ const TipTapEditor = ({
     if (!editor) return;
     const newDir = editorDir === "ltr" ? "rtl" : "ltr";
     setEditorDir(newDir);
-    editor.view.dom.setAttribute("dir", newDir); // Apply to DOM immediately
+    editor.view.dom.setAttribute("dir", newDir);
     if (onUpdate) {
-      onUpdate(editor.getHTML(), newDir); // Propagate change
+      onUpdate(editor.getHTML(), newDir);
     }
   }, [editor, editorDir, onUpdate]);
 
@@ -280,7 +303,6 @@ const TipTapEditor = ({
     } else {
       editor.chain().focus().unsetFontSize().run();
     }
-    // Reset select to reflect current style or default (not strictly necessary for functionality)
     e.target.value = editor.getAttributes("textStyle").fontSize || "";
   };
 
@@ -496,6 +518,39 @@ const TipTapEditor = ({
           className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded`}
         >
           <Type className="w-5 h-5" /> {editorDir.toUpperCase()}
+        </button>
+        <button
+          onClick={() => {
+            if (!editor) return;
+            const selection = editor.state.selection;
+            const selectedText = editor.state.doc.textBetween(
+              selection.from,
+              selection.to,
+              " "
+            );
+            if (selectedText.trim()) {
+              try {
+                const renderer = new marked.Renderer();
+                renderer.image = (href, title, textAttribute) => ""; // Strip images
+                const html = marked.parse(selectedText.trim(), { renderer });
+                editor
+                  .chain()
+                  .focus()
+                  .deleteSelection()
+                  .insertContent(html)
+                  .run();
+              } catch (e) {
+                console.error("Error parsing selected markdown", e);
+                alert("Could not parse selected text as Markdown.");
+              }
+            } else {
+              alert("Please select some text to convert from Markdown.");
+            }
+          }}
+          title="Convert selected text from Markdown"
+          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+        >
+          MD
         </button>
       </div>
       <div className="flex-grow overflow-auto tiptap-editor-content-area">
