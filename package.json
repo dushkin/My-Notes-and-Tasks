@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.0.1",
-  "commitMessage": "More tests including some bugs fix",
+  "version": "4.1.0",
+  "commitMessage": "Adding markdown content support",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -28,6 +28,7 @@
     "@tiptap/starter-kit": "^2.12.0",
     "jspdf": "^3.0.1",
     "lucide-react": "^0.503.0",
+    "marked": "^15.0.12",
     "prismjs": "^1.30.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
