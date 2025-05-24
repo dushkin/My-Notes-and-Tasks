@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.1.0",
-  "commitMessage": "Adding markdown content support",
+  "version": "4.1.1",
+  "commitMessage": "markdown bug fix",
   "private": true,
   "scripts": {
     "dev": "vite",

@@ -1,6 +1,8 @@
 // src/components/TipTapEditor.jsx
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react"; // ReactRenderer might not be needed here unless for complex node views
+import { DOMParser } from "prosemirror-model"; // Import DOMParser
+
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -172,25 +174,52 @@ const TipTapEditor = ({
           "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",
         dir: editorDir,
       },
-      transformPastedText(text, htmlAttribute, view) {
-        try {
-          const commonMarkdownPatterns =
-            /^(?:#+\s|\*\s|-\s|>\s|```|\[.*\]\(.*\)|`[^`]+`|\d+\.\s)/m;
-          if (commonMarkdownPatterns.test(text)) {
-            const renderer = new marked.Renderer();
-            renderer.image = (href, title, textAttribute) => {
-              // For this phase, we strip images from pasted Markdown.
-              // Later, you might want to convert them to TipTap image nodes or links.
-              return "";
-            };
-            const parsedHtml = marked.parse(text.trim(), { renderer });
-            return parsedHtml;
-          }
-        } catch (e) {
-          console.error("Error in transformPastedText with Markdown:", e);
-          return text;
+      handlePaste: function (view, event, slice) {
+        const text = event.clipboardData?.getData("text/plain");
+        const html = event.clipboardData?.getData("text/html");
+        const commonMarkdownPatterns =
+          /^(?:#+\s|\*\s|-\s|>\s|```|\[.*\]\(.*\)|`[^`]+`|\d+\.\s)/m;
+
+        // אם יש HTML בלוח והוא לא נראה כמו Markdown גולמי (כלומר, הטקסט הפשוט לא מתחיל בתבניות Markdown),
+        // אז ניתן ל-TipTap לטפל בהדבקת ה-HTML כרגיל.
+        if (
+          html &&
+          text &&
+          !commonMarkdownPatterns.test(text.substring(0, 250))
+        ) {
+          // Check beginning of text
+          // אם הדוגמה שלך (ה-HTML) מודבקת, היא תיכנס לכאן ותטופל כ-HTML רגיל.
+          return false; // תן ל-TipTap לטפל בזה כ-HTML
         }
-        return text;
+
+        // אם אין HTML, או שהטקסט נראה כמו Markdown גולמי, ננסה להמיר
+        if (text) {
+          try {
+            if (commonMarkdownPatterns.test(text)) {
+              const renderer = new marked.Renderer();
+              renderer.image = () => ""; // הסרת תמונות מ-Markdown מודבק
+              const markdownHtml = marked.parse(text.trim(), { renderer });
+
+              // יצירת DocumentFragment מה-HTML המומר
+              const tempDiv = document.createElement("div");
+              tempDiv.innerHTML = markdownHtml;
+
+              // יצירת Slice ש-ProseMirror יכול להבין
+              // זה ימיר את ה-HTML לצמתים של Prosemirror לפי הסכמה
+              const prosemirrorSlice = DOMParser.fromSchema(
+                view.state.schema
+              ).parseSlice(tempDiv, {});
+
+              // החלף את הבחירה הנוכחית (או הכנס במקום הסמן) עם התוכן המומר
+              view.dispatch(view.state.tr.replaceSelection(prosemirrorSlice));
+              return true; // טיפלנו בהדבקה
+            }
+          } catch (e) {
+            console.error("Error parsing pasted markdown in handlePaste", e);
+            return false; // חזרה להתנהגות ברירת המחדל
+          }
+        }
+        return false; // חזרה להתנהגות ברירת המחדל
       },
       handleDrop: (view, event, slice, moved) => {
         if (
@@ -222,29 +251,7 @@ const TipTapEditor = ({
         }
         return false;
       },
-      handlePaste: (view, event, slice) => {
-        if (
-          event.clipboardData &&
-          event.clipboardData.files &&
-          event.clipboardData.files.length
-        ) {
-          const file = event.clipboardData.files[0];
-          if (file.type.startsWith("image/")) {
-            event.preventDefault();
-            uploadImageToServer(file).then((url) => {
-              if (url && view.editable) {
-                const { schema, tr } = view.state;
-                const imageNode = schema.nodes.image.create({ src: url });
-                tr.replaceSelectionWith(imageNode);
-                view.dispatch(tr);
-                view.focus();
-              }
-            });
-            return true;
-          }
-        }
-        return false;
-      },
+      // transformPastedText הוסר כי handlePaste מטפל בזה טוב יותר
     },
   });
 
@@ -523,21 +530,33 @@ const TipTapEditor = ({
           onClick={() => {
             if (!editor) return;
             const selection = editor.state.selection;
-            const selectedText = editor.state.doc.textBetween(
+            let selectedText = editor.state.doc.textBetween(
               selection.from,
               selection.to,
-              " "
+              "\n"
             );
+
             if (selectedText.trim()) {
               try {
+                const cleanedText = selectedText
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter((line) => line.length > 0)
+                  .join("\n");
+                if (!cleanedText) {
+                  alert("Selection is empty after cleanup.");
+                  return;
+                }
                 const renderer = new marked.Renderer();
-                renderer.image = (href, title, textAttribute) => ""; // Strip images
-                const html = marked.parse(selectedText.trim(), { renderer });
+                renderer.image = () => "";
+                const html = marked.parse(cleanedText, { renderer });
                 editor
                   .chain()
                   .focus()
                   .deleteSelection()
-                  .insertContent(html)
+                  .insertContent(html, {
+                    parseOptions: { preserveWhitespace: false },
+                  })
                   .run();
               } catch (e) {
                 console.error("Error parsing selected markdown", e);
