@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.2.1",
-  "commitMessage": "Extend tests",
+  "version": "4.2.2",
+  "commitMessage": "Minor changes",
   "private": true,
   "scripts": {
     "dev": "vite",

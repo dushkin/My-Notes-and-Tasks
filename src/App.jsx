@@ -56,7 +56,8 @@ function htmlToPlainTextWithNewlines(html) {
   try {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = text;
-    text = tempDiv.textContent || tempDiv.innerText || "";
+    text = tempDiv.textContent ||
+tempDiv.innerText || "";
   } catch (e) {
     /* ignore */
   }
@@ -71,7 +72,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
     const timer = setTimeout(() => onClose(), 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
-
   const baseClasses =
     "fixed top-3 right-3 left-3 md:left-auto md:max-w-lg z-[100] px-4 py-3 rounded-lg shadow-xl flex justify-between items-center text-sm transition-all duration-300 ease-in-out";
   let typeClasses =
@@ -174,7 +174,6 @@ const App = () => {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const topMenuRef = useRef(null);
-
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
       setUiMessage(message);
@@ -231,7 +230,6 @@ const App = () => {
     currentUser,
     showMessage,
   ]);
-
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
@@ -276,7 +274,6 @@ const App = () => {
     currentUser,
     showMessage,
   ]);
-
   useEffect(() => {
     const token = localStorage.getItem("userToken");
     if (token && fetchUserTree) {
@@ -289,7 +286,6 @@ const App = () => {
       setIsAuthCheckComplete(true);
     }
   }, [fetchUserTree, resetTreeHistory]);
-
   const handleLoginSuccess = async (userData) => {
     setCurrentUser(userData);
     setCurrentView("app");
@@ -297,7 +293,6 @@ const App = () => {
       await fetchUserTree(localStorage.getItem("userToken"));
     }
   };
-
   const handleLogout = () => {
     localStorage.removeItem("userToken");
     setCurrentUser(null);
@@ -305,7 +300,6 @@ const App = () => {
     showMessage("");
     setCurrentView("login");
   };
-
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -316,7 +310,6 @@ const App = () => {
     },
     [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
-
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
@@ -328,17 +321,14 @@ const App = () => {
       treeNav?.focus({ preventScroll: true });
     });
   }, [showMessage]);
-
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
   );
-
   const findParentAndSiblingsFromTree = useCallback(
     (id) => findParentAndSiblingsUtil(tree, id),
     [tree]
   );
-
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
@@ -368,7 +358,6 @@ const App = () => {
     findItemByIdFromTree,
     showMessage,
   ]);
-
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -382,7 +371,6 @@ const App = () => {
     },
     [showMessage, setContextMenu]
   );
-
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
@@ -436,7 +424,14 @@ const App = () => {
         }
       }
     } else {
-      setAddDialogErrorMessage(result.error || "Add operation failed.");
+      // If add failed, show global message if it's a server/network error,
+      // otherwise keep using dialog error message for validation issues.
+      if (result.error && (result.error.includes("Network error") || result.error.includes("Failed to add item"))) {
+        showMessage(result.error, "error");
+        setAddDialogErrorMessage(""); // Clear dialog-specific error if showing global one
+      } else {
+        setAddDialogErrorMessage(result.error || "Add operation failed.");
+      }
     }
   }, [
     newItemLabel,
@@ -450,11 +445,9 @@ const App = () => {
     tree,
     findParentAndSiblingsFromTree,
   ]);
-
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       const result = await updateTask(id, {
-        // Pass as object
         completed: !currentCompletedStatus,
       });
       if (!result.success) {
@@ -472,10 +465,8 @@ const App = () => {
       if (!item) return;
 
       let result;
-      // Ensure dataToSave contains only valid fields for the item type
       const updates = { ...dataToSave };
       if (item.type === "folder") {
-        // Folders shouldn't save content/direction
         delete updates.content;
         delete updates.direction;
       }
@@ -489,11 +480,9 @@ const App = () => {
       if (result && !result.success) {
         showMessage(result.error || "Failed to save item.", "error");
       }
-      // Success message can be added here if desired, or rely on optimistic update
     },
     [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
   );
-
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
 
   const openExportDialog = useCallback(
@@ -504,7 +493,6 @@ const App = () => {
     },
     [setContextMenu]
   );
-
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -513,21 +501,27 @@ const App = () => {
     },
     [setContextMenu]
   );
-
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
-      showMessage("", "error");
+      showMessage("", "error"); // Clear previous global errors
       const result = await handleImportFromHook(file, importTargetOption);
       if (result && result.success) {
         showMessage(result.message || "Import successful!", "success");
+        // Delay closing dialog to let user see success message in dialog if any
         setTimeout(() => {
           setImportDialogState({ isOpen: false, context: null });
-        }, 1500);
+        }, result.message && result.message.toLowerCase().includes("successful") ? 1500: 0);
         return {
           success: true,
           message: result.message || "Import successful!",
         };
       } else {
+        // Error will be displayed within the import dialog by its own logic if it's a validation error
+        // or if handleImportFromHook returns an error message.
+        // If a more generic error, show it globally.
+        if(result.error && !result.error.startsWith("Import error: Please select a JSON file")){ // Example of specific error handled by dialog
+             showMessage(result.error, "error");
+        }
         return {
           success: false,
           error: result?.error || "Import operation failed.",
@@ -536,7 +530,6 @@ const App = () => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
-
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
@@ -548,7 +541,6 @@ const App = () => {
     },
     [pasteItem, showMessage]
   );
-
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
@@ -563,7 +555,6 @@ const App = () => {
     },
     [deleteItem, showMessage, setContextMenu]
   );
-
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
       if (!item || !buttonElement) return;
@@ -584,7 +575,6 @@ const App = () => {
     },
     [selectItemById, setContextMenu]
   );
-
   const handleNativeContextMenu = useCallback(
     (event, item) => {
       if (draggedId || inlineRenameId) {
@@ -612,7 +602,6 @@ const App = () => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
-
   useEffect(() => {
     const handler = (e) => {
       const activeElement = document.activeElement;
@@ -624,7 +613,7 @@ const App = () => {
       const isRenameInputActive =
         !!inlineRenameId &&
         activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-          activeElement;
+activeElement;
       const isTipTapEditorFocused =
         activeElement &&
         (activeElement.classList.contains("ProseMirror") ||
@@ -683,7 +672,6 @@ const App = () => {
     inlineRenameId,
     setSearchSheetOpen,
   ]);
-
   useEffect(() => {
     const handleGlobalTreeOpsKeyDown = async (e) => {
       const activeEl = document.activeElement;
@@ -693,7 +681,7 @@ const App = () => {
           activeEl;
 
       if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) {
-        return;
+        return; // Handled by input's onKeyDown
       }
 
       const isTipTapEditorFocused =
@@ -701,14 +689,14 @@ const App = () => {
         (activeEl.classList.contains("ProseMirror") ||
           activeEl.closest(".ProseMirror"));
 
-      const isGeneralInputFocused =
+      const isGeneralInputFocused = // Check if focus is in a generic input field NOT part of rename or TipTap
         activeEl &&
         (activeEl.tagName === "INPUT" ||
           activeEl.tagName === "TEXTAREA" ||
           activeEl.isContentEditable) &&
         !isRenameActive &&
         !isTipTapEditorFocused &&
-        activeEl.id !== "global-search-input";
+        activeEl.id !== "global-search-input"; // Exclude global search input here
 
       const isTreeAreaLikelyFocused = () => {
         const treeNav = document.querySelector(
@@ -717,49 +705,42 @@ const App = () => {
         return (
           treeNav &&
           (treeNav === activeEl ||
-            treeNav.contains(activeEl) ||
-            document.body === activeEl)
+treeNav.contains(activeEl) ||
+            (document.body === activeEl && selectedItemId)) // Allow if body focused AND an item is selected
         );
       };
-
-      if (isGeneralInputFocused) {
+      if (isGeneralInputFocused) { // If focus is on a general input, generally don't trigger global shortcuts
+        // Allow specific combinations like Ctrl+C/X/V if needed, but most tree ops should be skipped.
         if (
           (e.ctrlKey || e.metaKey) &&
           ["c", "x", "v", "a", "z", "y"].includes(e.key.toLowerCase())
         )
-          return;
+          return; // Allow standard text editing shortcuts
         if (
-          [
-            "Delete",
-            "Backspace",
-            "Enter",
-            "Escape",
-            "ArrowUp",
-            "ArrowDown",
-            "ArrowLeft",
-            "ArrowRight",
-            "Tab",
-          ].includes(e.key)
-        )
-          return;
-        if (e.key === "F2" && !selectedItemId && !isTreeAreaLikelyFocused())
-          return;
+          [ // Keys that should behave normally in inputs
+            "Delete", "Backspace", "Enter", "Escape",
+            "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab",
+          ].includes(e.key) && !((e.key === "Delete" || (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) && selectedItemId) // but allow Del/Ctrl+Backspace for tree item if selected
+        ) return;
+
+        if (e.key === "F2" && !selectedItemId) return; // F2 should only trigger for tree if item selected
       }
+
 
       if (isTipTapEditorFocused) {
         if (
           (e.ctrlKey || e.metaKey) &&
-          ["c", "x", "v"].includes(e.key.toLowerCase())
-        )
-          return;
-        if (["Delete", "Backspace"].includes(e.key)) return;
+          ["c", "x", "v", "a", "z", "y"].includes(e.key.toLowerCase()) // Standard editor shortcuts
+        ) return;
+        if (["Delete", "Backspace", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) return; // Let TipTap handle these
       }
+
 
       if (e.key === "F2" && selectedItemId && !isRenameActive) {
         if (
           isTreeAreaLikelyFocused() ||
-          (isTipTapEditorFocused && selectedItemId) ||
-          document.body === activeEl
+          (isTipTapEditorFocused && selectedItemId && document.activeElement?.closest('.editor-pane')) || // F2 from editor if item selected
+          document.body === activeEl // F2 from body if item selected
         ) {
           e.preventDefault();
           const item = findItemByIdFromTree(selectedItemId);
@@ -770,8 +751,7 @@ const App = () => {
         e.key.toLowerCase() === "c" &&
         selectedItemId &&
         !isRenameActive &&
-        !isTipTapEditorFocused &&
-        !isGeneralInputFocused
+        !isTipTapEditorFocused // Allow copy even if tree not directly focused, as long as an item is selected
       ) {
         e.preventDefault();
         copyItem(selectedItemId);
@@ -781,8 +761,7 @@ const App = () => {
         e.key.toLowerCase() === "x" &&
         selectedItemId &&
         !isRenameActive &&
-        !isTipTapEditorFocused &&
-        !isGeneralInputFocused
+        !isTipTapEditorFocused
       ) {
         e.preventDefault();
         cutItem(selectedItemId);
@@ -792,8 +771,7 @@ const App = () => {
         e.key.toLowerCase() === "v" &&
         clipboardItem &&
         !isRenameActive &&
-        !isTipTapEditorFocused &&
-        !isGeneralInputFocused
+        !isTipTapEditorFocused
       ) {
         e.preventDefault();
         const currentItem = findItemByIdFromTree(selectedItemId);
@@ -804,13 +782,12 @@ const App = () => {
         await handlePasteWrapper(targetIdForPaste);
       } else if (
         (e.key === "Delete" ||
-          (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) &&
+          (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) && // Support for Ctrl/Meta+Backspace for delete
         selectedItemId &&
         !isRenameActive &&
-        !isTipTapEditorFocused &&
-        !isGeneralInputFocused
+        !isTipTapEditorFocused
       ) {
-        if (isTreeAreaLikelyFocused() || document.body === activeEl) {
+         if (isTreeAreaLikelyFocused() || (document.body === activeEl && selectedItemId)) { // Allow delete if tree focused or body focused with selection
           e.preventDefault();
           const item = findItemByIdFromTree(selectedItemId);
           if (
@@ -828,25 +805,28 @@ const App = () => {
   }, [
     selectedItemId,
     inlineRenameId,
-    tree,
+    tree, // Added tree as a dependency if findItemByIdFromTree uses it.
     clipboardItem,
     copyItem,
     cutItem,
-    pasteItem,
-    deleteItem,
+    pasteItem, // Ensure pasteItem is stable or included
+    deleteItem, // Ensure deleteItem is stable or included
     startInlineRename,
     handlePasteWrapper,
     showMessage,
     findItemByIdFromTree,
     findParentAndSiblingsFromTree,
     handleDeleteConfirm,
-    setContextMenu,
+    setContextMenu, // Though not directly used, it's part of context menu logic often tied to these actions
   ]);
 
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
       const currentSearchOpts = { ...searchOptions, useRegex: false };
+      console.log('[TEST_DEBUG] App.jsx: Searching for:', searchQuery, 'with options:', JSON.stringify(currentSearchOpts));
       const rawHits = searchItems(searchQuery, currentSearchOpts);
+      console.log('[TEST_DEBUG] App.jsx: Raw hits:', JSON.stringify(rawHits.map(hit => ({id: hit.id, label: hit.label, type: hit.type, content: hit.content?.substring(0,50) }))));
+
       const CONTEXT_CHARS_BEFORE = 20,
         CONTEXT_CHARS_AFTER = 20,
         MAX_SNIPPET_LENGTH = 80;
@@ -901,9 +881,10 @@ const App = () => {
               currentSearchOpts
             );
             if (contentMatchInfo) {
-              if (matchSrc === "label") {
+              if (matchSrc === "label") { // If label already matched, append source
                 matchSrc = "label & content";
-              } else {
+                 // Keep label as primary display snippet if it matched, content match just confirms
+              } else { // Content matched, label didn't
                 matchSrc = "content";
                 const { matchedString, startIndex: siInPlainText } =
                   contentMatchInfo;
@@ -928,13 +909,13 @@ const App = () => {
                     displaySnippetText.length - MAX_SNIPPET_LENGTH;
                   let reduceStart = Math.floor(overflow / 2);
                   let reduceEnd = overflow - reduceStart;
-                  if (hlStartIndex < reduceStart) {
+                  if (hlStartIndex < reduceStart) { // Match is near start
                     displaySnippetText = displaySnippetText.substring(
                       0,
                       MAX_SNIPPET_LENGTH
                     );
                     sufEll = true;
-                  } else if (
+                  } else if ( // Match is near end
                     hlEndIndex >
                     displaySnippetText.length - reduceEnd
                   ) {
@@ -942,7 +923,7 @@ const App = () => {
                     hlStartIndex -= overflow;
                     hlEndIndex -= overflow;
                     preEll = true;
-                  } else {
+                  } else { // Match is in the middle
                     displaySnippetText = displaySnippetText.substring(
                       reduceStart,
                       displaySnippetText.length - reduceEnd
@@ -952,11 +933,11 @@ const App = () => {
                     preEll = true;
                     sufEll = true;
                   }
+                  // Ensure hl indices are within the new snippet bounds
                   hlStartIndex = Math.max(0, hlStartIndex);
                   hlEndIndex = Math.min(displaySnippetText.length, hlEndIndex);
-                  if (hlStartIndex >= hlEndIndex) {
-                    hlStartIndex = -1;
-                    hlEndIndex = -1;
+                  if (hlStartIndex >= hlEndIndex) { // Should not happen if logic is correct
+                    hlStartIndex = -1; hlEndIndex = -1;
                   }
                 }
                 if (preEll && !displaySnippetText.startsWith("..."))
@@ -966,27 +947,30 @@ const App = () => {
               }
             }
           }
-          if (!matchSrc) {
+          if (!matchSrc) { // No match in label or content
+            // Fallback display snippet if item was a rawHit but no specific field matched (e.g. complex regex search)
+            // Or if searchItems logic can return items that itemMatches would then fail (should be rare with current setup)
             displaySnippetText =
               originalLabel.substring(0, MAX_SNIPPET_LENGTH) +
               (originalLabel.length > MAX_SNIPPET_LENGTH ? "..." : "");
-            matchSrc = "unknown";
+            matchSrc = "unknown"; // Should be filtered out later
           }
           resultCounter++;
           return {
-            id: `${hit.id}-${matchSrc}-${resultCounter}`,
+            id: `${hit.id}-${matchSrc}-${resultCounter}`, // Unique key for React list
             originalId: hit.id,
-            ...hit,
+            ...hit, // Spread original item properties
             path: pathString,
-            displaySnippetText,
-            highlightStartIndexInSnippet: hlStartIndex,
-            highlightEndIndexInSnippet: hlEndIndex,
-            matchSource: matchSrc,
-            pathLabelHighlight:
+            displaySnippetText, // Text to show in search result
+            highlightStartIndexInSnippet: hlStartIndex, // For highlighting in displaySnippetText
+            highlightEndIndexInSnippet: hlEndIndex,     // For highlighting in displaySnippetText
+            matchSource: matchSrc, // Where was the match found? 'label', 'content', 'label & content'
+            pathLabelHighlight: // For highlighting the item's own name within its path string
               pathLabelHlDetails.start !== -1 ? pathLabelHlDetails : undefined,
           };
         })
         .filter(Boolean);
+      console.log('[TEST_DEBUG] App.jsx: Processed results:', JSON.stringify(processedResults.map(r => ({label: r.label, snippet: r.displaySnippetText, matchSrc: r.matchSource }))));
       setSearchResults(
         processedResults.filter(
           (r) => r && r.matchSource && r.matchSource !== "unknown"
@@ -1013,7 +997,6 @@ const App = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
   if (!isAuthCheckComplete)
     return (
       <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-100">
@@ -1034,7 +1017,6 @@ const App = () => {
         onSwitchToLogin={() => setCurrentView("login")}
       />
     );
-
   return (
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <ErrorDisplay
@@ -1206,8 +1188,8 @@ const App = () => {
                 onNativeContextMenu={handleNativeContextMenu}
                 onShowItemMenu={handleShowItemMenu}
                 onRename={startInlineRename}
-                uiError={uiMessage}
-                setUiError={(msg) => showMessage(msg, "error")}
+                uiError={uiMessage} // Pass global uiMessage as uiError
+                setUiError={(msg) => showMessage(msg, "error")} // Allow Tree to set global error
               />
             </div>
           </Panel>
@@ -1237,12 +1219,13 @@ const App = () => {
                       handleDragOver={(e) => e.preventDefault()}
                       handleDragLeave={(e) => {}}
                       handleDrop={(e, targetItemId) => {
-                        if (draggedId && targetItemId === selectedItem.id) {
+                        if (draggedId && targetItemId === selectedItem.id) { // Ensure drop is on the current folder
                           handleDrop(targetItemId, draggedId);
                         }
                       }}
                       handleDragEnd={handleDragEnd}
                       draggedId={draggedId}
+                      // dragOverItemId is managed internally by FolderContents if needed, or passed if global
                       onToggleExpand={toggleFolderExpand}
                       expandedItems={expandedFolders}
                       onShowItemMenu={handleShowItemMenu}
@@ -1251,7 +1234,7 @@ const App = () => {
                 ) : selectedItem.type === "note" ||
                   selectedItem.type === "task" ? (
                   <ContentEditor
-                    key={selectedItemId}
+                    key={selectedItemId} // Ensure re-mount on item change
                     item={selectedItem}
                     defaultFontFamily={settings.editorFontFamily}
                     onSaveItemData={handleSaveItemData}
@@ -1270,22 +1253,24 @@ const App = () => {
         isOpen={searchSheetOpen}
         onClose={() => setSearchSheetOpen(false)}
         snapPoints={[0.85, 0.6, 0.3]}
-        initialSnap={1}
-        className="z-40"
+        initialSnap={1} // Start fully open
+        className="z-40" // Ensure it's above other elements
       >
         <Sheet.Container
           data-item-id="search-sheet-container"
-          className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl"
+          className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl" // Custom styling
         >
           <Sheet.Header>
+            {/* Optional: Custom grabber */}
             <div className="flex justify-center py-2.5 cursor-grab">
               <div className="w-10 h-1.5 bg-zinc-300 dark:bg-zinc-600 rounded-full"></div>
             </div>
           </Sheet.Header>
           <Sheet.Content className="!pb-0">
+            {/* SearchResultsPane needs to be scrollable if content overflows */}
             <div className="overflow-y-auto h-full">
               <SearchResultsPane
-                headerHeightClass={APP_HEADER_HEIGHT_CLASS}
+                headerHeightClass={APP_HEADER_HEIGHT_CLASS} // Pass the actual header height class
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
                 results={searchResults}
@@ -1293,7 +1278,8 @@ const App = () => {
                   if (item.originalId) {
                     expandFolderPath(item.originalId);
                     selectItemById(item.originalId);
-                    setSearchSheetOpen(false);
+                    setSearchSheetOpen(false); // Close sheet on selection
+                    // Scroll to item in tree after a short delay to allow UI to update
                     setTimeout(() => {
                       document
                         .querySelector(`li[data-item-id="${item.originalId}"]`)
@@ -1343,10 +1329,10 @@ const App = () => {
               ) {
                 handleDeleteConfirm(contextMenu.item.id);
               } else {
-                setContextMenu((m) => ({ ...m, visible: false }));
+                setContextMenu((m) => ({ ...m, visible: false })); // Close if cancelled
               }
             } else {
-              setContextMenu((m) => ({ ...m, visible: false }));
+              setContextMenu((m) => ({ ...m, visible: false })); // Should not happen if item is set
             }
           }}
           onDuplicate={async () => {
@@ -1380,9 +1366,9 @@ const App = () => {
             await handlePasteWrapper(tid);
           }}
           onExportItem={() => openExportDialog("item")}
-          onImportItem={() => openImportDialog("item")}
+          onImportItem={() => openImportDialog("item")} // For importing under a selected item
           onExportTree={() => openExportDialog("tree")}
-          onImportTree={() => openImportDialog("tree")}
+          onImportTree={() => openImportDialog("tree")} // For importing a full tree
         />
       )}
       <AddDialog
@@ -1392,13 +1378,13 @@ const App = () => {
         errorMessage={addDialogErrorMessage}
         onLabelChange={(e) => {
           setNewItemLabel(e.target.value);
-          if (addDialogOpen) setAddDialogErrorMessage("");
+          if (addDialogOpen) setAddDialogErrorMessage(""); // Clear error on change
         }}
         onAdd={handleAdd}
         onCancel={() => {
           setAddDialogOpen(false);
-          setAddDialogErrorMessage("");
-          showMessage("", "error");
+          setAddDialogErrorMessage(""); // Clear error on cancel
+          showMessage("", "error"); // Clear any global messages
         }}
       />
       <AboutDialog
@@ -1407,18 +1393,18 @@ const App = () => {
       />
       <ExportDialog
         isOpen={exportDialogState.isOpen}
-        context={exportDialogState.context}
+        context={exportDialogState.context} // 'item' or 'tree' or null for general
         defaultFormat={settings.defaultExportFormat}
         onClose={() => setExportDialogState({ isOpen: false, context: null })}
-        onExport={handleExport}
+        onExport={handleExport} // handleExport will use selectedItemId if target is 'selected'
       />
       <ImportDialog
         isOpen={importDialogState.isOpen}
-        context={importDialogState.context}
-        selectedItem={selectedItem}
+        context={importDialogState.context} // 'item' or 'tree'
+        selectedItem={selectedItem} // Pass the currently selected item for context
         onClose={() => {
           setImportDialogState({ isOpen: false, context: null });
-          showMessage("", "success");
+          showMessage("", "success"); // Clear any import success/error messages shown globally
         }}
         onImport={handleFileImport}
       />
