@@ -1,27 +1,29 @@
 // tests/components/TipTapEditor.test.jsx
-// Note: 'ReactReallyFromTestFile' was an alias. We'll use 'ActualReact' for clarity.
-// ActualReact will be required *inside* the mock factory.
-
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-// import TipTapEditor from '../../src/components/TipTapEditor'; // Original component, mocked below
+import * as apiClient from "../../src/services/apiClient"; // Import to mock authFetch
 
-// Mock marked for all tests in this file
+// Mock apiClient.authFetch
+jest.mock("../../src/services/apiClient", () => ({
+  authFetch: jest.fn(),
+  initApiClient: jest.fn(),
+}));
+
+// Correct mock for 'marked'
 jest.mock("marked", () => ({
   parse: jest.fn((text) => `<p>parsed:${text}</p>`),
   Renderer: jest.fn().mockImplementation(() => ({ image: jest.fn(() => "") })),
 }));
 
+// Keep the existing mock of TipTapEditor itself, as it tests internal logic of that mock
 jest.mock("../../src/components/TipTapEditor", () => {
-  // require React inside the factory for creating elements
   const ActualReact = require("react");
-
   const MockTipTapEditor = (props) => {
     const handleManualMDClick_InMock = () => {
-      const { marked: mockedMarkedUsage } = require("marked"); // Get the mocked 'marked'
-      let selectedText = props.content || "";
+      const markedLib = require("marked");
 
+      let selectedText = props.content || "";
       if (
         props.editorRef &&
         props.editorRef.current &&
@@ -29,7 +31,6 @@ jest.mock("../../src/components/TipTapEditor", () => {
       ) {
         selectedText = props.editorRef.current.getSelectedText();
       }
-
       if (selectedText.trim()) {
         const cleanedText = selectedText
           .split("\n")
@@ -38,29 +39,27 @@ jest.mock("../../src/components/TipTapEditor", () => {
           .join("\n");
         if (!cleanedText) {
           if (props.onEmptySelectionAttempt) {
-            // Call prop instead of window.alert
             props.onEmptySelectionAttempt(
               "Please select some text to convert from Markdown."
             );
           }
           return;
         }
-        const renderer = new mockedMarkedUsage.Renderer();
+        const renderer = new markedLib.Renderer();
         renderer.image = () => "";
-        const html = mockedMarkedUsage.parse(cleanedText, { renderer });
+
+        const html = markedLib.parse(cleanedText, { renderer });
         if (props.onUpdate) {
           props.onUpdate(html, props.initialDirection || "ltr");
         }
       } else {
         if (props.onEmptySelectionAttempt) {
-          // Call prop instead of window.alert
           props.onEmptySelectionAttempt(
             "Please select some text to convert from Markdown."
           );
         }
       }
     };
-
     return ActualReact.createElement(
       "div",
       { "data-item-id": "mock-tiptap-editor-root" },
@@ -74,8 +73,12 @@ jest.mock("../../src/components/TipTapEditor", () => {
       ),
       ActualReact.createElement(
         "div",
-        { "data-item-id": "tiptap-editor-content-area" },
-        props.content
+        // VVV MODIFICATION HERE VVV
+        {
+          "data-item-id": "tiptap-editor-content-area",
+          dangerouslySetInnerHTML: { __html: props.content },
+        }
+        // ^^^ MODIFICATION HERE ^^^
       ),
       ActualReact.createElement("input", {
         type: "hidden",
@@ -91,17 +94,24 @@ jest.mock("../../src/components/TipTapEditor", () => {
   };
 });
 
-import React from "react"; // Normal React import for the test file itself
-import TipTapEditor_Mocked from "../../src/components/TipTapEditor"; // This will import the mock
-const { marked } = require("marked"); // Get the mocked marked for use in tests
+import React from "react";
+import TipTapEditor_Mocked from "../../src/components/TipTapEditor";
 
-describe("<TipTapEditor /> for Markdown", () => {
+// VVV MODIFICATION HERE VVV
+// Change this:
+// const { marked } = require("marked");
+// To this:
+const marked = require("marked"); // Assign the whole mocked object to 'marked'
+// ^^^ MODIFICATION HERE ^^^
+
+describe("<TipTapEditor /> for Markdown (using mock)", () => {
   const mockOnUpdate = jest.fn();
-  const mockAlertHandler = jest.fn(); // For onEmptySelectionAttempt
+  const mockAlertHandler = jest.fn();
 
   beforeEach(() => {
     mockOnUpdate.mockClear();
     mockAlertHandler.mockClear();
+    // Now 'marked' is the object { parse: fn, Renderer: fn }
     if (
       marked &&
       marked.parse &&
@@ -109,6 +119,14 @@ describe("<TipTapEditor /> for Markdown", () => {
     ) {
       marked.parse.mockClear();
     }
+    if (
+      marked &&
+      marked.Renderer &&
+      typeof marked.Renderer.mockClear === "function"
+    ) {
+      marked.Renderer.mockClear();
+    }
+    apiClient.authFetch.mockClear();
   });
 
   test("Manual MD button converts selected Markdown to HTML", async () => {
@@ -137,13 +155,11 @@ describe("<TipTapEditor /> for Markdown", () => {
         onEmptySelectionAttempt={mockAlertHandler}
       />
     );
-
     const mdButton = screen.getByTestId("manual-md-button");
     await act(async () => {
-      // act might still be useful if the mock itself has async aspects or state
       await userEvent.click(mdButton);
     });
-
+    // 'marked.parse' will now correctly refer to the mocked parse function
     expect(marked.parse).toHaveBeenCalledWith(
       cleanedMarkdownForParse,
       expect.anything()
@@ -152,7 +168,6 @@ describe("<TipTapEditor /> for Markdown", () => {
       expectedHtmlFromMarked,
       "ltr"
     );
-
     rerender(
       <TipTapEditor_Mocked
         content={currentContentViaUpdate}
@@ -163,8 +178,9 @@ describe("<TipTapEditor /> for Markdown", () => {
         onEmptySelectionAttempt={mockAlertHandler}
       />
     );
+    const expectedTextContentInDOM = `parsed:${cleanedMarkdownForParse.replace(/\n/g, " ")}`;
     expect(screen.getByTestId("tiptap-editor-content-area")).toHaveTextContent(
-      `parsed:${cleanedMarkdownForParse}`
+      expectedTextContentInDOM
     );
     expect(mockAlertHandler).not.toHaveBeenCalled();
   });
@@ -189,12 +205,5 @@ describe("<TipTapEditor /> for Markdown", () => {
     expect(mockAlertHandler).toHaveBeenCalledWith(
       "Please select some text to convert from Markdown."
     );
-  });
-
-  test("Automatic paste of simple Markdown (conceptual - mock does not simulate paste event)", () => {
-    // This test would require a much more complex mock of TipTap's editor instance
-    // or testing the actual component with simulated paste events.
-    // The current mock structure is primarily for testing the manual MD button interaction.
-    expect(true).toBe(true);
   });
 });

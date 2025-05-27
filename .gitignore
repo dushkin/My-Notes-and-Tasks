@@ -73,3 +73,5 @@ node_modules/
 dist/
 consolidated_output.txt
 playwright-report/index.html
+
+*.md

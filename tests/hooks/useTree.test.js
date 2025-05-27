@@ -1,14 +1,22 @@
-// tests/hooks/useTree.test.js
+// tests/hooks/useTree.test.jsx
 import { renderHook, act } from '@testing-library/react';
 import { useTree, assignClientPropsForDuplicate } from '../../src/hooks/useTree';
 import { LOCAL_STORAGE_KEY } from '../../src/utils/constants';
+import * as apiClient from '../../src/services/apiClient'; // Import to mock authFetch
 
-global.fetch = jest.fn();
+// Mock apiClient.authFetch
+jest.mock('../../src/services/apiClient', () => ({
+  authFetch: jest.fn(),
+  initApiClient: jest.fn(), // Keep initApiClient if App.jsx calls it, but not directly used by useTree normally
+}));
+
+
 jest.mock('unicode-bidirectional', () => ({
   __esModule: true,
   embeddingLevels: jest.fn(() => []),
   reorder: jest.fn(text => text),
 }));
+
 const mockDefaultSettings = {
   theme: 'system',
   defaultSortOrder: 'foldersFirstAlpha',
@@ -19,6 +27,7 @@ const mockDefaultSettings = {
   autoExportEnabled: false,
   autoExportIntervalMinutes: 30,
 };
+
 jest.mock('../../src/contexts/SettingsContext', () => ({
   useSettings: () => ({
     settings: mockDefaultSettings,
@@ -47,23 +56,32 @@ Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 describe('useTree Hook', () => {
   beforeEach(() => {
     localStorageMock.clear();
-    jest.clearAllMocks();
-    fetch.mockResolvedValue({
+    jest.clearAllMocks(); // Clears all mocks, including authFetch
+    // Default mock for authFetch for tree loading
+    apiClient.authFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ notesTree: [] }),
     });
   });
 
-  test('initializes with an attempt to fetch tree if token exists', async () => {
-    localStorageMock.setItem('userToken', 'fake-token');
-    const { result } = renderHook(() => useTree());
+  test('initializes with an attempt to fetch tree', async () => {
+    // No need to set 'userToken' in localStorage, authFetch handles auth
+    const { result, waitForNextUpdate } = renderHook(() => useTree());
 
-    expect(result.current.tree).toEqual([]);
+    // Initially tree might be from localStorage or empty before fetch completes
+    expect(result.current.isFetchingTree).toBe(true); // Assuming fetch starts on init
+
+    await waitForNextUpdate({ timeout: 200 }); // Wait for fetch to potentially complete
+
+    expect(apiClient.authFetch).toHaveBeenCalledWith("/items/tree");
+    expect(result.current.tree).toEqual([]); // Assuming mock fetch returns empty tree
     expect(result.current.expandedFolders).toEqual({});
   });
 
-  test('initializes with empty tree if localStorage is empty and no token', () => {
-    localStorageMock.removeItem('userToken');
+
+  test('initializes with empty tree if localStorage is empty', () => {
+    // Ensure authFetch is mocked to not throw or to return empty if called
+    apiClient.authFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ notesTree: [] }) });
     const { result } = renderHook(() => useTree());
     expect(result.current.tree).toEqual([]);
     expect(result.current.expandedFolders).toEqual({});
@@ -71,12 +89,15 @@ describe('useTree Hook', () => {
     expect(localStorageMock.getItem).toHaveBeenCalledWith(`${LOCAL_STORAGE_KEY}_expanded`);
   });
 
-  test('loads tree from localStorage if present (and no token initially for fetch)', () => {
+  test('loads tree from localStorage if present (and fetch is mocked appropriately)', () => {
     const storedTree = [{ id: 'f1', type: 'folder', label: 'Folder 1', children: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }];
     localStorageMock.setItem(LOCAL_STORAGE_KEY, JSON.stringify(storedTree));
-    localStorageMock.removeItem('userToken');
+    apiClient.authFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ notesTree: storedTree }) });
+
 
     const { result } = renderHook(() => useTree());
+    // The hook initializes with localStorage, then fetch might overwrite it.
+    // For this test, we focus on the localStorage load part.
     expect(result.current.tree).toEqual(storedTree);
   });
 
@@ -96,9 +117,6 @@ describe('useTree Hook', () => {
       expect(duplicatedItem.id).toMatch(/^client-/);
       expect(duplicatedItem.label).toBe(originalItem.label);
       expect(duplicatedItem.content).toBe(originalItem.content);
-
-      expect(duplicatedItem.createdAt).toBeDefined();
-      expect(duplicatedItem.updatedAt).toBeDefined();
       expect(new Date(duplicatedItem.createdAt).getTime()).toBeGreaterThan(new Date(originalItem.createdAt).getTime());
       expect(duplicatedItem.updatedAt).toEqual(duplicatedItem.createdAt);
     });
@@ -127,7 +145,6 @@ describe('useTree Hook', () => {
       expect(duplicatedFolder.id).toMatch(/^client-/);
       expect(new Date(duplicatedFolder.createdAt).getTime()).toBeGreaterThan(new Date(originalFolder.createdAt).getTime());
       expect(duplicatedFolder.updatedAt).toEqual(duplicatedFolder.createdAt);
-
       expect(duplicatedFolder.children[0].id).not.toBe(originalFolder.children[0].id);
       expect(duplicatedFolder.children[0].id).toMatch(/^client-/);
       expect(duplicatedFolder.children[0].label).toBe(originalFolder.children[0].label);
@@ -137,7 +154,6 @@ describe('useTree Hook', () => {
   });
 
   test('addItem updates tree with item returned from server (including timestamps)', async () => {
-    localStorageMock.setItem('userToken', 'fake-token');
     const newItemData = { label: 'New Server Note', type: 'note', content: '' };
     const serverReturnedItem = {
       ...newItemData,
@@ -146,17 +162,9 @@ describe('useTree Hook', () => {
       updatedAt: new Date().toISOString()
     };
 
-    fetch.mockImplementation((url) => {
-      if (url.toString().endsWith('/api/items')) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => serverReturnedItem,
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: async () => ({ notesTree: [] }),
-      });
+    apiClient.authFetch.mockResolvedValue({ // Mock authFetch directly
+      ok: true,
+      json: async () => serverReturnedItem,
     });
 
     const { result } = renderHook(() => useTree());
@@ -165,6 +173,10 @@ describe('useTree Hook', () => {
       await result.current.addItem(newItemData, null);
     });
 
+    expect(apiClient.authFetch).toHaveBeenCalledWith(
+      "/items",
+      expect.objectContaining({ method: "POST", body: expect.any(String) })
+    );
     expect(result.current.tree.length).toBe(1);
     expect(result.current.tree[0]).toEqual(serverReturnedItem);
     expect(result.current.tree[0].createdAt).toBeDefined();
@@ -172,7 +184,6 @@ describe('useTree Hook', () => {
   });
 
   test('updateNoteContent updates tree with item returned from server (including new updatedAt)', async () => {
-    localStorageMock.setItem('userToken', 'fake-token');
     const initialTimestamp = new Date(Date.now() - 100000).toISOString();
     const initialItem = {
       id: 'note-to-update-1',
@@ -182,43 +193,34 @@ describe('useTree Hook', () => {
       createdAt: initialTimestamp,
       updatedAt: initialTimestamp
     };
-
     const updatedServerItem = {
       ...initialItem,
       content: '<p>Updated Content</p>',
       updatedAt: new Date().toISOString()
     };
 
-    fetch.mockImplementation((url) => {
-      if (url.toString().includes(`/api/items/${initialItem.id}`)) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => updatedServerItem,
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: async () => ({ notesTree: [initialItem] }),
-      });
+    // Mock for the initial fetchUserTree if it's called by the hook setup
+    apiClient.authFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ notesTree: [initialItem] }) });
+    // Mock for the PATCH request
+    apiClient.authFetch.mockResolvedValueOnce({ ok: true, json: async () => updatedServerItem });
+
+
+    const { result, rerender } = renderHook(() => useTree());
+
+    // If fetchUserTree is called on init, wait for it or set initial state directly for this test
+    act(() => {
+      result.current.resetState([initialItem]); // Manually set initial state for this test
     });
 
-    const { result } = renderHook(() => useTree());
-
-    await act(async () => {
-      if (result.current.tree.length === 0) {
-        await result.current.fetchUserTree('fake-token');
-      }
-    });
-    if (result.current.tree.length === 0 || result.current.tree[0].id !== initialItem.id) {
-      act(() => {
-        result.current.resetState([initialItem]);
-      });
-    }
 
     await act(async () => {
       await result.current.updateNoteContent(initialItem.id, { content: '<p>Updated Content</p>' });
     });
 
+    expect(apiClient.authFetch).toHaveBeenCalledWith(
+      `/items/${initialItem.id}`,
+      expect.objectContaining({ method: "PATCH", body: expect.any(String) })
+    );
     expect(result.current.tree.length).toBe(1);
     const updatedItemInTree = result.current.tree.find(item => item.id === initialItem.id);
     expect(updatedItemInTree).toEqual(updatedServerItem);

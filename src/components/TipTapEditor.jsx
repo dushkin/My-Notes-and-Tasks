@@ -1,7 +1,7 @@
 // src/components/TipTapEditor.jsx
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react"; // ReactRenderer might not be needed here unless for complex node views
-import { DOMParser } from "prosemirror-model"; // Import DOMParser
+import { useEditor, EditorContent } from "@tiptap/react";
+import { DOMParser } from "prosemirror-model";
 
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -33,11 +33,11 @@ import {
   Type,
   Image as ImageIconLucide,
 } from "lucide-react";
-
 import { marked } from "marked";
+import { authFetch } from "../services/apiClient"; // Import authFetch
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api"; // Now handled by apiClient
+
 const FONT_FAMILIES = [
   "Arial",
   "Times New Roman",
@@ -98,11 +98,11 @@ const uploadImageToServer = async (file) => {
   const formData = new FormData();
   formData.append("image", file);
   try {
-    const token = localStorage.getItem("userToken");
-    const response = await fetch(`${API_BASE_URL}/images/upload`, {
+    // No need for explicit token, authFetch handles it
+    const response = await authFetch(`/images/upload`, {
+      // Use authFetch
       method: "POST",
-      headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-      body: formData,
+      body: formData, // authFetch handles FormData Content-Type
     });
     if (!response.ok) {
       const errorData = await response
@@ -179,47 +179,34 @@ const TipTapEditor = ({
         const html = event.clipboardData?.getData("text/html");
         const commonMarkdownPatterns =
           /^(?:#+\s|\*\s|-\s|>\s|```|\[.*\]\(.*\)|`[^`]+`|\d+\.\s)/m;
-
-        // אם יש HTML בלוח והוא לא נראה כמו Markdown גולמי (כלומר, הטקסט הפשוט לא מתחיל בתבניות Markdown),
-        // אז ניתן ל-TipTap לטפל בהדבקת ה-HTML כרגיל.
         if (
           html &&
           text &&
           !commonMarkdownPatterns.test(text.substring(0, 250))
         ) {
-          // Check beginning of text
-          // אם הדוגמה שלך (ה-HTML) מודבקת, היא תיכנס לכאן ותטופל כ-HTML רגיל.
-          return false; // תן ל-TipTap לטפל בזה כ-HTML
+          return false;
         }
 
-        // אם אין HTML, או שהטקסט נראה כמו Markdown גולמי, ננסה להמיר
         if (text) {
           try {
             if (commonMarkdownPatterns.test(text)) {
               const renderer = new marked.Renderer();
-              renderer.image = () => ""; // הסרת תמונות מ-Markdown מודבק
+              renderer.image = () => "";
               const markdownHtml = marked.parse(text.trim(), { renderer });
-
-              // יצירת DocumentFragment מה-HTML המומר
               const tempDiv = document.createElement("div");
               tempDiv.innerHTML = markdownHtml;
-
-              // יצירת Slice ש-ProseMirror יכול להבין
-              // זה ימיר את ה-HTML לצמתים של Prosemirror לפי הסכמה
               const prosemirrorSlice = DOMParser.fromSchema(
                 view.state.schema
               ).parseSlice(tempDiv, {});
-
-              // החלף את הבחירה הנוכחית (או הכנס במקום הסמן) עם התוכן המומר
               view.dispatch(view.state.tr.replaceSelection(prosemirrorSlice));
-              return true; // טיפלנו בהדבקה
+              return true;
             }
           } catch (e) {
             console.error("Error parsing pasted markdown in handlePaste", e);
-            return false; // חזרה להתנהגות ברירת המחדל
+            return false;
           }
         }
-        return false; // חזרה להתנהגות ברירת המחדל
+        return false;
       },
       handleDrop: (view, event, slice, moved) => {
         if (
@@ -251,7 +238,6 @@ const TipTapEditor = ({
         }
         return false;
       },
-      // transformPastedText הוסר כי handlePaste מטפל בזה טוב יותר
     },
   });
 
@@ -535,7 +521,6 @@ const TipTapEditor = ({
               selection.to,
               "\n"
             );
-
             if (selectedText.trim()) {
               try {
                 const cleanedText = selectedText

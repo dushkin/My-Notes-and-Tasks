@@ -17,15 +17,26 @@ const mockOnSwitchToLogin = jest.fn();
 global.fetch = jest.fn();
 const originalAlert = window.alert;
 
-const originalEnv = { ...import.meta.env };
-// Adjust this based on your test environment's VITE_API_BASE_URL resolution
+// To make the component Register.jsx work (which uses import.meta.env),
+// you should ensure import.meta.env is mocked in your jest.setup.js.
+// For example, in jest.setup.js:
+// global.importMeta = {
+//   env: {
+//     VITE_API_BASE_URL: 'http://localhost:3001/api/mocked', // Your test API URL
+//     // Add other VITE_ variables if your components use them
+//   },
+// };
+// Then, the Register.jsx component will pick this up.
+
+// For constants within THIS test file, we avoid the problematic syntax:
 const EXPECTED_API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api/test";
+  process.env.VITE_API_BASE_URL || "http://localhost:5001/api/test-register"; // Use process.env or hardcode for test
 const EXPECTED_API_REGISTER_ENDPOINT = `${EXPECTED_API_BASE_URL}/auth/register`;
+// The `originalEnv` line that used import.meta.env has been removed as it caused a syntax error.
+// If you needed to mock/restore environment variables, do so via Jest's mechanisms or by setting process.env.
 
 afterAll(() => {
-  import.meta.env = originalEnv;
-  window.alert = originalAlert; // Restore original alert
+  window.alert = originalAlert;
 });
 
 afterEach(() => {
@@ -40,10 +51,38 @@ describe("<Register />", () => {
 
   beforeEach(() => {
     user = userEvent.setup();
-    window.alert = jest.fn(); // Mock window.alert for each test
+    window.alert = jest.fn();
+    // Reset fetch mock for each test
+    fetch.mockImplementation(async (url, options) => {
+      if (
+        url.toString() === EXPECTED_API_REGISTER_ENDPOINT &&
+        options &&
+        options.method === "POST"
+      ) {
+        // Simulate successful registration
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            user: { _id: "newUser123", email: JSON.parse(options.body).email },
+            // The actual register endpoint now returns accessToken and refreshToken
+            // Include them in the mock if any part of the Register component's logic
+            // (even if not explicitly tested here for token handling) might expect them.
+            accessToken: "mock-access-token",
+            refreshToken: "mock-refresh-token",
+          }),
+        });
+      }
+      // Fallback for other unhandled fetch calls or errors
+      return Promise.resolve({
+        ok: false,
+        status: 400, // Default to a client error if not specific
+        json: async () => ({
+          error: "Mocked fetch: Unhandled registration path or error",
+        }),
+      });
+    });
   });
 
-  // Run this test in isolation first
   test("shows error if fields are empty on submit", async () => {
     render(
       <Register
@@ -51,25 +90,10 @@ describe("<Register />", () => {
         onSwitchToLogin={mockOnSwitchToLogin}
       />
     );
-
-    // const createAccountButton = screen.getByRole("button", { name: /Create Account/i });
-    // await user.click(createAccountButton);
-    // OR directly submit the form:
-    const formElement = screen.getByTestId("register-form"); // Assumes data-item-id="register-form" on form
+    const formElement = screen.getByTestId("register-form");
     fireEvent.submit(formElement);
-
-    // ***** UNCOMMENT THE LINE BELOW TO DEBUG THE DOM *****
-    // console.log("DEBUG FROM TEST (empty register fields): DOM state immediately after submit and before waitFor:");
-    // screen.debug(undefined, 300000);
-    // ***** *****
-
-    // Check console for logs from Register.jsx's handleSubmit
-    // Expecting: "[Register.jsx handleSubmit DEBUG] ENTRY - email: '', password: '', confirmPassword: ''"
-    // And then: "[Register.jsx handleSubmit DEBUG] Empty fields validation hit! Setting error."
-
     await waitFor(
       () => {
-        // Ensure Register.jsx uses data-item-id for the error message if your env expects it for getByTestId
         const errorMessageElement = screen.getByTestId(
           "register-error-message"
         );
@@ -80,7 +104,6 @@ describe("<Register />", () => {
       },
       { timeout: 3000 }
     );
-
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -154,13 +177,7 @@ describe("<Register />", () => {
   });
 
   test("calls onRegisterSuccess on successful registration", async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        user: { id: "newUser123", email: "test@example.com" },
-        token: "new-token",
-      }),
-    });
+    // The global fetch mock is already set up in beforeEach to simulate success
     render(
       <Register
         onRegisterSuccess={mockOnRegisterSuccess}
@@ -183,7 +200,7 @@ describe("<Register />", () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        EXPECTED_API_REGISTER_ENDPOINT, // Use the corrected endpoint
+        EXPECTED_API_REGISTER_ENDPOINT,
         expect.objectContaining({
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -206,7 +223,9 @@ describe("<Register />", () => {
 
   test("shows server error message on failed registration", async () => {
     fetch.mockResolvedValueOnce({
+      // Override for this test
       ok: false,
+      status: 400,
       json: async () => ({ error: "Email already exists" }),
     });
     render(

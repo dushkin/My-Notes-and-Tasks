@@ -127,47 +127,73 @@ export const useTree = () => {
 
   const fetchUserTreeInternal = useCallback(
     async (token) => {
+      token = token || localStorage.getItem("userToken"); // Try to retrieve token if missing
+      console.log(
+        "[DEBUGDEBUG] fetchUserTreeInternal called with token:",
+        token
+      );
+
       if (!token) {
+        console.log("[DEBUGDEBUG] No token provided, resetting tree history.");
         resetTreeHistory([]);
         setIsFetchingTree(false);
         return;
       }
+
       setIsFetchingTree(true);
       try {
+        console.log("[DEBUGDEBUG] Sending request to /api/items/tree...");
         const response = await fetch(`${API_BASE_URL}/items/tree`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+
+        console.log("[DEBUGDEBUG] Received response:", response.status);
+
         if (!response.ok) {
           const errorData = await response
             .json()
             .catch(() => ({ error: "Failed to parse error response" }));
+
           if (response.status === 401) {
+            console.log(
+              "[DEBUGDEBUG] Unauthorized response, clearing user token."
+            );
             localStorage.removeItem("userToken");
           }
+
           console.error(
-            "fetchUserTreeInternal: Server error fetching tree:",
+            "[DEBUGDEBUG] fetchUserTreeInternal: Server error fetching tree:",
             response.status,
             errorData
           );
+
           resetTreeHistory([]);
           setIsFetchingTree(false);
           return;
         }
+
         const data = await response.json();
-        // The backend's getNotesTree now includes addMissingTimestampsToTree
-        // so the data.notesTree should have createdAt/updatedAt for all items.
+        console.log("[DEBUGDEBUG] Parsed response JSON:", data);
+
         if (data && Array.isArray(data.notesTree)) {
+          console.log(
+            "[DEBUGDEBUG] Updating tree history with notesTree data."
+          );
           resetTreeHistory(data.notesTree);
         } else {
+          console.log(
+            "[DEBUGDEBUG] No valid notesTree data, resetting tree history."
+          );
           resetTreeHistory([]);
         }
       } catch (error) {
         console.error(
-          "fetchUserTreeInternal: Network or other error fetching tree:",
+          "[DEBUGDEBUG] fetchUserTreeInternal: Network or other error fetching tree:",
           error
         );
         resetTreeHistory([]);
       } finally {
+        console.log("[DEBUGDEBUG] fetchUserTreeInternal execution completed.");
         setIsFetchingTree(false);
       }
     },
@@ -1080,7 +1106,15 @@ export const useTree = () => {
     [tree]
   );
 
+  console.log("[DEBUG] Attaching fetchUserTree to window...");
+  window.fetchUserTree = fetchUserTreeInternal;
+  console.log(
+    "[DEBUG] window.fetchUserTree is now:",
+    typeof window.fetchUserTree
+  );
+
   return {
+    fetchUserTree: fetchUserTreeInternal,
     tree,
     selectedItem,
     selectedItemId,
@@ -1114,7 +1148,6 @@ export const useTree = () => {
     canUndoTree,
     canRedoTree,
     resetState: resetTreeHistory,
-    fetchUserTree: fetchUserTreeInternal,
     isFetchingTree,
   };
 };
