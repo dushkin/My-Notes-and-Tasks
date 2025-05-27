@@ -10,67 +10,30 @@ import {
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import Login from "../../src/components/Login";
+import * as authService from "../../src/services/authService"; // To spy on storeTokens
 
 const mockOnLoginSuccess = jest.fn();
 const mockOnSwitchToRegister = jest.fn();
 
-// Using the global fetch mock from jest.setup.js or a more specific one here if needed
-global.fetch = jest.fn(async (url, options) => {
-  // Default mock behavior, can be overridden by specific tests using mockResolvedValueOnce etc.
-  // console.log('[TEST DEBUG Test Fetch Mock] CALLED WITH URL:', url);
-  // console.log('[TEST DEBUG Test Fetch Mock] CALLED WITH OPTIONS:', JSON.stringify(options, null, 2));
-  if (url.toString().includes("auth/login")) {
-    if (options && options.method === "POST" && options.body) {
-      try {
-        const body = JSON.parse(options.body);
-        if (
-          body.email === "test@example.com" &&
-          body.password === "password123"
-        ) {
-          return Promise.resolve({
-            ok: true,
-            json: async () => ({
-              token: "fake-jwt-token",
-              user: { id: "123", email: "test@example.com" },
-            }),
-          });
-        } else if (
-          body.email === "test@example.com" &&
-          body.password === "wrongpassword"
-        ) {
-          return Promise.resolve({
-            ok: false,
-            status: 401,
-            json: async () => ({ error: "Invalid credentials" }),
-          });
-        }
-      } catch (e) {
-        /* Fall through */
-      }
-    }
-  }
-  // Fallback for network error test or other unhandled cases
-  return Promise.resolve({
-    ok: false,
-    status: 500,
-    json: async () => ({
-      error: "Mocked fetch: Generic error or unhandled path",
-    }),
-  });
-});
+// Mock the authService
+jest.mock("../../src/services/authService", () => ({
+  ...jest.requireActual("../../src/services/authService"), // Import and retain default behavior
+  storeTokens: jest.fn(), // Mock storeTokens
+}));
 
-// This should match what import.meta.env.VITE_API_BASE_URL is mocked to in jest.setup.js
-// Or, if Login.jsx has a fallback, ensure tests account for it.
-const EXPECTED_API_BASE_URL_FOR_TESTS =
-  global.importMeta?.env?.VITE_API_BASE_URL || "http://localhost:5001/api/test"; // Fallback for safety
-const EXPECTED_API_LOGIN_ENDPOINT = `${EXPECTED_API_BASE_URL_FOR_TESTS}/auth/login`;
+global.fetch = jest.fn();
+
+const API_BASE_URL =
+  global.importMeta?.env?.VITE_API_BASE_URL || "http://localhost:5001/api";
+const LOGIN_ENDPOINT = `${API_BASE_URL}/auth/login`;
 
 afterEach(() => {
   cleanup();
   fetch.mockClear();
   mockOnLoginSuccess.mockClear();
   mockOnSwitchToRegister.mockClear();
-  localStorage.clear();
+  authService.storeTokens.mockClear(); // Clear mock calls
+  localStorage.clear(); // Clear local storage if Login component writes to it directly
 });
 
 describe("<Login />", () => {
@@ -78,29 +41,61 @@ describe("<Login />", () => {
 
   beforeEach(() => {
     user = userEvent.setup();
+    // Reset fetch mock for each test to avoid interference
+    fetch.mockImplementation(async (url, options) => {
+      if (url.toString() === LOGIN_ENDPOINT) {
+        if (options && options.method === "POST" && options.body) {
+          try {
+            const body = JSON.parse(options.body);
+            if (
+              body.email === "test@example.com" &&
+              body.password === "password123"
+            ) {
+              return Promise.resolve({
+                ok: true,
+                json: async () => ({
+                  accessToken: "fake-access-token", // Changed from token
+                  refreshToken: "fake-refresh-token", // Added refreshToken
+                  user: { _id: "123", email: "test@example.com" }, // Ensure user object has _id
+                }),
+              });
+            } else if (
+              body.email === "test@example.com" &&
+              body.password === "wrongpassword"
+            ) {
+              return Promise.resolve({
+                ok: false,
+                status: 401,
+                json: async () => ({ error: "Invalid credentials" }),
+              });
+            }
+          } catch (e) {
+            // Fall through
+          }
+        }
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "Mocked fetch: Generic error or unhandled login path",
+        }),
+      });
+    });
   });
 
-  // Run this test in isolation
-  test.only("shows error message if fields are empty on submit", async () => {
+  test("shows error message if fields are empty on submit", async () => {
     render(
       <Login
         onLoginSuccess={mockOnLoginSuccess}
         onSwitchToRegister={mockOnSwitchToRegister}
       />
     );
-
-    // Using data-item-id as per previous findings about your test environment
     const formElement = screen.getByTestId("login-form");
     fireEvent.submit(formElement);
 
-    // ***** UNCOMMENT THIS LINE TO SEE THE DOM AFTER SUBMIT *****
-    // console.log("DEBUG FROM TEST (empty submit): DOM state immediately after fireEvent.submit and before waitFor:");
-    // screen.debug(undefined, 300000);
-    // ***** *****
-
     await waitFor(
       () => {
-        // This will look for data-item-id="login-error-message" due to jest.setup.js configure
         const errorMessageElement = screen.getByTestId("login-error-message");
         expect(errorMessageElement).toBeInTheDocument();
         expect(errorMessageElement).toHaveTextContent(
@@ -109,7 +104,6 @@ describe("<Login />", () => {
       },
       { timeout: 3000 }
     );
-
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -147,9 +141,8 @@ describe("<Login />", () => {
     expect(passwordInput).toHaveValue("password123");
   });
 
-  test("calls onLoginSuccess with user data on successful login", async () => {
-    const mockUserData = { id: "123", email: "test@example.com" };
-    // The global fetch mock should handle this based on credentials
+  test("calls onLoginSuccess with user data and stores tokens on successful login", async () => {
+    const mockUserData = { _id: "123", email: "test@example.com" }; // Ensure _id is present
 
     render(
       <Login
@@ -166,7 +159,7 @@ describe("<Login />", () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        EXPECTED_API_LOGIN_ENDPOINT,
+        LOGIN_ENDPOINT,
         expect.objectContaining({
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -180,11 +173,14 @@ describe("<Login />", () => {
     await waitFor(() => {
       expect(mockOnLoginSuccess).toHaveBeenCalledWith(mockUserData);
     });
-    expect(localStorage.getItem("userToken")).toBe("fake-jwt-token");
+    // Check if authService.storeTokens was called correctly
+    expect(authService.storeTokens).toHaveBeenCalledWith(
+      "fake-access-token",
+      "fake-refresh-token"
+    );
   });
 
   test("shows error message on failed login (invalid credentials)", async () => {
-    // The global fetch mock handles this based on credentials
     render(
       <Login
         onLoginSuccess={mockOnLoginSuccess}
@@ -204,10 +200,10 @@ describe("<Login />", () => {
       { timeout: 3000 }
     );
     expect(errorMessageElement).toHaveTextContent(/Invalid credentials/i);
+    expect(authService.storeTokens).not.toHaveBeenCalled();
   });
 
   test("shows error message on network error", async () => {
-    // Override global fetch mock for this specific test to ensure rejection
     fetch.mockRejectedValueOnce(new Error("Network error"));
 
     render(
@@ -231,6 +227,7 @@ describe("<Login />", () => {
     expect(errorMessageElement).toHaveTextContent(
       /Network error or server issue/i
     );
+    expect(authService.storeTokens).not.toHaveBeenCalled();
   });
 
   test('calls onSwitchToRegister when "Create one" button is clicked', async () => {

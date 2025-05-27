@@ -1,8 +1,9 @@
 // src/components/Login.jsx
 import React, { useState } from "react";
+import { storeTokens } from "../services/authService"; // Import storeTokens
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api/fallback";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   const [email, setEmail] = useState("");
@@ -35,17 +36,19 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
         return;
       }
 
-      if (data.token) {
-        localStorage.setItem("userToken", data.token);
+      if (data.accessToken && data.refreshToken) {
+        // Check for accessToken and refreshToken
+        storeTokens(data.accessToken, data.refreshToken); // Use authService to store tokens
         if (onLoginSuccess) {
           onLoginSuccess(data.user);
         }
       } else {
-        setError("Login failed: No token received from server.");
+        setError("Login failed: Invalid token response from server.");
       }
-    } catch {
+    } catch (err) {
       setIsLoading(false);
       setError("Network error or server issue. Please try again.");
+      console.error("Login request error:", err);
     }
   };
 
@@ -78,6 +81,7 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="you@example.com"
+              autoComplete="email"
             />
           </div>
           <div className="mb-6">
@@ -94,6 +98,7 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="••••••••"
+              autoComplete="current-password"
             />
           </div>
           <button

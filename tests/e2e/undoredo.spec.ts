@@ -1,6 +1,5 @@
 import { test, expect, Page, Locator } from "@playwright/test";
 
-// Define a type for tree items
 interface TreeItem {
   id: string;
   label: string;
@@ -8,19 +7,30 @@ interface TreeItem {
   children?: TreeItem[];
   content?: string;
   completed?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
+const now = new Date().toISOString();
 
 async function loginAndGetTreeNav(page: Page): Promise<Locator> {
   await page.goto("/");
   await page.route("**/api/auth/login", async (route) => {
     await route.fulfill({
       json: {
-        token: "fake-jwt-token",
+        accessToken: "fake-jwt-token",
+        refreshToken: "fake-refresh-token",
         user: { id: "123", email: "test@example.com" },
       },
       status: 200,
     });
   });
+  await page.route("**/api/auth/verify-token", async (route) => {
+    await route.fulfill({
+      json: { valid: true, user: { id: "123", email: "test@example.com" } },
+      status: 200,
+    });
+  });
+  // Initial tree load is empty
   await page.route(
     "**/api/items/tree",
     async (route) => {
@@ -45,6 +55,7 @@ test.describe("Undo/Redo Functionality", () => {
     treeNav = await loginAndGetTreeNav(page);
 
     const folderName = "UndoRedo Folder";
+    const folderId = "undoredo-folder-1";
     const undoButton = page.getByRole("button", { name: "Undo (Ctrl+Z)" });
     const redoButton = page.getByRole("button", { name: "Redo (Ctrl+Y)" });
 
@@ -53,20 +64,34 @@ test.describe("Undo/Redo Functionality", () => {
 
     let currentMockedTree: TreeItem[] = [];
 
+    // This route will be used for tree refreshes triggered by operations
     await page.route("**/api/items/tree", async (route) => {
       await route.fulfill({ json: { notesTree: currentMockedTree } });
     });
 
+    // Mock for the ADD operation
     await page.route(
       "**/api/items",
       async (route) => {
         if (route.request().method() === "POST") {
-          await route.fulfill({
-            json: {
-              id: "undoredo-folder-1",
+          currentMockedTree = [
+            {
+              id: folderId,
               label: folderName,
               type: "folder",
               children: [],
+              createdAt: now,
+              updatedAt: now,
+            },
+          ];
+          await route.fulfill({
+            json: {
+              id: folderId,
+              label: folderName,
+              type: "folder",
+              children: [],
+              createdAt: now,
+              updatedAt: now,
             },
             status: 201,
           });
@@ -82,22 +107,14 @@ test.describe("Undo/Redo Functionality", () => {
     await page.getByPlaceholder("Enter folder name").fill(folderName);
     await page.getByRole("button", { name: "Add" }).click();
 
-    currentMockedTree = [
-      {
-        id: "undoredo-folder-1",
-        label: folderName,
-        type: "folder",
-        children: [],
-      },
-    ];
     await expect(treeNav.getByText(folderName, { exact: true })).toBeVisible({
       timeout: 7000,
     });
-
     await expect(undoButton).toBeEnabled();
     await expect(redoButton).toBeDisabled();
 
-    currentMockedTree = [];
+    // UNDO Add
+    currentMockedTree = []; // Tree state after undoing the add
     await undoButton.click();
     await expect(
       treeNav.getByText(folderName, { exact: true })
@@ -105,12 +122,15 @@ test.describe("Undo/Redo Functionality", () => {
     await expect(undoButton).toBeDisabled();
     await expect(redoButton).toBeEnabled();
 
+    // REDO Add
     currentMockedTree = [
       {
-        id: "undoredo-folder-1",
+        id: folderId,
         label: folderName,
         type: "folder",
         children: [],
+        createdAt: now,
+        updatedAt: now,
       },
     ];
     await redoButton.click();
@@ -125,88 +145,87 @@ test.describe("Undo/Redo Functionality", () => {
     treeNav = await loginAndGetTreeNav(page);
 
     const itemName = "Item To Delete For Undo";
+    const itemId = "item-del-undo";
     const setupFolderName = "SetupFolderForDeleteTest";
+    const setupFolderId = "setup-folder-del";
+
     const undoButton = page.getByRole("button", { name: "Undo (Ctrl+Z)" });
     const redoButton = page.getByRole("button", { name: "Redo (Ctrl+Y)" });
-
     let currentMockedTreeForDeleteTest: TreeItem[] = [];
 
+    // Generic tree refresh mock
     await page.route("**/api/items/tree", async (route) => {
       await route.fulfill({
         json: { notesTree: currentMockedTreeForDeleteTest },
       });
     });
 
+    // 1. Add Setup Folder
     await page.route(
       "**/api/items",
       async (route) => {
-        const reqBody = route.request().postDataJSON();
+        // For adding root folder
         if (
           route.request().method() === "POST" &&
-          reqBody.type === "folder" &&
-          reqBody.label === setupFolderName
+          route.request().postDataJSON()?.label === setupFolderName
         ) {
-          await route.fulfill({
-            json: {
-              id: "setup-folder-del",
+          currentMockedTreeForDeleteTest = [
+            {
+              id: setupFolderId,
               label: setupFolderName,
               type: "folder",
               children: [],
+              createdAt: now,
+              updatedAt: now,
             },
+          ];
+          await route.fulfill({
+            json: currentMockedTreeForDeleteTest[0],
             status: 201,
           });
         } else {
-          await route.continue();
+          route.continue();
         }
       },
       { times: 1 }
     );
-
-    currentMockedTreeForDeleteTest = [];
     await page.getByRole("button", { name: "More actions" }).click();
     await page.getByRole("button", { name: "Add Root Folder" }).click();
     await page.getByPlaceholder("Enter folder name").fill(setupFolderName);
     await page.getByRole("button", { name: "Add" }).click();
-
-    currentMockedTreeForDeleteTest = [
-      {
-        id: "setup-folder-del",
-        label: setupFolderName,
-        type: "folder",
-        children: [],
-      },
-    ];
     await expect(
       treeNav.getByText(setupFolderName, { exact: true })
     ).toBeVisible({ timeout: 7000 });
 
+    // 2. Add Note inside Setup Folder
     await page.route(
-      "**/api/items/setup-folder-del",
+      `**/api/items/${setupFolderId}`,
       async (route) => {
-        const reqBody = route.request().postDataJSON();
+        // For adding note to folder
         if (
           route.request().method() === "POST" &&
-          reqBody.type === "note" &&
-          reqBody.label === itemName
+          route.request().postDataJSON()?.label === itemName
         ) {
-          await route.fulfill({
-            json: {
-              id: "item-del-undo",
-              label: itemName,
-              type: "note",
-              content: "",
-            },
-            status: 201,
-          });
+          const newItem = {
+            id: itemId,
+            label: itemName,
+            type: "note" as "note",
+            content: "",
+            createdAt: now,
+            updatedAt: now,
+          };
+          currentMockedTreeForDeleteTest = [
+            { ...currentMockedTreeForDeleteTest[0], children: [newItem] },
+          ];
+          await route.fulfill({ json: newItem, status: 201 });
         } else {
-          await route.continue();
+          route.continue();
         }
       },
       { times: 1 }
     );
-
     const setupFolderItem = treeNav.locator(
-      'li[data-item-id="setup-folder-del"]'
+      `li[data-item-id="${setupFolderId}"]`
     );
     await setupFolderItem.hover();
     await setupFolderItem
@@ -215,84 +234,64 @@ test.describe("Undo/Redo Functionality", () => {
     await page.getByRole("button", { name: "Add Note Here" }).click();
     await page.getByPlaceholder("Enter note name").fill(itemName);
     await page.getByRole("button", { name: "Add" }).click();
+    await expect(treeNav.getByText(itemName, { exact: true })).toBeVisible({
+      timeout: 7000,
+    });
 
-    currentMockedTreeForDeleteTest = [
-      {
-        id: "setup-folder-del",
-        label: setupFolderName,
-        type: "folder",
-        children: [
-          { id: "item-del-undo", label: itemName, type: "note", content: "" },
-        ],
-      },
-    ];
-    await expect(
-      setupFolderItem.getByText(itemName, { exact: true })
-    ).toBeVisible({ timeout: 7000 });
-
-    await page.route("**/api/items/item-del-undo", async (route) => {
+    // 3. Delete the Note
+    await page.route(`**/api/items/${itemId}`, async (route) => {
+      // For deleting the note
       if (route.request().method() === "DELETE") {
+        currentMockedTreeForDeleteTest = [
+          { ...currentMockedTreeForDeleteTest[0], children: [] },
+        ];
         await route.fulfill({ status: 200, json: { message: "Item deleted" } });
       } else {
         route.continue();
       }
     });
-
     page.on("dialog", (dialog) => dialog.accept());
-    const itemEntry = treeNav.locator('li[data-item-id="item-del-undo"]');
+    const itemEntry = treeNav.locator(`li[data-item-id="${itemId}"]`);
     await itemEntry.hover();
     await itemEntry
       .getByRole("button", { name: `More options for ${itemName}` })
       .click();
     await page.getByRole("button", { name: "🗑️ Delete" }).click();
-
-    currentMockedTreeForDeleteTest = [
-      {
-        id: "setup-folder-del",
-        label: setupFolderName,
-        type: "folder",
-        children: [],
-      },
-    ];
     await expect(treeNav.getByText(itemName, { exact: true })).not.toBeVisible({
       timeout: 7000,
     });
-    await expect(undoButton).toBeEnabled(); // Delete action performed
+
+    await expect(undoButton).toBeEnabled();
     await expect(redoButton).toBeDisabled();
 
-    // Undo Delete
+    // 4. UNDO Delete
+    const noteItemRestored: TreeItem = {
+      id: itemId,
+      label: itemName,
+      type: "note",
+      content: "",
+      createdAt: now,
+      updatedAt: now,
+    };
     currentMockedTreeForDeleteTest = [
-      {
-        id: "setup-folder-del",
-        label: setupFolderName,
-        type: "folder",
-        children: [
-          { id: "item-del-undo", label: itemName, type: "note", content: "" },
-        ],
-      },
+      { ...currentMockedTreeForDeleteTest[0], children: [noteItemRestored] },
     ];
     await undoButton.click();
     await expect(treeNav.getByText(itemName, { exact: true })).toBeVisible({
       timeout: 7000,
     });
     await expect(redoButton).toBeEnabled();
-    // After undoing the delete, the "add note" and "add folder" are still in the past stack
-    await expect(undoButton).toBeEnabled(); // <<<< CORRECTED ASSERTION
+    await expect(undoButton).toBeEnabled();
 
-    // Redo Delete
+    // 5. REDO Delete
     currentMockedTreeForDeleteTest = [
-      {
-        id: "setup-folder-del",
-        label: setupFolderName,
-        type: "folder",
-        children: [],
-      },
+      { ...currentMockedTreeForDeleteTest[0], children: [] },
     ];
     await redoButton.click();
     await expect(treeNav.getByText(itemName, { exact: true })).not.toBeVisible({
       timeout: 7000,
     });
-    await expect(undoButton).toBeEnabled(); // Because the "add" operations can still be undone
-    await expect(redoButton).toBeDisabled(); // After redo, future stack is empty
+    await expect(undoButton).toBeEnabled();
+    await expect(redoButton).toBeDisabled();
   });
 });

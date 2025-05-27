@@ -1,15 +1,15 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.2.2",
-  "commitMessage": "Minor changes",
+  "version": "4.3.0 (alpha)",
+  "commitMessage": "Implement token expiration and refresh mechanisms for long-term sessions",
   "private": true,
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test:unit": "jest",
-    "test": "playwright test",
+    "test": "jest",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
