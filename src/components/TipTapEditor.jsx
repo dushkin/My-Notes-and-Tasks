@@ -2,10 +2,12 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { DOMParser } from "prosemirror-model";
-
+// Plugin import was not used directly, can be removed if not needed elsewhere:
+// import { Plugin } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
+import ResizableImageNodeView from "./ResizableImageNodeView";
 import TextStyle from "@tiptap/extension-text-style";
 import { Extension } from "@tiptap/core";
 import FontFamily from "@tiptap/extension-font-family";
@@ -23,7 +25,7 @@ import {
   Link as LinkIcon,
   Code as CodeIcon,
   SquareCode as CodeBlockIcon,
-  Pilcrow,
+  // Pilcrow was not used, can be removed
   Heading1,
   Heading2,
   Heading3,
@@ -34,9 +36,7 @@ import {
   Image as ImageIconLucide,
 } from "lucide-react";
 import { marked } from "marked";
-import { authFetch } from "../services/apiClient"; // Import authFetch
-
-// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api"; // Now handled by apiClient
+import { authFetch } from "../services/apiClient";
 
 const FONT_FAMILIES = [
   "Arial",
@@ -51,7 +51,6 @@ const FONT_SIZE_OPTIONS = [
   { label: "Large", value: "1.2em" },
   { label: "Extra Large", value: "1.5em" },
 ];
-
 const FontSizeExtension = Extension.create({
   name: "fontSize",
   addOptions() {
@@ -98,21 +97,25 @@ const uploadImageToServer = async (file) => {
   const formData = new FormData();
   formData.append("image", file);
   try {
-    // No need for explicit token, authFetch handles it
+    console.log("[TipTap] Uploading image:", file.name, file.size, "bytes");
     const response = await authFetch(`/images/upload`, {
-      // Use authFetch
       method: "POST",
-      body: formData, // authFetch handles FormData Content-Type
+      body: formData,
     });
+    console.log("[TipTap] Upload response status:", response.status);
+
     if (!response.ok) {
       const errorData = await response
         .json()
         .catch(() => ({ message: "Upload failed, server error." }));
+      console.error("[TipTap] Upload failed:", errorData);
       throw new Error(
         errorData.message || `HTTP error! status: ${response.status}`
       );
     }
+
     const data = await response.json();
+    console.log("[TipTap] Upload successful:", data);
     return data.url || null;
   } catch (error) {
     console.error("Image upload error:", error);
@@ -128,7 +131,6 @@ const TipTapEditor = ({
   defaultFontFamily,
 }) => {
   const [editorDir, setEditorDir] = useState(initialDirection || "ltr");
-
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -144,12 +146,59 @@ const TipTapEditor = ({
           rel: "noopener noreferrer nofollow",
         },
       }),
-      Image.configure({
+      Image.extend({
+        name: "resizableImage",
+        group: "inline",
         inline: true,
+        draggable: true,
+
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            src: {
+              default: null,
+              parseHTML: (element) => element.getAttribute("src"),
+            },
+            alt: {
+              default: null,
+              parseHTML: (element) => element.getAttribute("alt"),
+            },
+            title: {
+              default: null,
+              parseHTML: (element) => element.getAttribute("title"),
+            },
+            width: {
+              default: null,
+              parseHTML: (element) =>
+                element.style.width || element.getAttribute("width"),
+              renderHTML: (attributes) => {
+                const width = String(attributes.width || "auto").trim();
+                if (width === "auto" || !width || width === "null") {
+                  return { style: "width: auto; max-width: 100%;" };
+                }
+                if (/^\d+(\.\d+)?(px|%)?$/.test(width)) {
+                  return { style: `width: ${width}; max-width: 100%;` };
+                }
+                return { style: "width: auto; max-width: 100%;" };
+              },
+            },
+          };
+        },
+
+        addNodeView() {
+          return ({ node, editor, getPos, HTMLAttributes }) => {
+            return new ResizableImageNodeView(
+              node,
+              editor.view,
+              getPos,
+              HTMLAttributes
+            );
+          };
+        },
+      }).configure({
         allowBase64: false,
         HTMLAttributes: {
-          style:
-            "display: inline-block; max-height: 2em; vertical-align: middle; margin: 0 0.2em; max-width: 100%;",
+          class: "tiptap-image-node",
         },
       }),
       TextStyle,
@@ -174,7 +223,66 @@ const TipTapEditor = ({
           "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",
         dir: editorDir,
       },
-      handlePaste: function (view, event, slice) {
+      handlePaste: async function (view, event, slice) {
+        const items = event.clipboardData?.items;
+        if (items) {
+          for (let i = 0; i < items.length; i++) {
+            const clipboardItem = items[i];
+            if (
+              clipboardItem.type.startsWith("image/") &&
+              clipboardItem.kind === "file"
+            ) {
+              event.preventDefault();
+              const file = clipboardItem.getAsFile();
+              if (file) {
+                try {
+                  const url = await uploadImageToServer(file);
+                  if (url && view.editable) {
+                    const img = new window.Image();
+                    img.onload = () => {
+                      const { naturalWidth } = img;
+                      const { schema } = view.state;
+                      const imageNode = schema.nodes.resizableImage.create({
+                        src: url,
+                        width: `${naturalWidth}px`,
+                      });
+                      const newTr =
+                        view.state.tr.replaceSelectionWith(imageNode);
+                      const spaceNode = schema.text(" ");
+                      newTr.insert(
+                        newTr.selection.from + imageNode.nodeSize,
+                        spaceNode
+                      );
+                      view.dispatch(newTr);
+                      view.focus();
+                    };
+                    img.onerror = () => {
+                      const { schema } = view.state;
+                      const imageNode = schema.nodes.resizableImage.create({
+                        src: url,
+                        width: "300px",
+                      });
+                      const newTr =
+                        view.state.tr.replaceSelectionWith(imageNode);
+                      const spaceNode = schema.text(" ");
+                      newTr.insert(
+                        newTr.selection.from + imageNode.nodeSize,
+                        spaceNode
+                      );
+                      view.dispatch(newTr);
+                      view.focus();
+                    };
+                    img.src = url;
+                  }
+                } catch (err) {
+                  console.error("[TipTap] Error processing pasted image:", err);
+                }
+              }
+              return true;
+            }
+          }
+        }
+
         const text = event.clipboardData?.getData("text/plain");
         const html = event.clipboardData?.getData("text/html");
         const commonMarkdownPatterns =
@@ -208,7 +316,7 @@ const TipTapEditor = ({
         }
         return false;
       },
-      handleDrop: (view, event, slice, moved) => {
+      handleDrop: async function (view, event, slice, moved) {
         if (
           !moved &&
           event.dataTransfer &&
@@ -218,21 +326,48 @@ const TipTapEditor = ({
           const file = event.dataTransfer.files[0];
           if (file.type.startsWith("image/")) {
             event.preventDefault();
-            uploadImageToServer(file).then((url) => {
+            try {
+              const url = await uploadImageToServer(file);
               if (url && view.editable) {
-                const { schema, tr } = view.state;
-                const coordinates = view.posAtCoords({
-                  left: event.clientX,
-                  top: event.clientY,
-                });
-                if (coordinates) {
-                  const imageNode = schema.nodes.image.create({ src: url });
-                  tr.insert(coordinates.pos, imageNode);
-                  view.dispatch(tr);
-                  view.focus();
-                }
+                const img = new window.Image();
+                img.onload = () => {
+                  const { naturalWidth } = img;
+                  const { schema } = view.state;
+                  const coordinates = view.posAtCoords({
+                    left: event.clientX,
+                    top: event.clientY,
+                  });
+                  if (coordinates) {
+                    const imageNode = schema.nodes.resizableImage.create({
+                      src: url,
+                      width: `${naturalWidth}px`,
+                    });
+                    const tr = view.state.tr.insert(coordinates.pos, imageNode);
+                    view.dispatch(tr);
+                    view.focus();
+                  }
+                };
+                img.onerror = () => {
+                  const { schema } = view.state;
+                  const coordinates = view.posAtCoords({
+                    left: event.clientX,
+                    top: event.clientY,
+                  });
+                  if (coordinates) {
+                    const imageNode = schema.nodes.resizableImage.create({
+                      src: url,
+                      width: "300px",
+                    });
+                    const tr = view.state.tr.insert(coordinates.pos, imageNode);
+                    view.dispatch(tr);
+                    view.focus();
+                  }
+                };
+                img.src = url;
               }
-            });
+            } catch (err) {
+              console.error("[TipTap] Error processing dropped image:", err);
+            }
             return true;
           }
         }
@@ -255,7 +390,7 @@ const TipTapEditor = ({
   useEffect(() => {
     if (editor) {
       const currentEditorHTML = editor.getHTML();
-      if (currentEditorHTML !== content) {
+      if (currentEditorHTML !== content && !editor.isFocused) {
         editor.commands.setContent(content, false);
       }
     }
@@ -271,7 +406,7 @@ const TipTapEditor = ({
     }
   }, [editor, editorDir, onUpdate]);
 
-  const addImageFromFilePicker = useCallback(() => {
+  const addImageFromFilePicker = useCallback(async () => {
     if (!editor) return;
     const input = document.createElement("input");
     input.type = "file";
@@ -281,7 +416,29 @@ const TipTapEditor = ({
         const file = input.files[0];
         const url = await uploadImageToServer(file);
         if (url) {
-          editor.chain().focus().setImage({ src: url }).run();
+          const img = new window.Image();
+          img.onload = () => {
+            const { naturalWidth } = img;
+            editor
+              .chain()
+              .focus()
+              .insertContent({
+                type: "resizableImage",
+                attrs: { src: url, width: `${naturalWidth}px` },
+              })
+              .run();
+          };
+          img.onerror = () => {
+            editor
+              .chain()
+              .focus()
+              .insertContent({
+                type: "resizableImage",
+                attrs: { src: url, width: "300px" },
+              })
+              .run();
+          };
+          img.src = url;
         }
       }
     };

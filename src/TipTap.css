@@ -1,96 +1,85 @@
-/* Ensure the editor content area takes up available space and looks like an input */
+/* src/TipTap.css */
+
+/* Base editor styles */
 .tiptap-editor-content-area .ProseMirror {
     flex-grow: 1;
     min-height: 200px;
     outline: none;
-    /* Tailwind focus:outline-none handles focus rings */
     width: 100%;
     height: 100%;
     line-height: 1.6;
-    /* Improved line height for cursor visibility */
-    /* overflow-y: auto; should be on the wrapper if needed, not ProseMirror */
 }
 
-/* Styling for the placeholder text */
+/* Placeholder styling */
 .tiptap-editor-content-area .ProseMirror p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     float: left;
     color: #adb5bd;
-    /* Tailwind gray-400 or similar */
     pointer-events: none;
     height: 0;
 }
 
-/* Default styling for block images */
-.tiptap-editor-content-area .ProseMirror img:not(.inline) {
-    max-width: 100%;
-    /* Constrain to editor width */
-    height: auto;
-    /* Maintain aspect ratio */
-    display: block;
-    /* Default to block display for larger images */
-    margin: 0.5em auto;
-    /* Center block images, provide vertical spacing */
-    border-radius: 3px;
-    cursor: default;
+/* Paragraph styling */
+.tiptap-editor-content-area .ProseMirror p {
+    margin: 0.5em 0;
 }
 
-/* Styling for inline images */
-.tiptap-editor-content-area .ProseMirror img.inline {
-    display: inline-block;
-    /* Key for inline behavior */
-    max-height: 2em;
-    /* Adjust for desired inline image height */
-    max-width: 150px;
-    /* Prevent wide inline images from breaking layout */
-    height: auto;
-    vertical-align: middle;
-    /* Align with surrounding text */
-    margin: 0 0.2em;
-    /* Small horizontal spacing */
-    border-radius: 3px;
-    cursor: default;
-}
-
-/* Styling for selected nodes */
-.tiptap-editor-content-area .ProseMirror .ProseMirror-selectednode,
-.tiptap-editor-content-area .ProseMirror img.ProseMirror-selectednode {
-    outline: 3px solid #3b82f6;
-    /* Tailwind blue-500 or theme color */
-    box-shadow: 0 0 5px #3b82f680;
-    /* Softer glow */
-}
-
-/* Basic styling for code blocks */
+/* Code block styling */
 .tiptap-editor-content-area .ProseMirror pre {
     background: #f3f4f6;
-    /* Tailwind gray-100 */
     color: #1f2937;
-    /* Tailwind gray-800 */
     font-family: monospace;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
     white-space: pre-wrap;
-    /* Ensure long lines wrap */
+    margin: 0.5em 0;
 }
 
 .dark .tiptap-editor-content-area .ProseMirror pre {
     background: #374151;
-    /* Tailwind gray-700 */
     color: #f3f4f6;
-    /* Tailwind gray-100 */
 }
 
-.tiptap-editor-content-area .ProseMirror pre code {
-    color: inherit;
-    padding: 0;
-    background: none;
-    font-size: 0.9em;
-    /* Slightly smaller */
+/* Styles for the resizable image node view */
+.resizable-image-wrapper {
+    border: 1px dashed transparent;
+    vertical-align: bottom;
+    /* Align with the bottom of the text line */
+    /* max-width is applied inline by JS to wrapper and img */
 }
 
-/* Ensure paragraphs have minimum height for cursor visibility */
-.tiptap-editor-content-area .ProseMirror p {
-    min-height: 1em;
-    /* Match base line-height */
+.resizable-image-wrapper img {
+    cursor: default;
+    border-radius: 4px;
+    /* width, height, display, max-width are set by JS */
+}
+
+.resizable-image-wrapper .resize-handle {
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    width: 14px;
+    height: 14px;
+    background: #3b82f6;
+    border: 2px solid white;
+    border-radius: 3px;
+    cursor: nwse-resize;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    z-index: 10;
+}
+
+.resizable-image-wrapper:hover .resize-handle,
+.resizable-image-wrapper.ProseMirror-selectednode .resize-handle {
+    opacity: 1;
+}
+
+.resizable-image-wrapper.ProseMirror-selectednode {
+    outline: 2px solid #3b82f6;
+    border-color: #3b82f6;
+}
+
+.resizable-image-wrapper img {
+    resize: none;
+    /* Prevent native browser resize on the img tag itself */
 }

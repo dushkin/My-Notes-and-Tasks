@@ -535,14 +535,22 @@ const App = () => {
         delete updates.direction;
       }
 
-      if (item.type === "note") {
-        result = await updateNoteContent(itemId, updates); // uses authFetch
-      } else if (item.type === "task") {
-        result = await updateTask(itemId, updates); // uses authFetch
-      }
+      try {
+        if (item.type === "note") {
+          result = await updateNoteContent(itemId, updates);
+        } else if (item.type === "task") {
+          result = await updateTask(itemId, updates);
+        }
 
-      if (result && !result.success) {
-        showMessage(result.error || "Failed to save item.", "error");
+        if (result && !result.success) {
+          showMessage(result.error || "Failed to save item.", "error");
+          throw new Error(result.error || "Failed to save item.");
+        }
+
+        return result;
+      } catch (error) {
+        showMessage(error.message || "Failed to save item.", "error");
+        throw error;
       }
     },
     [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
