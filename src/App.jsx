@@ -26,6 +26,7 @@ import {
   Redo,
   LogOut,
   FileJson,
+  UserCircle2,
 } from "lucide-react";
 import SearchResultsPane from "./components/SearchResultsPane";
 import { matchText } from "./utils/searchUtils";
@@ -36,8 +37,8 @@ import {
   getAccessToken,
   getRefreshToken,
   clearTokens,
-} from "./services/authService"; // Import authService functions
-import { initApiClient, authFetch } from "./services/apiClient"; // Import apiClient
+} from "./services/authService";
+import { initApiClient, authFetch } from "./services/apiClient";
 
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
@@ -77,7 +78,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
     const timer = setTimeout(() => onClose(), 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
-
   const baseClasses =
     "fixed top-3 right-3 left-3 md:left-auto md:max-w-lg z-[100] px-4 py-3 rounded-lg shadow-xl flex justify-between items-center text-sm transition-all duration-300 ease-in-out";
   let typeClasses =
@@ -92,7 +92,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       : type === "info"
       ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
-
   return (
     <div
       data-item-id="error-display-message"
@@ -146,11 +145,11 @@ const App = () => {
     resetState: resetTreeHistory,
     fetchUserTree,
     isFetchingTree,
-  } = useTree(); // useTree now uses apiClient.authFetch internally
+  } = useTree();
 
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
-  const [currentView, setCurrentView] = useState("login"); // Start with login view
+  const [currentView, setCurrentView] = useState("login");
 
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
@@ -182,6 +181,8 @@ const App = () => {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const topMenuRef = useRef(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef(null);
 
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
@@ -195,13 +196,14 @@ const App = () => {
     clearTokens();
     setCurrentUser(null);
     if (resetTreeHistory) resetTreeHistory([]);
-    setUiMessage(""); // Clear any messages
+    setUiMessage("");
     setCurrentView("login");
-    // Optionally, could redirect to /login if using React Router
+    setAccountMenuOpen(false);
+    setTopMenuOpen(false);
   }, [resetTreeHistory]);
 
   useEffect(() => {
-    initApiClient(handleActualLogout); // Initialize API client with logout handler
+    initApiClient(handleActualLogout);
   }, [handleActualLogout]);
 
   const autoExportIntervalRef = useRef(null);
@@ -298,26 +300,24 @@ const App = () => {
   ]);
 
   useEffect(() => {
-    const token = getAccessToken(); // Use authService
+    const token = getAccessToken();
     if (token) {
-      // Try to verify token or get user data, for now assume token means logged in
-      // A better check would be a /auth/me endpoint
-      authFetch("/auth/verify-token") // Use authFetch which handles refresh
+      authFetch("/auth/verify-token")
         .then((response) => {
           if (response.ok) return response.json();
           throw new Error("Token verification failed");
         })
         .then((data) => {
           if (data.valid && data.user) {
-            setCurrentUser(data.user); // Set user from verified token
+            setCurrentUser(data.user);
             setCurrentView("app");
-            if (fetchUserTree) fetchUserTree(); // fetchUserTree now uses authFetch
+            if (fetchUserTree) fetchUserTree();
           } else {
-            handleActualLogout(); // Token not valid or no user
+            handleActualLogout();
           }
         })
         .catch(() => {
-          handleActualLogout(); // Error verifying, treat as logout
+          handleActualLogout();
         })
         .finally(() => setIsAuthCheckComplete(true));
     } else {
@@ -325,13 +325,13 @@ const App = () => {
       if (resetTreeHistory) resetTreeHistory([]);
       setIsAuthCheckComplete(true);
     }
-  }, [fetchUserTree, resetTreeHistory, handleActualLogout]); // Added handleActualLogout dependency
+  }, [fetchUserTree, resetTreeHistory, handleActualLogout]);
 
   const handleLoginSuccess = async (userData) => {
-    setCurrentUser(userData); // User data comes from Login component after tokens stored
+    setCurrentUser(userData);
     setCurrentView("app");
     if (fetchUserTree) {
-      await fetchUserTree(); // fetchUserTree will use the new access token via authFetch
+      await fetchUserTree();
     }
   };
 
@@ -340,7 +340,6 @@ const App = () => {
     if (currentRefreshToken) {
       try {
         await authFetch("/auth/logout", {
-          // Use authFetch for consistency, though logout might not need AT
           method: "POST",
           body: JSON.stringify({ refreshToken: currentRefreshToken }),
         });
@@ -351,7 +350,7 @@ const App = () => {
         );
       }
     }
-    handleActualLogout(); // Perform client-side cleanup regardless of backend call success
+    handleActualLogout();
   };
 
   const startInlineRename = useCallback(
@@ -401,7 +400,7 @@ const App = () => {
       return;
     }
 
-    const result = await renameItem(inlineRenameId, newLabel); // renameItem in useTree uses authFetch
+    const result = await renameItem(inlineRenameId, newLabel);
     if (result.success) {
       cancelInlineRename();
       showMessage("Item renamed successfully.", "success", 3000);
@@ -463,7 +462,7 @@ const App = () => {
       direction:
         newItemType === "note" || newItemType === "task" ? "ltr" : undefined,
     };
-    const result = await addItem(newItemData, parentId); // addItem in useTree uses authFetch
+    const result = await addItem(newItemData, parentId);
     if (result.success) {
       setAddDialogOpen(false);
       setNewItemLabel("");
@@ -511,7 +510,6 @@ const App = () => {
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       const result = await updateTask(id, {
-        // updateTask in useTree uses authFetch
         completed: !currentCompletedStatus,
       });
       if (!result.success) {
@@ -579,7 +577,7 @@ const App = () => {
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
-      const result = await handleImportFromHook(file, importTargetOption); // uses authFetch
+      const result = await handleImportFromHook(file, importTargetOption);
       if (result && result.success) {
         showMessage(result.message || "Import successful!", "success");
         setTimeout(
@@ -612,7 +610,7 @@ const App = () => {
 
   const handlePasteWrapper = useCallback(
     async (targetId) => {
-      const result = await pasteItem(targetId); // pasteItem in useTree might call addItem which uses authFetch
+      const result = await pasteItem(targetId);
       if (!result.success) {
         showMessage(result.error || "Paste operation failed.", "error");
       } else {
@@ -625,7 +623,7 @@ const App = () => {
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
-        const result = await deleteItem(itemIdToDelete); // deleteItem in useTree uses authFetch
+        const result = await deleteItem(itemIdToDelete);
         if (!result.success) {
           showMessage(result.error || "Delete operation failed.", "error");
         } else {
@@ -819,7 +817,6 @@ const App = () => {
           )
         )
           return;
-
         if (e.key === "F2" && !selectedItemId) return;
       }
 
@@ -1099,10 +1096,19 @@ const App = () => {
       if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
         setTopMenuOpen(false);
       }
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) {
+        setAccountMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  
+  const handleAccountDisplayClick = () => {
+    setAccountMenuOpen(prev => !prev);
+    setTopMenuOpen(false);
+  };
+
 
   if (!isAuthCheckComplete)
     return (
@@ -1110,7 +1116,6 @@ const App = () => {
         Loading application...
       </div>
     );
-
   if (currentView === "login")
     return (
       <Login
@@ -1118,7 +1123,6 @@ const App = () => {
         onSwitchToRegister={() => setCurrentView("register")}
       />
     );
-
   if (currentView === "register")
     return (
       <Register
@@ -1142,9 +1146,35 @@ const App = () => {
             Notes & Tasks
           </h1>
           <div
-            className="flex items-center space-x-0.5 sm:space-x-1 relative"
-            ref={topMenuRef}
+            className="flex items-center space-x-0.5 sm:space-x-1"
           >
+            {currentUser && currentUser.email && (
+              <div className="relative" ref={accountMenuRef}>
+                <button
+                  onClick={handleAccountDisplayClick}
+                  className="flex items-center mr-1 sm:mr-2 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  title={`Account: ${currentUser.email}`}
+                >
+                  <UserCircle2 className="w-5 h-5 text-zinc-500 dark:text-zinc-400 mr-1 sm:mr-1.5 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-[150px]">
+                    {currentUser.email}
+                  </span>
+                </button>
+                {accountMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
+                    <button
+                      onClick={() => {
+                        handleInitiateLogout();
+                        setAccountMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-700/30"
+                    >
+                      <LogOut className="w-4 h-4 opacity-70" /> Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <button
               onClick={undoTreeChange}
               disabled={!canUndoTree}
@@ -1187,65 +1217,61 @@ const App = () => {
             >
               <SettingsIcon className="w-5 h-5" />
             </button>
-            <button
-              onClick={() => setTopMenuOpen((p) => !p)}
-              className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
-              title="More actions"
-            >
-              <EllipsisVertical className="w-5 h-5" />
-            </button>
-            {topMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
-                <button
-                  onClick={() => {
-                    openAddDialog("folder", null);
-                    setTopMenuOpen(false);
-                  }}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  <FileJson className="w-4 h-4 opacity-70" /> Add Root Folder
-                </button>
-                <button
-                  onClick={() => {
-                    openExportDialog("tree");
-                    setTopMenuOpen(false);
-                  }}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  <FileJson className="w-4 h-4 opacity-70" /> Export Full
-                  Tree...
-                </button>
-                <button
-                  onClick={() => {
-                    openImportDialog("tree");
-                    setTopMenuOpen(false);
-                  }}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  <FileJson className="w-4 h-4 opacity-70" /> Import Full
-                  Tree...
-                </button>
-                <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
-                <button
-                  onClick={() => {
-                    setAboutDialogOpen(true);
-                    setTopMenuOpen(false);
-                  }}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  <Info className="w-4 h-4 opacity-70" /> About
-                </button>
-                <button
-                  onClick={() => {
-                    handleInitiateLogout(); // Use new logout handler
-                    setTopMenuOpen(false);
-                  }}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-700/30"
-                >
-                  <LogOut className="w-4 h-4 opacity-70" /> Logout
-                </button>
-              </div>
-            )}
+            <div className="relative" ref={topMenuRef}>
+              <button
+                onClick={() => {
+                  setTopMenuOpen((p) => !p);
+                  setAccountMenuOpen(false); 
+                }}
+                className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+                title="More actions"
+              >
+                <EllipsisVertical className="w-5 h-5" />
+              </button>
+              {topMenuOpen && (
+                <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
+                  <button
+                    onClick={() => {
+                      openAddDialog("folder", null);
+                      setTopMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  >
+                    <FileJson className="w-4 h-4 opacity-70" /> Add Root Folder
+                  </button>
+                  <button
+                    onClick={() => {
+                      openExportDialog("tree");
+                      setTopMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  >
+                    <FileJson className="w-4 h-4 opacity-70" /> Export Full
+                    Tree...
+                  </button>
+                  <button
+                    onClick={() => {
+                      openImportDialog("tree");
+                      setTopMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  >
+                    <FileJson className="w-4 h-4 opacity-70" /> Import Full
+                    Tree...
+                  </button>
+                  <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
+                  <button
+                    onClick={() => {
+                      setAboutDialogOpen(true);
+                      setTopMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  >
+                    <Info className="w-4 h-4 opacity-70" /> About
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
