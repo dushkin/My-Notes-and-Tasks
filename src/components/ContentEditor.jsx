@@ -1,5 +1,5 @@
 // src/components/ContentEditor.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import TipTapEditor from "./TipTapEditor";
 
 const formatTimestamp = (isoString) => {
@@ -45,14 +45,29 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
     item.content ?? ""
   );
 
+  // Add a ref to track if we should update the editor content
+  const lastItemIdRef = useRef(item.id);
+  const isUpdatingContentRef = useRef(false);
+
   useEffect(() => {
-    setInitialEditorContent(item.content ?? "");
-  }, [item.id, item.content, item.direction]);
+    // Only update editor content if we switched to a different item
+    // or if the content was updated from the server (not from local editing)
+    if (item.id !== lastItemIdRef.current && !isUpdatingContentRef.current) {
+      setInitialEditorContent(item.content ?? "");
+      lastItemIdRef.current = item.id;
+    }
+  }, [item.id, item.content]);
 
   const debouncedSave = useCallback(
     debounce((itemId, updatesToSave) => {
-      onSaveItemData(itemId, updatesToSave);
-    }, 1000),
+      isUpdatingContentRef.current = true;
+      onSaveItemData(itemId, updatesToSave).finally(() => {
+        // Reset the flag after save completes
+        setTimeout(() => {
+          isUpdatingContentRef.current = false;
+        }, 100);
+      });
+    }, 2000), // Increased debounce delay to 2 seconds
     [onSaveItemData]
   );
 
@@ -96,7 +111,7 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
       </div>
 
       <TipTapEditor
-        key={item.id}
+        key={`editor-${item.id}`} // More specific key
         content={initialEditorContent}
         initialDirection={item.direction || "ltr"}
         onUpdate={handleEditorUpdates}

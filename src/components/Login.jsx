@@ -39,6 +39,11 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
       if (data.accessToken && data.refreshToken) {
         // Check for accessToken and refreshToken
         storeTokens(data.accessToken, data.refreshToken); // Use authService to store tokens
+
+        console.log('[DEBUG Login] Tokens stored successfully');
+        console.log('[DEBUG Login] AccessToken exists:', !!localStorage.getItem('accessToken'));
+        console.log('[DEBUG Login] RefreshToken exists:', !!localStorage.getItem('refreshToken'));
+
         if (onLoginSuccess) {
           onLoginSuccess(data.user);
         }
