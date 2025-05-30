@@ -2,7 +2,7 @@
   "type": "module",
   "name": "my-notes-and-tasks-modern",
   "version": "4.4.1",
-  "commitMessage": "Minor token error change",
+  "commitMessage": "Remove current tests",
   "private": true,
   "scripts": {
     "dev": "vite",
