@@ -45,7 +45,7 @@ const refreshTokenFlow = async () => {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("Refresh token failed:", response.status, errorData);
-      clearTokens(); // Clear tokens as refresh failed
+      clearTokens();
       onLogoutCallback();
       return Promise.reject(new Error(errorData.error || "Session expired. Please login again."));
     }
@@ -82,36 +82,45 @@ export const authFetch = async (url, options = {}) => {
       headers['Content-Type'] = 'application/json';
     }
 
-
     const response = await fetch(url.startsWith('http') ? url : `${API_BASE_URL}${url}`, {
       ...options,
       headers,
     });
 
     if (response.status === 401) {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          const newAccessToken = await refreshTokenFlow();
-          isRefreshing = false;
-          onRefreshed(newAccessToken); // Resend original and queued requests
-          // Retry original request with new token
-          return makeRequest(newAccessToken);
-        } catch (refreshError) {
-          isRefreshing = false;
-          // onLogoutCallback() is called within refreshTokenFlow on failure
-          return Promise.reject(refreshError);
-        }
-      } else {
-        // Queue request until token is refreshed
-        return new Promise((resolve, reject) => {
-          addRefreshSubscriber((newAccessToken) => {
-            // Retry request with the new token
-            makeRequest(newAccessToken).then(resolve).catch(reject);
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Check if this is a token expiration issue
+      if (errorData.error && (
+        errorData.error.includes('token') || 
+        errorData.error.includes('expired') || 
+        errorData.error.includes('Not authorized')
+      )) {
+        if (!isRefreshing) {
+          isRefreshing = true;
+          try {
+            const newAccessToken = await refreshTokenFlow();
+            isRefreshing = false;
+            onRefreshed(newAccessToken);
+            // Retry original request with new token
+            return makeRequest(newAccessToken);
+          } catch (refreshError) {
+            isRefreshing = false;
+            // onLogoutCallback() is called within refreshTokenFlow on failure
+            return Promise.reject(refreshError);
+          }
+        } else {
+          // Queue request until token is refreshed
+          return new Promise((resolve, reject) => {
+            addRefreshSubscriber((newAccessToken) => {
+              // Retry request with the new token
+              makeRequest(newAccessToken).then(resolve).catch(reject);
+            });
           });
-        });
+        }
       }
     }
+    
     return response;
   };
 

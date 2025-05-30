@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.4.0",
-  "commitMessage": "Added account display + logout option",
+  "version": "4.4.1",
+  "commitMessage": "Minor token error change",
   "private": true,
   "scripts": {
     "dev": "vite",
