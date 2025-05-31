@@ -1,9 +1,9 @@
 const { request } = require('@playwright/test');
 
 const TEST_USERS = [
-  { email: 'test@example.com', password: 'password123' },
-  { email: 'admin@example.com', password: 'admin123' },
-  { email: 'user@example.com', password: 'password123' }
+  { email: 'test@e2e.com', password: 'password123' },
+  { email: 'admin@e2e.com', password: 'password123' },
+  { email: 'user@e2e.com', password: 'password123' }
 ];
 
 async function globalSetup() {
@@ -25,7 +25,7 @@ async function globalSetup() {
       try {
         // Try any endpoint to see if backend is responding
         const response = await apiContext.post('/api/auth/register', {
-          data: { email: 'test-connectivity', password: 'test' },
+          data: { email: 'test-connectivity@e2e.com', password: 'test' },
           timeout: 2000
         });
         // Any response (even error) means backend is running
