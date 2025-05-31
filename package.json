@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.4.1",
-  "commitMessage": "Remove current tests",
+  "version": "4.5.0",
+  "commitMessage": "Create a new set of e2e tests + several fixes and adjustments",
   "private": true,
   "scripts": {
     "dev": "vite",
