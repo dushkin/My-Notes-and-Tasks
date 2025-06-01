@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.5.2",
-  "commitMessage": "Fixed and support context menu e2e tests",
+  "version": "4.5.3",
+  "commitMessage": "Fixed and support drag and drop e2e tests",
   "private": true,
   "scripts": {
     "dev": "vite",
