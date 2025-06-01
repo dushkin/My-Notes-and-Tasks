@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.5.3aaa",
+  "version": "4.5.4",
   "commitMessage": "Fixed and support editor e2e tests",
   "private": true,
   "scripts": {
