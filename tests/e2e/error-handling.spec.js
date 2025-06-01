@@ -33,7 +33,7 @@ test.describe('Error Handling', () => {
   test('should handle session expiration', async ({ page }) => {
     // Login first
     await page.goto('/');
-    await page.fill('#email-login', 'test@example.com');
+    await page.fill('#email-login', 'test@e2e.com');
     await page.fill('#password-login', 'password123');
     await page.click('button[type="submit"]');
     

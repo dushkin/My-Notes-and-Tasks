@@ -23,12 +23,12 @@ const User = require('../models/User'); // Adjust this path to your User model
 // Test users to seed
 const testUsers = [
   {
-    email: 'test@example.com',
+    email: 'test@e2e.com',
     password: 'password123',
     notesTree: []
   },
   {
-    email: 'admin@example.com',
+    email: 'admin@e2e.com',
     password: 'admin123',
     notesTree: [
       {
@@ -62,7 +62,7 @@ const testUsers = [
     ]
   },
   {
-    email: 'user@example.com',
+    email: 'user@e2e.com',
     password: 'user123',
     notesTree: []
   }

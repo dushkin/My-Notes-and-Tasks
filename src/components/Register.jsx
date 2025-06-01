@@ -82,7 +82,7 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-              placeholder="you@example.com"
+              placeholder="you@e2e.com"
             />
           </div>
           <div className="mb-4">

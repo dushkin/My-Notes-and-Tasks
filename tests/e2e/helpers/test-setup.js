@@ -82,9 +82,9 @@ async function loginUser(email, password) {
  */
 async function setupTestUsers() {
   const testUsers = {
-    standard: { email: 'test@example.com', password: 'password123' },
-    admin: { email: 'admin@example.com', password: 'admin123' },
-    user: { email: 'user@example.com', password: 'password123' }
+    standard: { email: 'test@e2e.com', password: 'password123' },
+    admin: { email: 'admin@e2e.com', password: 'admin123' },
+    user: { email: 'user@e2e.com', password: 'password123' }
   };
 
   console.log('Setting up test users...');
