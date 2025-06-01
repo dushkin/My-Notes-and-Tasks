@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.5.1",
-  "commitMessage": "Now using only @e2e.com domains for test accounts",
+  "version": "4.5.2",
+  "commitMessage": "Fixed and support context menu e2e tests",
   "private": true,
   "scripts": {
     "dev": "vite",

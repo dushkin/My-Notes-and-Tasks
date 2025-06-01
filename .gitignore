@@ -75,3 +75,20 @@ consolidated_output.txt
 playwright-report/index.html
 
 *.md
+
+# Playwright Test Artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Test debug images and screenshots
+debug-*.png
+**/debug-*.png
+test-results/**/*.png
+test-results/**/*.webm
+test-results/**/*.mp4
+
+# Preserve actual app assets
+!src/**/*.png
+!public/**/*.png
+!assets/**/*.png

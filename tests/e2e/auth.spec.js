@@ -34,7 +34,7 @@ test.describe('Authentication', () => {
     await page.goto('http://localhost:5173');
     await page.waitForLoadState('networkidle');
 
-    await page.fill('input[type="email"]', 'nonexistent@example.com');
+    await page.fill('input[type="email"]', 'nonexistent@e2e.com');
     await page.fill('input[type="password"]', 'wrongpassword');
 
     await page.click('button[type="submit"]');

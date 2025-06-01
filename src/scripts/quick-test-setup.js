@@ -4,7 +4,7 @@ const https = require('http');
 
 async function createTestUser() {
   const userData = JSON.stringify({
-    email: 'test@example.com',
+    email: 'test@e2e.com',
     password: 'password123'
   });
 
@@ -99,7 +99,7 @@ async function main() {
   try {
     await createTestUser();
     console.log('\n🎉 Test setup complete!');
-    console.log('📧 Email: test@example.com');
+    console.log('📧 Email: test@e2e.com');
     console.log('🔑 Password: password123');
     console.log('\n▶️  Now run: npx playwright test auth-final.spec.js');
   } catch (error) {

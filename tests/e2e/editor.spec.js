@@ -56,18 +56,18 @@ test.describe('Rich Text Editor', () => {
     await authenticatedPage.click('text=Link Test');
     
     const editor = authenticatedPage.locator('.ProseMirror');
-    await editor.fill('Visit example.com');
-    await editor.selectText({ from: 6, to: 17 }); // Select "example.com"
+    await editor.fill('Visit e2e.com');
+    await editor.selectText({ from: 6, to: 17 }); // Select "e2e.com"
     
     // Set up dialog for link URL
     authenticatedPage.on('dialog', dialog => {
       expect(dialog.message()).toContain('Enter URL');
-      dialog.accept('https://example.com');
+      dialog.accept('https://e2e.com');
     });
     
     await authenticatedPage.click('button[title="Set Link"]');
     
-    await expect(editor.locator('a')).toHaveAttribute('href', 'https://example.com');
+    await expect(editor.locator('a')).toHaveAttribute('href', 'https://e2e.com');
   });
 
   test('should handle code blocks', async ({ authenticatedPage, testDataHelper }) => {

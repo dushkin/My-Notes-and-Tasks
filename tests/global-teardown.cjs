@@ -1,12 +1,12 @@
-// tests/global-teardown.cjs
-// Playwright global teardown with domain-based cleanup
-
 const { request } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+const { glob } = require('glob');
 
 async function globalTeardown() {
   console.log('🧹 Starting global test cleanup...');
 
-  // Create API context
+  // Your existing user cleanup code
   const apiContext = await request.newContext({
     baseURL: 'http://localhost:5001',
     extraHTTPHeaders: {
@@ -17,7 +17,6 @@ async function globalTeardown() {
   try {
     let cleanedCount = 0;
     
-    // Use the domain-based cleanup endpoint
     try {
       console.log('🗑️  Attempting domain-based test cleanup...');
       console.log('📡 Making DELETE request to: http://localhost:5001/api/auth/test-cleanup');
@@ -39,6 +38,30 @@ async function globalTeardown() {
     } catch (error) {
       console.log(`⚠️  Domain-based cleanup failed: ${error.message}`);
       console.log('ℹ️  This is expected if the cleanup endpoint is not implemented');
+    }
+
+    // Clean up debug images
+    console.log('🖼️  Cleaning up debug images...');
+    try {
+      const debugFiles = await glob('debug-*.png', { cwd: process.cwd() });
+      let imagesCleaned = 0;
+      
+      for (const file of debugFiles) {
+        try {
+          await fs.promises.unlink(path.join(process.cwd(), file));
+          imagesCleaned++;
+        } catch (err) {
+          // File might not exist, that's fine
+        }
+      }
+      
+      if (imagesCleaned > 0) {
+        console.log(`🧹 Cleaned up ${imagesCleaned} debug image(s)`);
+      } else {
+        console.log('ℹ️  No debug images to clean up');
+      }
+    } catch (error) {
+      console.log(`⚠️  Image cleanup failed: ${error.message}`);
     }
 
     if (cleanedCount > 0) {
