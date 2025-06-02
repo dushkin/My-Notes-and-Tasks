@@ -93,6 +93,64 @@ export const test = base.extend({
       }, itemName);
     };
 
+    // IMPROVED: More robust More actions button interaction
+    const clickMoreActionsAndWaitForMenu = async () => {
+      console.log('Clicking More actions button...');
+
+      // Try multiple approaches to get the menu to appear
+      const moreActionsButton = page.locator('[title="More actions"]');
+
+      // Approach 1: Standard click
+      await moreActionsButton.click();
+      await page.waitForTimeout(200);
+
+      // Check if menu appeared
+      let menuVisible = await page.locator('text=Add Root Folder').isVisible({ timeout: 1000 });
+
+      if (!menuVisible) {
+        console.log('Menu not visible after first click, trying hover + click...');
+        // Approach 2: Hover then click
+        await moreActionsButton.hover();
+        await page.waitForTimeout(100);
+        await moreActionsButton.click();
+        await page.waitForTimeout(200);
+
+        menuVisible = await page.locator('text=Add Root Folder').isVisible({ timeout: 1000 });
+      }
+
+      if (!menuVisible) {
+        console.log('Menu not visible after hover+click, trying force click...');
+        // Approach 3: Force click
+        await moreActionsButton.click({ force: true });
+        await page.waitForTimeout(200);
+
+        menuVisible = await page.locator('text=Add Root Folder').isVisible({ timeout: 1000 });
+      }
+
+      if (!menuVisible) {
+        console.log('Menu not visible after force click, trying focus + enter...');
+        // Approach 4: Focus and press Enter
+        await moreActionsButton.focus();
+        await page.keyboard.press('Enter');
+        await page.waitForTimeout(200);
+
+        menuVisible = await page.locator('text=Add Root Folder').isVisible({ timeout: 1000 });
+      }
+
+      if (!menuVisible) {
+        // Final attempt: Take screenshot and debug
+        await page.screenshot({ path: 'debug-more-actions-failed.png', fullPage: true });
+
+        // Check what's actually visible
+        const bodyText = await page.locator('body').textContent();
+        console.log('Page content after More actions attempts:', bodyText.substring(0, 1000));
+
+        throw new Error('Could not get More actions menu to appear after multiple attempts');
+      }
+
+      console.log('✓ More actions menu is now visible');
+    };
+
     const helper = {
       async createFolder(name, parentId = null) {
         const uniqueName = `${name} ${++itemCounter}`;
@@ -118,10 +176,9 @@ export const test = base.extend({
             await page.waitForSelector('text=➕ Add Folder Here', { state: 'visible', timeout: 10000 });
             await page.click('text=➕ Add Folder Here');
           } else {
-            const treeNav = page.locator('nav[aria-label="Notes and Tasks Tree"]');
-            await treeNav.click({ button: 'right' });
-            await page.waitForSelector('text=➕ Add Root Folder', { state: 'visible', timeout: 10000 });
-            await page.click('text=➕ Add Root Folder');
+            // IMPROVED: Use the more robust More actions interaction
+            await clickMoreActionsAndWaitForMenu();
+            await page.click('text=Add Root Folder');
           }
 
           await page.waitForSelector('h2:has-text("Add folder")', { state: 'visible', timeout: 10000 });
@@ -351,6 +408,35 @@ export const test = base.extend({
 
       async debugTree() {
         await debugTreeState();
+      },
+
+      // IMPROVED: Better debug method
+      async debugCreationMethods() {
+        console.log('=== DEBUGGING AVAILABLE CREATION METHODS ===');
+
+        // Test More actions button with detailed debugging
+        try {
+          const moreActions = page.locator('[title="More actions"]');
+          console.log('More actions button visible:', await moreActions.isVisible());
+
+          if (await moreActions.isVisible()) {
+            await clickMoreActionsAndWaitForMenu();
+
+            const addRootFolder = await page.locator('text=Add Root Folder').isVisible();
+            const addRootNote = await page.locator('text=Add Root Note').isVisible();
+            const addRootTask = await page.locator('text=Add Root Task').isVisible();
+
+            console.log('Add Root Folder available:', addRootFolder);
+            console.log('Add Root Note available:', addRootNote);
+            console.log('Add Root Task available:', addRootTask);
+
+            await page.keyboard.press('Escape');
+          }
+        } catch (e) {
+          console.log('More actions test failed:', e.message);
+        }
+
+        console.log('=== END CREATION METHODS DEBUG ===');
       }
     };
 
