@@ -1,9 +1,7 @@
 // src/components/Tree.jsx
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { sortItems, isSelfOrDescendant } from "../utils/treeUtils";
-// --- MODIFICATION: Import MoreVertical icon ---
 import { MoreVertical } from "lucide-react";
-// --- END MODIFICATION ---
 
 const INDENT_SIZE = 16; // Pixels for indentation per level
 
@@ -22,8 +20,8 @@ const Tree = ({
   draggedId,
   onDragStart,
   onDrop,
-  onNativeContextMenu, // Renamed prop for clarity
-  onShowItemMenu, // --- MODIFICATION: New prop for button click ---
+  onNativeContextMenu,
+  onShowItemMenu,
   onRename,
   onDragEnd,
   uiError,
@@ -33,17 +31,18 @@ const Tree = ({
   const [dragOverId, setDragOverId] = useState(null);
   const [localRenameError, setLocalRenameError] = useState("");
 
-  // --- Callbacks (refocusTree, getVisible, findParent, handleKeyDown, drag/drop handlers) remain the same ---
   const refocusTree = useCallback(() => {
-    /* ... */ requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       navRef.current?.focus({ preventScroll: true });
     });
   }, []);
+
   useEffect(() => {
     if (inlineRenameId) {
       setLocalRenameError("");
     }
   }, [uiError, inlineRenameId]);
+
   const getVisible = useCallback((nodes, currentExpandedFolders) => {
     let out = [];
     const currentNodes = Array.isArray(nodes) ? nodes : [];
@@ -59,6 +58,7 @@ const Tree = ({
     });
     return out;
   }, []);
+
   const findParent = useCallback((nodes, childId, parent = null) => {
     const currentNodes = Array.isArray(nodes) ? nodes : [];
     for (const it of currentNodes) {
@@ -70,9 +70,9 @@ const Tree = ({
     }
     return null;
   }, []);
+
   const handleKeyDown = useCallback(
     (e) => {
-      /* ... keyboard nav logic ... */
       const activeElement = document.activeElement;
       const isRenameInputFocused = activeElement?.closest(
         `li[data-item-id="${inlineRenameId}"] input`
@@ -180,6 +180,7 @@ const Tree = ({
       inlineRenameId,
     ]
   );
+
   const handleDragOver = useCallback(
     (e, item) => {
       e.preventDefault();
@@ -196,11 +197,13 @@ const Tree = ({
     },
     [draggedId, items]
   );
+
   const handleDragLeave = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragOverId(null);
   }, []);
+
   const handleItemDrop = useCallback(
     (e, targetItem) => {
       e.preventDefault();
@@ -216,6 +219,50 @@ const Tree = ({
       }
     },
     [dragOverId, draggedId, onDrop]
+  );
+
+  const handleTaskToggle = useCallback(
+    (e, taskId, completed) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log(
+        `[Tree] Task toggle clicked: ${taskId}, current completed: ${completed}`
+      );
+      onToggleTask(taskId, completed);
+    },
+    [onToggleTask]
+  );
+
+  // Fixed context menu handler for the nav element
+  const handleNavContextMenu = useCallback(
+    (e) => {
+      console.log("[Tree] Nav context menu triggered", {
+        target: e.target,
+        currentTarget: e.currentTarget,
+      });
+
+      // Don't show context menu if dragging or renaming
+      if (draggedId || inlineRenameId) {
+        e.preventDefault();
+        return;
+      }
+
+      // Only show empty area context menu if the click is on the nav itself or empty space
+      const isDirectNavClick = e.target === navRef.current;
+      const isEmptySpaceClick = e.target.closest("li") === null;
+
+      console.log("[Tree] Context menu check", {
+        isDirectNavClick,
+        isEmptySpaceClick,
+      });
+
+      if (isDirectNavClick || isEmptySpaceClick) {
+        e.preventDefault();
+        onSelect(null); // Clear selection for empty area
+        onNativeContextMenu(e, null); // Show empty area menu
+      }
+    },
+    [draggedId, inlineRenameId, onSelect, onNativeContextMenu]
   );
 
   const renderItems = useCallback(
@@ -248,18 +295,21 @@ const Tree = ({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleItemDrop(e, item)}
               onDragEnd={onDragEnd}
-              // --- MODIFICATION: Use onNativeContextMenu for actual right-click/long-press ---
               onContextMenu={(e) => {
+                console.log("[Tree] Item context menu triggered", {
+                  item: item.label,
+                  target: e.target,
+                });
+
                 if (draggedId || isRenaming) {
                   e.preventDefault();
                   return;
                 }
                 e.preventDefault();
                 e.stopPropagation();
-                onSelect(item.id); // Select item first
-                onNativeContextMenu(e, item); // Call original handler
+                onSelect(item.id);
+                onNativeContextMenu(e, item);
               }}
-              // --- END MODIFICATION ---
             >
               {isDragOverTarget && (
                 <div
@@ -270,7 +320,6 @@ const Tree = ({
               )}
               <div
                 className={`relative z-10 flex items-center cursor-pointer rounded py-1.5 sm:py-1 pr-1 ${
-                  // Reduced right padding to make space for button
                   isSelected && !isRenaming
                     ? "bg-blue-600 text-white"
                     : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
@@ -287,8 +336,6 @@ const Tree = ({
                   e.stopPropagation();
                   onSelect(item.id);
                 }}
-                // Removed onDoubleClick here, rely on context menu or F2
-                // onDoubleClick={(e) => { if (isRenaming) return; e.stopPropagation(); onRename(item); }}
               >
                 {/* Expand/Collapse Button & Icon Area */}
                 <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center mr-1">
@@ -311,8 +358,7 @@ const Tree = ({
                       }
                       title={expandedFolders[item.id] ? `Collapse` : `Expand`}
                     >
-                      {" "}
-                      {expandedFolders[item.id] ? "▾" : "▸"}{" "}
+                      {expandedFolders[item.id] ? "▾" : "▸"}
                     </button>
                   ) : (
                     <span
@@ -334,16 +380,14 @@ const Tree = ({
                       }`}
                       aria-hidden="true"
                     >
-                      {" "}
-                      {expandedFolders[item.id] ? "📂" : "📁"}{" "}
+                      {expandedFolders[item.id] ? "📂" : "📁"}
                     </span>
                   ) : item.type === "task" ? (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleTask(item.id, !item.completed);
-                      }}
-                      className="focus:outline-none flex items-center justify-center cursor-pointer w-full h-full"
+                      onClick={(e) =>
+                        handleTaskToggle(e, item.id, item.completed)
+                      }
+                      className="focus:outline-none flex items-center justify-center cursor-pointer w-full h-full hover:scale-110 transition-transform"
                       aria-checked={!!item.completed}
                       role="checkbox"
                       aria-label={`Mark task ${item.label} as ${
@@ -353,8 +397,7 @@ const Tree = ({
                         item.completed ? "incomplete" : "complete"
                       }`}
                     >
-                      {" "}
-                      {item.completed ? "✅" : "⬜️"}{" "}
+                      {item.completed ? "✅" : "⬜️"}
                     </button>
                   ) : (
                     <span aria-hidden="true">📝</span>
@@ -406,43 +449,40 @@ const Tree = ({
                           id={`${item.id}-rename-error`}
                           className="absolute left-1 top-full mt-0.5 text-xs text-red-600 dark:text-red-400 whitespace-normal z-10"
                         >
-                          {" "}
-                          {localRenameError || uiError}{" "}
+                          {localRenameError || uiError}
                         </span>
                       )}
                     </>
                   ) : (
                     <span
-                      className={` ${
+                      className={`${
                         item.type === "task" && item.completed
                           ? "line-through text-zinc-500 dark:text-zinc-400"
                           : ""
                       }`}
                     >
-                      {" "}
-                      {item.label}{" "}
+                      {item.label}
                     </span>
                   )}
                 </div>
-                {/* --- MODIFICATION: Add More Options Button --- */}
+                {/* More Options Button */}
                 <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onSelect(item.id); // Ensure item is selected
-                    onShowItemMenu(item, e.currentTarget); // Pass item and button element
+                    onSelect(item.id);
+                    onShowItemMenu(item, e.currentTarget);
                   }}
                   className={`ml-1 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 ${
                     isSelected && !isRenaming
                       ? "text-white"
                       : "text-zinc-500 dark:text-zinc-400"
-                  } opacity-0 group-hover:opacity-100 focus:opacity-100`} // Show on hover/focus
+                  } opacity-0 group-hover:opacity-100 focus:opacity-100`}
                   aria-label={`More options for ${item.label}`}
                   title="More options"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </button>
-                {/* --- END MODIFICATION --- */}
               </div>
               {item.type === "folder" &&
                 Array.isArray(item.children) &&
@@ -466,14 +506,14 @@ const Tree = ({
       onAttemptRename,
       cancelInlineRename,
       onToggleExpand,
-      onToggleTask,
+      handleTaskToggle,
       onDragStart,
       handleDragOver,
       handleDragLeave,
       handleItemDrop,
       onDrop,
       onNativeContextMenu,
-      onShowItemMenu, // Use updated/new props
+      onShowItemMenu,
       onRename,
       onDragEnd,
       refocusTree,
@@ -489,17 +529,7 @@ const Tree = ({
       className="overflow-auto h-full p-1.5 sm:p-1 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      // --- MODIFICATION: Use onNativeContextMenu for empty area ---
-      onContextMenu={(e) => {
-        if (!draggedId && !inlineRenameId && e.target === navRef.current) {
-          e.preventDefault();
-          onSelect(null);
-          onNativeContextMenu(e, null); // Show empty area menu via original handler
-        } else if (draggedId || inlineRenameId) {
-          e.preventDefault();
-        }
-      }}
-      // --- END MODIFICATION ---
+      onContextMenu={handleNavContextMenu}
       aria-label="Notes and Tasks Tree"
     >
       {renderItems(items)}
