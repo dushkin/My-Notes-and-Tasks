@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.5.9",
-  "commitMessage": "Fixed and support keyboard-shortcuts e2e tests",
+  "version": "4.5.10",
+  "commitMessage": "Fixed and support responsive e2e tests",
   "private": true,
   "scripts": {
     "dev": "vite",
