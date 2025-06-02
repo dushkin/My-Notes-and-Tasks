@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.5.11",
-  "commitMessage": "Fixed and support search e2e tests",
+  "version": "4.5.12",
+  "commitMessage": "Fixed and support settings and tree-nav e2e tests",
   "private": true,
   "scripts": {
     "dev": "vite",
