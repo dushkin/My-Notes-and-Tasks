@@ -15,7 +15,7 @@ module.exports = defineConfig({
   // CRITICAL CHANGES FOR DRAG-DROP TESTS:
   fullyParallel: false, // Changed from true - prevents race conditions
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1, // Changed from 0 to 1 for local retries
+  retries: process.env.CI ? 2 : 0, // Changed from 0 to 1 for local retries
   workers: 1, // Changed from undefined - forces sequential execution
   reporter: 'html',
 
