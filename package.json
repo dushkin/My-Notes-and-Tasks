@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.5.12",
-  "commitMessage": "Fixed and support settings and tree-nav e2e tests",
+  "version": "4.6.0",
+  "commitMessage": "Some adaptation to BE security changes",
   "private": true,
   "scripts": {
     "dev": "vite",

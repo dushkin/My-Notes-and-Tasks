@@ -509,12 +509,19 @@ const App = () => {
 
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
+      console.log(
+        `[App] Task toggle: ${id}, current completed: ${currentCompletedStatus}, setting to: ${!currentCompletedStatus}`
+      );
+
+      // The updateTask function now handles optimistic updates internally
       const result = await updateTask(id, {
         completed: !currentCompletedStatus,
       });
+
       if (!result.success) {
         showMessage(result.error || "Failed to update task status.", "error");
       } else {
+        // Only show success message, don't update UI again since it's already updated optimistically
         showMessage("Task status updated.", "success", 2000);
       }
     },
@@ -1096,19 +1103,21 @@ const App = () => {
       if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
         setTopMenuOpen(false);
       }
-      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(e.target)
+      ) {
         setAccountMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-  
+
   const handleAccountDisplayClick = () => {
-    setAccountMenuOpen(prev => !prev);
+    setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
   };
-
 
   if (!isAuthCheckComplete)
     return (
@@ -1145,9 +1154,7 @@ const App = () => {
           <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis mr-2 text-zinc-800 dark:text-zinc-100">
             Notes & Tasks
           </h1>
-          <div
-            className="flex items-center space-x-0.5 sm:space-x-1"
-          >
+          <div className="flex items-center space-x-0.5 sm:space-x-1">
             {currentUser && currentUser.email && (
               <div className="relative" ref={accountMenuRef}>
                 <button
@@ -1221,7 +1228,7 @@ const App = () => {
               <button
                 onClick={() => {
                   setTopMenuOpen((p) => !p);
-                  setAccountMenuOpen(false); 
+                  setAccountMenuOpen(false);
                 }}
                 className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
                 title="More actions"
