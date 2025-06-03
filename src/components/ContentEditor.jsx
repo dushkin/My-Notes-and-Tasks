@@ -1,4 +1,4 @@
-// src/components/ContentEditor.jsx
+// src/components/ContentEditor.jsx - Simplified version with immediate save on blur
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TipTapEditor from "./TipTapEditor";
 
@@ -24,12 +24,19 @@ const formatTimestamp = (isoString) => {
 
 function debounce(func, delay) {
   let timeoutId;
-  return function (...args) {
+  const debouncedFunction = function (...args) {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
       func.apply(this, args);
     }, delay);
   };
+  
+  // Add cancel method
+  debouncedFunction.cancel = function() {
+    clearTimeout(timeoutId);
+  };
+  
+  return debouncedFunction;
 }
 
 const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
@@ -45,42 +52,92 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
     item.content ?? ""
   );
 
-  // Add a ref to track if we should update the editor content
+  // Track state
   const lastItemIdRef = useRef(item.id);
   const isUpdatingContentRef = useRef(false);
+  const editorHasFocusRef = useRef(false);
+  const pendingContentRef = useRef(null); // Store content that needs to be saved
+  const currentEditorContentRef = useRef(item.content ?? "");
 
   useEffect(() => {
     // Only update editor content if we switched to a different item
-    // or if the content was updated from the server (not from local editing)
     if (item.id !== lastItemIdRef.current && !isUpdatingContentRef.current) {
+      console.log('[ContentEditor] Item switched from', lastItemIdRef.current, 'to', item.id);
       setInitialEditorContent(item.content ?? "");
       lastItemIdRef.current = item.id;
+      currentEditorContentRef.current = item.content ?? "";
+      pendingContentRef.current = null; // Clear any pending content
     }
   }, [item.id, item.content]);
 
+  const saveContent = useCallback(async (itemId, content, direction = "ltr") => {
+    if (isUpdatingContentRef.current) {
+      console.log('[ContentEditor] Save already in progress, skipping');
+      return;
+    }
+
+    console.log('[ContentEditor] Saving content for item', itemId);
+    isUpdatingContentRef.current = true;
+    
+    try {
+      const updates = { content, direction };
+      await onSaveItemData(itemId, updates);
+      console.log('[ContentEditor] Save successful for item', itemId);
+      pendingContentRef.current = null; // Clear pending content after successful save
+    } catch (error) {
+      console.error('[ContentEditor] Save failed for item', itemId, error);
+    } finally {
+      setTimeout(() => {
+        isUpdatingContentRef.current = false;
+      }, 100);
+    }
+  }, [onSaveItemData]);
+
   const debouncedSave = useCallback(
-    debounce((itemId, updatesToSave) => {
-      isUpdatingContentRef.current = true;
-      onSaveItemData(itemId, updatesToSave).finally(() => {
-        // Reset the flag after save completes
-        setTimeout(() => {
-          isUpdatingContentRef.current = false;
-        }, 100);
-      });
-    }, 2000), // Increased debounce delay to 2 seconds
-    [onSaveItemData]
+    debounce((itemId, content, direction) => {
+      saveContent(itemId, content, direction);
+    }, 1500), // 1.5 second debounce for auto-save while typing
+    [saveContent]
   );
 
   const handleEditorUpdates = useCallback(
     (newHtml, newDirection) => {
-      const updates = {
-        content: newHtml,
-        direction: newDirection,
-      };
-      debouncedSave(item.id, updates);
+      console.log('[ContentEditor] Editor content updated', {
+        itemId: item.id,
+        contentLength: newHtml?.length
+      });
+      
+      // Store the current content
+      currentEditorContentRef.current = newHtml;
+      pendingContentRef.current = { content: newHtml, direction: newDirection };
+      
+      // Debounced save while typing
+      debouncedSave(item.id, newHtml, newDirection);
     },
     [item.id, debouncedSave]
   );
+
+  const handleEditorFocus = useCallback(() => {
+    console.log('[ContentEditor] Editor gained focus');
+    editorHasFocusRef.current = true;
+  }, []);
+
+  const handleEditorBlur = useCallback(() => {
+    console.log('[ContentEditor] Editor lost focus');
+    editorHasFocusRef.current = false;
+    
+    // If there's pending content that hasn't been saved, save it immediately
+    if (pendingContentRef.current && !isUpdatingContentRef.current) {
+      console.log('[ContentEditor] Pending content detected on blur, saving immediately');
+      const { content, direction } = pendingContentRef.current;
+      
+      // Cancel the debounced save since we're saving immediately
+      debouncedSave.cancel();
+      
+      // Save immediately
+      saveContent(item.id, content, direction);
+    }
+  }, [item.id, saveContent, debouncedSave]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -111,10 +168,12 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
       </div>
 
       <TipTapEditor
-        key={`editor-${item.id}`} // More specific key
+        key={`editor-${item.id}`}
         content={initialEditorContent}
         initialDirection={item.direction || "ltr"}
         onUpdate={handleEditorUpdates}
+        onFocus={handleEditorFocus}
+        onBlur={handleEditorBlur}
         defaultFontFamily={defaultFontFamily}
       />
     </div>

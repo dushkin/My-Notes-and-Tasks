@@ -2,8 +2,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { DOMParser } from "prosemirror-model";
-// Plugin import was not used directly, can be removed if not needed elsewhere:
-// import { Plugin } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -25,10 +23,6 @@ import {
   Link as LinkIcon,
   Code as CodeIcon,
   SquareCode as CodeBlockIcon,
-  // Pilcrow was not used, can be removed
-  Heading1,
-  Heading2,
-  Heading3,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -51,6 +45,7 @@ const FONT_SIZE_OPTIONS = [
   { label: "Large", value: "1.2em" },
   { label: "Extra Large", value: "1.5em" },
 ];
+
 const FontSizeExtension = Extension.create({
   name: "fontSize",
   addOptions() {
@@ -128,9 +123,13 @@ const TipTapEditor = ({
   content,
   initialDirection,
   onUpdate,
+  onFocus,
+  onBlur,
   defaultFontFamily,
 }) => {
   const [editorDir, setEditorDir] = useState(initialDirection || "ltr");
+  const contentSetRef = useRef(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -215,6 +214,16 @@ const TipTapEditor = ({
     onUpdate: ({ editor: currentEditor }) => {
       if (onUpdate) {
         onUpdate(currentEditor.getHTML(), editorDir);
+      }
+    },
+    onFocus: () => {
+      if (onFocus) {
+        onFocus();
+      }
+    },
+    onBlur: () => {
+      if (onBlur) {
+        onBlur();
       }
     },
     editorProps: {
@@ -388,13 +397,22 @@ const TipTapEditor = ({
   }, [initialDirection, editor]);
 
   useEffect(() => {
-    if (editor) {
+    if (editor && !contentSetRef.current) {
+      console.log('[TipTapEditor] Setting initial content', { contentLength: content?.length });
+      // Only set content once when editor is first created
       const currentEditorHTML = editor.getHTML();
-      if (currentEditorHTML !== content && !editor.isFocused) {
+      if (currentEditorHTML !== content) {
         editor.commands.setContent(content, false);
+        contentSetRef.current = true;
       }
     }
   }, [content, editor]);
+
+  // Reset the content flag when content prop changes (item switch)
+  useEffect(() => {
+    console.log('[TipTapEditor] Content prop changed, resetting content flag');
+    contentSetRef.current = false;
+  }, [content]);
 
   const toggleEditorDirection = useCallback(() => {
     if (!editor) return;

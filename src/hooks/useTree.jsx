@@ -121,7 +121,6 @@ export const useTree = () => {
 
   const fetchUserTreeInternal = useCallback(
     async (token) => {
-
       setIsFetchingTree(true);
       try {
         const response = await authFetch(`/items/tree`);
@@ -131,10 +130,7 @@ export const useTree = () => {
             .json()
             .catch(() => ({ message: "Failed to parse error response" }));
 
-          console.error(
-            response.status,
-            errorData
-          );
+          console.error(response.status, errorData);
 
           resetTreeHistory([]);
           setIsFetchingTree(false);
@@ -345,18 +341,38 @@ export const useTree = () => {
 
   const updateTask = useCallback(
     async (taskId, updates) => {
+      // Optimistic update: immediately update the UI
+      if (updates.hasOwnProperty("completed")) {
+        const optimisticTreeState = tree.map((item) =>
+          updateItemOptimistically(item, taskId, updates)
+        );
+        setTreeWithUndo(optimisticTreeState);
+      }
+
       try {
         const response = await authFetch(`/items/${taskId}`, {
           method: "PATCH",
           body: JSON.stringify(updates),
         });
         const updatedItemFromServer = await response.json();
-        if (!response.ok)
+
+        if (!response.ok) {
+          // Revert the optimistic update on error
+          if (updates.hasOwnProperty("completed")) {
+            const revertedTreeState = tree.map((item) =>
+              updateItemOptimistically(item, taskId, {
+                completed: !updates.completed,
+              })
+            );
+            setTreeWithUndo(revertedTreeState);
+          }
           return {
             success: false,
             error: updatedItemFromServer.error || "Failed to update task.",
           };
+        }
 
+        // Update with server response (this ensures we have the correct updatedAt timestamp)
         const mapRecursiveTask = (items, id, serverUpdates) =>
           items.map((i) =>
             i.id === id
@@ -368,20 +384,47 @@ export const useTree = () => {
                 }
               : i
           );
-        const newTreeState = mapRecursiveTask(
+        const finalTreeState = mapRecursiveTask(
           tree,
           taskId,
           updatedItemFromServer
         );
-        setTreeWithUndo(newTreeState);
+        setTreeWithUndo(finalTreeState);
+
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("updateTask API error:", error);
+
+        // Revert the optimistic update on network error
+        if (updates.hasOwnProperty("completed")) {
+          const revertedTreeState = tree.map((item) =>
+            updateItemOptimistically(item, taskId, {
+              completed: !updates.completed,
+            })
+          );
+          setTreeWithUndo(revertedTreeState);
+        }
+
         return { success: false, error: "Network error updating task." };
       }
     },
     [tree, setTreeWithUndo]
   );
+
+  const updateItemOptimistically = (item, targetId, updates) => {
+    if (item.id === targetId) {
+      return { ...item, ...updates };
+    }
+    if (item.children && Array.isArray(item.children)) {
+      return {
+        ...item,
+        children: item.children.map((child) =>
+          updateItemOptimistically(child, targetId, updates)
+        ),
+      };
+    }
+    return item;
+  };
 
   const renameItem = useCallback(
     async (itemId, newLabel) => {
