@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.7.0",
-  "commitMessage": "apiClient.js now robustly handles all types of network/server errors and consistently uses the onLogoutCallback or propagates errors for display via ErrorDisplay component.",
+  "version": "4.8.0",
+  "commitMessage": "Replaced windows.confirm with a custom dialog",
   "private": true,
   "scripts": {
     "dev": "vite",

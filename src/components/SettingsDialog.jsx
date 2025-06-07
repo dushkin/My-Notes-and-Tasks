@@ -1,6 +1,6 @@
 // src/components/SettingsDialog.jsx
-import React, { useState, useMemo } from "react"; // Removed useCallback as handleDirectorySelect is removed
-import { X, Search, RotateCcw, AlertTriangle } from "lucide-react"; // Removed FolderOutput
+import React, { useState, useMemo } from "react";
+import { X, Search, RotateCcw, AlertTriangle } from "lucide-react";
 import {
   useSettings,
   defaultSettings,
@@ -9,6 +9,7 @@ import {
   editorFontFamilyOptions,
   editorFontSizeOptions,
 } from "../contexts/SettingsContext";
+import ConfirmDialog from "./ConfirmDialog";
 
 function valueLabel(setting, currentSettings) {
   const v = currentSettings[setting.id];
@@ -23,7 +24,6 @@ function valueLabel(setting, currentSettings) {
   }
   if (setting.id === "autoExportIntervalMinutes")
     return v ? `${v} minutes` : "Not set";
-  // autoExportDirectory is removed, so no special handling needed here for it
 
   return String(v);
 }
@@ -44,7 +44,32 @@ export default function SettingsDialog({ isOpen, onClose }) {
     context;
   const [search, setSearch] = useState("");
 
-  // handleDirectorySelect is removed
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    onCancel: () => {},
+    variant: "default",
+    confirmText: "Confirm",
+    cancelText: "Cancel",
+  });
+
+  const showConfirm = (options) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: options.title || "Confirm",
+      message: options.message || "Are you sure?",
+      onConfirm: options.onConfirm || (() => {}),
+      onCancel:
+        options.onCancel ||
+        (() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))),
+      variant: options.variant || "default",
+      confirmText: options.confirmText || "Confirm",
+      cancelText: options.cancelText || "Cancel",
+    });
+  };
 
   const allSettingsDescriptors = useMemo(
     () => [
@@ -201,7 +226,6 @@ export default function SettingsDialog({ isOpen, onClose }) {
               />
             ),
           },
-          // Removed autoExportDirectory setting row from here
         ],
       },
       {
@@ -213,8 +237,18 @@ export default function SettingsDialog({ isOpen, onClose }) {
             type="button"
             data-item-id="setting-resetsettings-button"
             onClick={() => {
-              if (window.confirm("Reset all settings to default?"))
-                resetSettings();
+              showConfirm({
+                title: "Reset Settings",
+                message: "Reset all settings to default values?",
+                variant: "warning",
+                confirmText: "Reset",
+                onConfirm: () => {
+                  resetSettings();
+                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                },
+                onCancel: () =>
+                  setConfirmDialog((prev) => ({ ...prev, isOpen: false })),
+              });
             }}
             className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 flex items-center"
           >
@@ -231,13 +265,19 @@ export default function SettingsDialog({ isOpen, onClose }) {
             type="button"
             data-item-id="setting-resetdata-button"
             onClick={() => {
-              if (
-                window.confirm(
-                  "WARNING: This will permanently delete all application data (including settings and potentially tree data if not cleared separately). Are you sure?"
-                )
-              ) {
-                resetApplicationData();
-              }
+              showConfirm({
+                title: "Reset Application Data",
+                message:
+                  "WARNING: This will permanently delete all application data (including settings and potentially tree data if not cleared separately). Are you sure?",
+                variant: "danger",
+                confirmText: "Reset All Data",
+                onConfirm: () => {
+                  resetApplicationData();
+                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                },
+                onCancel: () =>
+                  setConfirmDialog((prev) => ({ ...prev, isOpen: false })),
+              });
             }}
             className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
           >
@@ -249,14 +289,15 @@ export default function SettingsDialog({ isOpen, onClose }) {
     [
       settings.autoExportEnabled,
       settings.autoExportIntervalMinutes,
-      /* removed settings.autoExportDirectory */ settings.theme,
+      settings.theme,
       settings.autoExpandNewFolders,
       settings.editorFontFamily,
       settings.editorFontSize,
       settings.defaultExportFormat,
       updateSetting,
       resetSettings,
-      resetApplicationData /* removed handleDirectorySelect */,
+      resetApplicationData,
+      showConfirm,
     ]
   );
 
@@ -290,157 +331,165 @@ export default function SettingsDialog({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div
-      data-item-id="settings-dialog-overlay"
-      className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm transition-opacity duration-200"
-    >
+    <>
       <div
-        data-item-id="settings-dialog-content"
-        className="bg-white dark:bg-zinc-800 p-5 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-zinc-200 dark:border-zinc-700"
+        data-item-id="settings-dialog-overlay"
+        className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm transition-opacity duration-200"
       >
-        <div className="flex justify-between items-center mb-4 border-b pb-3 dark:border-zinc-600 flex-shrink-0">
-          <h2 className="text-xl font-semibold">Settings</h2>
-          <button
-            onClick={onClose}
-            aria-label="Close Settings"
-            data-item-id="settings-close-button-header"
-            className="p-1 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            {" "}
-            <X className="w-5 h-5" />{" "}
-          </button>
-        </div>
-        <div className="mb-4 relative flex-shrink-0">
-          <input
-            data-item-id="settings-search-input"
-            type="text"
-            placeholder="Search settings..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full p-2 pl-10 border rounded dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <Search className="w-5 h-5 text-zinc-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-        </div>
-        <div className="flex-grow overflow-y-auto space-y-3 pr-2 -mr-2 custom-scrollbar">
-          {filteredSettings.length ? (
-            filteredSettings.map((s) => {
-              if (s.type === "group") {
-                // Check if the group's controlling setting (autoExportEnabled) is active
-                const isGroupContentDisabled =
-                  s.settings.find((sub) => sub.id === "autoExportEnabled") &&
-                  !settings.autoExportEnabled;
-
-                return (
-                  <div
-                    key={s.id}
-                    data-item-id={`setting-group-${s.id}`}
-                    className="p-4 my-3 border border-zinc-300 dark:border-zinc-600 rounded-lg shadow-sm bg-zinc-50 dark:bg-zinc-800/30"
-                  >
-                    <h4 className="text-md font-semibold mb-1 text-zinc-700 dark:text-zinc-200">
-                      {s.label}
-                    </h4>
-                    {s.desc && (
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                        {s.desc}
-                      </p>
-                    )}
-                    <div className="space-y-5">
-                      {s.settings.map((subSetting) => {
-                        const isControlDisabledByGroupLogic =
-                          subSetting.id !== "autoExportEnabled" &&
-                          isGroupContentDisabled;
-                        const finalDisabledState =
-                          (subSetting.control.props &&
-                            subSetting.control.props.disabled) ||
-                          isControlDisabledByGroupLogic;
-
-                        return (
-                          <div
-                            key={subSetting.id}
-                            data-item-id={`setting-row-${subSetting.id}`}
-                            className="flex flex-col sm:flex-row sm:items-start sm:justify-between pb-4 border-b border-zinc-200 dark:border-zinc-600 last:border-b-0 last:pb-0"
-                          >
-                            <div
-                              className={`mb-2 sm:mb-0 sm:mr-4 flex-1 ${
-                                finalDisabledState ? "opacity-60" : ""
-                              }`}
-                            >
-                              <label
-                                htmlFor={subSetting.id}
-                                className="font-medium block"
-                              >
-                                {subSetting.label}
-                              </label>
-                              {subSetting.desc && (
-                                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                                  {subSetting.desc}
-                                </p>
-                              )}
-                              {/* No specific path display here anymore as the setting itself is removed */}
-                            </div>
-                            <div className="flex-shrink-0 flex items-center mt-1 sm:mt-0">
-                              {React.cloneElement(subSetting.control, {
-                                id: subSetting.id,
-                                disabled: finalDisabledState,
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              } else {
-                // Render individual, non-grouped settings
-                return (
-                  <div
-                    key={s.id}
-                    data-item-id={`setting-row-${s.id}`}
-                    className="flex flex-col sm:flex-row sm:items-start sm:justify-between pb-4 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
-                  >
-                    <div className="mb-2 sm:mb-0 sm:mr-4 flex-1">
-                      <label
-                        htmlFor={s.id}
-                        className={`font-medium block ${
-                          s.id === "resetData"
-                            ? "text-red-600 dark:text-red-400"
-                            : ""
-                        }`}
-                      >
-                        {s.label}
-                      </label>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {s.desc}
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0 flex items-center mt-1 sm:mt-0">
-                      {React.cloneElement(s.control, { id: s.id })}
-                    </div>
-                  </div>
-                );
-              }
-            })
-          ) : (
-            <p
-              data-item-id="settings-no-results"
-              className="text-zinc-500 dark:text-zinc-400 text-center py-6"
+        <div
+          data-item-id="settings-dialog-content"
+          className="bg-white dark:bg-zinc-800 p-5 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-zinc-200 dark:border-zinc-700"
+        >
+          <div className="flex justify-between items-center mb-4 border-b pb-3 dark:border-zinc-600 flex-shrink-0">
+            <h2 className="text-xl font-semibold">Settings</h2>
+            <button
+              onClick={onClose}
+              aria-label="Close Settings"
+              data-item-id="settings-close-button-header"
+              className="p-1 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
             >
-              {" "}
-              No settings found matching your search.{" "}
-            </p>
-          )}
-        </div>
-        <div className="mt-6 pt-4 border-t dark:border-zinc-600 flex justify-end flex-shrink-0">
-          <button
-            data-item-id="settings-close-button-footer"
-            onClick={onClose}
-            className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {" "}
-            Close{" "}
-          </button>
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="mb-4 relative flex-shrink-0">
+            <input
+              data-item-id="settings-search-input"
+              type="text"
+              placeholder="Search settings..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full p-2 pl-10 border rounded dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <Search className="w-5 h-5 text-zinc-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+          </div>
+          <div className="flex-grow overflow-y-auto space-y-3 pr-2 -mr-2 custom-scrollbar">
+            {filteredSettings.length ? (
+              filteredSettings.map((s) => {
+                if (s.type === "group") {
+                  // Check if the group's controlling setting (autoExportEnabled) is active
+                  const isGroupContentDisabled =
+                    s.settings.find((sub) => sub.id === "autoExportEnabled") &&
+                    !settings.autoExportEnabled;
+
+                  return (
+                    <div
+                      key={s.id}
+                      data-item-id={`setting-group-${s.id}`}
+                      className="p-4 my-3 border border-zinc-300 dark:border-zinc-600 rounded-lg shadow-sm bg-zinc-50 dark:bg-zinc-800/30"
+                    >
+                      <h4 className="text-md font-semibold mb-1 text-zinc-700 dark:text-zinc-200">
+                        {s.label}
+                      </h4>
+                      {s.desc && (
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                          {s.desc}
+                        </p>
+                      )}
+                      <div className="space-y-5">
+                        {s.settings.map((subSetting) => {
+                          const isControlDisabledByGroupLogic =
+                            subSetting.id !== "autoExportEnabled" &&
+                            isGroupContentDisabled;
+                          const finalDisabledState =
+                            (subSetting.control.props &&
+                              subSetting.control.props.disabled) ||
+                            isControlDisabledByGroupLogic;
+
+                          return (
+                            <div
+                              key={subSetting.id}
+                              data-item-id={`setting-row-${subSetting.id}`}
+                              className="flex flex-col sm:flex-row sm:items-start sm:justify-between pb-4 border-b border-zinc-200 dark:border-zinc-600 last:border-b-0 last:pb-0"
+                            >
+                              <div
+                                className={`mb-2 sm:mb-0 sm:mr-4 flex-1 ${
+                                  finalDisabledState ? "opacity-60" : ""
+                                }`}
+                              >
+                                <label
+                                  htmlFor={subSetting.id}
+                                  className="font-medium block"
+                                >
+                                  {subSetting.label}
+                                </label>
+                                {subSetting.desc && (
+                                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                                    {subSetting.desc}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex-shrink-0 flex items-center mt-1 sm:mt-0">
+                                {React.cloneElement(subSetting.control, {
+                                  id: subSetting.id,
+                                  disabled: finalDisabledState,
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                } else {
+                  // Render individual, non-grouped settings
+                  return (
+                    <div
+                      key={s.id}
+                      data-item-id={`setting-row-${s.id}`}
+                      className="flex flex-col sm:flex-row sm:items-start sm:justify-between pb-4 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
+                    >
+                      <div className="mb-2 sm:mb-0 sm:mr-4 flex-1">
+                        <label
+                          htmlFor={s.id}
+                          className={`font-medium block ${
+                            s.id === "resetData"
+                              ? "text-red-600 dark:text-red-400"
+                              : ""
+                          }`}
+                        >
+                          {s.label}
+                        </label>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          {s.desc}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 flex items-center mt-1 sm:mt-0">
+                        {React.cloneElement(s.control, { id: s.id })}
+                      </div>
+                    </div>
+                  );
+                }
+              })
+            ) : (
+              <p
+                data-item-id="settings-no-results"
+                className="text-zinc-500 dark:text-zinc-400 text-center py-6"
+              >
+                No settings found matching your search.
+              </p>
+            )}
+          </div>
+          <div className="mt-6 pt-4 border-t dark:border-zinc-600 flex justify-end flex-shrink-0">
+            <button
+              data-item-id="settings-close-button-footer"
+              onClick={onClose}
+              className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={confirmDialog.onCancel}
+      />
+    </>
   );
 }
