@@ -9,6 +9,7 @@ import AboutDialog from "./components/AboutDialog";
 import ExportDialog from "./components/ExportDialog";
 import ImportDialog from "./components/ImportDialog";
 import SettingsDialog from "./components/SettingsDialog";
+import ConfirmDialog from "./components/ConfirmDialog";
 import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
 import {
@@ -183,6 +184,31 @@ const App = () => {
   const topMenuRef = useRef(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
+
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    onCancel: () => {},
+    variant: "default",
+    confirmText: "Confirm",
+    cancelText: "Cancel",
+  });
+
+  const showConfirm = useCallback((options) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: options.title || "Confirm",
+      message: options.message || "Are you sure?",
+      onConfirm: options.onConfirm || (() => {}),
+      onCancel: options.onCancel || (() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))),
+      variant: options.variant || "default",
+      confirmText: options.confirmText || "Confirm",
+      cancelText: options.cancelText || "Cancel",
+    });
+  }, []);
 
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
@@ -907,11 +933,18 @@ const App = () => {
         ) {
           e.preventDefault();
           const item = findItemByIdFromTree(selectedItemId);
-          if (
-            item &&
-            window.confirm(`Delete "${item.label}"?\nThis cannot be undone.`)
-          ) {
-            await handleDeleteConfirm(selectedItemId);
+          if (item) {
+            showConfirm({
+              title: "Delete Item",
+              message: `Delete "${item.label}"?\nThis cannot be undone.`,
+              variant: "danger",
+              confirmText: "Delete",
+              onConfirm: () => {
+                handleDeleteConfirm(selectedItemId);
+                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+              },
+              onCancel: () => setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+            });
           }
         }
       }
@@ -935,6 +968,7 @@ const App = () => {
     findParentAndSiblingsFromTree,
     handleDeleteConfirm,
     setContextMenu,
+    showConfirm,
   ]);
 
   useEffect(() => {
@@ -1461,15 +1495,20 @@ const App = () => {
           }
           onDelete={() => {
             if (contextMenu.item) {
-              if (
-                window.confirm(
-                  `Delete "${contextMenu.item.label}"?\nThis cannot be undone.`
-                )
-              ) {
-                handleDeleteConfirm(contextMenu.item.id);
-              } else {
-                setContextMenu((m) => ({ ...m, visible: false }));
-              }
+              showConfirm({
+                title: "Delete Item",
+                message: `Delete "${contextMenu.item.label}"?\nThis cannot be undone.`,
+                variant: "danger",
+                confirmText: "Delete",
+                onConfirm: () => {
+                  handleDeleteConfirm(contextMenu.item.id);
+                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                },
+                onCancel: () => {
+                  setContextMenu((m) => ({ ...m, visible: false }));
+                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                }
+              });
             } else {
               setContextMenu((m) => ({ ...m, visible: false }));
             }
@@ -1550,6 +1589,16 @@ const App = () => {
       <SettingsDialog
         isOpen={settingsDialogOpen}
         onClose={() => setSettingsDialogOpen(false)}
+      />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={confirmDialog.onCancel}
       />
     </div>
   );
