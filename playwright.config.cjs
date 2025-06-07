@@ -15,9 +15,14 @@ module.exports = defineConfig({
   // CRITICAL CHANGES FOR DRAG-DROP TESTS:
   fullyParallel: false, // Changed from true - prevents race conditions
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0, // Changed from 0 to 1 for local retries
+  retries: process.env.CI ? 2 : 0, 
   workers: 1, // Changed from undefined - forces sequential execution
-  reporter: 'html',
+  // Enhanced reporting for better debugging
+  reporter: [
+    ['html'],
+    ['line'],
+    ['json', { outputFile: 'test-results/results.json' }]
+  ],
 
   use: {
     baseURL: 'http://localhost:5173',
@@ -38,7 +43,7 @@ module.exports = defineConfig({
   webServer: [
     {
       command: 'npm run dev',
-      port: 5173,
+      port: 5001, // Backend server
       reuseExistingServer: !process.env.CI,
       timeout: 120000, // Add timeout for server startup
     },
