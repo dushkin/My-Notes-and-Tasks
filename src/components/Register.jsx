@@ -1,6 +1,7 @@
 // src/components/Register.jsx
 import React, { useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
+import LoadingButton from "./LoadingButton";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
@@ -29,12 +30,8 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
       isOpen: true,
       title: options.title || "Success",
       message: options.message || "Registration successful!",
-      onConfirm:
-        options.onConfirm ||
-        (() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))),
-      onCancel:
-        options.onCancel ||
-        (() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))),
+      onConfirm: options.onConfirm || (() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))),
+      onCancel: options.onCancel || (() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))),
       variant: options.variant || "default",
       confirmText: options.confirmText || "OK",
       cancelText: options.cancelText || "Cancel",
@@ -72,19 +69,18 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
         setError(data.error || "Registration failed. Please try again.");
         return;
       }
-
+      
       showConfirm({
         title: "Registration Successful",
-        message:
-          "Your account has been created successfully! Please log in with your credentials.",
+        message: "Your account has been created successfully! Please log in with your credentials.",
         variant: "default",
         confirmText: "Go to Login",
         onConfirm: () => {
-          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
           if (onRegisterSuccess) {
             onRegisterSuccess();
           }
-        },
+        }
       });
     } catch (err) {
       setIsLoading(false);
@@ -123,6 +119,7 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 placeholder="you@e2e.com"
+                disabled={isLoading}
               />
             </div>
             <div className="mb-4">
@@ -139,6 +136,7 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 placeholder="••••••••"
+                disabled={isLoading}
               />
             </div>
             <div className="mb-6">
@@ -155,21 +153,26 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 placeholder="••••••••"
+                disabled={isLoading}
               />
             </div>
-            <button
+            <LoadingButton
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-green-600 text-white py-2.5 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 transition duration-150 ease-in-out disabled:opacity-50"
+              isLoading={isLoading}
+              loadingText="Registering..."
+              className="w-full"
+              variant="success"
+              size="large"
             >
-              {isLoading ? "Registering..." : "Create Account"}
-            </button>
+              Create Account
+            </LoadingButton>
           </form>
           <p className="mt-6 text-sm text-center text-zinc-600 dark:text-zinc-400">
             Already have an account?{" "}
             <button
               onClick={onSwitchToLogin}
               className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+              disabled={isLoading}
             >
               Log In
             </button>

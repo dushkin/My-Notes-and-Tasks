@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.8.0",
-  "commitMessage": "Replaced windows.confirm with a custom dialog",
+  "version": "4.9.0",
+  "commitMessage": "Implemented consistent loading indicators for all asynchronous operations in the UI",
   "private": true,
   "scripts": {
     "dev": "vite",
