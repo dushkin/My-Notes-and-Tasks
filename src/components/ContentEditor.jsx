@@ -39,6 +39,13 @@ function debounce(func, delay) {
   return debouncedFunction;
 }
 
+// helper to turn HTML-entities back into tags
+function decodeHtml(str) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(str, "text/html");
+  return doc.documentElement.textContent;
+}
+
 const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
@@ -52,23 +59,24 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   }
 
   const [initialEditorContent, setInitialEditorContent] = useState(
-    item.content ?? ""
+    item.content ? decodeHtml(item.content) : ""
   );
 
-  // Track state
   const lastItemIdRef = useRef(item.id);
   const isUpdatingContentRef = useRef(false);
   const editorHasFocusRef = useRef(false);
   const pendingContentRef = useRef(null);
-  const currentEditorContentRef = useRef(item.content ?? "");
+  const currentEditorContentRef = useRef(
+    item.content ? decodeHtml(item.content) : ""
+  );
 
   useEffect(() => {
-    // Only update editor content if we switched to a different item
     if (item.id !== lastItemIdRef.current && !isUpdatingContentRef.current) {
       console.log('[ContentEditor] Item switched from', lastItemIdRef.current, 'to', item.id);
-      setInitialEditorContent(item.content ?? "");
+      const decoded = item.content ? decodeHtml(item.content) : "";
+      setInitialEditorContent(decoded);
+      currentEditorContentRef.current = decoded;
       lastItemIdRef.current = item.id;
-      currentEditorContentRef.current = item.content ?? "";
       pendingContentRef.current = null;
       setIsSaving(false);
       setLastSaved(null);

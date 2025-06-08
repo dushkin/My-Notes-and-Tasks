@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.9.0",
-  "commitMessage": "Implemented consistent loading indicators for all asynchronous operations in the UI",
+  "version": "4.9.1",
+  "commitMessage": "Fixing some content editor bugs",
   "private": true,
   "scripts": {
     "dev": "vite",

@@ -137,9 +137,9 @@ const TipTapEditor = ({
         codeBlock: { languageClassPrefix: "language-" },
       }),
       Link.configure({
-        openOnClick: true,
         autolink: true,
         linkOnPaste: true,
+        openOnClick: true,
         HTMLAttributes: {
           target: "_blank",
           rel: "noopener noreferrer nofollow",
@@ -210,6 +210,7 @@ const TipTapEditor = ({
       Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
+
     content: content,
     onUpdate: ({ editor: currentEditor }) => {
       if (onUpdate) {
@@ -398,7 +399,9 @@ const TipTapEditor = ({
 
   useEffect(() => {
     if (editor && !contentSetRef.current) {
-      console.log('[TipTapEditor] Setting initial content', { contentLength: content?.length });
+      console.log("[TipTapEditor] Setting initial content", {
+        contentLength: content?.length,
+      });
       // Only set content once when editor is first created
       const currentEditorHTML = editor.getHTML();
       if (currentEditorHTML !== content) {
@@ -410,7 +413,7 @@ const TipTapEditor = ({
 
   // Reset the content flag when content prop changes (item switch)
   useEffect(() => {
-    console.log('[TipTapEditor] Content prop changed, resetting content flag');
+    console.log("[TipTapEditor] Content prop changed, resetting content flag");
     contentSetRef.current = false;
   }, [content]);
 
