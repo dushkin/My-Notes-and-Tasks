@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.9.1",
-  "commitMessage": "Fixing some content editor bugs",
+  "version": "4.10.0",
+  "commitMessage": "Now dropItem uses new moveItem endpoint",
   "private": true,
   "scripts": {
     "dev": "vite",
