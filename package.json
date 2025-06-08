@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.11.1",
-  "commitMessage": "Tree fetch fixed",
+  "version": "4.12.0",
+  "commitMessage": "First version of readme.md",
   "private": true,
   "scripts": {
     "dev": "vite",
