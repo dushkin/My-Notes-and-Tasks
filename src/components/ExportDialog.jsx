@@ -1,31 +1,35 @@
 // src/components/ExportDialog.jsx
 import React, { useState, useEffect } from "react";
+import LoadingButton from "./LoadingButton";
 
-// Added defaultFormat prop
 const ExportDialog = ({ isOpen, context, onClose, onExport, defaultFormat = 'json' }) => {
-  // Initialize target based on context, default to 'selected' if no context
   const [target, setTarget] = useState(() => {
     if (context === 'tree') return 'entire';
     if (context === 'item') return 'selected';
     return 'selected';
   });
 
-  // NEW: State for selected format, initialized by prop
   const [format, setFormat] = useState(defaultFormat);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Update target if context changes
   useEffect(() => {
      if (isOpen) {
         if (context === 'tree') setTarget('entire');
         else if (context === 'item') setTarget('selected');
-        setFormat(defaultFormat); // Reset format on open based on default
+        setFormat(defaultFormat);
+        setIsExporting(false);
      }
-  }, [context, isOpen, defaultFormat]); // Add defaultFormat dependency
+  }, [context, isOpen, defaultFormat]);
 
   if (!isOpen) return null;
 
-  const handleExportClick = () => {
-    onExport(target, format); // Pass the currently selected format state
+  const handleExportClick = async () => {
+    setIsExporting(true);
+    try {
+      await onExport(target, format);
+    } finally {
+      setIsExporting(false);
+    }
     onClose();
   };
 
@@ -39,19 +43,36 @@ const ExportDialog = ({ isOpen, context, onClose, onExport, defaultFormat = 'jso
       <div className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-80">
         <h2 className="text-xl font-bold mb-4">{dialogTitle}</h2>
 
-        {/* Conditionally render Target Radio Buttons */}
         {showRadioButtons && (
            <div className="mb-4">
              <p className="mb-2 font-medium">Export Target</p>
-             <label className="inline-flex items-center mr-4"> <input type="radio" name="exportTarget" value="selected" checked={target === "selected"} onChange={() => setTarget("selected")} /> <span className="ml-2">Selected Item</span> </label>
-             <label className="inline-flex items-center"> <input type="radio" name="exportTarget" value="entire" checked={target === "entire"} onChange={() => setTarget("entire")} /> <span className="ml-2">Entire Tree</span> </label>
+             <label className="inline-flex items-center mr-4"> 
+               <input 
+                 type="radio" 
+                 name="exportTarget" 
+                 value="selected" 
+                 checked={target === "selected"} 
+                 onChange={() => setTarget("selected")}
+                 disabled={isExporting}
+               /> 
+               <span className="ml-2">Selected Item</span> 
+             </label>
+             <label className="inline-flex items-center"> 
+               <input 
+                 type="radio" 
+                 name="exportTarget" 
+                 value="entire" 
+                 checked={target === "entire"} 
+                 onChange={() => setTarget("entire")}
+                 disabled={isExporting}
+               /> 
+               <span className="ml-2">Entire Tree</span> 
+             </label>
            </div>
         )}
 
-        {/* Format Selection */}
         <div className="mb-4">
           <p className="mb-2 font-medium">Format</p>
-          {/* UPDATED: Use radio buttons for format selection */}
            <div className="flex space-x-4">
                <label className="flex items-center space-x-1 cursor-pointer">
                    <input
@@ -61,6 +82,7 @@ const ExportDialog = ({ isOpen, context, onClose, onExport, defaultFormat = 'jso
                        checked={format === 'json'}
                        onChange={(e) => setFormat(e.target.value)}
                        className="form-radio text-blue-600"
+                       disabled={isExporting}
                    />
                    <span>JSON</span>
                </label>
@@ -72,24 +94,27 @@ const ExportDialog = ({ isOpen, context, onClose, onExport, defaultFormat = 'jso
                        checked={format === 'pdf'}
                        onChange={(e) => setFormat(e.target.value)}
                        className="form-radio text-green-600"
+                       disabled={isExporting}
                    />
                    <span>PDF</span>
                </label>
            </div>
         </div>
 
-        {/* Export Button */}
-        <button
-          onClick={handleExportClick} // Call unified handler
-          className={`w-full px-4 py-2 text-white rounded mt-4 ${format === 'json' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+        <LoadingButton
+          onClick={handleExportClick}
+          isLoading={isExporting}
+          loadingText="Exporting..."
+          className="w-full mb-2"
+          variant={format === 'json' ? 'primary' : 'success'}
         >
           Export as {format.toUpperCase()}
-        </button>
+        </LoadingButton>
 
-        {/* Cancel Button */}
         <button
            onClick={onClose}
-           className="w-full px-4 py-2 border dark:border-zinc-600 rounded mt-2 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+           className="w-full px-4 py-2 border dark:border-zinc-600 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
+           disabled={isExporting}
          >
           Cancel
         </button>

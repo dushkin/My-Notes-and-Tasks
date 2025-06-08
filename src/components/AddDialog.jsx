@@ -1,35 +1,36 @@
 // src/components/AddDialog.jsx
-import React, { useEffect } from "react"; // Import useEffect
+import React, { useEffect, useState } from "react";
+import LoadingButton from "./LoadingButton";
 
 const AddDialog = ({
   isOpen,
   newItemType,
   newItemLabel,
-  // showError, // Replaced by errorMessage
   onLabelChange,
   onAdd,
   onCancel,
-  errorMessage, // New prop for specific error messages
+  errorMessage,
 }) => {
+  const [isLoading, setIsLoading] = useState(false);
+
   if (!isOpen) return null;
 
-  const inputRef = React.useRef(null); // Ref for the input element
+  const inputRef = React.useRef(null);
 
-  // Focus the input when the dialog opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
-      // Select text if it's not empty (useful if reopening after error)
-      // if (newItemLabel) {
-      //   inputRef.current.select();
-      // }
     }
-  }, [isOpen]); // Dependency array includes isOpen
+  }, [isOpen]);
 
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onAdd(); // onAdd should now handle validation feedback
+    setIsLoading(true);
+    try {
+      await onAdd();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -38,17 +39,16 @@ const AddDialog = ({
         <h2 className="text-lg font-bold mb-4">Add {newItemType}</h2>
         <form onSubmit={handleSubmit}>
           <input
-            ref={inputRef} // Assign ref to the input
+            ref={inputRef}
             type="text"
             value={newItemLabel}
             onChange={onLabelChange}
-            className={`border p-2 rounded w-full mb-2 text-gray-900 dark:text-gray ${errorMessage ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`} // Highlight if error
+            className={`border p-2 rounded w-full mb-2 text-gray-900 dark:text-gray ${errorMessage ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
             placeholder={`Enter ${newItemType} name`}
-            // autoFocus // Replaced by useEffect focus management
-            aria-invalid={!!errorMessage} // Accessibility
+            aria-invalid={!!errorMessage}
             aria-describedby={errorMessage ? "add-error-message" : undefined}
+            disabled={isLoading}
           />
-          {/* Display specific error message */}
           {errorMessage && (
             <p id="add-error-message" className="text-red-600 text-sm mb-2">{errorMessage}</p>
           )}
@@ -57,17 +57,18 @@ const AddDialog = ({
               type="button"
               onClick={onCancel}
               className="px-4 py-2 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+              disabled={isLoading}
             >
               Cancel
             </button>
-            <button
+            <LoadingButton
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              // Optionally disable add button if label is empty, though validation handles it
-              // disabled={!newItemLabel.trim()}
+              isLoading={isLoading}
+              loadingText="Adding..."
+              variant="primary"
             >
               Add
-            </button>
+            </LoadingButton>
           </div>
         </form>
       </div>

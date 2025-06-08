@@ -10,6 +10,8 @@ import ExportDialog from "./components/ExportDialog";
 import ImportDialog from "./components/ImportDialog";
 import SettingsDialog from "./components/SettingsDialog";
 import ConfirmDialog from "./components/ConfirmDialog";
+import LoadingSpinner from "./components/LoadingSpinner";
+import LoadingButton from "./components/LoadingButton";
 import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
 import {
@@ -99,13 +101,15 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       className={`${baseClasses} ${typeClasses}`}
     >
       <span>{message}</span>
-      <button
+      <LoadingButton
         onClick={onClose}
         className={`ml-3 -mr-1 -my-1 p-1 ${iconColor} rounded-full focus:outline-none focus:ring-2 focus:ring-current`}
         aria-label="Close message"
+        variant="secondary"
+        size="small"
       >
         <XCircle className="w-5 h-5" />
-      </button>
+      </LoadingButton>
     </div>
   );
 };
@@ -185,6 +189,11 @@ const App = () => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
 
+  // Loading states
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -226,6 +235,7 @@ const App = () => {
     setCurrentView("login");
     setAccountMenuOpen(false);
     setTopMenuOpen(false);
+    setIsLoggingOut(false);
   }, [resetTreeHistory]);
 
   useEffect(() => {
@@ -326,6 +336,7 @@ const App = () => {
   ]);
 
   useEffect(() => {
+    setIsAuthChecking(true);
     const token = getAccessToken();
     if (token) {
       authFetch("/auth/verify-token")
@@ -345,11 +356,15 @@ const App = () => {
         .catch(() => {
           handleActualLogout();
         })
-        .finally(() => setIsAuthCheckComplete(true));
+        .finally(() => {
+          setIsAuthCheckComplete(true);
+          setIsAuthChecking(false);
+        });
     } else {
       setCurrentView("login");
       if (resetTreeHistory) resetTreeHistory([]);
       setIsAuthCheckComplete(true);
+      setIsAuthChecking(false);
     }
   }, [fetchUserTree, resetTreeHistory, handleActualLogout]);
 
@@ -362,6 +377,7 @@ const App = () => {
   };
 
   const handleInitiateLogout = async () => {
+    setIsLoggingOut(true);
     const currentRefreshToken = getRefreshToken();
     if (currentRefreshToken) {
       try {
@@ -539,7 +555,6 @@ const App = () => {
         `[App] Task toggle: ${id}, current completed: ${currentCompletedStatus}, setting to: ${!currentCompletedStatus}`
       );
 
-      // The updateTask function now handles optimistic updates internally
       const result = await updateTask(id, {
         completed: !currentCompletedStatus,
       });
@@ -547,7 +562,6 @@ const App = () => {
       if (!result.success) {
         showMessage(result.error || "Failed to update task status.", "error");
       } else {
-        // Only show success message, don't update UI again since it's already updated optimistically
         showMessage("Task status updated.", "success", 2000);
       }
     },
@@ -666,6 +680,23 @@ const App = () => {
       setContextMenu((m) => ({ ...m, visible: false }));
     },
     [deleteItem, showMessage, setContextMenu]
+  );
+
+  const handleDuplicate = useCallback(
+    async (itemId) => {
+      setIsDuplicating(true);
+      try {
+        const result = await duplicateItem(itemId);
+        if (!result.success) {
+          showMessage(result.error || "Duplicate failed", "error");
+        } else {
+          showMessage("Item duplicated.", "success", 3000);
+        }
+      } finally {
+        setIsDuplicating(false);
+      }
+    },
+    [duplicateItem, showMessage]
   );
 
   const handleShowItemMenu = useCallback(
@@ -825,6 +856,7 @@ const App = () => {
             (document.body === activeEl && selectedItemId))
         );
       };
+
       if (isGeneralInputFocused) {
         if (
           (e.ctrlKey || e.metaKey) &&
@@ -1155,10 +1187,12 @@ const App = () => {
 
   if (!isAuthCheckComplete)
     return (
-      <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-100">
-        Loading application...
-      </div>
+      <LoadingSpinner 
+        variant="overlay" 
+        text="Loading application..." 
+      />
     );
+    
   if (currentView === "login")
     return (
       <Login
@@ -1166,6 +1200,7 @@ const App = () => {
         onSwitchToRegister={() => setCurrentView("register")}
       />
     );
+    
   if (currentView === "register")
     return (
       <Register
@@ -1181,6 +1216,14 @@ const App = () => {
         type={uiMessageType}
         onClose={() => setUiMessage("")}
       />
+      
+      {isFetchingTree && (
+        <LoadingSpinner 
+          variant="overlay" 
+          text="Loading your notes and tasks..." 
+        />
+      )}
+      
       <header
         className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
       >
@@ -1191,32 +1234,39 @@ const App = () => {
           <div className="flex items-center space-x-0.5 sm:space-x-1">
             {currentUser && currentUser.email && (
               <div className="relative" ref={accountMenuRef}>
-                <button
+                <LoadingButton
                   onClick={handleAccountDisplayClick}
                   className="flex items-center mr-1 sm:mr-2 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                   title={`Account: ${currentUser.email}`}
+                  disabled={isLoggingOut}
+                  variant="secondary"
+                  size="small"
                 >
                   <UserCircle2 className="w-5 h-5 text-zinc-500 dark:text-zinc-400 mr-1 sm:mr-1.5 flex-shrink-0" />
                   <span className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-[150px]">
                     {currentUser.email}
                   </span>
-                </button>
+                </LoadingButton>
                 {accountMenuOpen && (
                   <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
-                    <button
+                    <LoadingButton
                       onClick={() => {
                         handleInitiateLogout();
                         setAccountMenuOpen(false);
                       }}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-700/30"
+                      isLoading={isLoggingOut}
+                      loadingText="Logging out..."
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-700/30 border-0 bg-transparent"
+                      variant="danger"
+                      size="small"
                     >
                       <LogOut className="w-4 h-4 opacity-70" /> Logout
-                    </button>
+                    </LoadingButton>
                   </div>
                 )}
               </div>
             )}
-            <button
+            <LoadingButton
               onClick={undoTreeChange}
               disabled={!canUndoTree}
               title="Undo (Ctrl+Z)"
@@ -1225,10 +1275,12 @@ const App = () => {
                   ? "opacity-40 cursor-not-allowed"
                   : "text-zinc-600 dark:text-zinc-300"
               }`}
+              variant="secondary"
+              size="small"
             >
               <Undo className="w-5 h-5" />
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               onClick={redoTreeChange}
               disabled={!canRedoTree}
               title="Redo (Ctrl+Y)"
@@ -1237,10 +1289,12 @@ const App = () => {
                   ? "opacity-40 cursor-not-allowed"
                   : "text-zinc-600 dark:text-zinc-300"
               }`}
+              variant="secondary"
+              size="small"
             >
               <Redo className="w-5 h-5" />
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               onClick={() => setSearchSheetOpen((s) => !s)}
               title="Search (Ctrl+Shift+F)"
               className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
@@ -1248,74 +1302,87 @@ const App = () => {
                   ? "bg-blue-100 dark:bg-blue-700/50 text-blue-600 dark:text-blue-300"
                   : "text-zinc-600 dark:text-zinc-300"
               }`}
+              variant="secondary"
+              size="small"
             >
               <SearchIcon className="w-5 h-5" />
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               onClick={() => setSettingsDialogOpen(true)}
               className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
               title="Settings"
+              variant="secondary"
+              size="small"
             >
               <SettingsIcon className="w-5 h-5" />
-            </button>
+            </LoadingButton>
             <div className="relative" ref={topMenuRef}>
-              <button
+              <LoadingButton
                 onClick={() => {
-                  setTopMenuOpen((p) => !p);
+                  setTopMenuオープン((p) => !p);
                   setAccountMenuOpen(false);
                 }}
                 className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
                 title="More actions"
+                variant="secondary"
+                size="small"
               >
                 <EllipsisVertical className="w-5 h-5" />
-              </button>
+              </LoadingButton>
               {topMenuOpen && (
                 <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
-                  <button
+                  <LoadingButton
                     onClick={() => {
                       openAddDialog("folder", null);
                       setTopMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    variant="secondary"
+                    size="small"
                   >
                     <FileJson className="w-4 h-4 opacity-70" /> Add Root Folder
-                  </button>
-                  <button
+                  </LoadingButton>
+                  <LoadingButton
                     onClick={() => {
                       openExportDialog("tree");
                       setTopMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    variant="secondary"
+                    size="small"
                   >
-                    <FileJson className="w-4 h-4 opacity-70" /> Export Full
-                    Tree...
-                  </button>
-                  <button
+                    <FileJson className="w-4 h-4 opacity-70" /> Export Full Tree...
+                  </LoadingButton>
+                  <LoadingButton
                     onClick={() => {
                       openImportDialog("tree");
                       setTopMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    variant="secondary"
+                    size="small"
                   >
-                    <FileJson className="w-4 h-4 opacity-70" /> Import Full
-                    Tree...
-                  </button>
+                    <FileJson className="w-4 h-4 opacity-70" /> Import Full Tree...
+                  </LoadingButton>
                   <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
-                  <button
+                  <LoadingButton
                     onClick={() => {
                       setAboutDialogOpen(true);
                       setTopMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    variant="secondary"
+                    size="small"
                   >
                     <Info className="w-4 h-4 opacity-70" /> About
-                  </button>
+                  </LoadingButton>
                 </div>
               )}
             </div>
           </div>
         </div>
       </header>
+      
       <main className={`flex-1 flex min-h-0 pt-14 sm:pt-12`}>
         <PanelGroup direction="horizontal" className="flex-1">
           <Panel
@@ -1425,6 +1492,7 @@ const App = () => {
           </Panel>
         </PanelGroup>
       </main>
+      
       <Sheet
         isOpen={searchSheetOpen}
         onClose={() => setSearchSheetOpen(false)}
@@ -1472,6 +1540,7 @@ const App = () => {
         </Sheet.Container>
         <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} />
       </Sheet>
+      
       {contextMenu.visible && (
         <ContextMenu
           visible={contextMenu.visible}
@@ -1515,10 +1584,7 @@ const App = () => {
           }}
           onDuplicate={async () => {
             if (contextMenu.item) {
-              const result = await duplicateItem(contextMenu.item.id);
-              if (!result.success)
-                showMessage(result.error || "Duplicate failed", "error");
-              else showMessage("Item duplicated.", "success", 3000);
+              await handleDuplicate(contextMenu.item.id);
             }
           }}
           onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
@@ -1549,6 +1615,7 @@ const App = () => {
           onImportTree={() => openImportDialog("tree")}
         />
       )}
+      
       <AddDialog
         isOpen={addDialogOpen}
         newItemType={newItemType}
@@ -1565,10 +1632,12 @@ const App = () => {
           showMessage("", "error");
         }}
       />
+      
       <AboutDialog
         isOpen={aboutDialogOpen}
         onClose={() => setAboutDialogOpen(false)}
       />
+      
       <ExportDialog
         isOpen={exportDialogState.isOpen}
         context={exportDialogState.context}
@@ -1576,6 +1645,7 @@ const App = () => {
         onClose={() => setExportDialogState({ isOpen: false, context: null })}
         onExport={handleExport}
       />
+      
       <ImportDialog
         isOpen={importDialogState.isOpen}
         context={importDialogState.context}
@@ -1586,10 +1656,12 @@ const App = () => {
         }}
         onImport={handleFileImport}
       />
+      
       <SettingsDialog
         isOpen={settingsDialogOpen}
         onClose={() => setSettingsDialogOpen(false)}
       />
+      
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}
@@ -1600,7 +1672,15 @@ const App = () => {
         onConfirm={confirmDialog.onConfirm}
         onCancel={confirmDialog.onCancel}
       />
+      
+      {isDuplicating && (
+        <LoadingSpinner 
+          variant="overlay" 
+          text="Duplicating item..." 
+        />
+      )}
     </div>
   );
 };
+
 export default App;

@@ -1,6 +1,7 @@
-// src/components/ContentEditor.jsx - Simplified version with immediate save on blur
+// src/components/ContentEditor.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TipTapEditor from "./TipTapEditor";
+import LoadingSpinner from "./LoadingSpinner";
 
 const formatTimestamp = (isoString) => {
   if (!isoString) return "N/A";
@@ -31,7 +32,6 @@ function debounce(func, delay) {
     }, delay);
   };
   
-  // Add cancel method
   debouncedFunction.cancel = function() {
     clearTimeout(timeoutId);
   };
@@ -40,6 +40,9 @@ function debounce(func, delay) {
 }
 
 const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  
   if (!item) {
     return (
       <div className="p-4 text-red-500 dark:text-red-400">
@@ -56,7 +59,7 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   const lastItemIdRef = useRef(item.id);
   const isUpdatingContentRef = useRef(false);
   const editorHasFocusRef = useRef(false);
-  const pendingContentRef = useRef(null); // Store content that needs to be saved
+  const pendingContentRef = useRef(null);
   const currentEditorContentRef = useRef(item.content ?? "");
 
   useEffect(() => {
@@ -66,7 +69,9 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
       setInitialEditorContent(item.content ?? "");
       lastItemIdRef.current = item.id;
       currentEditorContentRef.current = item.content ?? "";
-      pendingContentRef.current = null; // Clear any pending content
+      pendingContentRef.current = null;
+      setIsSaving(false);
+      setLastSaved(null);
     }
   }, [item.id, item.content]);
 
@@ -78,17 +83,20 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
 
     console.log('[ContentEditor] Saving content for item', itemId);
     isUpdatingContentRef.current = true;
+    setIsSaving(true);
     
     try {
       const updates = { content, direction };
       await onSaveItemData(itemId, updates);
       console.log('[ContentEditor] Save successful for item', itemId);
-      pendingContentRef.current = null; // Clear pending content after successful save
+      pendingContentRef.current = null;
+      setLastSaved(new Date());
     } catch (error) {
       console.error('[ContentEditor] Save failed for item', itemId, error);
     } finally {
       setTimeout(() => {
         isUpdatingContentRef.current = false;
+        setIsSaving(false);
       }, 100);
     }
   }, [onSaveItemData]);
@@ -96,7 +104,7 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   const debouncedSave = useCallback(
     debounce((itemId, content, direction) => {
       saveContent(itemId, content, direction);
-    }, 1500), // 1.5 second debounce for auto-save while typing
+    }, 1500),
     [saveContent]
   );
 
@@ -107,11 +115,9 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
         contentLength: newHtml?.length
       });
       
-      // Store the current content
       currentEditorContentRef.current = newHtml;
       pendingContentRef.current = { content: newHtml, direction: newDirection };
       
-      // Debounced save while typing
       debouncedSave(item.id, newHtml, newDirection);
     },
     [item.id, debouncedSave]
@@ -126,15 +132,11 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
     console.log('[ContentEditor] Editor lost focus');
     editorHasFocusRef.current = false;
     
-    // If there's pending content that hasn't been saved, save it immediately
     if (pendingContentRef.current && !isUpdatingContentRef.current) {
       console.log('[ContentEditor] Pending content detected on blur, saving immediately');
       const { content, direction } = pendingContentRef.current;
       
-      // Cancel the debounced save since we're saving immediately
       debouncedSave.cancel();
-      
-      // Save immediately
       saveContent(item.id, content, direction);
     }
   }, [item.id, saveContent, debouncedSave]);
@@ -142,9 +144,25 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 pt-4 flex-shrink-0">
-        <h2 className="text-xl font-semibold mb-1 break-words text-zinc-800 dark:text-zinc-100">
-          {item.label}
-        </h2>
+        <div className="flex items-start justify-between mb-1">
+          <h2 className="text-xl font-semibold break-words text-zinc-800 dark:text-zinc-100 flex-1 mr-4">
+            {item.label}
+          </h2>
+          <div className="flex items-center space-x-2">
+            {isSaving && (
+              <LoadingSpinner 
+                size="small" 
+                variant="inline" 
+                text="Saving..." 
+              />
+            )}
+            {!isSaving && lastSaved && (
+              <span className="text-xs text-green-600 dark:text-green-400">
+                Saved {formatTimestamp(lastSaved.toISOString())}
+              </span>
+            )}
+          </div>
+        </div>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 space-y-0.5">
           <p
             title={

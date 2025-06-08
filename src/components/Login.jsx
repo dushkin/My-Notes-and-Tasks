@@ -1,6 +1,7 @@
 // src/components/Login.jsx
 import React, { useState } from "react";
-import { storeTokens } from "../services/authService"; // Import storeTokens
+import { storeTokens } from "../services/authService";
+import LoadingButton from "./LoadingButton";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
@@ -37,8 +38,7 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
       }
 
       if (data.accessToken && data.refreshToken) {
-        // Check for accessToken and refreshToken
-        storeTokens(data.accessToken, data.refreshToken); // Use authService to store tokens
+        storeTokens(data.accessToken, data.refreshToken);
 
         console.log('[DEBUG Login] Tokens stored successfully');
         console.log('[DEBUG Login] AccessToken exists:', !!localStorage.getItem('accessToken'));
@@ -87,6 +87,7 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
               className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="you@e2e.com"
               autoComplete="email"
+              disabled={isLoading}
             />
           </div>
           <div className="mb-6">
@@ -104,21 +105,26 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
               className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="••••••••"
               autoComplete="current-password"
+              disabled={isLoading}
             />
           </div>
-          <button
+          <LoadingButton
             type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out disabled:opacity-50"
+            isLoading={isLoading}
+            loadingText="Logging in..."
+            className="w-full"
+            variant="primary"
+            size="large"
           >
-            {isLoading ? "Logging in..." : "Login"}
-          </button>
+            Login
+          </LoadingButton>
         </form>
         <p className="mt-6 text-sm text-center text-zinc-600 dark:text-zinc-400">
           Don't have an account?{" "}
           <button
             onClick={onSwitchToRegister}
             className="font-medium text-blue-600 hover:text-blue-500"
+            disabled={isLoading}
           >
             Create one
           </button>

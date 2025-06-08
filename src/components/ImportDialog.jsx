@@ -1,30 +1,28 @@
 // src/components/ImportDialog.jsx
 import React, { useState, useEffect } from "react";
+import LoadingButton from "./LoadingButton";
+import LoadingSpinner from "./LoadingSpinner";
 
 const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
-  // target will be 'entire' (for full tree) or 'selected' (for under item)
-  const [target, setTarget] = useState("entire"); // Default, will be overridden by context
+  const [target, setTarget] = useState("entire");
   const [file, setFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      // Set target based on the context the dialog was opened with
       if (context === "tree") {
         setTarget("entire");
       } else if (context === "item") {
         setTarget("selected");
       } else {
-        // Fallback or default if context is not specific
-        // e.g., default to 'entire' if no item selected, else 'selected'
         setTarget(selectedItem ? "selected" : "entire");
       }
       setFile(null);
       setImporting(false);
       setImportMessage("");
     }
-  }, [context, isOpen, selectedItem]); // Add selectedItem to dependencies
+  }, [context, isOpen, selectedItem]);
 
   if (!isOpen) return null;
 
@@ -40,12 +38,11 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
   const handleImportClick = async () => {
     if (file) {
       setImporting(true);
-      setImportMessage("Importing...");
-      const result = await onImport(file, target); // onImport is async handleFileImport from App.jsx
+      setImportMessage("");
+      const result = await onImport(file, target);
       setImporting(false);
       if (result && result.success) {
         setImportMessage(result.message || "Import successful!");
-        // Dialog is closed by App.jsx by calling onClose via setImportDialogState
       } else {
         setImportMessage(result?.error || "Import failed. Please try again.");
       }
@@ -71,9 +68,7 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
           {dialogTitle}
         </h2>
 
-        {/* Only show target options if the context doesn't strictly define it */}
-        {/* Or if you always want to allow changing, but pre-select based on context */}
-        {!isFullTreeImportContext && ( // Don't show radio buttons if importing full tree via specific menu action
+        {!isFullTreeImportContext && (
           <div className="mb-4">
             <p className="mb-2 font-medium text-sm text-zinc-700 dark:text-zinc-300">
               Import Target
@@ -89,7 +84,7 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
                     setTarget("selected");
                     setImportMessage("");
                   }}
-                  disabled={importing || !selectedItem} // Disable if no item is selected for this option
+                  disabled={importing || !selectedItem}
                   className="form-radio h-4 w-4 text-blue-600 disabled:opacity-50 dark:focus:ring-blue-500 focus:ring-offset-0 dark:bg-zinc-700 dark:border-zinc-600"
                 />
                 <span
@@ -137,7 +132,7 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
           >
             Select JSON File
           </label>
-          <input /* ... (input field as before) ... */
+          <input
             type="file"
             id="import-file"
             accept=".json,application/json"
@@ -160,7 +155,17 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
           )}
         </div>
 
-        {importMessage && (
+        {importing && (
+          <div className="mb-4">
+            <LoadingSpinner 
+              variant="inline" 
+              text="Importing data..." 
+              size="default"
+            />
+          </div>
+        )}
+
+        {importMessage && !importing && (
           <p
             className={`text-sm mb-4 p-2 rounded ${
               (importMessage.toLowerCase().includes("successful") ||
@@ -176,20 +181,22 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
         )}
 
         <div className="mt-6 flex flex-col sm:flex-row-reverse gap-3">
-          <button /* ... (Import button as before) ... */
+          <LoadingButton
             onClick={handleImportClick}
+            isLoading={importing}
+            loadingText="Importing..."
             disabled={
               !file ||
-              importing ||
               (target === "selected" &&
                 !selectedItem &&
                 !isFullTreeImportContext)
-            } // Also disable "Import" if target is "selected" but no item is selected
-            className="w-full sm:w-auto inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 focus:ring-blue-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            }
+            className="w-full sm:w-auto"
+            variant="primary"
           >
-            {importing ? "Importing..." : "Import"}
-          </button>
-          <button /* ... (Cancel button as before) ... */
+            Import
+          </LoadingButton>
+          <button
             type="button"
             onClick={onClose}
             disabled={importing}
