@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { LOCAL_STORAGE_KEY } from "../utils/constants";
 import {
   sortItems,
-  handleDrop as treeHandleDropUtil,
   deleteItemRecursive,
   renameItemRecursive,
   insertItemRecursive,
@@ -13,9 +12,9 @@ import {
   hasSiblingWithName,
   getItemPath,
 } from "../utils/treeUtils";
-import { jsPDF } from "jspdf"; // Not used in this snippet but keep if used elsewhere
-import * as bidiNS from "unicode-bidirectional"; // Not used in this snippet but keep if used elsewhere
-import { notoSansHebrewBase64 } from "../fonts/NotoSansHebrewBase64"; // Not used in this snippet
+import { jsPDF } from "jspdf";
+import * as bidiNS from "unicode-bidirectional";
+import { notoSansHebrewBase64 } from "../fonts/NotoSansHebrewBase64";
 import { useSettings } from "../contexts/SettingsContext";
 import { itemMatches } from "../utils/searchUtils";
 import { useUndoRedo } from "./useUndoRedo";
@@ -43,23 +42,17 @@ function htmlToPlainTextWithNewlines(html) {
   return text.trim().replace(/(\r\n|\r|\n){2,}/g, "\n");
 }
 
-// Renamed and updated function for client-side duplication logic
 export const assignClientPropsForDuplicate = (item) => {
   const newItem = { ...item };
   const now = new Date().toISOString();
 
-  // Assign new client-side ID for the duplicate
   newItem.id = `client-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .substring(2, 9)}`;
-
-  // Set client-side timestamps for the duplicate.
-  // The backend will override these with server-authoritative timestamps upon saving the new item.
   newItem.createdAt = now;
   newItem.updatedAt = now;
 
   if (item.type === "folder" && Array.isArray(item.children)) {
-    // Recursively assign new IDs and timestamps for children of a duplicated folder
     newItem.children = item.children.map((child) =>
       assignClientPropsForDuplicate(child)
     );
@@ -119,39 +112,30 @@ export const useTree = () => {
     [tree, selectedItemId]
   );
 
-  const fetchUserTreeInternal = useCallback(
-    async (token) => {
-      setIsFetchingTree(true);
-      try {
-        const response = await authFetch(`/items/tree`);
-
-        if (!response.ok) {
-          const errorData = await response
-            .json()
-            .catch(() => ({ message: "Failed to parse error response" }));
-
-          console.error(response.status, errorData);
-
-          resetTreeHistory([]);
-          setIsFetchingTree(false);
-          return;
-        }
-
-        const data = await response.json();
-
-        if (data && Array.isArray(data.notesTree)) {
-          resetTreeHistory(data.notesTree);
-        } else {
-          resetTreeHistory([]);
-        }
-      } catch (error) {
+  const fetchUserTree = useCallback(async () => {
+    setIsFetchingTree(true);
+    try {
+      const response = await authFetch(`/items/tree`);
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Failed to parse error response" }));
+        console.error(response.status, errorData);
         resetTreeHistory([]);
-      } finally {
-        setIsFetchingTree(false);
+        return;
       }
-    },
-    [resetTreeHistory]
-  );
+      const data = await response.json();
+      if (data && Array.isArray(data.notesTree)) {
+        resetTreeHistory(data.notesTree);
+      } else {
+        resetTreeHistory([]);
+      }
+    } catch (error) {
+      resetTreeHistory([]);
+    } finally {
+      setIsFetchingTree(false);
+    }
+  }, [resetTreeHistory]);
 
   useEffect(() => {
     try {
@@ -265,14 +249,10 @@ export const useTree = () => {
 
       try {
         const endpoint = parentId ? `/items/${parentId}` : `/items`;
-
-        // Use authFetch instead of manual fetch
         const response = await authFetch(endpoint, {
           method: "POST",
           body: JSON.stringify(payload),
-          // authFetch handles Content-Type and Authorization headers
         });
-
         const createdItemFromServer = await response.json();
         if (!response.ok)
           return {
@@ -281,7 +261,6 @@ export const useTree = () => {
               createdItemFromServer.error ||
               `Failed to add item: ${response.status}`,
           };
-
         const newTreeState = insertItemRecursive(
           tree,
           parentId,
@@ -341,7 +320,6 @@ export const useTree = () => {
 
   const updateTask = useCallback(
     async (taskId, updates) => {
-      // Optimistic update: immediately update the UI
       if (updates.hasOwnProperty("completed")) {
         const optimisticTreeState = tree.map((item) =>
           updateItemOptimistically(item, taskId, updates)
@@ -357,7 +335,6 @@ export const useTree = () => {
         const updatedItemFromServer = await response.json();
 
         if (!response.ok) {
-          // Revert the optimistic update on error
           if (updates.hasOwnProperty("completed")) {
             const revertedTreeState = tree.map((item) =>
               updateItemOptimistically(item, taskId, {
@@ -372,7 +349,6 @@ export const useTree = () => {
           };
         }
 
-        // Update with server response (this ensures we have the correct updatedAt timestamp)
         const mapRecursiveTask = (items, id, serverUpdates) =>
           items.map((i) =>
             i.id === id
@@ -394,8 +370,6 @@ export const useTree = () => {
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("updateTask API error:", error);
-
-        // Revert the optimistic update on network error
         if (updates.hasOwnProperty("completed")) {
           const revertedTreeState = tree.map((item) =>
             updateItemOptimistically(item, taskId, {
@@ -519,7 +493,6 @@ export const useTree = () => {
       const { parent } = findParentAndSiblings(tree, itemId);
       const parentId = parent?.id ?? null;
 
-      // Use the renamed and updated function
       let newDuplicateDataForServer = assignClientPropsForDuplicate(
         structuredClone(itemToDuplicate)
       );
@@ -535,14 +508,8 @@ export const useTree = () => {
         newLabel = `${baseName} (copy ${counter})`;
       }
       newDuplicateDataForServer.label = newLabel;
-      // Client-side createdAt/updatedAt are set by assignClientPropsForDuplicate
-      // Backend will create its own authoritative timestamps for the new item.
 
       const result = await addItem(newDuplicateDataForServer, parentId);
-      // addItem sends necessary fields (label, type, content, etc.)
-      // The id, createdAt, updatedAt from newDuplicateDataForServer are for optimistic client-side state,
-      // but the backend will generate its own id and timestamps for the actual new item.
-      // The `result.item` from `addItem` will contain the server-authoritative item.
 
       if (result.success && result.item) {
         if (parentId && settings.autoExpandNewFolders) {
@@ -559,116 +526,94 @@ export const useTree = () => {
     [tree, addItem, settings.autoExpandNewFolders, expandFolderPath]
   );
 
-  // This function primarily updates client-side state.
-  // The actual persistence of the move (and timestamp updates)
-  // will happen when the entire tree is sent to the backend,
-  // likely via replaceUserTree, where the backend's
-  // ensureServerSideIdsAndStructure will update all `updatedAt` timestamps.
-  // For more granular server-side timestamp updates on move,
-  // a dedicated backend endpoint for moving items would be needed.
+  /**
+   * REFACTORED `handleDrop`
+   * This function now calls the backend `moveItem` endpoint.
+   */
   const handleDrop = useCallback(
     async (targetFolderId, droppedItemId) => {
       const currentDraggedId = droppedItemId || draggedId;
       setDraggedId(null);
-      if (!currentDraggedId || targetFolderId === currentDraggedId)
-        return { success: false, error: "Invalid drop." };
+
+      if (
+        !currentDraggedId ||
+        (targetFolderId === currentDraggedId && currentDraggedId !== null)
+      ) {
+        return {
+          success: false,
+          error: "Invalid drop: An item cannot be dropped into itself.",
+        };
+      }
 
       const itemToDrop = findItemById(tree, currentDraggedId);
+      if (!itemToDrop) {
+        return { success: false, error: "Dragged item not found." };
+      }
+
       const targetFolder = targetFolderId
         ? findItemById(tree, targetFolderId)
         : null;
-      if (
-        !itemToDrop ||
-        (targetFolderId && (!targetFolder || targetFolder.type !== "folder"))
-      )
-        return { success: false, error: "Invalid item or target folder." };
-
-      if (
-        itemToDrop.type === "folder" &&
-        isSelfOrDescendant(tree, itemToDrop.id, targetFolderId)
-      ) {
+      if (targetFolderId && (!targetFolder || targetFolder.type !== "folder")) {
         return {
           success: false,
-          error: "Cannot drop folder into itself or one of its descendants.",
-        };
-      }
-      if (
-        hasSiblingWithName(targetFolder?.children || [], itemToDrop.label, null)
-      ) {
-        return {
-          success: false,
-          error: `Item named "${itemToDrop.label}" already exists in the target folder.`,
+          error:
+            "Invalid target: Drops are only allowed on folders or the root.",
         };
       }
 
-      // Determine new index position
-      const newIndex = targetFolderId
-        ? (targetFolder.children || []).length
-        : tree.length;
-
-      // Optimistic local update
-      const now = new Date().toISOString();
-      const updatedItem = { ...itemToDrop, updatedAt: now };
-
-      let newTreeState = deleteItemRecursive(tree, currentDraggedId);
-      newTreeState = insertItemRecursive(
-        newTreeState,
-        targetFolderId,
-        updatedItem
-      );
-
-      // Update parent timestamps locally
-      const updateParentTimestamps = (nodes, parentId) =>
-        nodes.map((n) => {
-          if (n.id === parentId) return { ...n, updatedAt: now };
-          if (n.children) {
-            return {
-              ...n,
-              children: updateParentTimestamps(n.children, parentId),
-            };
-          }
-          return n;
-        });
-
-      if (targetFolderId)
-        newTreeState = updateParentTimestamps(newTreeState, targetFolderId);
-      const oldParent = findParentAndSiblings(tree, currentDraggedId)?.parent;
-      if (oldParent?.id && oldParent.id !== targetFolderId) {
-        newTreeState = updateParentTimestamps(newTreeState, oldParent.id);
+      if (isSelfOrDescendant(tree, currentDraggedId, targetFolderId)) {
+        return {
+          success: false,
+          error:
+            "Invalid move: Cannot move a folder into itself or one of its children.",
+        };
       }
 
-      setTreeWithUndo(newTreeState);
+      const targetChildren = targetFolder ? targetFolder.children || [] : tree;
+      if (
+        hasSiblingWithName(targetChildren, itemToDrop.label, currentDraggedId)
+      ) {
+        return {
+          success: false,
+          error: `An item named "${itemToDrop.label}" already exists in the target location.`,
+        };
+      }
 
-      // Call the new moveItem API endpoint
+      const newIndex = targetChildren.length; // Simple append
+
       try {
-        const res = await authFetch(`/items/${currentDraggedId}/move`, {
+        const response = await authFetch(`/items/${currentDraggedId}/move`, {
           method: "PATCH",
           body: JSON.stringify({ newParentId: targetFolderId, newIndex }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || res.statusText);
-        // Optionally reconcile timestamps from server
-        const movedItem = data.data.movedItem;
-        // Update moved item and parent timestamps in local tree
-        const reconcile = (nodes) =>
-          nodes.map((n) => {
-            if (n.id === movedItem.id)
-              return { ...n, updatedAt: movedItem.updatedAt };
-            if (n.children) {
-              return { ...n, children: reconcile(n.children) };
-            }
-            return n;
-          });
-        setTreeWithUndo(reconcile(newTreeState));
-      } catch (err) {
-        console.error("Move API error:", err);
-        // Fallback: refresh full tree
-        fetchUserTree();
-      }
 
-      return { success: true };
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(
+            data.error || `Server responded with ${response.status}`
+          );
+        }
+
+        // On success, refetch the entire tree to get the new state with correct server-side timestamps.
+        await fetchUserTree();
+
+        // Auto-expand the target folder to show the dropped item.
+        if (targetFolderId) {
+          expandFolderPath(targetFolderId);
+        }
+
+        return { success: true };
+      } catch (err) {
+        console.error("Move (handleDrop) API error:", err);
+        // If the move fails, refetch the tree to ensure client is in sync with server state before the failed move.
+        await fetchUserTree();
+        return {
+          success: false,
+          error: err.message || "A network error occurred during the move.",
+        };
+      }
     },
-    [tree, draggedId, setTreeWithUndo, fetchUserTree]
+    [draggedId, tree, fetchUserTree, expandFolderPath]
   );
 
   const copyItem = useCallback(
@@ -711,6 +656,10 @@ export const useTree = () => {
     [tree]
   );
 
+  /**
+   * REFACTORED `pasteItem` for 'cut' mode.
+   * This function now calls the backend `moveItem` endpoint for cut operations.
+   */
   const pasteItem = useCallback(
     async (targetFolderId) => {
       if (!clipboardItem)
@@ -725,10 +674,7 @@ export const useTree = () => {
           error: "Target for paste must be a valid folder or root.",
         };
       }
-      if (
-        clipboardItem.type === "folder" &&
-        isSelfOrDescendant(tree, clipboardItem.id, targetFolderId)
-      ) {
+      if (isSelfOrDescendant(tree, clipboardItem.id, targetFolderId)) {
         return {
           success: false,
           error: "Cannot paste a folder into itself or one of its descendants.",
@@ -742,8 +688,7 @@ export const useTree = () => {
       if (clipboardMode === "copy") {
         let itemToInsertData = assignClientPropsForDuplicate(
           structuredClone(clipboardItem)
-        ); // Use the new function
-
+        );
         let baseName = clipboardItem.label;
         let newLabel = baseName;
         let copyCounter = 0;
@@ -754,99 +699,72 @@ export const useTree = () => {
           })`;
         }
         itemToInsertData.label = newLabel;
-        // Timestamps (createdAt, updatedAt) are set by assignClientPropsForDuplicate
-        // The backend will handle authoritative timestamps upon saving.
-
         const addResult = await addItem(itemToInsertData, targetFolderId);
         if (
           addResult.success &&
           targetFolderId &&
           settings.autoExpandNewFolders
-        )
+        ) {
           expandFolderPath(targetFolderId);
-
-        // Clear clipboard after successful paste if desired
-        // setClipboardItem(null);
-        // setClipboardMode(null);
+        }
         return addResult;
       } else if (clipboardMode === "cut" && cutItemId) {
-        const itemToMove = structuredClone(clipboardItem);
-        if (
-          findParentAndSiblings(tree, cutItemId)?.parent?.id ===
-            targetFolderId &&
-          itemToMove.label === clipboardItem.label // No name change essentially means pasting in same place
-        ) {
-          // If cutting and pasting into the same parent folder without a name change,
-          // it's effectively a no-op for structure, but we clear the clipboard.
+        const itemToMove = clipboardItem;
+        const parentInfo = findParentAndSiblings(tree, cutItemId);
+        const oldParentId = parentInfo.parent ? parentInfo.parent.id : null;
+
+        if (oldParentId === targetFolderId) {
           setClipboardItem(null);
           setClipboardMode(null);
           setCutItemId(null);
           return {
             success: true,
-            item: itemToMove, // Return the item that was "moved"
-            message: "Item 'pasted' in the same location. Clipboard cleared.",
+            message: "Item is already in the target location.",
           };
         }
 
         if (hasSiblingWithName(targetSiblings, itemToMove.label, null)) {
-          // excludeId should be null if it's a "new" item in the target
-          // If name conflict, do not proceed with cut-paste
           return {
             success: false,
             error: `An item named "${itemToMove.label}" already exists in the target folder. Cut operation cancelled.`,
           };
         }
 
-        // Optimistic client-side update for cut-paste
-        const now = new Date().toISOString();
-        itemToMove.updatedAt = now; // Client-side optimistic update
+        const newIndex = targetSiblings.length;
 
-        let tempTree = deleteItemRecursive(tree, cutItemId);
-        tempTree = insertItemRecursive(tempTree, targetFolderId, itemToMove);
-
-        // Update parent timestamps optimistically
-        const updateParentTimestamp = (nodes, parentIdToUpdate) => {
-          return nodes.map((node) => {
-            if (node.id === parentIdToUpdate) {
-              return { ...node, updatedAt: now };
-            }
-            if (node.children && Array.isArray(node.children)) {
-              return {
-                ...node,
-                children: updateParentTimestamp(
-                  node.children,
-                  parentIdToUpdate
-                ),
-              };
-            }
-            return node;
+        try {
+          const response = await authFetch(`/items/${cutItemId}/move`, {
+            method: "PATCH",
+            body: JSON.stringify({ newParentId: targetFolderId, newIndex }),
           });
-        };
-        if (targetFolderId) {
-          tempTree = updateParentTimestamp(tempTree, targetFolderId);
+
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(
+              data.error || `Server responded with ${response.status}`
+            );
+          }
+          const data = await response.json();
+
+          setClipboardItem(null);
+          setClipboardMode(null);
+          setCutItemId(null);
+
+          await fetchUserTree();
+
+          if (targetFolderId && settings.autoExpandNewFolders) {
+            expandFolderPath(targetFolderId);
+          }
+
+          return { success: true, item: data.data.movedItem };
+        } catch (err) {
+          console.error("Move (pasteItem) API error:", err);
+          await fetchUserTree(); // Resync state on failure
+          return {
+            success: false,
+            error: err.message || "A network error occurred during the move.",
+          };
         }
-        const oldParent = findParentAndSiblings(tree, cutItemId)?.parent;
-        if (oldParent?.id && oldParent.id !== targetFolderId) {
-          tempTree = updateParentTimestamp(tempTree, oldParent.id);
-        }
-
-        setTreeWithUndo(tempTree);
-
-        // Clear clipboard after cut-paste
-        const originalCutItem = clipboardItem; // Hold reference before clearing
-        setClipboardItem(null);
-        setClipboardMode(null);
-        setCutItemId(null);
-
-        if (targetFolderId && settings.autoExpandNewFolders)
-          expandFolderPath(targetFolderId);
-
-        return {
-          success: true,
-          item: originalCutItem, // Return the item that was conceptually moved
-          message:
-            "Item moved locally. Save tree to persist changes with server timestamps.",
-        };
       }
       return { success: false, error: "Invalid paste operation." };
     },
@@ -855,10 +773,10 @@ export const useTree = () => {
       clipboardItem,
       clipboardMode,
       cutItemId,
-      setTreeWithUndo,
       settings.autoExpandNewFolders,
       expandFolderPath,
-      addItem, // addItem is used for copy-paste
+      addItem,
+      fetchUserTree,
     ]
   );
 
@@ -895,7 +813,6 @@ export const useTree = () => {
           alert("Failed to export JSON.");
         }
       } else if (format === "pdf") {
-        // PDF export logic (placeholder)
         alert("PDF export is not yet fully implemented.");
       }
     },
@@ -913,17 +830,6 @@ export const useTree = () => {
         reader.onload = async (e) => {
           try {
             const importedRawData = JSON.parse(e.target.result);
-
-            // Remove manual token check
-            // const token = getAuthToken();
-            // if (!token) {
-            //     resolveOuter({
-            //         success: false,
-            //         error: "Authentication required to save imported data.",
-            //     });
-            //     return;
-            // }
-
             let processedTreeForServer;
 
             if (importTargetOption === "entire") {
@@ -934,7 +840,6 @@ export const useTree = () => {
               // ... rest of the logic for "selected" option
             }
 
-            // Use authFetch instead of manual fetch
             const response = await authFetch(`/items/tree`, {
               method: "PUT",
               body: JSON.stringify({ newTree: processedTreeForServer }),
@@ -951,7 +856,6 @@ export const useTree = () => {
               });
               return;
             }
-
             // ... rest of the function
           } catch (err) {
             console.error("Import processing error:", err);
@@ -1001,10 +905,10 @@ export const useTree = () => {
     [tree]
   );
 
-  window.fetchUserTree = fetchUserTreeInternal;
+  window.fetchUserTree = fetchUserTree;
 
   return {
-    fetchUserTree: fetchUserTreeInternal,
+    fetchUserTree,
     tree,
     selectedItem,
     selectedItemId,
