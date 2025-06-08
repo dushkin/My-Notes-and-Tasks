@@ -559,25 +559,28 @@ export const useTree = () => {
     [tree, addItem, settings.autoExpandNewFolders, expandFolderPath]
   );
 
+  // This function primarily updates client-side state.
+  // The actual persistence of the move (and timestamp updates)
+  // will happen when the entire tree is sent to the backend,
+  // likely via replaceUserTree, where the backend's
+  // ensureServerSideIdsAndStructure will update all `updatedAt` timestamps.
+  // For more granular server-side timestamp updates on move,
+  // a dedicated backend endpoint for moving items would be needed.
   const handleDrop = useCallback(
     async (targetFolderId, droppedItemId) => {
-      // This function primarily updates client-side state.
-      // The actual persistence of the move (and timestamp updates)
-      // will happen when the entire tree is sent to the backend,
-      // likely via replaceUserTree, where the backend's
-      // ensureServerSideIdsAndStructure will update all `updatedAt` timestamps.
-      // For more granular server-side timestamp updates on move,
-      // a dedicated backend endpoint for moving items would be needed.
-
       const currentDraggedId = droppedItemId || draggedId;
       setDraggedId(null);
       if (!currentDraggedId || targetFolderId === currentDraggedId)
         return { success: false, error: "Invalid drop." };
 
       const itemToDrop = findItemById(tree, currentDraggedId);
-      const targetFolder = findItemById(tree, targetFolderId);
-
-      if (!itemToDrop || !targetFolder || targetFolder.type !== "folder")
+      const targetFolder = targetFolderId
+        ? findItemById(tree, targetFolderId)
+        : null;
+      if (
+        !itemToDrop ||
+        (targetFolderId && (!targetFolder || targetFolder.type !== "folder"))
+      )
         return { success: false, error: "Invalid item or target folder." };
 
       if (
@@ -586,11 +589,11 @@ export const useTree = () => {
       ) {
         return {
           success: false,
-          error: "Cannot drop folder into itself or one ofits descendants.",
+          error: "Cannot drop folder into itself or one of its descendants.",
         };
       }
       if (
-        hasSiblingWithName(targetFolder.children || [], itemToDrop.label, null)
+        hasSiblingWithName(targetFolder?.children || [], itemToDrop.label, null)
       ) {
         return {
           success: false,
@@ -598,65 +601,74 @@ export const useTree = () => {
         };
       }
 
-      // Optimistically update client-side timestamps for immediate feedback
-      const now = new Date().toISOString();
-      const updatedItemToDrop = {
-        ...structuredClone(itemToDrop),
-        updatedAt: now,
-      };
+      // Determine new index position
+      const newIndex = targetFolderId
+        ? (targetFolder.children || []).length
+        : tree.length;
 
-      // Remove original, then insert copy with updated timestamp
+      // Optimistic local update
+      const now = new Date().toISOString();
+      const updatedItem = { ...itemToDrop, updatedAt: now };
+
       let newTreeState = deleteItemRecursive(tree, currentDraggedId);
       newTreeState = insertItemRecursive(
         newTreeState,
         targetFolderId,
-        updatedItemToDrop // Insert the copy which has the client-side updated timestamp
+        updatedItem
       );
 
-      // Update timestamp of parent folder(s) client-side as well
-      const updateParentTimestamp = (nodes, parentIdToUpdate) => {
-        return nodes.map((node) => {
-          if (node.id === parentIdToUpdate) {
-            return { ...node, updatedAt: now };
-          }
-          if (node.children && Array.isArray(node.children)) {
+      // Update parent timestamps locally
+      const updateParentTimestamps = (nodes, parentId) =>
+        nodes.map((n) => {
+          if (n.id === parentId) return { ...n, updatedAt: now };
+          if (n.children) {
             return {
-              ...node,
-              children: updateParentTimestamp(node.children, parentIdToUpdate),
+              ...n,
+              children: updateParentTimestamps(n.children, parentId),
             };
           }
-          return node;
+          return n;
         });
-      };
 
-      if (targetFolderId) {
-        newTreeState = updateParentTimestamp(newTreeState, targetFolderId);
-      }
+      if (targetFolderId)
+        newTreeState = updateParentTimestamps(newTreeState, targetFolderId);
       const oldParent = findParentAndSiblings(tree, currentDraggedId)?.parent;
       if (oldParent?.id && oldParent.id !== targetFolderId) {
-        newTreeState = updateParentTimestamp(newTreeState, oldParent.id);
+        newTreeState = updateParentTimestamps(newTreeState, oldParent.id);
       }
 
-      if (newTreeState) {
-        setTreeWithUndo(newTreeState);
-        if (settings.autoExpandNewFolders && targetFolderId) {
-          setTimeout(() => expandFolderPath(targetFolderId), 0);
-        }
-        return {
-          success: true,
-          message:
-            "Item moved locally. Save tree to persist changes with server timestamps.",
-        };
+      setTreeWithUndo(newTreeState);
+
+      // Call the new moveItem API endpoint
+      try {
+        const res = await authFetch(`/items/${currentDraggedId}/move`, {
+          method: "PATCH",
+          body: JSON.stringify({ newParentId: targetFolderId, newIndex }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        // Optionally reconcile timestamps from server
+        const movedItem = data.data.movedItem;
+        // Update moved item and parent timestamps in local tree
+        const reconcile = (nodes) =>
+          nodes.map((n) => {
+            if (n.id === movedItem.id)
+              return { ...n, updatedAt: movedItem.updatedAt };
+            if (n.children) {
+              return { ...n, children: reconcile(n.children) };
+            }
+            return n;
+          });
+        setTreeWithUndo(reconcile(newTreeState));
+      } catch (err) {
+        console.error("Move API error:", err);
+        // Fallback: refresh full tree
+        fetchUserTree();
       }
-      return { success: false, error: "Local drop simulation failed." };
+
+      return { success: true };
     },
-    [
-      tree,
-      draggedId,
-      setTreeWithUndo,
-      settings.autoExpandNewFolders,
-      expandFolderPath,
-    ]
+    [tree, draggedId, setTreeWithUndo, fetchUserTree]
   );
 
   const copyItem = useCallback(
