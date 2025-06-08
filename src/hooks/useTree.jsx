@@ -115,7 +115,7 @@ export const useTree = () => {
   const fetchUserTree = useCallback(async () => {
     setIsFetchingTree(true);
     try {
-      const response = await authFetch(`/items/tree`);
+      const response = await authFetch(`/items`);
       if (!response.ok) {
         const errorData = await response
           .json()
