@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.11.0",
-  "commitMessage": "Timestamps when cuto paste is determind on be only",
+  "version": "4.11.1",
+  "commitMessage": "Tree fetch fixed",
   "private": true,
   "scripts": {
     "dev": "vite",
