@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.12.1",
-  "commitMessage": "Fixed 3 dots menu and synched popup icons",
+  "version": "4.12.2",
+  "commitMessage": "Fixed Add root folder bug",
   "private": true,
   "scripts": {
     "dev": "vite",
