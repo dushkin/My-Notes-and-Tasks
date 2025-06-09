@@ -77,14 +77,23 @@ function htmlToPlainTextWithNewlines(html) {
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose }) => {
-  if (!message) return null;
+  // Hooks must be called at the top level on every render.
   useEffect(() => {
-    const timer = setTimeout(() => onClose(), 5000);
-    return () => clearTimeout(timer);
+    // Conditional logic can exist *inside* the hook.
+    if (message) {
+      const timer = setTimeout(() => onClose(), 5000);
+      return () => clearTimeout(timer);
+    }
   }, [message, onClose]);
+
+  // Conditional rendering happens *after* all hooks have been called.
+  if (!message) {
+    return null;
+  }
+
   const baseClasses =
     "fixed top-3 right-3 left-3 md:left-auto md:max-w-lg z-[100] px-4 py-3 rounded-lg shadow-xl flex justify-between items-center text-sm transition-all duration-300 ease-in-out";
-  let typeClasses =
+  const typeClasses =
     type === "success"
       ? "bg-green-100 dark:bg-green-800/80 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-200"
       : type === "info"
@@ -96,6 +105,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       : type === "info"
       ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
+
   return (
     <div
       data-item-id="error-display-message"

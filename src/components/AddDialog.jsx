@@ -1,4 +1,3 @@
-// src/components/AddDialog.jsx
 import React, { useEffect, useState } from "react";
 import LoadingButton from "./LoadingButton";
 
@@ -11,17 +10,17 @@ const AddDialog = ({
   onCancel,
   errorMessage,
 }) => {
+  // --- All hooks must be called at the top level, unconditionally. ---
   const [isLoading, setIsLoading] = useState(false);
-
-  if (!isOpen) return null;
-
   const inputRef = React.useRef(null);
 
   useEffect(() => {
+    // It's okay to have conditional logic *inside* a hook.
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
+  // --- End of hooks section ---
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,6 +32,12 @@ const AddDialog = ({
     }
   };
 
+  // This conditional return is now placed *after* all hook calls, which is correct.
+  if (!isOpen) {
+    return null;
+  }
+
+  // The JSX is returned only when isOpen is true.
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-96">
