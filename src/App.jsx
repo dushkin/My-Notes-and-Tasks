@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Tree from "./components/Tree";
 import FolderContents from "./components/FolderContents";
@@ -28,8 +27,10 @@ import {
   Undo,
   Redo,
   LogOut,
-  FileJson,
   UserCircle2,
+  Download,
+  Upload,
+  Plus,
 } from "lucide-react";
 import SearchResultsPane from "./components/SearchResultsPane";
 import { matchText } from "./utils/searchUtils";
@@ -1209,6 +1210,8 @@ const App = () => {
       />
     );
 
+  const iconBaseClass = "w-4 h-4 mr-2";
+
   return (
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <ErrorDisplay
@@ -1319,7 +1322,7 @@ const App = () => {
             <div className="relative" ref={topMenuRef}>
               <LoadingButton
                 onClick={() => {
-                  setTopMenuオープン((p) => !p);
+                  setTopMenuOpen((p) => !p);
                   setAccountMenuOpen(false);
                 }}
                 className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
@@ -1331,51 +1334,43 @@ const App = () => {
               </LoadingButton>
               {topMenuOpen && (
                 <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
-                  <LoadingButton
+                  <button
                     onClick={() => {
                       openAddDialog("folder", null);
                       setTopMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    variant="secondary"
-                    size="small"
                   >
-                    <FileJson className="w-4 h-4 opacity-70" /> Add Root Folder
-                  </LoadingButton>
-                  <LoadingButton
+                    <Plus className={`${iconBaseClass} text-purple-500 dark:text-purple-400`} /> Add Root Folder
+                  </button>
+                  <button
                     onClick={() => {
                       openExportDialog("tree");
                       setTopMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    variant="secondary"
-                    size="small"
                   >
-                    <FileJson className="w-4 h-4 opacity-70" /> Export Full Tree...
-                  </LoadingButton>
-                  <LoadingButton
+                    <Download className={`${iconBaseClass} text-teal-500 dark:text-teal-400`} /> Export Full Tree...
+                  </button>
+                  <button
                     onClick={() => {
                       openImportDialog("tree");
                       setTopMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    variant="secondary"
-                    size="small"
                   >
-                    <FileJson className="w-4 h-4 opacity-70" /> Import Full Tree...
-                  </LoadingButton>
+                    <Upload className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`} /> Import Full Tree...
+                  </button>
                   <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
-                  <LoadingButton
+                  <button
                     onClick={() => {
                       setAboutDialogOpen(true);
                       setTopMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    variant="secondary"
-                    size="small"
                   >
-                    <Info className="w-4 h-4 opacity-70" /> About
-                  </LoadingButton>
+                    <Info className={`${iconBaseClass} text-blue-500 dark:text-blue-400`} /> About
+                  </button>
                 </div>
               )}
             </div>

@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.12.0",
-  "commitMessage": "First version of readme.md",
+  "version": "4.12.1",
+  "commitMessage": "Fixed 3 dots menu and synched popup icons",
   "private": true,
   "scripts": {
     "dev": "vite",
