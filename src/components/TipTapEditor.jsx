@@ -129,6 +129,7 @@ const TipTapEditor = ({
 }) => {
   const [editorDir, setEditorDir] = useState(initialDirection || "ltr");
   const contentSetRef = useRef(false);
+  const isInitializedRef = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -211,30 +212,47 @@ const TipTapEditor = ({
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
 
-    content: content,
+    content: content || "",
+    
     onUpdate: ({ editor: currentEditor }) => {
-      if (onUpdate) {
-        onUpdate(currentEditor.getHTML(), editorDir);
+      if (onUpdate && isInitializedRef.current) {
+        const newContent = currentEditor.getHTML();
+        console.log('[TipTapEditor] Content updated via onUpdate:', {
+          contentLength: newContent?.length,
+          direction: editorDir
+        });
+        onUpdate(newContent, editorDir);
       }
     },
+    
     onFocus: () => {
+      console.log('[TipTapEditor] Editor gained focus');
       if (onFocus) {
         onFocus();
       }
     },
+    
     onBlur: () => {
+      console.log('[TipTapEditor] Editor lost focus');
       if (onBlur) {
         onBlur();
       }
     },
+    
     editorProps: {
       attributes: {
         class:
           "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",
         dir: editorDir,
       },
-      handlePaste: async function (view, event, slice) {
+      
+      // Handle regular text paste - this is crucial for basic paste functionality
+      handlePaste: (view, event, slice) => {
+        console.log('[TipTapEditor] handlePaste triggered');
+        
         const items = event.clipboardData?.items;
+        
+        // Handle image paste first
         if (items) {
           for (let i = 0; i < items.length; i++) {
             const clipboardItem = items[i];
@@ -243,89 +261,63 @@ const TipTapEditor = ({
               clipboardItem.kind === "file"
             ) {
               event.preventDefault();
+              console.log('[TipTapEditor] Image paste detected');
               const file = clipboardItem.getAsFile();
               if (file) {
-                try {
-                  const url = await uploadImageToServer(file);
-                  if (url && view.editable) {
-                    const img = new window.Image();
-                    img.onload = () => {
-                      const { naturalWidth } = img;
-                      const { schema } = view.state;
-                      const imageNode = schema.nodes.resizableImage.create({
-                        src: url,
-                        width: `${naturalWidth}px`,
-                      });
-                      const newTr =
-                        view.state.tr.replaceSelectionWith(imageNode);
-                      const spaceNode = schema.text(" ");
-                      newTr.insert(
-                        newTr.selection.from + imageNode.nodeSize,
-                        spaceNode
-                      );
-                      view.dispatch(newTr);
-                      view.focus();
-                    };
-                    img.onerror = () => {
-                      const { schema } = view.state;
-                      const imageNode = schema.nodes.resizableImage.create({
-                        src: url,
-                        width: "300px",
-                      });
-                      const newTr =
-                        view.state.tr.replaceSelectionWith(imageNode);
-                      const spaceNode = schema.text(" ");
-                      newTr.insert(
-                        newTr.selection.from + imageNode.nodeSize,
-                        spaceNode
-                      );
-                      view.dispatch(newTr);
-                      view.focus();
-                    };
-                    img.src = url;
-                  }
-                } catch (err) {
-                  console.error("[TipTap] Error processing pasted image:", err);
-                }
+                handleImageUpload(file, view);
               }
               return true;
             }
           }
         }
 
+        // Handle text paste
         const text = event.clipboardData?.getData("text/plain");
         const html = event.clipboardData?.getData("text/html");
+        
+        console.log('[TipTapEditor] Text paste detected:', {
+          hasText: !!text,
+          hasHTML: !!html,
+          textLength: text?.length,
+          htmlLength: html?.length
+        });
+
+        // Check for markdown patterns
         const commonMarkdownPatterns =
           /^(?:#+\s|\*\s|-\s|>\s|```|\[.*\]\(.*\)|`[^`]+`|\d+\.\s)/m;
-        if (
-          html &&
-          text &&
-          !commonMarkdownPatterns.test(text.substring(0, 250))
-        ) {
-          return false;
+        
+        // If we have HTML and it's not likely markdown, let the default handler process it
+        if (html && text && !commonMarkdownPatterns.test(text.substring(0, 250))) {
+          console.log('[TipTapEditor] Using default HTML paste handling');
+          return false; // Let TipTap handle the HTML paste
         }
 
-        if (text) {
+        // Handle markdown conversion
+        if (text && commonMarkdownPatterns.test(text)) {
           try {
-            if (commonMarkdownPatterns.test(text)) {
-              const renderer = new marked.Renderer();
-              renderer.image = () => "";
-              const markdownHtml = marked.parse(text.trim(), { renderer });
-              const tempDiv = document.createElement("div");
-              tempDiv.innerHTML = markdownHtml;
-              const prosemirrorSlice = DOMParser.fromSchema(
-                view.state.schema
-              ).parseSlice(tempDiv, {});
-              view.dispatch(view.state.tr.replaceSelection(prosemirrorSlice));
-              return true;
-            }
+            console.log('[TipTapEditor] Converting markdown to HTML');
+            const renderer = new marked.Renderer();
+            renderer.image = () => ""; // Remove images from markdown conversion
+            const markdownHtml = marked.parse(text.trim(), { renderer });
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = markdownHtml;
+            const prosemirrorSlice = DOMParser.fromSchema(
+              view.state.schema
+            ).parseSlice(tempDiv, {});
+            view.dispatch(view.state.tr.replaceSelection(prosemirrorSlice));
+            return true;
           } catch (e) {
-            console.error("Error parsing pasted markdown in handlePaste", e);
+            console.error("Error parsing pasted markdown:", e);
+            // Fall back to default handling
             return false;
           }
         }
+
+        // For regular text, let TipTap handle it normally
+        console.log('[TipTapEditor] Using default text paste handling');
         return false;
       },
+
       handleDrop: async function (view, event, slice, moved) {
         if (
           !moved &&
@@ -336,48 +328,8 @@ const TipTapEditor = ({
           const file = event.dataTransfer.files[0];
           if (file.type.startsWith("image/")) {
             event.preventDefault();
-            try {
-              const url = await uploadImageToServer(file);
-              if (url && view.editable) {
-                const img = new window.Image();
-                img.onload = () => {
-                  const { naturalWidth } = img;
-                  const { schema } = view.state;
-                  const coordinates = view.posAtCoords({
-                    left: event.clientX,
-                    top: event.clientY,
-                  });
-                  if (coordinates) {
-                    const imageNode = schema.nodes.resizableImage.create({
-                      src: url,
-                      width: `${naturalWidth}px`,
-                    });
-                    const tr = view.state.tr.insert(coordinates.pos, imageNode);
-                    view.dispatch(tr);
-                    view.focus();
-                  }
-                };
-                img.onerror = () => {
-                  const { schema } = view.state;
-                  const coordinates = view.posAtCoords({
-                    left: event.clientX,
-                    top: event.clientY,
-                  });
-                  if (coordinates) {
-                    const imageNode = schema.nodes.resizableImage.create({
-                      src: url,
-                      width: "300px",
-                    });
-                    const tr = view.state.tr.insert(coordinates.pos, imageNode);
-                    view.dispatch(tr);
-                    view.focus();
-                  }
-                };
-                img.src = url;
-              }
-            } catch (err) {
-              console.error("[TipTap] Error processing dropped image:", err);
-            }
+            console.log('[TipTapEditor] Image drop detected');
+            await handleImageUpload(file, view, event);
             return true;
           }
         }
@@ -386,6 +338,100 @@ const TipTapEditor = ({
     },
   });
 
+  // Helper function to handle image uploads
+  const handleImageUpload = async (file, view, event = null) => {
+    try {
+      const url = await uploadImageToServer(file);
+      if (url && view && view.editable) {
+        const img = new window.Image();
+        
+        img.onload = () => {
+          const { naturalWidth } = img;
+          const { schema } = view.state;
+          
+          let insertPos;
+          if (event) {
+            // For drag and drop, use the drop position
+            const coordinates = view.posAtCoords({
+              left: event.clientX,
+              top: event.clientY,
+            });
+            insertPos = coordinates?.pos;
+          } else {
+            // For paste, use current selection
+            insertPos = view.state.selection.from;
+          }
+          
+          if (insertPos !== undefined) {
+            const imageNode = schema.nodes.resizableImage.create({
+              src: url,
+              width: `${naturalWidth}px`,
+            });
+            
+            const tr = view.state.tr.insert(insertPos, imageNode);
+            const spaceNode = schema.text(" ");
+            tr.insert(insertPos + imageNode.nodeSize, spaceNode);
+            view.dispatch(tr);
+            view.focus();
+          }
+        };
+        
+        img.onerror = () => {
+          const { schema } = view.state;
+          let insertPos;
+          
+          if (event) {
+            const coordinates = view.posAtCoords({
+              left: event.clientX,
+              top: event.clientY,
+            });
+            insertPos = coordinates?.pos;
+          } else {
+            insertPos = view.state.selection.from;
+          }
+          
+          if (insertPos !== undefined) {
+            const imageNode = schema.nodes.resizableImage.create({
+              src: url,
+              width: "300px",
+            });
+            const tr = view.state.tr.insert(insertPos, imageNode);
+            const spaceNode = schema.text(" ");
+            tr.insert(insertPos + imageNode.nodeSize, spaceNode);
+            view.dispatch(tr);
+            view.focus();
+          }
+        };
+        
+        img.src = url;
+      }
+    } catch (err) {
+      console.error("[TipTap] Error processing image:", err);
+    }
+  };
+
+  // Set initial content when editor is ready
+  useEffect(() => {
+    if (editor && !contentSetRef.current) {
+      console.log("[TipTapEditor] Setting initial content", {
+        contentLength: content?.length,
+        content: content?.substring(0, 100) + (content?.length > 100 ? "..." : "")
+      });
+      
+      if (content !== editor.getHTML()) {
+        editor.commands.setContent(content || "", false);
+      }
+      contentSetRef.current = true;
+      
+      // Mark as initialized after content is set
+      setTimeout(() => {
+        isInitializedRef.current = true;
+        console.log('[TipTapEditor] Editor fully initialized');
+      }, 100);
+    }
+  }, [content, editor]);
+
+  // Handle direction changes
   useEffect(() => {
     if (
       editor &&
@@ -397,24 +443,11 @@ const TipTapEditor = ({
     }
   }, [initialDirection, editor]);
 
+  // Reset content flag when content prop changes (item switch)
   useEffect(() => {
-    if (editor && !contentSetRef.current) {
-      console.log("[TipTapEditor] Setting initial content", {
-        contentLength: content?.length,
-      });
-      // Only set content once when editor is first created
-      const currentEditorHTML = editor.getHTML();
-      if (currentEditorHTML !== content) {
-        editor.commands.setContent(content, false);
-        contentSetRef.current = true;
-      }
-    }
-  }, [content, editor]);
-
-  // Reset the content flag when content prop changes (item switch)
-  useEffect(() => {
-    console.log("[TipTapEditor] Content prop changed, resetting content flag");
+    console.log("[TipTapEditor] Content prop changed, resetting flags");
     contentSetRef.current = false;
+    isInitializedRef.current = false;
   }, [content]);
 
   const toggleEditorDirection = useCallback(() => {
@@ -422,7 +455,7 @@ const TipTapEditor = ({
     const newDir = editorDir === "ltr" ? "rtl" : "ltr";
     setEditorDir(newDir);
     editor.view.dom.setAttribute("dir", newDir);
-    if (onUpdate) {
+    if (onUpdate && isInitializedRef.current) {
       onUpdate(editor.getHTML(), newDir);
     }
   }, [editor, editorDir, onUpdate]);
@@ -435,32 +468,7 @@ const TipTapEditor = ({
     input.onchange = async () => {
       if (input.files && input.files.length) {
         const file = input.files[0];
-        const url = await uploadImageToServer(file);
-        if (url) {
-          const img = new window.Image();
-          img.onload = () => {
-            const { naturalWidth } = img;
-            editor
-              .chain()
-              .focus()
-              .insertContent({
-                type: "resizableImage",
-                attrs: { src: url, width: `${naturalWidth}px` },
-              })
-              .run();
-          };
-          img.onerror = () => {
-            editor
-              .chain()
-              .focus()
-              .insertContent({
-                type: "resizableImage",
-                attrs: { src: url, width: "300px" },
-              })
-              .run();
-          };
-          img.src = url;
-        }
+        await handleImageUpload(file, editor.view);
       }
     };
     input.click();
