@@ -406,12 +406,9 @@ export default function SettingsDialog({ isOpen, onClose }) {
                                   finalDisabledState ? "opacity-60" : ""
                                 }`}
                               >
-                                <label
-                                  htmlFor={subSetting.id}
-                                  className="font-medium block"
-                                >
+                                <div className="font-medium block">
                                   {subSetting.label}
-                                </label>
+                                </div>
                                 {subSetting.desc && (
                                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
                                     {subSetting.desc}
@@ -439,8 +436,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
                       className="flex flex-col sm:flex-row sm:items-start sm:justify-between pb-4 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
                     >
                       <div className="mb-2 sm:mb-0 sm:mr-4 flex-1">
-                        <label
-                          htmlFor={s.id}
+                        <div
                           className={`font-medium block ${
                             s.id === "resetData"
                               ? "text-red-600 dark:text-red-400"
@@ -448,7 +444,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
                           }`}
                         >
                           {s.label}
-                        </label>
+                        </div>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
                           {s.desc}
                         </p>
