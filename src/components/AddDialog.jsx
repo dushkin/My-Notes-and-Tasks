@@ -14,9 +14,6 @@ const AddDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = React.useRef(null);
 
-  // Debug log to see if errorMessage is being received
-  console.log('[DEBUG AddDialog] Component rendered with errorMessage:', errorMessage);
-
   useEffect(() => {
     // It's okay to have conditional logic *inside* a hook.
     if (isOpen && inputRef.current) {
@@ -51,15 +48,19 @@ const AddDialog = ({
             type="text"
             value={newItemLabel}
             onChange={onLabelChange}
-            className={`border p-2 rounded w-full mb-2 text-gray-900 dark:text-gray ${errorMessage ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+            className={`border p-2 rounded w-full mb-2 text-gray-900 dark:text-gray ${
+              errorMessage
+                ? "border-red-500"
+                : "border-gray-300 dark:border-gray-600"
+            }`}
             placeholder={`Enter ${newItemType} name`}
             aria-invalid={!!errorMessage}
             aria-describedby={errorMessage ? "add-error-message" : undefined}
             disabled={isLoading}
+            maxLength={255}
           />
           {errorMessage && (
             <p id="add-error-message" className="text-red-600 text-sm mb-2">
-              {console.log('[DEBUG AddDialog] Rendering error message:', errorMessage)}
               {errorMessage}
             </p>
           )}

@@ -442,34 +442,53 @@ const App = () => {
   );
 
   const handleAttemptRename = useCallback(async () => {
-    if (!inlineRenameId) return;
-    const newLabel = inlineRenameValue.trim();
-    const originalItem = findItemByIdFromTree(inlineRenameId);
+  if (!inlineRenameId) return;
+  const newLabel = inlineRenameValue.trim();
+  const originalItem = findItemByIdFromTree(inlineRenameId);
 
-    if (!newLabel) {
-      showMessage("Name cannot be empty.", "error");
-      return;
-    }
-    if (newLabel === originalItem?.label) {
-      cancelInlineRename();
-      return;
-    }
+  if (!newLabel) {
+    showMessage("Name cannot be empty.", "error");
+    return;
+  }
+  if (newLabel === originalItem?.label) {
+    cancelInlineRename();
+    return;
+  }
 
-    const result = await renameItem(inlineRenameId, newLabel);
-    if (result.success) {
-      cancelInlineRename();
-      showMessage("Item renamed successfully.", "success", 3000);
+  const result = await renameItem(inlineRenameId, newLabel);
+  if (result.success) {
+    cancelInlineRename();
+    showMessage("Item renamed successfully.", "success", 3000);
+  } else {
+    // Check if this is a validation error vs network error
+    const isNetworkOrServerError = result.error && (
+      result.error.includes("Network error") ||
+      result.error.includes("network error") ||
+      result.error.includes("Server error") ||
+      result.error.includes("500") ||
+      result.error.includes("timeout") ||
+      result.error.includes("fetch") ||
+      result.error.includes("Failed to") // Generic server failures
+    );
+    
+    if (isNetworkOrServerError) {
+      // Show network errors as global messages
+      showMessage(result.error || "Rename failed.", "error");
     } else {
+      // Show validation errors inline (they'll appear in the Tree component)
+      // The Tree component should handle displaying validation errors in the input field
+      // For now, we'll show them as global messages too, but we could enhance this
       showMessage(result.error || "Rename failed.", "error");
     }
-  }, [
-    inlineRenameId,
-    inlineRenameValue,
-    renameItem,
-    cancelInlineRename,
-    findItemByIdFromTree,
-    showMessage,
-  ]);
+  }
+}, [
+  inlineRenameId,
+  inlineRenameValue,
+  renameItem,
+  cancelInlineRename,
+  findItemByIdFromTree,
+  showMessage,
+]);
 
   const openAddDialog = useCallback(
     (type, parent) => {
