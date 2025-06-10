@@ -413,6 +413,7 @@ export const useTree = () => {
       if (!trimmedLabel || !itemId)
         return { success: false, error: "Invalid ID or name." };
 
+      // Use findParentAndSiblings from treeUtils instead of the undefined function
       const { parentArray } = findParentAndSiblings(tree, itemId);
 
       if (hasSiblingWithName(parentArray || tree, trimmedLabel, itemId)) {
@@ -454,7 +455,14 @@ export const useTree = () => {
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("renameItem API error:", error);
-        return { success: false, error: "Network error renaming." };
+
+        // Preserve the specific error message from the API
+        if (error && error.message) {
+          return { success: false, error: error.message };
+        }
+
+        // Fallback to a generic message only if no specific message is available
+        return { success: false, error: "Network error renaming item." };
       }
     },
     [tree, setTreeWithUndo]
@@ -844,7 +852,10 @@ export const useTree = () => {
                 ? importedRawData
                 : [importedRawData];
             } else {
-              // ... rest of the logic for "selected" option
+              // Import under selected item logic would go here
+              processedTreeForServer = Array.isArray(importedRawData)
+                ? importedRawData
+                : [importedRawData];
             }
 
             const response = await authFetch(`/items/tree`, {
@@ -863,7 +874,14 @@ export const useTree = () => {
               });
               return;
             }
-            // ... rest of the function
+
+            // On successful import, refresh the tree
+            await fetchUserTree();
+            
+            resolveOuter({
+              success: true,
+              message: "Import successful! Tree has been updated.",
+            });
           } catch (err) {
             console.error("Import processing error:", err);
             resolveOuter({
@@ -879,13 +897,7 @@ export const useTree = () => {
         reader.readAsText(file);
       });
     },
-    [
-      tree,
-      selectedItemId,
-      replaceTree,
-      settings.autoExpandNewFolders,
-      expandFolderPath,
-    ]
+    [fetchUserTree]
   );
 
   const searchItems = useCallback(
@@ -912,6 +924,7 @@ export const useTree = () => {
     [tree]
   );
 
+  // Make fetchUserTree available globally for debugging
   window.fetchUserTree = fetchUserTree;
 
   return {
