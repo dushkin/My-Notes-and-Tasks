@@ -223,7 +223,9 @@ const App = () => {
       title: options.title || "Confirm",
       message: options.message || "Are you sure?",
       onConfirm: options.onConfirm || (() => {}),
-      onCancel: options.onCancel || (() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))),
+      onCancel:
+        options.onCancel ||
+        (() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))),
       variant: options.variant || "default",
       confirmText: options.confirmText || "Confirm",
       cancelText: options.cancelText || "Cancel",
@@ -484,13 +486,18 @@ const App = () => {
   );
 
   const handleAdd = useCallback(async () => {
+    console.log("[DEBUG handleAdd] Starting handleAdd function");
+
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
+      console.log("[DEBUG handleAdd] Empty label, setting error message");
       setAddDialogErrorMessage("Name cannot be empty.");
       return;
     }
 
     const parentId = parentItemForAdd?.id ?? null;
+    console.log("[DEBUG handleAdd] Parent ID:", parentId);
+
     const { siblings: targetSiblings } = findParentAndSiblingsFromTree(
       parentId ? parentItemForAdd.id : null
     );
@@ -500,6 +507,7 @@ const App = () => {
         (sibling) => sibling.label.toLowerCase() === trimmedLabel.toLowerCase()
       )
     ) {
+      console.log("[DEBUG handleAdd] Client-side duplicate check failed");
       setAddDialogErrorMessage(
         `An item named "${trimmedLabel}" already exists here.`
       );
@@ -515,8 +523,23 @@ const App = () => {
       direction:
         newItemType === "note" || newItemType === "task" ? "ltr" : undefined,
     };
+
+    console.log(
+      "[DEBUG handleAdd] About to call addItem with:",
+      newItemData,
+      "parentId:",
+      parentId
+    );
+
+    // Clear any existing error message before attempting to add
+    setAddDialogErrorMessage("");
+
     const result = await addItem(newItemData, parentId);
+
+    console.log("[DEBUG handleAdd] addItem result:", result);
+
     if (result.success) {
+      console.log("[DEBUG handleAdd] Success path");
       setAddDialogOpen(false);
       setNewItemLabel("");
       setParentItemForAdd(null);
@@ -536,14 +559,35 @@ const App = () => {
         }
       }
     } else {
-      if (
+      console.log("[DEBUG handleAdd] Error path, result.error:", result.error);
+
+      // Always show validation errors (like name conflicts) in the dialog
+      // Only show network/server errors as global messages
+      const isNetworkOrServerError =
         result.error &&
         (result.error.includes("Network error") ||
-          result.error.includes("Failed to add item"))
-      ) {
+          result.error.includes("network error") ||
+          result.error.includes("Failed to add item") ||
+          result.error.includes("Server error") ||
+          result.error.includes("500") ||
+          result.error.includes("timeout") ||
+          result.error.includes("fetch"));
+
+      console.log(
+        "[DEBUG handleAdd] isNetworkOrServerError:",
+        isNetworkOrServerError
+      );
+
+      if (isNetworkOrServerError) {
+        console.log("[DEBUG handleAdd] Showing as global message");
         showMessage(result.error, "error");
         setAddDialogErrorMessage("");
       } else {
+        console.log(
+          "[DEBUG handleAdd] Setting dialog error message:",
+          result.error
+        );
+        // Show validation errors (like name conflicts) in the dialog
         setAddDialogErrorMessage(result.error || "Add operation failed.");
       }
     }
@@ -984,9 +1028,10 @@ const App = () => {
               confirmText: "Delete",
               onConfirm: () => {
                 handleDeleteConfirm(selectedItemId);
-                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
               },
-              onCancel: () => setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+              onCancel: () =>
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false })),
             });
           }
         }
@@ -1197,13 +1242,8 @@ const App = () => {
   };
 
   if (!isAuthCheckComplete)
-    return (
-      <LoadingSpinner 
-        variant="overlay" 
-        text="Loading application..." 
-      />
-    );
-    
+    return <LoadingSpinner variant="overlay" text="Loading application..." />;
+
   if (currentView === "login")
     return (
       <Login
@@ -1211,7 +1251,7 @@ const App = () => {
         onSwitchToRegister={() => setCurrentView("register")}
       />
     );
-    
+
   if (currentView === "register")
     return (
       <Register
@@ -1229,14 +1269,14 @@ const App = () => {
         type={uiMessageType}
         onClose={() => setUiMessage("")}
       />
-      
+
       {isFetchingTree && (
-        <LoadingSpinner 
-          variant="overlay" 
-          text="Loading your notes and tasks..." 
+        <LoadingSpinner
+          variant="overlay"
+          text="Loading your notes and tasks..."
         />
       )}
-      
+
       <header
         className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
       >
@@ -1351,7 +1391,10 @@ const App = () => {
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                   >
-                    <Plus className={`${iconBaseClass} text-purple-500 dark:text-purple-400`} /> Add Root Folder
+                    <Plus
+                      className={`${iconBaseClass} text-purple-500 dark:text-purple-400`}
+                    />{" "}
+                    Add Root Folder
                   </button>
                   <button
                     onClick={() => {
@@ -1360,7 +1403,10 @@ const App = () => {
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                   >
-                    <Download className={`${iconBaseClass} text-teal-500 dark:text-teal-400`} /> Export Full Tree...
+                    <Download
+                      className={`${iconBaseClass} text-teal-500 dark:text-teal-400`}
+                    />{" "}
+                    Export Full Tree...
                   </button>
                   <button
                     onClick={() => {
@@ -1369,7 +1415,10 @@ const App = () => {
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                   >
-                    <Upload className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`} /> Import Full Tree...
+                    <Upload
+                      className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`}
+                    />{" "}
+                    Import Full Tree...
                   </button>
                   <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
                   <button
@@ -1379,7 +1428,10 @@ const App = () => {
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                   >
-                    <Info className={`${iconBaseClass} text-blue-500 dark:text-blue-400`} /> About
+                    <Info
+                      className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
+                    />{" "}
+                    About
                   </button>
                 </div>
               )}
@@ -1387,7 +1439,7 @@ const App = () => {
           </div>
         </div>
       </header>
-      
+
       <main className={`flex-1 flex min-h-0 pt-14 sm:pt-12`}>
         <PanelGroup direction="horizontal" className="flex-1">
           <Panel
@@ -1497,7 +1549,7 @@ const App = () => {
           </Panel>
         </PanelGroup>
       </main>
-      
+
       <Sheet
         isOpen={searchSheetOpen}
         onClose={() => setSearchSheetOpen(false)}
@@ -1545,7 +1597,7 @@ const App = () => {
         </Sheet.Container>
         <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} />
       </Sheet>
-      
+
       {contextMenu.visible && (
         <ContextMenu
           visible={contextMenu.visible}
@@ -1576,12 +1628,12 @@ const App = () => {
                 confirmText: "Delete",
                 onConfirm: () => {
                   handleDeleteConfirm(contextMenu.item.id);
-                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
                 },
                 onCancel: () => {
                   setContextMenu((m) => ({ ...m, visible: false }));
-                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                }
+                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                },
               });
             } else {
               setContextMenu((m) => ({ ...m, visible: false }));
@@ -1620,7 +1672,7 @@ const App = () => {
           onImportTree={() => openImportDialog("tree")}
         />
       )}
-      
+
       <AddDialog
         isOpen={addDialogOpen}
         newItemType={newItemType}
@@ -1637,12 +1689,12 @@ const App = () => {
           showMessage("", "error");
         }}
       />
-      
+
       <AboutDialog
         isOpen={aboutDialogOpen}
         onClose={() => setAboutDialogOpen(false)}
       />
-      
+
       <ExportDialog
         isOpen={exportDialogState.isOpen}
         context={exportDialogState.context}
@@ -1650,7 +1702,7 @@ const App = () => {
         onClose={() => setExportDialogState({ isOpen: false, context: null })}
         onExport={handleExport}
       />
-      
+
       <ImportDialog
         isOpen={importDialogState.isOpen}
         context={importDialogState.context}
@@ -1661,12 +1713,12 @@ const App = () => {
         }}
         onImport={handleFileImport}
       />
-      
+
       <SettingsDialog
         isOpen={settingsDialogOpen}
         onClose={() => setSettingsDialogOpen(false)}
       />
-      
+
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}
@@ -1677,12 +1729,9 @@ const App = () => {
         onConfirm={confirmDialog.onConfirm}
         onCancel={confirmDialog.onCancel}
       />
-      
+
       {isDuplicating && (
-        <LoadingSpinner 
-          variant="overlay" 
-          text="Duplicating item..." 
-        />
+        <LoadingSpinner variant="overlay" text="Duplicating item..." />
       )}
     </div>
   );

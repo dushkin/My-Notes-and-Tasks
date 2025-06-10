@@ -14,6 +14,9 @@ const AddDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = React.useRef(null);
 
+  // Debug log to see if errorMessage is being received
+  console.log('[DEBUG AddDialog] Component rendered with errorMessage:', errorMessage);
+
   useEffect(() => {
     // It's okay to have conditional logic *inside* a hook.
     if (isOpen && inputRef.current) {
@@ -55,7 +58,10 @@ const AddDialog = ({
             disabled={isLoading}
           />
           {errorMessage && (
-            <p id="add-error-message" className="text-red-600 text-sm mb-2">{errorMessage}</p>
+            <p id="add-error-message" className="text-red-600 text-sm mb-2">
+              {console.log('[DEBUG AddDialog] Rendering error message:', errorMessage)}
+              {errorMessage}
+            </p>
           )}
           <div className="mt-4 flex justify-end space-x-2">
             <button
