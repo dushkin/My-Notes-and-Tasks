@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.13.1",
-  "commitMessage": "Fixed image related bug",
+  "version": "4.13.2",
+  "commitMessage": "Fixed settings dialog anomaly",
   "private": true,
   "scripts": {
     "dev": "vite",
