@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.12.2",
-  "commitMessage": "Fixed Add root folder bug",
+  "version": "4.12.3",
+  "commitMessage": "Fixed same name folder error message",
   "private": true,
   "scripts": {
     "dev": "vite",

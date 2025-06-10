@@ -279,6 +279,13 @@ export const useTree = () => {
         return { success: true, item: createdItemFromServer };
       } catch (error) {
         console.error("addItem API error:", error);
+
+        // Preserve the specific error message from the API
+        if (error && error.message) {
+          return { success: false, error: error.message };
+        }
+
+        // Fallback to a generic message only if no specific message is available
         return { success: false, error: "Network error adding item." };
       }
     },
