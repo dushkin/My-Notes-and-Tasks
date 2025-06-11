@@ -46,7 +46,7 @@ const AddDialog = ({
           <input
             ref={inputRef}
             type="text"
-            value={newItemLabel}
+            value={newItemLabel ?? ""}
             onChange={onLabelChange}
             className={`border p-2 rounded w-full mb-2 text-gray-900 dark:text-gray ${
               errorMessage

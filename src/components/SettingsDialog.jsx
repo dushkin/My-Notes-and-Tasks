@@ -356,7 +356,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
               data-item-id="settings-search-input"
               type="text"
               placeholder="Search settings..."
-              value={search}
+              value={search ?? ""}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full p-2 pl-10 border rounded dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
