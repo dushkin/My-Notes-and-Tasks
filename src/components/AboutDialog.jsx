@@ -1,13 +1,23 @@
-// src/components/AboutDialog.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import packageJson from "../../package.json";
 
 const AboutDialog = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
+  
   const appName = "Notes & Tasks App";
   const appVersion = packageJson.version; // Replace this dynamically if needed
   const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">

@@ -1,9 +1,34 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { matchText } from "../utils/searchUtils";
 
-const defaultOptions = { caseSensitive: false, wholeWord: false, useRegex: false };
+const defaultOptions = {
+  caseSensitive: false,
+  wholeWord: false,
+  useRegex: false,
+};
 
-export default function SearchPanel({ searchItems, initialQuery = "", options = defaultOptions, onClose }) {
+export default function SearchPanel({
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    if (panelRef.current) {
+      panelRef.current.focus();
+    }
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    }
+  };
+
+  searchItems,
+  initialQuery = "",
+  options = defaultOptions,
+  onClose,
+}) {
   const [query, setQuery] = useState(initialQuery);
   const [opts, setOpts] = useState(options);
   const [results, setResults] = useState([]);
@@ -20,16 +45,25 @@ export default function SearchPanel({ searchItems, initialQuery = "", options = 
     }
   }, [query, opts, searchItems]);
 
-  
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   if (results.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
+      <div ref={panelRef} tabIndex={0} onKeyDown={handleKeyDown} className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
         <div className="p-4 text-sm text-zinc-400">No matches found.</div>
       </div>
     );
   }
 
-return (
+  return (
     <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700 shadow-lg">
       {/* Header */}
       <div className="p-2 border-b border-zinc-700 flex items-center space-x-2">
@@ -55,7 +89,9 @@ return (
           <input
             type="checkbox"
             checked={opts.caseSensitive}
-            onChange={(e) => setOpts({ ...opts, caseSensitive: e.target.checked })}
+            onChange={(e) =>
+              setOpts({ ...opts, caseSensitive: e.target.checked })
+            }
           />
           <span>Case</span>
         </label>
@@ -94,8 +130,12 @@ return (
         <div className="flex-1 overflow-auto p-4">
           {preview ? (
             <>
-              <h3 className="text-lg font-semibold mb-2">{preview.label || preview.title}</h3>
-              <pre className="whitespace-pre-wrap">{preview.content || preview.text}</pre>
+              <h3 className="text-lg font-semibold mb-2">
+                {preview.label || preview.title}
+              </h3>
+              <pre className="whitespace-pre-wrap">
+                {preview.content || preview.text}
+              </pre>
             </>
           ) : (
             <p className="text-zinc-500">Select a result to preview.</p>

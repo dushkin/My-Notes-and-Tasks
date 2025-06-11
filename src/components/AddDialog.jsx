@@ -14,6 +14,28 @@ const AddDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = React.useRef(null);
 
+  // Close & reset when the user hits Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e) => {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isOpen, onCancel]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
   useEffect(() => {
     // It's okay to have conditional logic *inside* a hook.
     if (isOpen && inputRef.current) {

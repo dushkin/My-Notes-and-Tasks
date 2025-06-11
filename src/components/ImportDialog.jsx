@@ -1,5 +1,4 @@
-// src/components/ImportDialog.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import LoadingButton from "./LoadingButton";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -8,6 +7,8 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
   const [file, setFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+
+  const dialogRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -21,10 +22,21 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
       setFile(null);
       setImporting(false);
       setImportMessage("");
+
+      // Focus the container to capture keyboard events
+      setTimeout(() => {
+        dialogRef.current?.focus();
+      }, 0);
     }
-  }, [context, isOpen, selectedItem]);
+  }, [isOpen, context, selectedItem]);
 
   if (!isOpen) return null;
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onClose();
+    }
+  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -62,7 +74,12 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+    <div
+      ref={dialogRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm"
+    >
       <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-xl w-full max-w-md sm:max-w-sm">
         <h2 className="text-lg sm:text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">
           {dialogTitle}
@@ -157,9 +174,9 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
 
         {importing && (
           <div className="mb-4">
-            <LoadingSpinner 
-              variant="inline" 
-              text="Importing data..." 
+            <LoadingSpinner
+              variant="inline"
+              text="Importing data..."
               size="default"
             />
           </div>

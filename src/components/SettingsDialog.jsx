@@ -1,5 +1,5 @@
 // src/components/SettingsDialog.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { X, Search, RotateCcw, AlertTriangle } from "lucide-react";
 import {
   useSettings,
@@ -29,6 +29,24 @@ function valueLabel(setting, currentSettings) {
 }
 
 export default function SettingsDialog({ isOpen, onClose }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      setTimeout(() => {
+        containerRef.current.focus();
+      }, 0);
+    }
+  }, [isOpen]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      e.preventDefault();
+      onClose();
+    }
+  };
+
   let context;
   try {
     context = useSettings();
@@ -43,6 +61,13 @@ export default function SettingsDialog({ isOpen, onClose }) {
   const { settings, updateSetting, resetSettings, resetApplicationData } =
     context;
   const [search, setSearch] = useState("");
+
+  // Whenever the dialog closes, reset search back to empty
+  useEffect(() => {
+    if (!isOpen) {
+      setSearch("");
+    }
+  }, [isOpen]);
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState({
@@ -333,7 +358,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
   return (
     <>
       <div
-        data-item-id="settings-dialog-overlay"
+        ref={containerRef} tabIndex={0} onKeyDown={handleKeyDown} data-item-id="settings-dialog-overlay"
         className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm transition-opacity duration-200"
       >
         <div
@@ -357,7 +382,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
               type="text"
               placeholder="Search settings..."
               value={search ?? ""}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value ?? "")}
               className="w-full p-2 pl-10 border rounded dark:bg-zinc-700 dark:border-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <Search className="w-5 h-5 text-zinc-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
