@@ -38,7 +38,7 @@ return (
           type="text"
           className="flex-1 px-2 py-1 rounded bg-zinc-800 focus:outline-none"
           placeholder="Search..."
-          value={query}
+          value={query ?? ""}
           onChange={(e) => setQuery(e.target.value)}
         />
         <button

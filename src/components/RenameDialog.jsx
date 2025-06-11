@@ -22,7 +22,7 @@ const RenameDialog = ({
         <form onSubmit={handleSubmit}>
           <input
             type="text"
-            value={newName}
+            value={newName ?? ""}
             onChange={onNameChange}
             className="border p-2 rounded w-full mb-2 text-gray-900 dark:text-gray"
             autoFocus

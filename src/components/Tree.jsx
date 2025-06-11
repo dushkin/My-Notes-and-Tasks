@@ -417,7 +417,7 @@ const Tree = ({
                             ? "border-red-500 text-red-700 dark:text-red-400"
                             : "border-blue-400 text-black dark:text-white"
                         }`}
-                        value={inlineRenameValue}
+                        value={inlineRenameValue ?? ""}
                         onChange={(e) => {
                           setInlineRenameValue(e.target.value);
                           setLocalRenameError("");
