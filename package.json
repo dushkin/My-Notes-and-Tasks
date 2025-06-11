@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.13.3",
-  "commitMessage": "Prevent null display in text boxes",
+  "version": "4.14.0",
+  "commitMessage": "Added support of escaping dialogs",
   "private": true,
   "scripts": {
     "dev": "vite",
