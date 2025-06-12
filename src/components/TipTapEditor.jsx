@@ -240,6 +240,16 @@ const TipTapEditor = ({
     },
     
     editorProps: {
+      handleKeyDown: (view, event) => {
+        if (event.key === "Tab") {
+          event.preventDefault();
+          const { state, dispatch } = view;
+          dispatch(state.tr.insertText("\t"));
+          return true;
+        }
+        return false;
+      },
+
       attributes: {
         class:
           "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",

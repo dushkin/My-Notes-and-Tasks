@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.14.0",
-  "commitMessage": "Added support of escaping dialogs",
+  "version": "4.14.1",
+  "commitMessage": "Maunly fixed tab character in content editor",
   "private": true,
   "scripts": {
     "dev": "vite",
