@@ -126,6 +126,28 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
 };
 
 const App = () => {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      const observer = new MutationObserver(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus({ preventScroll: true });
+          console.log("MUTATION FOCUSED:", document.activeElement);
+          observer.disconnect();
+        }
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+
+      return () => observer.disconnect();
+    }
+  }, [isSearchOpen]);
+
   const { settings } = useSettings();
   const {
     tree,

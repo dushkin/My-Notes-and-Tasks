@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useEffect } from "react";
 import { matchText } from "../utils/searchUtils";
 
 const defaultOptions = {
@@ -8,22 +8,6 @@ const defaultOptions = {
 };
 
 export default function SearchPanel({
-  const panelRef = useRef(null);
-
-  useEffect(() => {
-    if (panelRef.current) {
-      panelRef.current.focus();
-    }
-  }, []);
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      onClose();
-    }
-  };
-
   searchItems,
   initialQuery = "",
   options = defaultOptions,
@@ -57,7 +41,7 @@ export default function SearchPanel({
 
   if (results.length === 0) {
     return (
-      <div ref={panelRef} tabIndex={0} onKeyDown={handleKeyDown} className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
+      <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
         <div className="p-4 text-sm text-zinc-400">No matches found.</div>
       </div>
     );
@@ -69,7 +53,7 @@ export default function SearchPanel({
       <div className="p-2 border-b border-zinc-700 flex items-center space-x-2">
         <input
           autoFocus
-          type="text"
+          type="text" ref={inputRef}
           className="flex-1 px-2 py-1 rounded bg-zinc-800 focus:outline-none"
           placeholder="Search..."
           value={query ?? ""}
