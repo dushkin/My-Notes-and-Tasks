@@ -43,6 +43,7 @@ import {
   clearTokens,
 } from "./services/authService";
 import { initApiClient, authFetch } from "./services/apiClient";
+import logo from "./assets/logo_dual_32x32.png";
 
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
@@ -85,7 +86,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
-
   // Conditional rendering happens *after* all hooks have been called.
   if (!message) {
     return null;
@@ -105,7 +105,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       : type === "info"
       ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
-
   return (
     <div
       data-item-id="error-display-message"
@@ -124,11 +123,9 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
     </div>
   );
 };
-
 const App = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
-
   useEffect(() => {
     if (isSearchOpen) {
       const observer = new MutationObserver(() => {
@@ -147,7 +144,6 @@ const App = () => {
       return () => observer.disconnect();
     }
   }, [isSearchOpen]);
-
   const { settings } = useSettings();
   const {
     tree,
@@ -184,7 +180,6 @@ const App = () => {
     fetchUserTree,
     isFetchingTree,
   } = useTree();
-
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
   const [currentView, setCurrentView] = useState("login");
@@ -238,7 +233,6 @@ const App = () => {
     confirmText: "Confirm",
     cancelText: "Cancel",
   });
-
   const showConfirm = useCallback((options) => {
     setConfirmDialog({
       isOpen: true,
@@ -253,7 +247,6 @@ const App = () => {
       cancelText: options.cancelText || "Cancel",
     });
   }, []);
-
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
       setUiMessage(message);
@@ -261,7 +254,6 @@ const App = () => {
     },
     []
   );
-
   const handleActualLogout = useCallback(() => {
     clearTokens();
     setCurrentUser(null);
@@ -272,14 +264,12 @@ const App = () => {
     setTopMenuOpen(false);
     setIsLoggingOut(false);
   }, [resetTreeHistory]);
-
   useEffect(() => {
     initApiClient(handleActualLogout);
   }, [handleActualLogout]);
 
   const autoExportIntervalRef = useRef(null);
   const performAutoExportRef = useRef(null);
-
   useEffect(() => {
     performAutoExportRef.current = () => {
       if (!settings.autoExportEnabled || currentView !== "app" || !currentUser)
@@ -326,7 +316,6 @@ const App = () => {
     currentUser,
     showMessage,
   ]);
-
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
@@ -369,7 +358,6 @@ const App = () => {
     currentUser,
     showMessage,
   ]);
-
   useEffect(() => {
     setIsAuthChecking(true);
     const token = getAccessToken();
@@ -402,7 +390,6 @@ const App = () => {
       setIsAuthChecking(false);
     }
   }, [fetchUserTree, resetTreeHistory, handleActualLogout]);
-
   const handleLoginSuccess = async (userData) => {
     setCurrentUser(userData);
     setCurrentView("app");
@@ -410,7 +397,6 @@ const App = () => {
       await fetchUserTree();
     }
   };
-
   const handleInitiateLogout = async () => {
     setIsLoggingOut(true);
     const currentRefreshToken = getRefreshToken();
@@ -429,7 +415,6 @@ const App = () => {
     }
     handleActualLogout();
   };
-
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -440,7 +425,6 @@ const App = () => {
     },
     [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
-
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
@@ -452,17 +436,14 @@ const App = () => {
       treeNav?.focus({ preventScroll: true });
     });
   }, [showMessage]);
-
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
   );
-
   const findParentAndSiblingsFromTree = useCallback(
     (id) => findParentAndSiblingsUtil(tree, id),
     [tree]
   );
-
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
@@ -491,7 +472,8 @@ const App = () => {
           result.error.includes("500") ||
           result.error.includes("timeout") ||
           result.error.includes("fetch") ||
-          result.error.includes("Failed to")); // Generic server failures
+          result.error.includes("Failed to"));
+      // Generic server failures
 
       if (isNetworkOrServerError) {
         // Show network errors as global messages
@@ -511,7 +493,6 @@ const App = () => {
     findItemByIdFromTree,
     showMessage,
   ]);
-
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -525,7 +506,6 @@ const App = () => {
     },
     [showMessage, setContextMenu]
   );
-
   const handleAdd = useCallback(async () => {
     console.log("[DEBUG handleAdd] Starting handleAdd function");
 
@@ -564,19 +544,16 @@ const App = () => {
       direction:
         newItemType === "note" || newItemType === "task" ? "ltr" : undefined,
     };
-
     console.log(
       "[DEBUG handleAdd] About to call addItem with:",
       newItemData,
       "parentId:",
       parentId
     );
-
     // Clear any existing error message before attempting to add
     setAddDialogErrorMessage("");
 
     const result = await addItem(newItemData, parentId);
-
     console.log("[DEBUG handleAdd] addItem result:", result);
 
     if (result.success) {
@@ -601,7 +578,6 @@ const App = () => {
       }
     } else {
       console.log("[DEBUG handleAdd] Error path, result.error:", result.error);
-
       // Always show validation errors (like name conflicts) in the dialog
       // Only show network/server errors as global messages
       const isNetworkOrServerError =
@@ -613,12 +589,10 @@ const App = () => {
           result.error.includes("500") ||
           result.error.includes("timeout") ||
           result.error.includes("fetch"));
-
       console.log(
         "[DEBUG handleAdd] isNetworkOrServerError:",
         isNetworkOrServerError
       );
-
       if (isNetworkOrServerError) {
         console.log("[DEBUG handleAdd] Showing as global message");
         showMessage(result.error, "error");
@@ -644,7 +618,6 @@ const App = () => {
     tree,
     findParentAndSiblingsFromTree,
   ]);
-
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       console.log(
@@ -663,7 +636,6 @@ const App = () => {
     },
     [updateTask, showMessage]
   );
-
   const handleSaveItemData = useCallback(
     async (itemId, dataToSave) => {
       const item = findItemByIdFromTree(itemId);
@@ -696,7 +668,6 @@ const App = () => {
     },
     [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
   );
-
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
 
   const openExportDialog = useCallback(
@@ -707,7 +678,6 @@ const App = () => {
     },
     [setContextMenu]
   );
-
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -716,7 +686,6 @@ const App = () => {
     },
     [setContextMenu]
   );
-
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
@@ -750,7 +719,6 @@ const App = () => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
-
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
@@ -762,7 +730,6 @@ const App = () => {
     },
     [pasteItem, showMessage]
   );
-
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
@@ -777,7 +744,6 @@ const App = () => {
     },
     [deleteItem, showMessage, setContextMenu]
   );
-
   const handleDuplicate = useCallback(
     async (itemId) => {
       setIsDuplicating(true);
@@ -794,7 +760,6 @@ const App = () => {
     },
     [duplicateItem, showMessage]
   );
-
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
       if (!item || !buttonElement) return;
@@ -815,7 +780,6 @@ const App = () => {
     },
     [selectItemById, setContextMenu]
   );
-
   const handleNativeContextMenu = useCallback(
     (event, item) => {
       if (draggedId || inlineRenameId) {
@@ -843,7 +807,6 @@ const App = () => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
-
   useEffect(() => {
     const handler = (e) => {
       const activeElement = document.activeElement;
@@ -914,7 +877,6 @@ const App = () => {
     inlineRenameId,
     setSearchSheetOpen,
   ]);
-
   useEffect(() => {
     const handleGlobalTreeOpsKeyDown = async (e) => {
       const activeEl = document.activeElement;
@@ -952,7 +914,6 @@ const App = () => {
             (document.body === activeEl && selectedItemId))
         );
       };
-
       if (isGeneralInputFocused) {
         if (
           (e.ctrlKey || e.metaKey) &&
@@ -1099,7 +1060,6 @@ const App = () => {
     setContextMenu,
     showConfirm,
   ]);
-
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
       const currentSearchOpts = { ...searchOptions, useRegex: false };
@@ -1110,7 +1070,9 @@ const App = () => {
       let resultCounter = 0;
       const processedResults = rawHits
         .map((hit) => {
-          if (!hit || !hit.id) return null;
+          if (!hit || !hit.id) {
+            // return null; // disabled for logo debug
+          }
           const pathString = getItemPath(tree, hit.id) || "";
           const originalLabel =
             typeof hit.label === "string"
@@ -1260,7 +1222,6 @@ const App = () => {
     searchSheetOpen,
     tree,
   ]);
-
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
@@ -1281,10 +1242,8 @@ const App = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
   };
-
   if (!isAuthCheckComplete)
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
-
   if (currentView === "login")
     return (
       <Login
@@ -1292,7 +1251,6 @@ const App = () => {
         onSwitchToRegister={() => setCurrentView("register")}
       />
     );
-
   if (currentView === "register")
     return (
       <Register
@@ -1300,7 +1258,6 @@ const App = () => {
         onSwitchToLogin={() => setCurrentView("login")}
       />
     );
-
   const iconBaseClass = "w-4 h-4 mr-2";
 
   return (
@@ -1322,9 +1279,12 @@ const App = () => {
         className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
       >
         <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
-          <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis mr-2 text-zinc-800 dark:text-zinc-100">
-            Notes & Tasks
-          </h1>
+          <div className="flex items-center">
+            <img src={logo} alt="Logo" className="h-8 w-8 mr-2" />
+            <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis text-zinc-800 dark:text-zinc-100">
+              Notes & Tasks
+            </h1>
+          </div>
           <div className="flex items-center space-x-0.5 sm:space-x-1">
             {currentUser && currentUser.email && (
               <div className="relative" ref={accountMenuRef}>

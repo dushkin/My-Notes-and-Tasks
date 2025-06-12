@@ -10,6 +10,7 @@ import {
   editorFontSizeOptions,
 } from "../contexts/SettingsContext";
 import ConfirmDialog from "./ConfirmDialog";
+import logo from "../assets/logo_dual_32x32.png";
 
 function valueLabel(setting, currentSettings) {
   const v = currentSettings[setting.id];
@@ -358,7 +359,10 @@ export default function SettingsDialog({ isOpen, onClose }) {
   return (
     <>
       <div
-        ref={containerRef} tabIndex={0} onKeyDown={handleKeyDown} data-item-id="settings-dialog-overlay"
+        ref={containerRef}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        data-item-id="settings-dialog-overlay"
         className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm transition-opacity duration-200"
       >
         <div
@@ -366,7 +370,10 @@ export default function SettingsDialog({ isOpen, onClose }) {
           className="bg-white dark:bg-zinc-800 p-5 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-zinc-200 dark:border-zinc-700"
         >
           <div className="flex justify-between items-center mb-4 border-b pb-3 dark:border-zinc-600 flex-shrink-0">
-            <h2 className="text-xl font-semibold">Settings</h2>
+            <div className="flex items-center">
+              <img src={logo} alt="App Logo" className="h-7 w-7 mr-2" />
+              <h2 className="text-xl font-semibold">Settings</h2>
+            </div>
             <button
               onClick={onClose}
               aria-label="Close Settings"

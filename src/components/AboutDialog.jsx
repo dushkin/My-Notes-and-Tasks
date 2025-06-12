@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import packageJson from "../../package.json";
+import logo from "../assets/logo_dual_32x32.png";
 
 const AboutDialog = ({ isOpen, onClose }) => {
-  
   const appName = "Notes & Tasks App";
   const appVersion = packageJson.version; // Replace this dynamically if needed
   const currentYear = new Date().getFullYear();
@@ -22,9 +22,12 @@ const AboutDialog = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-96 text-center">
+        <img src={logo} alt="App Logo" className="mx-auto mb-4 h-12 w-12" />
         <h2 className="text-xl font-bold mb-4">About {appName}</h2>
         <div className="space-y-2 mb-6 text-zinc-800 dark:text-zinc-200">
-          <p>{appName} &copy; {currentYear}</p>
+          <p>
+            {appName} &copy; {currentYear}
+          </p>
           <p>&copy; TT</p>
           <p>Version: {appVersion}</p>
         </div>
