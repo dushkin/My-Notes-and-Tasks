@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.15.0",
-  "commitMessage": "Extended allowd labals characters set",
+  "version": "4.16.0",
+  "commitMessage": "Added logo and fabicon",
   "private": true,
   "scripts": {
     "dev": "vite",
