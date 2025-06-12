@@ -79,7 +79,7 @@ const AddDialog = ({
             aria-invalid={!!errorMessage}
             aria-describedby={errorMessage ? "add-error-message" : undefined}
             disabled={isLoading}
-            maxLength={255}
+            maxLength={512}
           />
           {errorMessage && (
             <p id="add-error-message" className="text-red-600 text-sm mb-2">

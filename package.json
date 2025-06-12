@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.14.1",
-  "commitMessage": "Maunly fixed tab character in content editor",
+  "version": "4.15.0",
+  "commitMessage": "Extended allowd labals characters set",
   "private": true,
   "scripts": {
     "dev": "vite",
