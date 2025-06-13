@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.16.0",
-  "commitMessage": "Added logo and fabicon",
+  "version": "4.16.1",
+  "commitMessage": "Improved logo and favicon",
   "private": true,
   "scripts": {
     "dev": "vite",
