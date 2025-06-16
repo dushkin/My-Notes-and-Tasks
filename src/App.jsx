@@ -86,6 +86,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
+
   // Conditional rendering happens *after* all hooks have been called.
   if (!message) {
     return null;
@@ -109,6 +110,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
     <div
       data-item-id="error-display-message"
       className={`${baseClasses} ${typeClasses}`}
+      role="alert"
     >
       <span>{message}</span>
       <LoadingButton
@@ -123,6 +125,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
     </div>
   );
 };
+
 const App = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
@@ -472,8 +475,7 @@ const App = () => {
           result.error.includes("500") ||
           result.error.includes("timeout") ||
           result.error.includes("fetch") ||
-          result.error.includes("Failed to"));
-      // Generic server failures
+          result.error.includes("Failed to")); // Generic server failures
 
       if (isNetworkOrServerError) {
         // Show network errors as global messages
@@ -1280,7 +1282,7 @@ const App = () => {
       >
         <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
           <div className="flex items-center">
-            <img src={logo} alt="Logo" className="h-8 w-8 mr-2" />
+            <img src={logo} alt="Application Logo" className="h-8 w-8 mr-2" />
             <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis text-zinc-800 dark:text-zinc-100">
               Notes & Tasks
             </h1>

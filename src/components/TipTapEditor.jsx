@@ -1,4 +1,3 @@
-// src/components/TipTapEditor.jsx
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { DOMParser } from "prosemirror-model";
@@ -45,7 +44,6 @@ const FONT_SIZE_OPTIONS = [
   { label: "Large", value: "1.2em" },
   { label: "Extra Large", value: "1.5em" },
 ];
-
 const FontSizeExtension = Extension.create({
   name: "fontSize",
   addOptions() {
@@ -213,7 +211,7 @@ const TipTapEditor = ({
     ],
 
     content: content || "",
-    
+
     onUpdate: ({ editor: currentEditor }) => {
       if (onUpdate && isInitializedRef.current) {
         const newContent = currentEditor.getHTML();
@@ -224,21 +222,21 @@ const TipTapEditor = ({
         onUpdate(newContent, editorDir);
       }
     },
-    
+
     onFocus: () => {
       console.log('[TipTapEditor] Editor gained focus');
       if (onFocus) {
         onFocus();
       }
     },
-    
+
     onBlur: () => {
       console.log('[TipTapEditor] Editor lost focus');
       if (onBlur) {
         onBlur();
       }
     },
-    
+
     editorProps: {
       handleKeyDown: (view, event) => {
         if (event.key === "Tab") {
@@ -255,14 +253,11 @@ const TipTapEditor = ({
           "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",
         dir: editorDir,
       },
-      
-      // Handle regular text paste - this is crucial for basic paste functionality
+
       handlePaste: (view, event, slice) => {
         console.log('[TipTapEditor] handlePaste triggered');
-        
         const items = event.clipboardData?.items;
-        
-        // Handle image paste first
+
         if (items) {
           for (let i = 0; i < items.length; i++) {
             const clipboardItem = items[i];
@@ -281,10 +276,9 @@ const TipTapEditor = ({
           }
         }
 
-        // Handle text paste
         const text = event.clipboardData?.getData("text/plain");
         const html = event.clipboardData?.getData("text/html");
-        
+
         console.log('[TipTapEditor] Text paste detected:', {
           hasText: !!text,
           hasHTML: !!html,
@@ -292,22 +286,19 @@ const TipTapEditor = ({
           htmlLength: html?.length
         });
 
-        // Check for markdown patterns
         const commonMarkdownPatterns =
           /^(?:#+\s|\*\s|-\s|>\s|```|\[.*\]\(.*\)|`[^`]+`|\d+\.\s)/m;
-        
-        // If we have HTML and it's not likely markdown, let the default handler process it
+
         if (html && text && !commonMarkdownPatterns.test(text.substring(0, 250))) {
           console.log('[TipTapEditor] Using default HTML paste handling');
-          return false; // Let TipTap handle the HTML paste
+          return false;
         }
 
-        // Handle markdown conversion
         if (text && commonMarkdownPatterns.test(text)) {
           try {
             console.log('[TipTapEditor] Converting markdown to HTML');
             const renderer = new marked.Renderer();
-            renderer.image = () => ""; // Remove images from markdown conversion
+            renderer.image = () => "";
             const markdownHtml = marked.parse(text.trim(), { renderer });
             const tempDiv = document.createElement("div");
             tempDiv.innerHTML = markdownHtml;
@@ -318,12 +309,10 @@ const TipTapEditor = ({
             return true;
           } catch (e) {
             console.error("Error parsing pasted markdown:", e);
-            // Fall back to default handling
             return false;
           }
         }
 
-        // For regular text, let TipTap handle it normally
         console.log('[TipTapEditor] Using default text paste handling');
         return false;
       },
@@ -348,36 +337,31 @@ const TipTapEditor = ({
     },
   });
 
-  // Helper function to handle image uploads
   const handleImageUpload = async (file, view, event = null) => {
     try {
       const url = await uploadImageToServer(file);
       if (url && view && view.editable) {
         const img = new window.Image();
-        
         img.onload = () => {
           const { naturalWidth } = img;
           const { schema } = view.state;
-          
+
           let insertPos;
           if (event) {
-            // For drag and drop, use the drop position
             const coordinates = view.posAtCoords({
               left: event.clientX,
               top: event.clientY,
             });
             insertPos = coordinates?.pos;
           } else {
-            // For paste, use current selection
             insertPos = view.state.selection.from;
           }
-          
+
           if (insertPos !== undefined) {
             const imageNode = schema.nodes.resizableImage.create({
               src: url,
               width: `${naturalWidth}px`,
             });
-            
             const tr = view.state.tr.insert(insertPos, imageNode);
             const spaceNode = schema.text(" ");
             tr.insert(insertPos + imageNode.nodeSize, spaceNode);
@@ -385,11 +369,11 @@ const TipTapEditor = ({
             view.focus();
           }
         };
-        
+
         img.onerror = () => {
           const { schema } = view.state;
           let insertPos;
-          
+
           if (event) {
             const coordinates = view.posAtCoords({
               left: event.clientX,
@@ -399,7 +383,7 @@ const TipTapEditor = ({
           } else {
             insertPos = view.state.selection.from;
           }
-          
+
           if (insertPos !== undefined) {
             const imageNode = schema.nodes.resizableImage.create({
               src: url,
@@ -412,7 +396,7 @@ const TipTapEditor = ({
             view.focus();
           }
         };
-        
+
         img.src = url;
       }
     } catch (err) {
@@ -420,20 +404,19 @@ const TipTapEditor = ({
     }
   };
 
-  // Set initial content when editor is ready
   useEffect(() => {
     if (editor && !contentSetRef.current) {
       console.log("[TipTapEditor] Setting initial content", {
         contentLength: content?.length,
         content: content?.substring(0, 100) + (content?.length > 100 ? "..." : "")
       });
-      
+
       if (content !== editor.getHTML()) {
         editor.commands.setContent(content || "", false);
       }
+
       contentSetRef.current = true;
-      
-      // Mark as initialized after content is set
+
       setTimeout(() => {
         isInitializedRef.current = true;
         console.log('[TipTapEditor] Editor fully initialized');
@@ -441,7 +424,6 @@ const TipTapEditor = ({
     }
   }, [content, editor]);
 
-  // Handle direction changes
   useEffect(() => {
     if (
       editor &&
@@ -453,7 +435,6 @@ const TipTapEditor = ({
     }
   }, [initialDirection, editor]);
 
-  // Reset content flag when content prop changes (item switch)
   useEffect(() => {
     console.log("[TipTapEditor] Content prop changed, resetting flags");
     contentSetRef.current = false;
@@ -498,6 +479,8 @@ const TipTapEditor = ({
   if (!editor) {
     return <div className="p-4 text-zinc-500">Loading editor...</div>;
   }
+  
+  const buttonBaseClass = "p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded disabled:opacity-50 focus:ring-1 focus:ring-blue-400";
 
   return (
     <div className="flex flex-col flex-grow overflow-hidden border rounded bg-white dark:bg-zinc-900 dark:border-zinc-700">
@@ -506,7 +489,7 @@ const TipTapEditor = ({
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run()}
           title="Undo"
-          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded disabled:opacity-50"
+          className={buttonBaseClass}
         >
           <Undo className="w-5 h-5" />
         </button>
@@ -514,7 +497,7 @@ const TipTapEditor = ({
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().chain().focus().redo().run()}
           title="Redo"
-          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded disabled:opacity-50"
+          className={buttonBaseClass}
         >
           <Redo className="w-5 h-5" />
         </button>
@@ -582,7 +565,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
           title="Bold"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive("bold") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
@@ -591,7 +574,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().toggleItalic().run()}
           title="Italic"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive("italic") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
@@ -600,7 +583,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           title="Underline"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive("underline") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
@@ -619,7 +602,7 @@ const TipTapEditor = ({
                 .run();
           }}
           title="Set Link"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive("link") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
@@ -628,14 +611,14 @@ const TipTapEditor = ({
         <button
           onClick={addImageFromFilePicker}
           title="Upload Image"
-          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           <ImageIconLucide className="w-5 h-5" />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleCode().run()}
           title="Inline Code"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive("code") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
@@ -644,7 +627,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           title="Code Block"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive("codeBlock") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
@@ -653,7 +636,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           title="Bulleted List"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive("bulletList") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
@@ -662,7 +645,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           title="Numbered List"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive("orderedList") ? "bg-zinc-200 dark:bg-zinc-600" : ""
           }`}
         >
@@ -671,7 +654,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().setTextAlign("left").run()}
           title="Align Left"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive({ textAlign: "left" })
               ? "bg-zinc-200 dark:bg-zinc-600"
               : ""
@@ -682,7 +665,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().setTextAlign("center").run()}
           title="Align Center"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive({ textAlign: "center" })
               ? "bg-zinc-200 dark:bg-zinc-600"
               : ""
@@ -693,7 +676,7 @@ const TipTapEditor = ({
         <button
           onClick={() => editor.chain().focus().setTextAlign("right").run()}
           title="Align Right"
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded ${
+          className={`${buttonBaseClass} ${
             editor.isActive({ textAlign: "right" })
               ? "bg-zinc-200 dark:bg-zinc-600"
               : ""
@@ -704,7 +687,7 @@ const TipTapEditor = ({
         <button
           onClick={toggleEditorDirection}
           title={`Text Direction: ${editorDir.toUpperCase()}`}
-          className={`p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded`}
+          className={buttonBaseClass}
         >
           <Type className="w-5 h-5" /> {editorDir.toUpperCase()}
         </button>
@@ -748,7 +731,7 @@ const TipTapEditor = ({
             }
           }}
           title="Convert selected text from Markdown"
-          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
+          className={buttonBaseClass}
         >
           MD
         </button>
