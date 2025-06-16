@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import Button from './ui/button';
 import { Card, CardContent } from './ui/card';
+import logo from '../assets/logo_dual_48x48.png';
 
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
   return (
@@ -10,9 +11,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       <header className="relative z-10 backdrop-blur-sm bg-white/80 border-b border-gray-200/50">
         <div className="flex justify-between items-center p-6 max-w-7xl mx-auto w-full">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">📝</span>
-            </div>
+            <img src={logo} alt="Notes & Tasks Logo" className="w-15 h-15" />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Notes & Tasks
             </h1>
@@ -283,7 +282,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                         <div className="text-gray-500">Forever free</div>
                       </div>
                       <ul className="space-y-4 mb-8">
-                        {['Up to 5 notes', 'Basic editor features', 'Tree view organization', 'Email support'].map((feature, index) => (
+                        {['Up to 100 tree items', 'Basic editor features', 'Tree view organization', 'Email support'].map((feature, index) => (
                           <li key={index} className="flex items-center space-x-3">
                             <span className="text-green-500">✓</span>
                             <span className="text-gray-700">{feature}</span>

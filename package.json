@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "6.0.0",
-  "commitMessage": "Added a landing page",
+  "version": "6.0.1",
+  "commitMessage": "Landing page logo adjusted",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
