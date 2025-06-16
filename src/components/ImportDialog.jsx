@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import LoadingButton from "./LoadingButton";
 import LoadingSpinner from "./LoadingSpinner";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
   const [target, setTarget] = useState("entire");
@@ -9,6 +10,7 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
   const [importMessage, setImportMessage] = useState("");
 
   const dialogRef = useRef(null);
+  useFocusTrap(dialogRef, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -62,7 +64,7 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
       setImportMessage("Please select a file first.");
     }
   };
-
+  
   const isFullTreeImportContext = context === "tree";
   const isImportUnderItemContext = context === "item";
 
@@ -75,12 +77,14 @@ const ImportDialog = ({ isOpen, context, onClose, onImport, selectedItem }) => {
 
   return (
     <div
-      ref={dialogRef}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
       className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm"
     >
-      <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-xl w-full max-w-md sm:max-w-sm">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        onKeyDown={handleKeyDown}
+        className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-xl w-full max-w-md sm:max-w-sm"
+      >
         <h2 className="text-lg sm:text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">
           {dialogTitle}
         </h2>

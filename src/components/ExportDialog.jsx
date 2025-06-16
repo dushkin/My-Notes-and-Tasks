@@ -1,6 +1,6 @@
-// src/components/ExportDialog.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import LoadingButton from "./LoadingButton";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const ExportDialog = ({
   isOpen,
@@ -14,9 +14,11 @@ const ExportDialog = ({
     if (context === "item") return "selected";
     return "selected";
   });
-
   const [format, setFormat] = useState(defaultFormat);
   const [isExporting, setIsExporting] = useState(false);
+  
+  const dialogRef = useRef(null);
+  useFocusTrap(dialogRef, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -33,9 +35,11 @@ const ExportDialog = ({
         onClose();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
+    if (isOpen) {
+        window.addEventListener("keydown", handleKeyDown);
+    }
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -56,10 +60,10 @@ const ExportDialog = ({
       : context === "item"
       ? "Export Selected Item"
       : "Export Options";
-
+      
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-80">
+      <div ref={dialogRef} className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-80">
         <h2 className="text-xl font-bold mb-4">{dialogTitle}</h2>
 
         {showRadioButtons && (

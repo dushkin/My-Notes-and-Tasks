@@ -1,4 +1,3 @@
-// src/components/SettingsDialog.jsx
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { X, Search, RotateCcw, AlertTriangle } from "lucide-react";
 import {
@@ -11,6 +10,7 @@ import {
 } from "../contexts/SettingsContext";
 import ConfirmDialog from "./ConfirmDialog";
 import logo from "../assets/logo_dual_32x32.png";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 function valueLabel(setting, currentSettings) {
   const v = currentSettings[setting.id];
@@ -31,12 +31,14 @@ function valueLabel(setting, currentSettings) {
 
 export default function SettingsDialog({ isOpen, onClose }) {
   const containerRef = useRef(null);
+  const searchInputRef = useRef(null);
+  useFocusTrap(containerRef, isOpen);
 
   useEffect(() => {
-    if (isOpen && containerRef.current) {
+    if (isOpen && searchInputRef.current) {
       setTimeout(() => {
-        containerRef.current.focus();
-      }, 0);
+        searchInputRef.current.focus();
+      }, 100); // Small delay to ensure dialog is rendered
     }
   }, [isOpen]);
 
@@ -63,14 +65,12 @@ export default function SettingsDialog({ isOpen, onClose }) {
     context;
   const [search, setSearch] = useState("");
 
-  // Whenever the dialog closes, reset search back to empty
   useEffect(() => {
     if (!isOpen) {
       setSearch("");
     }
   }, [isOpen]);
 
-  // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: "",
@@ -359,19 +359,19 @@ export default function SettingsDialog({ isOpen, onClose }) {
   return (
     <>
       <div
-        ref={containerRef}
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
         data-item-id="settings-dialog-overlay"
         className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm transition-opacity duration-200"
       >
         <div
+          ref={containerRef}
+          tabIndex={-1}
+          onKeyDown={handleKeyDown}
           data-item-id="settings-dialog-content"
           className="bg-white dark:bg-zinc-800 p-5 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-zinc-200 dark:border-zinc-700"
         >
           <div className="flex justify-between items-center mb-4 border-b pb-3 dark:border-zinc-600 flex-shrink-0">
             <div className="flex items-center">
-              <img src={logo} alt="App Logo" className="h-7 w-7 mr-2" />
+              <img src={logo} alt="Application Logo" className="h-7 w-7 mr-2" />
               <h2 className="text-xl font-semibold">Settings</h2>
             </div>
             <button
@@ -385,6 +385,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
           </div>
           <div className="mb-4 relative flex-shrink-0">
             <input
+              ref={searchInputRef}
               data-item-id="settings-search-input"
               type="text"
               placeholder="Search settings..."
@@ -398,7 +399,6 @@ export default function SettingsDialog({ isOpen, onClose }) {
             {filteredSettings.length ? (
               filteredSettings.map((s) => {
                 if (s.type === "group") {
-                  // Check if the group's controlling setting (autoExportEnabled) is active
                   const isGroupContentDisabled =
                     s.settings.find((sub) => sub.id === "autoExportEnabled") &&
                     !settings.autoExportEnabled;
@@ -460,7 +460,6 @@ export default function SettingsDialog({ isOpen, onClose }) {
                     </div>
                   );
                 } else {
-                  // Render individual, non-grouped settings
                   return (
                     <div
                       key={s.id}

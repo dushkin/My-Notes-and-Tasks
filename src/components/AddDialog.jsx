@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import LoadingButton from "./LoadingButton";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const AddDialog = ({
   isOpen,
@@ -10,9 +11,11 @@ const AddDialog = ({
   onCancel,
   errorMessage,
 }) => {
-  // --- All hooks must be called at the top level, unconditionally. ---
   const [isLoading, setIsLoading] = useState(false);
-  const inputRef = React.useRef(null);
+  const inputRef = useRef(null);
+  const dialogRef = useRef(null);
+
+  useFocusTrap(dialogRef, isOpen);
 
   // Close & reset when the user hits Escape
   useEffect(() => {
@@ -27,22 +30,10 @@ const AddDialog = ({
   }, [isOpen, onCancel]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        onCancel();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
-
-  useEffect(() => {
-    // It's okay to have conditional logic *inside* a hook.
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
-  // --- End of hooks section ---
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,15 +45,16 @@ const AddDialog = ({
     }
   };
 
-  // This conditional return is now placed *after* all hook calls, which is correct.
   if (!isOpen) {
     return null;
   }
 
-  // The JSX is returned only when isOpen is true.
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-96">
+      <div
+        ref={dialogRef}
+        className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-96"
+      >
         <h2 className="text-lg font-bold mb-4">Add {newItemType}</h2>
         <form onSubmit={handleSubmit}>
           <input

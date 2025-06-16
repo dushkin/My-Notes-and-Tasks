@@ -1,6 +1,6 @@
-// src/components/ConfirmDialog.jsx
-import React from "react";
+import React, { useRef } from "react";
 import { AlertTriangle, Trash2, RotateCcw, AlertCircle } from "lucide-react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const ConfirmDialog = ({
   isOpen,
@@ -12,6 +12,9 @@ const ConfirmDialog = ({
   onCancel,
   variant = "default", // "default", "danger", "warning"
 }) => {
+  const dialogRef = useRef(null);
+  useFocusTrap(dialogRef, isOpen);
+  
   if (!isOpen) return null;
 
   const getVariantStyles = () => {
@@ -46,10 +49,11 @@ const ConfirmDialog = ({
       onConfirm();
     }
   };
-
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-xl w-full max-w-md border border-zinc-200 dark:border-zinc-700"
         onKeyDown={handleKeyDown}
         tabIndex={-1}
