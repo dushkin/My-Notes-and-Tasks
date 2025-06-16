@@ -1,9 +1,10 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "4.17.0",
-  "commitMessage": "Enhanced accessability features",
+  "version": "5.0.0",
+  "commitMessage": "Set a CC BY-ND 4.0 license",
   "private": true,
+  "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
