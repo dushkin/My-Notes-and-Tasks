@@ -2,13 +2,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
-import { SettingsProvider } from "./contexts/SettingsContext"; // <-- Import Provider
+import { SettingsProvider } from "./contexts/SettingsContext";
 import "./styles/index.css";
-import './TipTap.css'
+import './TipTap.css';
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {/* Wrap App with the SettingsProvider */}
     <SettingsProvider>
       <App />
     </SettingsProvider>
