@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Tree from "./components/Tree";
 import FolderContents from "./components/FolderContents";
 import ContentEditor from "./components/ContentEditor";
@@ -11,6 +12,7 @@ import SettingsDialog from "./components/SettingsDialog";
 import ConfirmDialog from "./components/ConfirmDialog";
 import LoadingSpinner from "./components/LoadingSpinner";
 import LoadingButton from "./components/LoadingButton";
+import LandingPage from "./components/LandingPage";
 import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
 import {
@@ -78,16 +80,13 @@ function htmlToPlainTextWithNewlines(html) {
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose }) => {
-  // Hooks must be called at the top level on every render.
   useEffect(() => {
-    // Conditional logic can exist *inside* the hook.
     if (message) {
       const timer = setTimeout(() => onClose(), 5000);
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
 
-  // Conditional rendering happens *after* all hooks have been called.
   if (!message) {
     return null;
   }
@@ -126,15 +125,208 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
   );
 };
 
+// Main App Component that handles routing
 const App = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPageRoute />} />
+        <Route path="/login" element={<LoginRoute />} />
+        <Route path="/register" element={<RegisterRoute />} />
+        <Route path="/app" element={<ProtectedAppRoute />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
+};
+
+// Landing Page Route Component
+const LandingPageRoute = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getAccessToken();
+      if (token) {
+        try {
+          const response = await authFetch("/auth/verify-token");
+          if (response.ok) {
+            const data = await response.json();
+            if (data.valid && data.user) {
+              setCurrentUser(data.user);
+            }
+          }
+        } catch (error) {
+          console.log("Auth check failed:", error);
+        }
+      }
+      setIsCheckingAuth(false);
+    };
+    
+    checkAuth();
+  }, []);
+
+  if (isCheckingAuth) {
+    return <LoadingSpinner variant="overlay" text="Loading..." />;
+  }
+
+  // Show landing page regardless of auth status
+  // Users can navigate to their account from here
+  return (
+    <LandingPage
+      onLogin={() => window.location.href = '/login'}
+      onSignup={() => window.location.href = '/register'}
+      currentUser={currentUser} // Pass user info to landing page
+    />
+  );
+};
+
+// Login Route Component
+const LoginRoute = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getAccessToken();
+      if (token) {
+        try {
+          const response = await authFetch("/auth/verify-token");
+          if (response.ok) {
+            const data = await response.json();
+            if (data.valid && data.user) {
+              setCurrentUser(data.user);
+            }
+          }
+        } catch (error) {
+          console.log("Auth check failed:", error);
+        }
+      }
+      setIsCheckingAuth(false);
+    };
+    
+    checkAuth();
+  }, []);
+
+  if (isCheckingAuth) {
+    return <LoadingSpinner variant="overlay" text="Loading..." />;
+  }
+
+  // If user is already logged in, redirect to app
+  if (currentUser) {
+    return <Navigate to="/app" replace />;
+  }
+
+  const handleLoginSuccess = (userData) => {
+    setCurrentUser(userData);
+    window.location.href = '/app';
+  };
+
+  return (
+    <Login
+      onLoginSuccess={handleLoginSuccess}
+      onSwitchToRegister={() => window.location.href = '/register'}
+    />
+  );
+};
+
+// Register Route Component
+const RegisterRoute = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getAccessToken();
+      if (token) {
+        try {
+          const response = await authFetch("/auth/verify-token");
+          if (response.ok) {
+            const data = await response.json();
+            if (data.valid && data.user) {
+              setCurrentUser(data.user);
+            }
+          }
+        } catch (error) {
+          console.log("Auth check failed:", error);
+        }
+      }
+      setIsCheckingAuth(false);
+    };
+    
+    checkAuth();
+  }, []);
+
+  if (isCheckingAuth) {
+    return <LoadingSpinner variant="overlay" text="Loading..." />;
+  }
+
+  // If user is already logged in, redirect to app
+  if (currentUser) {
+    return <Navigate to="/app" replace />;
+  }
+
+  const handleRegisterSuccess = () => {
+    window.location.href = '/login';
+  };
+
+  return (
+    <Register
+      onRegisterSuccess={handleRegisterSuccess}
+      onSwitchToLogin={() => window.location.href = '/login'}
+    />
+  );
+};
+
+// Protected App Route Component
+const ProtectedAppRoute = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getAccessToken();
+      if (token) {
+        try {
+          const response = await authFetch("/auth/verify-token");
+          if (response.ok) {
+            const data = await response.json();
+            if (data.valid && data.user) {
+              setCurrentUser(data.user);
+              setIsAuthCheckComplete(true);
+              return;
+            }
+          }
+        } catch (error) {
+          console.log("Auth check failed:", error);
+        }
+      }
+      // If no valid token, redirect to landing page
+      clearTokens();
+      window.location.href = '/';
+    };
+    
+    checkAuth();
+  }, []);
+
+  if (!isAuthCheckComplete || !currentUser) {
+    return <LoadingSpinner variant="overlay" text="Loading application..." />;
+  }
+
+  return <MainApp currentUser={currentUser} setCurrentUser={setCurrentUser} />;
+};
+
+// Main App Component (the actual notes app)
+const MainApp = ({ currentUser, setCurrentUser }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
+  
   useEffect(() => {
     if (isSearchOpen) {
       const observer = new MutationObserver(() => {
         if (searchInputRef.current) {
           searchInputRef.current.focus({ preventScroll: true });
-          console.log("MUTATION FOCUSED:", document.activeElement);
           observer.disconnect();
         }
       });
@@ -147,6 +339,7 @@ const App = () => {
       return () => observer.disconnect();
     }
   }, [isSearchOpen]);
+  
   const { settings } = useSettings();
   const {
     tree,
@@ -183,9 +376,6 @@ const App = () => {
     fetchUserTree,
     isFetchingTree,
   } = useTree();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
-  const [currentView, setCurrentView] = useState("login");
 
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
@@ -223,7 +413,6 @@ const App = () => {
   // Loading states
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState({
@@ -236,6 +425,7 @@ const App = () => {
     confirmText: "Confirm",
     cancelText: "Cancel",
   });
+
   const showConfirm = useCallback((options) => {
     setConfirmDialog({
       isOpen: true,
@@ -250,6 +440,7 @@ const App = () => {
       cancelText: options.cancelText || "Cancel",
     });
   }, []);
+
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
       setUiMessage(message);
@@ -257,25 +448,54 @@ const App = () => {
     },
     []
   );
+
   const handleActualLogout = useCallback(() => {
     clearTokens();
     setCurrentUser(null);
     if (resetTreeHistory) resetTreeHistory([]);
     setUiMessage("");
-    setCurrentView("login");
     setAccountMenuOpen(false);
     setTopMenuOpen(false);
     setIsLoggingOut(false);
-  }, [resetTreeHistory]);
+    window.location.href = '/';
+  }, [resetTreeHistory, setCurrentUser]);
+
   useEffect(() => {
     initApiClient(handleActualLogout);
   }, [handleActualLogout]);
 
+  useEffect(() => {
+    if (fetchUserTree) {
+      fetchUserTree();
+    }
+  }, [fetchUserTree]);
+
+  const handleInitiateLogout = async () => {
+    setIsLoggingOut(true);
+    const currentRefreshToken = getRefreshToken();
+    if (currentRefreshToken) {
+      try {
+        await authFetch("/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ refreshToken: currentRefreshToken }),
+        });
+      } catch (error) {
+        console.error(
+          "Error calling backend logout, proceeding with client-side logout:",
+          error
+        );
+      }
+    }
+    handleActualLogout();
+  };
+
+  // Auto export functionality
   const autoExportIntervalRef = useRef(null);
   const performAutoExportRef = useRef(null);
+  
   useEffect(() => {
     performAutoExportRef.current = () => {
-      if (!settings.autoExportEnabled || currentView !== "app" || !currentUser)
+      if (!settings.autoExportEnabled || !currentUser)
         return;
       if (!tree || tree.length === 0) {
         console.info("Auto Export: Tree is empty, skipping.");
@@ -315,10 +535,10 @@ const App = () => {
     settings.autoExportEnabled,
     settings.defaultExportFormat,
     settings.autoExportIntervalMinutes,
-    currentView,
     currentUser,
     showMessage,
   ]);
+
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
@@ -327,7 +547,6 @@ const App = () => {
     const canSetupInterval =
       settings.autoExportEnabled &&
       settings.autoExportIntervalMinutes >= 1 &&
-      currentView === "app" &&
       currentUser;
     if (canSetupInterval) {
       const intervalMs = settings.autoExportIntervalMinutes * 60 * 1000;
@@ -357,67 +576,11 @@ const App = () => {
   }, [
     settings.autoExportEnabled,
     settings.autoExportIntervalMinutes,
-    currentView,
     currentUser,
     showMessage,
   ]);
-  useEffect(() => {
-    setIsAuthChecking(true);
-    const token = getAccessToken();
-    if (token) {
-      authFetch("/auth/verify-token")
-        .then((response) => {
-          if (response.ok) return response.json();
-          throw new Error("Token verification failed");
-        })
-        .then((data) => {
-          if (data.valid && data.user) {
-            setCurrentUser(data.user);
-            setCurrentView("app");
-            if (fetchUserTree) fetchUserTree();
-          } else {
-            handleActualLogout();
-          }
-        })
-        .catch(() => {
-          handleActualLogout();
-        })
-        .finally(() => {
-          setIsAuthCheckComplete(true);
-          setIsAuthChecking(false);
-        });
-    } else {
-      setCurrentView("login");
-      if (resetTreeHistory) resetTreeHistory([]);
-      setIsAuthCheckComplete(true);
-      setIsAuthChecking(false);
-    }
-  }, [fetchUserTree, resetTreeHistory, handleActualLogout]);
-  const handleLoginSuccess = async (userData) => {
-    setCurrentUser(userData);
-    setCurrentView("app");
-    if (fetchUserTree) {
-      await fetchUserTree();
-    }
-  };
-  const handleInitiateLogout = async () => {
-    setIsLoggingOut(true);
-    const currentRefreshToken = getRefreshToken();
-    if (currentRefreshToken) {
-      try {
-        await authFetch("/auth/logout", {
-          method: "POST",
-          body: JSON.stringify({ refreshToken: currentRefreshToken }),
-        });
-      } catch (error) {
-        console.error(
-          "Error calling backend logout, proceeding with client-side logout:",
-          error
-        );
-      }
-    }
-    handleActualLogout();
-  };
+
+  // All the handler functions (keeping them similar to original)
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -428,6 +591,7 @@ const App = () => {
     },
     [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
+
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
@@ -439,14 +603,17 @@ const App = () => {
       treeNav?.focus({ preventScroll: true });
     });
   }, [showMessage]);
+
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
   );
+
   const findParentAndSiblingsFromTree = useCallback(
     (id) => findParentAndSiblingsUtil(tree, id),
     [tree]
   );
+
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
@@ -466,7 +633,6 @@ const App = () => {
       cancelInlineRename();
       showMessage("Item renamed successfully.", "success", 3000);
     } else {
-      // Check if this is a validation error vs network error
       const isNetworkOrServerError =
         result.error &&
         (result.error.includes("Network error") ||
@@ -475,15 +641,11 @@ const App = () => {
           result.error.includes("500") ||
           result.error.includes("timeout") ||
           result.error.includes("fetch") ||
-          result.error.includes("Failed to")); // Generic server failures
+          result.error.includes("Failed to"));
 
       if (isNetworkOrServerError) {
-        // Show network errors as global messages
         showMessage(result.error || "Rename failed.", "error");
       } else {
-        // Show validation errors inline (they'll appear in the Tree component)
-        // The Tree component should handle displaying validation errors in the input field
-        // For now, we'll show them as global messages too, but we could enhance this
         showMessage(result.error || "Rename failed.", "error");
       }
     }
@@ -495,6 +657,7 @@ const App = () => {
     findItemByIdFromTree,
     showMessage,
   ]);
+
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -508,19 +671,15 @@ const App = () => {
     },
     [showMessage, setContextMenu]
   );
-  const handleAdd = useCallback(async () => {
-    console.log("[DEBUG handleAdd] Starting handleAdd function");
 
+  const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
-      console.log("[DEBUG handleAdd] Empty label, setting error message");
       setAddDialogErrorMessage("Name cannot be empty.");
       return;
     }
 
     const parentId = parentItemForAdd?.id ?? null;
-    console.log("[DEBUG handleAdd] Parent ID:", parentId);
-
     const { siblings: targetSiblings } = findParentAndSiblingsFromTree(
       parentId ? parentItemForAdd.id : null
     );
@@ -530,7 +689,6 @@ const App = () => {
         (sibling) => sibling.label.toLowerCase() === trimmedLabel.toLowerCase()
       )
     ) {
-      console.log("[DEBUG handleAdd] Client-side duplicate check failed");
       setAddDialogErrorMessage(
         `An item named "${trimmedLabel}" already exists here.`
       );
@@ -546,20 +704,12 @@ const App = () => {
       direction:
         newItemType === "note" || newItemType === "task" ? "ltr" : undefined,
     };
-    console.log(
-      "[DEBUG handleAdd] About to call addItem with:",
-      newItemData,
-      "parentId:",
-      parentId
-    );
-    // Clear any existing error message before attempting to add
+
     setAddDialogErrorMessage("");
 
     const result = await addItem(newItemData, parentId);
-    console.log("[DEBUG handleAdd] addItem result:", result);
 
     if (result.success) {
-      console.log("[DEBUG handleAdd] Success path");
       setAddDialogOpen(false);
       setNewItemLabel("");
       setParentItemForAdd(null);
@@ -579,9 +729,6 @@ const App = () => {
         }
       }
     } else {
-      console.log("[DEBUG handleAdd] Error path, result.error:", result.error);
-      // Always show validation errors (like name conflicts) in the dialog
-      // Only show network/server errors as global messages
       const isNetworkOrServerError =
         result.error &&
         (result.error.includes("Network error") ||
@@ -591,20 +738,11 @@ const App = () => {
           result.error.includes("500") ||
           result.error.includes("timeout") ||
           result.error.includes("fetch"));
-      console.log(
-        "[DEBUG handleAdd] isNetworkOrServerError:",
-        isNetworkOrServerError
-      );
+      
       if (isNetworkOrServerError) {
-        console.log("[DEBUG handleAdd] Showing as global message");
         showMessage(result.error, "error");
         setAddDialogErrorMessage("");
       } else {
-        console.log(
-          "[DEBUG handleAdd] Setting dialog error message:",
-          result.error
-        );
-        // Show validation errors (like name conflicts) in the dialog
         setAddDialogErrorMessage(result.error || "Add operation failed.");
       }
     }
@@ -620,12 +758,9 @@ const App = () => {
     tree,
     findParentAndSiblingsFromTree,
   ]);
+
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
-      console.log(
-        `[App] Task toggle: ${id}, current completed: ${currentCompletedStatus}, setting to: ${!currentCompletedStatus}`
-      );
-
       const result = await updateTask(id, {
         completed: !currentCompletedStatus,
       });
@@ -638,6 +773,7 @@ const App = () => {
     },
     [updateTask, showMessage]
   );
+
   const handleSaveItemData = useCallback(
     async (itemId, dataToSave) => {
       const item = findItemByIdFromTree(itemId);
@@ -670,6 +806,7 @@ const App = () => {
     },
     [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
   );
+
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
 
   const openExportDialog = useCallback(
@@ -680,6 +817,7 @@ const App = () => {
     },
     [setContextMenu]
   );
+
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -688,6 +826,7 @@ const App = () => {
     },
     [setContextMenu]
   );
+
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
@@ -721,6 +860,7 @@ const App = () => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
+
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
@@ -732,6 +872,7 @@ const App = () => {
     },
     [pasteItem, showMessage]
   );
+
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
@@ -746,6 +887,7 @@ const App = () => {
     },
     [deleteItem, showMessage, setContextMenu]
   );
+
   const handleDuplicate = useCallback(
     async (itemId) => {
       setIsDuplicating(true);
@@ -762,6 +904,7 @@ const App = () => {
     },
     [duplicateItem, showMessage]
   );
+
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
       if (!item || !buttonElement) return;
@@ -782,6 +925,7 @@ const App = () => {
     },
     [selectItemById, setContextMenu]
   );
+
   const handleNativeContextMenu = useCallback(
     (event, item) => {
       if (draggedId || inlineRenameId) {
@@ -809,259 +953,8 @@ const App = () => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
-  useEffect(() => {
-    const handler = (e) => {
-      const activeElement = document.activeElement;
-      const isInputFocused =
-        activeElement &&
-        (activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.isContentEditable);
-      const isRenameInputActive =
-        !!inlineRenameId &&
-        activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-          activeElement;
-      const isTipTapEditorFocused =
-        activeElement &&
-        (activeElement.classList.contains("ProseMirror") ||
-          activeElement.closest(".ProseMirror"));
 
-      if (
-        isInputFocused &&
-        !isRenameInputActive &&
-        !isTipTapEditorFocused &&
-        activeElement.id !== "tree-navigation-area" &&
-        activeElement.id !== "global-search-input"
-      ) {
-        if (
-          (e.ctrlKey || e.metaKey) &&
-          (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y")
-        ) {
-          return;
-        }
-      }
-
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "z" &&
-        !e.shiftKey
-      ) {
-        if (isRenameInputActive || isTipTapEditorFocused) return;
-        e.preventDefault();
-        if (canUndoTree) undoTreeChange();
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        (e.key.toLowerCase() === "y" ||
-          (e.shiftKey && e.key.toLowerCase() === "z"))
-      ) {
-        if (isRenameInputActive || isTipTapEditorFocused) return;
-        e.preventDefault();
-        if (canRedoTree) redoTreeChange();
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.key.toUpperCase() === "F"
-      ) {
-        const el = e.target;
-        if (el.id === "global-search-input") return;
-
-        e.preventDefault();
-        setSearchSheetOpen((s) => !s);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [
-    canUndoTree,
-    undoTreeChange,
-    canRedoTree,
-    redoTreeChange,
-    inlineRenameId,
-    setSearchSheetOpen,
-  ]);
-  useEffect(() => {
-    const handleGlobalTreeOpsKeyDown = async (e) => {
-      const activeEl = document.activeElement;
-      const isRenameActive =
-        !!inlineRenameId &&
-        activeEl?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
-          activeEl;
-
-      if (isRenameActive && (e.key === "Enter" || e.key === "Escape")) {
-        return;
-      }
-
-      const isTipTapEditorFocused =
-        activeEl &&
-        (activeEl.classList.contains("ProseMirror") ||
-          activeEl.closest(".ProseMirror"));
-
-      const isGeneralInputFocused =
-        activeEl &&
-        (activeEl.tagName === "INPUT" ||
-          activeEl.tagName === "TEXTAREA" ||
-          activeEl.isContentEditable) &&
-        !isRenameActive &&
-        !isTipTapEditorFocused &&
-        activeEl.id !== "global-search-input";
-
-      const isTreeAreaLikelyFocused = () => {
-        const treeNav = document.querySelector(
-          'nav[aria-label="Notes and Tasks Tree"]'
-        );
-        return (
-          treeNav &&
-          (treeNav === activeEl ||
-            treeNav.contains(activeEl) ||
-            (document.body === activeEl && selectedItemId))
-        );
-      };
-      if (isGeneralInputFocused) {
-        if (
-          (e.ctrlKey || e.metaKey) &&
-          ["c", "x", "v", "a", "z", "y"].includes(e.key.toLowerCase())
-        )
-          return;
-        if (
-          [
-            "Delete",
-            "Backspace",
-            "Enter",
-            "Escape",
-            "ArrowUp",
-            "ArrowDown",
-            "ArrowLeft",
-            "ArrowRight",
-            "Tab",
-          ].includes(e.key) &&
-          !(
-            (e.key === "Delete" ||
-              (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) &&
-            selectedItemId
-          )
-        )
-          return;
-        if (e.key === "F2" && !selectedItemId) return;
-      }
-
-      if (isTipTapEditorFocused) {
-        if (
-          (e.ctrlKey || e.metaKey) &&
-          ["c", "x", "v", "a", "z", "y"].includes(e.key.toLowerCase())
-        )
-          return;
-        if (
-          [
-            "Delete",
-            "Backspace",
-            "Enter",
-            "ArrowUp",
-            "ArrowDown",
-            "ArrowLeft",
-            "ArrowRight",
-            "Tab",
-          ].includes(e.key)
-        )
-          return;
-      }
-
-      if (e.key === "F2" && selectedItemId && !isRenameActive) {
-        if (
-          isTreeAreaLikelyFocused() ||
-          (isTipTapEditorFocused &&
-            selectedItemId &&
-            document.activeElement?.closest(".editor-pane")) ||
-          document.body === activeEl
-        ) {
-          e.preventDefault();
-          const item = findItemByIdFromTree(selectedItemId);
-          if (item) startInlineRename(item);
-        }
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "c" &&
-        selectedItemId &&
-        !isRenameActive &&
-        !isTipTapEditorFocused
-      ) {
-        e.preventDefault();
-        copyItem(selectedItemId);
-        showMessage("Item copied.", "success", 2000);
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "x" &&
-        selectedItemId &&
-        !isRenameActive &&
-        !isTipTapEditorFocused
-      ) {
-        e.preventDefault();
-        cutItem(selectedItemId);
-        showMessage("Item cut.", "success", 2000);
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        e.key.toLowerCase() === "v" &&
-        clipboardItem &&
-        !isRenameActive &&
-        !isTipTapEditorFocused
-      ) {
-        e.preventDefault();
-        const currentItem = findItemByIdFromTree(selectedItemId);
-        const targetIdForPaste =
-          currentItem?.type === "folder"
-            ? selectedItemId
-            : findParentAndSiblingsFromTree(selectedItemId)?.parent?.id ?? null;
-        await handlePasteWrapper(targetIdForPaste);
-      } else if (
-        (e.key === "Delete" ||
-          (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) &&
-        selectedItemId &&
-        !isRenameActive &&
-        !isTipTapEditorFocused
-      ) {
-        if (
-          isTreeAreaLikelyFocused() ||
-          (document.body === activeEl && selectedItemId)
-        ) {
-          e.preventDefault();
-          const item = findItemByIdFromTree(selectedItemId);
-          if (item) {
-            showConfirm({
-              title: "Delete Item",
-              message: `Delete "${item.label}"?\nThis cannot be undone.`,
-              variant: "danger",
-              confirmText: "Delete",
-              onConfirm: () => {
-                handleDeleteConfirm(selectedItemId);
-                setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-              },
-              onCancel: () =>
-                setConfirmDialog((prev) => ({ ...prev, isOpen: false })),
-            });
-          }
-        }
-      }
-    };
-    window.addEventListener("keydown", handleGlobalTreeOpsKeyDown);
-    return () =>
-      window.removeEventListener("keydown", handleGlobalTreeOpsKeyDown);
-  }, [
-    selectedItemId,
-    inlineRenameId,
-    tree,
-    clipboardItem,
-    copyItem,
-    cutItem,
-    pasteItem,
-    deleteItem,
-    startInlineRename,
-    handlePasteWrapper,
-    showMessage,
-    findItemByIdFromTree,
-    findParentAndSiblingsFromTree,
-    handleDeleteConfirm,
-    setContextMenu,
-    showConfirm,
-  ]);
+  // Search functionality
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
       const currentSearchOpts = { ...searchOptions, useRegex: false };
@@ -1073,7 +966,7 @@ const App = () => {
       const processedResults = rawHits
         .map((hit) => {
           if (!hit || !hit.id) {
-            // return null; // disabled for logo debug
+            return null;
           }
           const pathString = getItemPath(tree, hit.id) || "";
           const originalLabel =
@@ -1224,6 +1117,8 @@ const App = () => {
     searchSheetOpen,
     tree,
   ]);
+
+  // Keyboard shortcuts and event handlers
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (topMenuRef.current && !topMenuRef.current.contains(e.target)) {
@@ -1240,26 +1135,82 @@ const App = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const handler = (e) => {
+      const activeElement = document.activeElement;
+      const isInputFocused =
+        activeElement &&
+        (activeElement.tagName === "INPUT" ||
+          activeElement.tagName === "TEXTAREA" ||
+          activeElement.isContentEditable);
+      const isRenameInputActive =
+        !!inlineRenameId &&
+        activeElement?.closest(`li[data-item-id="${inlineRenameId}"] input`) ===
+          activeElement;
+      const isTipTapEditorFocused =
+        activeElement &&
+        (activeElement.classList.contains("ProseMirror") ||
+          activeElement.closest(".ProseMirror"));
+
+      if (
+        isInputFocused &&
+        !isRenameInputActive &&
+        !isTipTapEditorFocused &&
+        activeElement.id !== "tree-navigation-area" &&
+        activeElement.id !== "global-search-input"
+      ) {
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y")
+        ) {
+          return;
+        }
+      }
+
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "z" &&
+        !e.shiftKey
+      ) {
+        if (isRenameInputActive || isTipTapEditorFocused) return;
+        e.preventDefault();
+        if (canUndoTree) undoTreeChange();
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "y" ||
+          (e.shiftKey && e.key.toLowerCase() === "z"))
+      ) {
+        if (isRenameInputActive || isTipTapEditorFocused) return;
+        e.preventDefault();
+        if (canRedoTree) redoTreeChange();
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        e.key.toUpperCase() === "F"
+      ) {
+        const el = e.target;
+        if (el.id === "global-search-input") return;
+
+        e.preventDefault();
+        setSearchSheetOpen((s) => !s);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    canUndoTree,
+    undoTreeChange,
+    canRedoTree,
+    redoTreeChange,
+    inlineRenameId,
+    setSearchSheetOpen,
+  ]);
+
   const handleAccountDisplayClick = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
   };
-  if (!isAuthCheckComplete)
-    return <LoadingSpinner variant="overlay" text="Loading application..." />;
-  if (currentView === "login")
-    return (
-      <Login
-        onLoginSuccess={handleLoginSuccess}
-        onSwitchToRegister={() => setCurrentView("register")}
-      />
-    );
-  if (currentView === "register")
-    return (
-      <Register
-        onRegisterSuccess={() => setCurrentView("login")}
-        onSwitchToLogin={() => setCurrentView("login")}
-      />
-    );
+
   const iconBaseClass = "w-4 h-4 mr-2";
 
   return (
@@ -1682,21 +1633,19 @@ const App = () => {
         newItemLabel={newItemLabel}
         errorMessage={addDialogErrorMessage}
         onLabelChange={(e) => {
-          // always coerce null/undefined → ""
           const val = e.target.value ?? "";
           setNewItemLabel(val);
           if (addDialogOpen) setAddDialogErrorMessage("");
         }}
         onAdd={() => {
           handleAdd();
-          // clear the label after a successful add
           setNewItemLabel("");
         }}
         onCancel={() => {
           setAddDialogOpen(false);
           setAddDialogErrorMessage("");
           showMessage("", "error");
-          setNewItemLabel(""); // ← reset the label so it’s never null
+          setNewItemLabel("");
         }}
       />
 
