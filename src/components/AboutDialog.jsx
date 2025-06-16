@@ -5,7 +5,8 @@ import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const AboutDialog = ({ isOpen, onClose }) => {
   const appName = "Notes & Tasks App";
-  const appVersion = packageJson.version; // Replace this dynamically if needed
+  const appVersion = packageJson.version;
+  const appLicense = packageJson.license;
   const currentYear = new Date().getFullYear();
   
   const dialogRef = useRef(null);
@@ -36,6 +37,7 @@ const AboutDialog = ({ isOpen, onClose }) => {
           </p>
           <p>&copy; TT</p>
           <p>Version: {appVersion}</p>
+          <p>{license}</p>
         </div>
         <button
           onClick={onClose}
