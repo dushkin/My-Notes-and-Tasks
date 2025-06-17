@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "6.0.2",
-  "commitMessage": "Modified logo and fixed about dialog",
+  "version": "6.0.3",
+  "commitMessage": "Updated favicon",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
