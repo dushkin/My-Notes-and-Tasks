@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "6.0.5",
-  "commitMessage": "Fixed F2 click",
+  "version": "6.0.6",
+  "commitMessage": "Fixed duplicating a folder does not copy also the children",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
