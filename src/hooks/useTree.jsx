@@ -49,14 +49,12 @@ export const assignClientPropsForDuplicate = (item) => {
   const newItem = { ...item };
   const now = new Date().toISOString();
 
-  // Generate a new client-side ID
   newItem.id = `client-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .substring(2, 9)}`;
   newItem.createdAt = now;
   newItem.updatedAt = now;
 
-  // Recursively process children if this is a folder
   if (item.type === "folder" && Array.isArray(item.children)) {
     newItem.children = item.children.map((child) =>
       assignClientPropsForDuplicate(child)
@@ -66,7 +64,6 @@ export const assignClientPropsForDuplicate = (item) => {
   return newItem;
 };
 
-// === HELPER FOR FREE PLAN LIMITATION ===
 const countTotalItems = (nodes) => {
   if (!Array.isArray(nodes)) return 0;
   let count = nodes.length;
@@ -78,7 +75,8 @@ const countTotalItems = (nodes) => {
   return count;
 };
 
-export const useTree = () => {
+// === MODIFIED: Hook now accepts currentUser to check for role ===
+export const useTree = (currentUser) => {
   const EXPANDED_KEY = `${LOCAL_STORAGE_KEY}_expanded`;
   const { settings } = useSettings();
 
@@ -128,7 +126,6 @@ export const useTree = () => {
     [tree, selectedItemId]
   );
 
-  // === ADDED: Calculate current item count ===
   const currentItemCount = useMemo(() => countTotalItems(tree), [tree]);
 
   const fetchUserTree = useCallback(async () => {
@@ -245,8 +242,11 @@ export const useTree = () => {
   }, []);
   const addItem = useCallback(
     async (newItemData, parentId) => {
-      // === FREE PLAN CHECK ===
-      if (currentItemCount >= FREE_PLAN_ITEM_LIMIT) {
+      // === MODIFIED: Check for user role before applying limit ===
+      if (
+        currentUser?.role !== "admin" &&
+        currentItemCount >= FREE_PLAN_ITEM_LIMIT
+      ) {
         return {
           success: false,
           error:
@@ -323,6 +323,7 @@ export const useTree = () => {
       expandFolderPath,
       settings.autoExpandNewFolders,
       currentItemCount,
+      currentUser,
     ]
   );
   const updateNoteContent = useCallback(
@@ -531,13 +532,15 @@ export const useTree = () => {
       if (!itemToDuplicate)
         return { success: false, error: "Item to duplicate not found." };
 
-      // === FREE PLAN CHECK ===
-      const itemsToCreate = countTotalItems([itemToDuplicate]);
-      if (currentItemCount + itemsToCreate > FREE_PLAN_ITEM_LIMIT) {
-        return {
-          success: false,
-          error: `This action would exceed the 100-item limit for the free plan. Please upgrade.`,
-        };
+      // === MODIFIED: Check for user role before applying limit ===
+      if (currentUser?.role !== "admin") {
+        const itemsToCreate = countTotalItems([itemToDuplicate]);
+        if (currentItemCount + itemsToCreate > FREE_PLAN_ITEM_LIMIT) {
+          return {
+            success: false,
+            error: `This action would exceed the 100-item limit for the free plan. Please upgrade.`,
+          };
+        }
       }
 
       const { parent } = findParentAndSiblings(tree, itemId);
@@ -645,12 +648,10 @@ export const useTree = () => {
       settings.autoExpandNewFolders,
       expandFolderPath,
       currentItemCount,
+      currentUser,
     ]
   );
-  /**
-   * REFACTORED `handleDrop`
-   * This function now calls the backend `moveItem` endpoint.
-   */
+
   const handleDrop = useCallback(
     async (targetFolderId, droppedItemId) => {
       const currentDraggedId = droppedItemId || draggedId;
@@ -721,10 +722,8 @@ export const useTree = () => {
           );
         }
 
-        // On success, refetch the entire tree to get the new state with correct server-side timestamps.
         await fetchUserTree();
 
-        // Auto-expand the target folder to show the dropped item.
         if (targetFolderId) {
           expandFolderPath(targetFolderId);
         }
@@ -732,7 +731,6 @@ export const useTree = () => {
         return { success: true };
       } catch (err) {
         console.error("Move (handleDrop) API error:", err);
-        // If the move fails, refetch the tree to ensure client is in sync with server state before the failed move.
         await fetchUserTree();
         return {
           success: false,
@@ -780,10 +778,7 @@ export const useTree = () => {
     },
     [tree]
   );
-  /**
-   * REFACTORED `pasteItem` for 'cut' mode.
-   * This function now calls the backend `moveItem` endpoint for cut operations.
-   */
+
   const pasteItem = useCallback(
     async (targetFolderId) => {
       if (!clipboardItem)
@@ -817,13 +812,15 @@ export const useTree = () => {
         : tree;
 
       if (clipboardMode === "copy") {
-        // === FREE PLAN CHECK ===
-        const itemsToCreate = countTotalItems([clipboardItem]);
-        if (currentItemCount + itemsToCreate > FREE_PLAN_ITEM_LIMIT) {
-          return {
-            success: false,
-            error: `Pasting these items would exceed the 100-item limit for the free plan. Please upgrade.`,
-          };
+        // === MODIFIED: Check for user role before applying limit ===
+        if (currentUser?.role !== "admin") {
+          const itemsToCreate = countTotalItems([clipboardItem]);
+          if (currentItemCount + itemsToCreate > FREE_PLAN_ITEM_LIMIT) {
+            return {
+              success: false,
+              error: `Pasting these items would exceed the 100-item limit for the free plan. Please upgrade.`,
+            };
+          }
         }
 
         let itemToInsertData = assignClientPropsForDuplicate(
@@ -914,6 +911,7 @@ export const useTree = () => {
       addItem,
       fetchUserTree,
       currentItemCount,
+      currentUser,
     ]
   );
   const handleExport = useCallback(
@@ -1079,6 +1077,6 @@ export const useTree = () => {
     canRedoTree,
     resetState: resetTreeHistory,
     isFetchingTree,
-    currentItemCount, // Expose the count
+    currentItemCount,
   };
 };
