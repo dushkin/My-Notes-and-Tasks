@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Button from './ui/button';
 import { Card, CardContent } from './ui/card';
 import logo from '../assets/logo_dual_48x48.png';
+import { PlayCircle } from 'lucide-react';
 
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
+  const [billingCycle, setBillingCycle] = useState('yearly'); // 'monthly', 'yearly', 'lifetime'
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
@@ -22,16 +25,16 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                 <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
                   👋 Welcome back, <span className="font-medium">{currentUser.email}</span>
                 </span>
-                <a 
-                  href="/app" 
+                <a
+                  href="/app"
                   className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-medium"
                 >
                   Go to App →
                 </a>
               </div>
             ) : (
-              <button 
-                onClick={onLogin} 
+              <button
+                onClick={onLogin}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-200 border-2 border-transparent hover:border-blue-300"
               >
                 🔐 Personal Area
@@ -72,7 +75,8 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                   transition={{ delay: 0.2, duration: 0.6 }}
                   className="text-xl text-gray-600 leading-relaxed"
                 >
-                  A powerful, intuitive platform that transforms how you capture ideas, build knowledge bases, manage tasks, and stay productive. Everything you need to turn thoughts into action.
+                  A powerful, intuitive platform that transforms how you capture ideas, build knowledge bases, manage tasks, and stay productive.
+                  Everything you need to turn thoughts into action.
                 </motion.p>
                 
                 <motion.div
@@ -108,138 +112,92 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                   )}
                 </motion.div>
 
-                {/* Feature highlights */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6, duration: 0.6 }}
-                  className="flex flex-wrap gap-6 pt-6"
+                  className="flex flex-wrap gap-x-6 gap-y-3 pt-6"
                 >
-                  {['🎯 Smart Organization', '⚡ Lightning Fast', '🔒 Secure & Private'].map((feature, index) => (
+                  {[
+                    '🎯 Smart Organization', 
+                    '⚡ Lightning Fast', 
+                    '🔒 Secure & Private',
+                    '🛡️ No Malicious Code'
+                  ].map((feature, index) => (
                     <div key={index} className="flex items-center space-x-2 text-gray-600">
                       <span className="text-lg">{feature.split(' ')[0]}</span>
                       <span className="font-medium">{feature.split(' ').slice(1).join(' ')}</span>
                     </div>
                   ))}
+                  <p className='text-xs text-gray-500 w-full pt-1'>No spyware, no malware, no adware. Ever.</p>
                 </motion.div>
               </div>
 
+              {/* === UPDATED: Video Placeholder + Image === */}
               <motion.div 
-                className="lg:w-1/2"
+                className="lg:w-1/2 flex flex-col gap-8"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.3, duration: 0.8 }}
               >
+                {/* Video Placeholder */}
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-20 transform rotate-6"></div>
-                  <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200/50">
-                    {/* App header mockup */}
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-12 flex items-center px-6">
-                      <div className="flex space-x-2">
-                        <div className="w-3 h-3 rounded-full bg-white/30"></div>
-                        <div className="w-3 h-3 rounded-full bg-white/30"></div>
-                        <div className="w-3 h-3 rounded-full bg-white/30"></div>
+                   <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-20 transform -rotate-3"></div>
+                   <div className="relative aspect-video bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-200/50 flex items-center justify-center group cursor-pointer">
+                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors duration-300"></div>
+                      <div className="relative flex flex-col items-center text-white">
+                         <PlayCircle className="w-16 h-16 text-white/70 group-hover:text-white transition-colors transform group-hover:scale-110 duration-300" />
+                         <span className="mt-3 text-lg font-medium">Watch the Intro</span>
                       </div>
-                      <div className="ml-4 text-white text-sm font-medium">Notes & Tasks</div>
+                   </div>
+                </div>
+
+                {/* App Image Mockup */}
+                <div className="relative">
+                  <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200/50">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-10 flex items-center px-4">
+                      <div className="flex space-x-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-white/30"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-white/30"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-white/30"></div>
+                      </div>
+                      <div className="ml-3 text-white text-xs font-medium">Notes & Tasks</div>
                     </div>
-                    
-                    {/* Two-panel layout mockup */}
-                    <div className="flex h-80">
-                      {/* Left panel - Tree structure */}
-                      <div className="w-1/2 p-4 bg-gray-50/50 border-r border-gray-200">
-                        <div className="space-y-2 text-sm">
-                          {/* Work Projects folder */}
-                          <div className="flex items-center space-x-2 text-gray-700">
-                            <span className="text-blue-500">▾</span>
-                            <span className="text-base">📁</span>
-                            <span className="font-medium">Work Projects</span>
-                          </div>
-                          
-                          {/* Nested items under Work Projects */}
-                          <div className="ml-6 space-y-1.5">
-                            <div className="flex items-center space-x-2 text-gray-600 bg-blue-50 px-2 py-1 rounded">
-                              <span className="text-base">📝</span>
-                              <span className="text-blue-700 font-medium">Meeting Notes</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-gray-600">
-                              <span className="text-base">✅</span>
-                              <span className="line-through opacity-60 text-xs">Setup repository</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-gray-600">
-                              <span className="text-base">⬜️</span>
-                              <span className="text-xs">Review mockups</span>
-                            </div>
-                          </div>
-
-                          {/* Personal folder */}
-                          <div className="flex items-center space-x-2 text-gray-700 mt-3">
-                            <span className="text-blue-500">▸</span>
-                            <span className="text-base">📁</span>
-                            <span className="font-medium">Personal</span>
-                          </div>
-
-                          {/* Knowledge Base folder */}
-                          <div className="flex items-center space-x-2 text-gray-700">
-                            <span className="text-blue-500">▾</span>
-                            <span className="text-base">📁</span>
-                            <span className="font-medium">Knowledge Base</span>
-                          </div>
-                          
-                          {/* Nested items under Knowledge Base */}
-                          <div className="ml-6 space-y-1.5">
-                            <div className="flex items-center space-x-2 text-gray-600">
-                              <span className="text-blue-500">▸</span>
-                              <span className="text-base">📁</span>
-                              <span className="text-xs">React Dev</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-gray-600">
-                              <span className="text-base">📝</span>
-                              <span className="text-xs">API Docs</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-gray-600">
-                              <span className="text-base">📝</span>
-                              <span className="text-xs">Resources</span>
-                            </div>
-                          </div>
-
-                          {/* Shopping folder */}
-                          <div className="flex items-center space-x-2 text-gray-700">
-                            <span className="text-blue-500">▸</span>
-                            <span className="text-base">📁</span>
-                            <span className="font-medium">Shopping</span>
-                          </div>
+                    <div className="flex h-64">
+                      <div className="w-1/2 p-3 bg-gray-50/50 border-r border-gray-200">
+                        <div className="space-y-1.5 text-xs">
+                           <div className="flex items-center space-x-2 text-gray-700">
+                               <span className="text-blue-500">▾</span>
+                               <span className="text-sm">📁</span>
+                               <span className="font-medium">Work Projects</span>
+                           </div>
+                           <div className="ml-5 space-y-1">
+                              <div className="flex items-center space-x-2 text-gray-600 bg-blue-50 px-2 py-0.5 rounded">
+                                 <span className="text-sm">📝</span>
+                                 <span className="text-blue-700 font-medium">Meeting Notes</span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-gray-600">
+                                 <span className="text-sm">✅</span>
+                                 <span className="line-through opacity-60">Setup repository</span>
+                              </div>
+                           </div>
+                           <div className="flex items-center space-x-2 text-gray-700 pt-1">
+                               <span className="text-blue-500">▸</span>
+                               <span className="text-sm">📁</span>
+                               <span className="font-medium">Knowledge Base</span>
+                           </div>
                         </div>
                       </div>
-                      
-                      {/* Right panel - Content preview */}
-                      <div className="w-1/2 p-4 bg-white">
-                        <div className="h-full">
-                          <div className="text-xs text-gray-500 mb-3 flex items-center space-x-2">
+                      <div className="w-1/2 p-3 bg-white">
+                         <div className="text-xs text-gray-500 mb-2 flex items-center space-x-1.5">
                             <span>📝</span>
-                            <span>Meeting Notes - Q1 Planning</span>
-                          </div>
-                          <div className="space-y-3">
-                            <div className="h-2 bg-gray-200 rounded w-full"></div>
-                            <div className="h-2 bg-gray-200 rounded w-5/6"></div>
-                            <div className="h-2 bg-gray-200 rounded w-4/6"></div>
-                            
-                            <div className="mt-4 space-y-2">
-                              <div className="text-xs font-medium text-gray-700 mb-2">Action Items:</div>
-                              <div className="flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                <div className="h-1.5 bg-gray-200 rounded w-3/5"></div>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <div className="h-1.5 bg-gray-200 rounded w-4/5"></div>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                                <div className="h-1.5 bg-gray-200 rounded w-2/5"></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                            <span>Meeting Notes - Q1</span>
+                         </div>
+                         <div className="space-y-2">
+                           <div className="h-1.5 bg-gray-200 rounded w-full"></div>
+                           <div className="h-1.5 bg-gray-200 rounded w-5/6"></div>
+                           <div className="h-1.5 bg-gray-200 rounded w-4/6"></div>
+                         </div>
                       </div>
                     </div>
                   </div>
@@ -274,24 +232,33 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                   transition={{ duration: 0.6, delay: 0.1 }}
                   viewport={{ once: true }}
                 >
-                  <Card className="relative overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-300">
-                    <CardContent className="p-8">
+                  <Card className="relative overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-300 h-full flex flex-col">
+                    <CardContent className="p-8 flex-grow flex flex-col">
                       <div className="text-center mb-6">
                         <h4 className="text-2xl font-bold text-gray-900 mb-2">Free Plan</h4>
                         <div className="text-4xl font-bold text-blue-600 mb-1">$0</div>
                         <div className="text-gray-500">Forever free</div>
                       </div>
                       <ul className="space-y-4 mb-8">
-                        {['Up to 100 tree items', 'Basic editor features', 'Tree view organization', 'Email support'].map((feature, index) => (
+                        {[
+                          'Up to 100 total items',
+                          'Basic editor features', 
+                          'Tree view organization', 
+                          'Email support'
+                        ].map((feature, index) => (
                           <li key={index} className="flex items-center space-x-3">
                             <span className="text-green-500">✓</span>
                             <span className="text-gray-700">{feature}</span>
                           </li>
                         ))}
+                         <li className="flex items-center space-x-3">
+                            <span className="text-transparent">✓</span>
+                            <span className="text-gray-400 italic">(Notes, tasks, and folders)</span>
+                          </li>
                       </ul>
                       <button 
                         onClick={onSignup} 
-                        className="w-full py-3 border-2 border-blue-600 text-blue-600 font-semibold rounded-full hover:bg-blue-50 transition-all duration-200"
+                        className="w-full mt-auto py-3 border-2 border-blue-600 text-blue-600 font-semibold rounded-full hover:bg-blue-50 transition-all duration-200"
                       >
                         Get Started Free
                       </button>
@@ -305,25 +272,53 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                   transition={{ duration: 0.6, delay: 0.2 }}
                   viewport={{ once: true }}
                 >
-                  <Card className="relative overflow-hidden border-2 border-blue-500 shadow-xl shadow-blue-500/25">
-                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center py-2 text-sm font-medium">
-                      ⭐ Most Popular
-                    </div>
-                    <CardContent className="p-8 pt-12">
+                  <Card className="relative overflow-hidden border-2 border-blue-500 shadow-xl shadow-blue-500/25 h-full flex flex-col">
+                    {billingCycle === 'yearly' && (
+                       <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center py-2 text-sm font-medium">
+                        ⭐ Most Popular
+                      </div>
+                    )}
+                    <CardContent className="p-8 pt-12 flex-grow flex flex-col">
                       <div className="text-center mb-6">
-                        <h4 className="text-2xl font-bold text-gray-900 mb-2">Pro Plan</h4>
-                        <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">$9</div>
-                        <div className="text-gray-500">per month</div>
+                        <h4 className="text-2xl font-bold text-gray-900 mb-4">Pro Plan</h4>
+
+                        <div className="p-1 bg-gray-100 rounded-full flex items-center mb-6">
+                          <button onClick={() => setBillingCycle('monthly')} className={`w-1/3 py-1.5 text-sm font-semibold rounded-full transition-colors ${billingCycle === 'monthly' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Monthly</button>
+                          <button onClick={() => setBillingCycle('yearly')} className={`w-1/3 py-1.5 text-sm font-semibold rounded-full transition-colors ${billingCycle === 'yearly' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Yearly</button>
+                          <button onClick={() => setBillingCycle('lifetime')} className={`w-1/3 py-1.5 text-sm font-semibold rounded-full transition-colors ${billingCycle === 'lifetime' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Lifetime</button>
+                        </div>
+
+                        {billingCycle === 'monthly' && (
+                           <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">$9</div>
+                        )}
+                         {billingCycle === 'yearly' && (
+                           <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">$90</div>
+                        )}
+                        {billingCycle === 'lifetime' && (
+                           <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">$249</div>
+                        )}
+                        <div className="text-gray-500 h-10 flex items-center justify-center">
+                          {billingCycle === 'monthly' && 'per month'}
+                          {billingCycle === 'yearly' && 'per year (Save 25%)'}
+                          {billingCycle === 'lifetime' && 'one-time payment'}
+                        </div>
                       </div>
                       <ul className="space-y-4 mb-8">
-                        {['Unlimited notes & tasks', 'Rich text & Markdown support', 'Advanced organization', 'Priority support', 'Cloud sync', 'Export features'].map((feature, index) => (
+                        {[
+                          'Unlimited notes & tasks', 
+                          'Rich text & Markdown support', 
+                          'Advanced organization', 
+                          'Priority support', 
+                          'Cloud sync', 
+                          'Export features'
+                        ].map((feature, index) => (
                           <li key={index} className="flex items-center space-x-3">
                             <span className="text-green-500">✓</span>
                             <span className="text-gray-700">{feature}</span>
                           </li>
                         ))}
                       </ul>
-                      <button className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200">
+                      <button className="w-full mt-auto py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200">
                         Start Pro Trial
                       </button>
                     </CardContent>
@@ -338,7 +333,14 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       <footer className="bg-gray-50 border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="text-center text-gray-600">
-            <p>© 2025 Notes & Tasks. Made with ❤️ for productivity enthusiasts.</p>
+            <p>© {new Date().getFullYear()} Notes & Tasks. Made with ❤️ for productivity enthusiasts.</p>
+             <p className="mt-2 text-sm">
+                <a href="#" className="hover:underline">Privacy Policy</a>
+                <span className="mx-2">·</span>
+                <a href="#" className="hover:underline">Terms of Service</a>
+                <span className="mx-2">·</span>
+                <a href="https://github.com/your-repo/address" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
+             </p>
           </div>
         </div>
       </footer>
