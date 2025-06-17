@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Button from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -7,6 +7,20 @@ import { PlayCircle } from 'lucide-react';
 
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
   const [billingCycle, setBillingCycle] = useState('yearly'); // 'monthly', 'yearly', 'lifetime'
+  
+  // === ADDED: Logic to ensure pricing is visible for logged-in users on upgrade flow ===
+  const [showPricing, setShowPricing] = useState(!currentUser);
+
+  useEffect(() => {
+    // If the URL has #pricing, ensure the pricing section is visible and scrolled to.
+    if (window.location.hash === '#pricing') {
+      setShowPricing(true);
+      setTimeout(() => {
+        document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, []);
+
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -237,7 +251,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                             <div className="h-2 bg-gray-200 rounded w-5/6"></div>
                             <div className="h-2 bg-gray-200 rounded w-4/6"></div>
                             
-                            {/* === THIS IS THE MODIFIED SECTION === */}
                             <div className="mt-4 space-y-2">
                               <div className="text-xs font-medium text-gray-700 mb-2">Action Items:</div>
                               <div className="flex items-center space-x-2">
@@ -264,7 +277,8 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           </div>
         </section>
         
-        {!currentUser && (
+        {/* === UPDATED: Pricing section is now conditionally rendered based on state === */}
+        {showPricing && (
           <section id="pricing" className="py-20 bg-white/50">
             <div className="max-w-7xl mx-auto px-6">
               <motion.div

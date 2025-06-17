@@ -22,6 +22,10 @@ import { authFetch } from "../services/apiClient";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+
+// === FREE PLAN LIMITATION ===
+const FREE_PLAN_ITEM_LIMIT = 100;
+
 function htmlToPlainTextWithNewlines(html) {
   if (!html) return "";
   let text = html;
@@ -60,6 +64,18 @@ export const assignClientPropsForDuplicate = (item) => {
   }
 
   return newItem;
+};
+
+// === HELPER FOR FREE PLAN LIMITATION ===
+const countTotalItems = (nodes) => {
+  if (!Array.isArray(nodes)) return 0;
+  let count = nodes.length;
+  for (const node of nodes) {
+    if (node.children && Array.isArray(node.children)) {
+      count += countTotalItems(node.children);
+    }
+  }
+  return count;
 };
 
 export const useTree = () => {
@@ -111,6 +127,10 @@ export const useTree = () => {
     () => findItemById(tree, selectedItemId),
     [tree, selectedItemId]
   );
+
+  // === ADDED: Calculate current item count ===
+  const currentItemCount = useMemo(() => countTotalItems(tree), [tree]);
+
   const fetchUserTree = useCallback(async () => {
     setIsFetchingTree(true);
     try {
@@ -225,6 +245,15 @@ export const useTree = () => {
   }, []);
   const addItem = useCallback(
     async (newItemData, parentId) => {
+      // === FREE PLAN CHECK ===
+      if (currentItemCount >= FREE_PLAN_ITEM_LIMIT) {
+        return {
+          success: false,
+          error:
+            "You have reached the 100-item limit for the free plan. Please upgrade to add more.",
+        };
+      }
+
       const trimmedLabel = newItemData?.label?.trim();
       if (!trimmedLabel) return { success: false, error: "Label is required." };
       if (!["folder", "note", "task"].includes(newItemData.type))
@@ -288,7 +317,13 @@ export const useTree = () => {
         return { success: false, error: "Network error adding item." };
       }
     },
-    [tree, setTreeWithUndo, expandFolderPath, settings.autoExpandNewFolders]
+    [
+      tree,
+      setTreeWithUndo,
+      expandFolderPath,
+      settings.autoExpandNewFolders,
+      currentItemCount,
+    ]
   );
   const updateNoteContent = useCallback(
     async (itemId, updates) => {
@@ -496,6 +531,15 @@ export const useTree = () => {
       if (!itemToDuplicate)
         return { success: false, error: "Item to duplicate not found." };
 
+      // === FREE PLAN CHECK ===
+      const itemsToCreate = countTotalItems([itemToDuplicate]);
+      if (currentItemCount + itemsToCreate > FREE_PLAN_ITEM_LIMIT) {
+        return {
+          success: false,
+          error: `This action would exceed the 100-item limit for the free plan. Please upgrade.`,
+        };
+      }
+
       const { parent } = findParentAndSiblings(tree, itemId);
       const parentId = parent?.id ?? null;
 
@@ -600,6 +644,7 @@ export const useTree = () => {
       setTreeWithUndo,
       settings.autoExpandNewFolders,
       expandFolderPath,
+      currentItemCount,
     ]
   );
   /**
@@ -772,6 +817,15 @@ export const useTree = () => {
         : tree;
 
       if (clipboardMode === "copy") {
+        // === FREE PLAN CHECK ===
+        const itemsToCreate = countTotalItems([clipboardItem]);
+        if (currentItemCount + itemsToCreate > FREE_PLAN_ITEM_LIMIT) {
+          return {
+            success: false,
+            error: `Pasting these items would exceed the 100-item limit for the free plan. Please upgrade.`,
+          };
+        }
+
         let itemToInsertData = assignClientPropsForDuplicate(
           structuredClone(clipboardItem)
         );
@@ -859,6 +913,7 @@ export const useTree = () => {
       expandFolderPath,
       addItem,
       fetchUserTree,
+      currentItemCount,
     ]
   );
   const handleExport = useCallback(
@@ -1024,5 +1079,6 @@ export const useTree = () => {
     canRedoTree,
     resetState: resetTreeHistory,
     isFetchingTree,
+    currentItemCount, // Expose the count
   };
 };

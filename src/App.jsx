@@ -1,10 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Tree from "./components/Tree";
 import FolderContents from "./components/FolderContents";
 import ContentEditor from "./components/ContentEditor";
@@ -38,6 +33,7 @@ import {
   Download,
   Upload,
   Plus,
+  Gem, // Added Gem Icon
 } from "lucide-react";
 import SearchResultsPane from "./components/SearchResultsPane";
 import { matchText } from "./utils/searchUtils";
@@ -165,7 +161,7 @@ const LandingPageRoute = () => {
       }
       setIsCheckingAuth(false);
     };
-
+    
     checkAuth();
   }, []);
   if (isCheckingAuth) {
@@ -176,8 +172,8 @@ const LandingPageRoute = () => {
   // Users can navigate to their account from here
   return (
     <LandingPage
-      onLogin={() => (window.location.href = "/login")}
-      onSignup={() => (window.location.href = "/register")}
+      onLogin={() => window.location.href = '/login'}
+      onSignup={() => window.location.href = '/register'}
       currentUser={currentUser} // Pass user info to landing page
     />
   );
@@ -206,7 +202,7 @@ const LoginRoute = () => {
       }
       setIsCheckingAuth(false);
     };
-
+    
     checkAuth();
   }, []);
   if (isCheckingAuth) {
@@ -220,12 +216,12 @@ const LoginRoute = () => {
 
   const handleLoginSuccess = (userData) => {
     setCurrentUser(userData);
-    window.location.href = "/app";
+    window.location.href = '/app';
   };
   return (
     <Login
       onLoginSuccess={handleLoginSuccess}
-      onSwitchToRegister={() => (window.location.href = "/register")}
+      onSwitchToRegister={() => window.location.href = '/register'}
     />
   );
 };
@@ -253,7 +249,7 @@ const RegisterRoute = () => {
       }
       setIsCheckingAuth(false);
     };
-
+    
     checkAuth();
   }, []);
   if (isCheckingAuth) {
@@ -266,12 +262,12 @@ const RegisterRoute = () => {
   }
 
   const handleRegisterSuccess = () => {
-    window.location.href = "/login";
+    window.location.href = '/login';
   };
   return (
     <Register
       onRegisterSuccess={handleRegisterSuccess}
-      onSwitchToLogin={() => (window.location.href = "/login")}
+      onSwitchToLogin={() => window.location.href = '/login'}
     />
   );
 };
@@ -301,9 +297,9 @@ const ProtectedAppRoute = () => {
       }
       // If no valid token, redirect to landing page
       clearTokens();
-      window.location.href = "/";
+      window.location.href = '/';
     };
-
+    
     checkAuth();
   }, []);
   if (!isAuthCheckComplete || !currentUser) {
@@ -317,7 +313,7 @@ const ProtectedAppRoute = () => {
 const MainApp = ({ currentUser, setCurrentUser }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
-
+  
   useEffect(() => {
     if (isSearchOpen) {
       const observer = new MutationObserver(() => {
@@ -370,6 +366,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     resetState: resetTreeHistory,
     fetchUserTree,
     isFetchingTree,
+    currentItemCount, // Get the count from the hook
   } = useTree();
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
@@ -447,7 +444,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     setAccountMenuOpen(false);
     setTopMenuOpen(false);
     setIsLoggingOut(false);
-    window.location.href = "/";
+    window.location.href = '/';
   }, [resetTreeHistory, setCurrentUser]);
   useEffect(() => {
     initApiClient(handleActualLogout);
@@ -479,10 +476,11 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
   // Auto export functionality
   const autoExportIntervalRef = useRef(null);
   const performAutoExportRef = useRef(null);
-
+  
   useEffect(() => {
     performAutoExportRef.current = () => {
-      if (!settings.autoExportEnabled || !currentUser) return;
+      if (!settings.autoExportEnabled || !currentUser)
+        return;
       if (!tree || tree.length === 0) {
         console.info("Auto Export: Tree is empty, skipping.");
         return;
@@ -1409,6 +1407,28 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 setUiError={(msg) => showMessage(msg, "error")}
               />
             </div>
+            {/* === ADDED: Free Plan Indicator === */}
+            <div className="flex-shrink-0 p-3 border-t border-zinc-200 dark:border-zinc-700/50 bg-zinc-50 dark:bg-zinc-800/30">
+                <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">Free Plan</span>
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {currentItemCount} / 100 items
+                    </span>
+                </div>
+                <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
+                    <div
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{ width: `${Math.min(currentItemCount, 100)}%` }}
+                    ></div>
+                </div>
+                <button 
+                    onClick={() => { window.open('/#pricing', '_blank'); }}
+                    className="mt-3 w-full flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                    <Gem className="w-4 h-4" />
+                    Upgrade to Pro
+                </button>
+            </div>
           </Panel>
           <PanelResizeHandle className="w-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-500 data-[resize-handle-active=true]:bg-blue-600 transition-colors cursor-col-resize z-20 flex-shrink-0" />
           <Panel
@@ -1447,8 +1467,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       onShowItemMenu={handleShowItemMenu}
                     />
                   </div>
-                ) : selectedItem.type === "note" ||
-                  selectedItem.type === "task" ? (
+                ) : selectedItem.type === "note" || selectedItem.type === "task" ? (
                   <ContentEditor
                     key={selectedItemId}
                     item={selectedItem}
