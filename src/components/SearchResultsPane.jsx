@@ -1,7 +1,6 @@
 // src/components/SearchResultsPane.jsx
 import React from "react";
 import { CaseSensitive, WholeWord, Regex, XCircle } from "lucide-react";
-
 function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -50,7 +49,6 @@ const HighlightedPathLabel = ({ pathString, itemLabel, highlightDetails }) => {
   if (!pathString) return <>{pathString}</>;
   const pathParts = pathString.split(" / ");
   const labelFromPath = pathParts[pathParts.length - 1];
-
   if (
     labelFromPath === itemLabel &&
     highlightDetails &&
@@ -134,7 +132,13 @@ export default function SearchResultsPane({
           ].map(({ key, label, Icon, disabled }) => (
             <button
               key={key}
-              title={disabled ? `${label} (Disabled)` : label}
+              title={
+                disabled
+                  ? key === "useRegex"
+                    ? "RegEx search will be implemented in the future"
+                    : `${label} (Disabled)`
+                  : label
+              }
               onClick={() => {
                 if (!disabled) {
                   setOpts((prevOpts) => ({
