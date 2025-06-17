@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "6.1.1",
-  "commitMessage": "Updated landing page",
+  "version": "6.2.0",
+  "commitMessage": "Mainly: Implemented free account plan restriction",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
