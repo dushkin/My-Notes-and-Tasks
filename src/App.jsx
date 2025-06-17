@@ -1,5 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import Tree from "./components/Tree";
 import FolderContents from "./components/FolderContents";
 import ContentEditor from "./components/ContentEditor";
@@ -46,7 +51,6 @@ import {
 } from "./services/authService";
 import { initApiClient, authFetch } from "./services/apiClient";
 import logo from "./assets/logo_dual_32x32.png";
-
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
   const year = now.getFullYear();
@@ -86,7 +90,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
-
   if (!message) {
     return null;
   }
@@ -124,7 +127,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
     </div>
   );
 };
-
 // Main App Component that handles routing
 const App = () => {
   return (
@@ -163,10 +165,9 @@ const LandingPageRoute = () => {
       }
       setIsCheckingAuth(false);
     };
-    
+
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -175,8 +176,8 @@ const LandingPageRoute = () => {
   // Users can navigate to their account from here
   return (
     <LandingPage
-      onLogin={() => window.location.href = '/login'}
-      onSignup={() => window.location.href = '/register'}
+      onLogin={() => (window.location.href = "/login")}
+      onSignup={() => (window.location.href = "/register")}
       currentUser={currentUser} // Pass user info to landing page
     />
   );
@@ -205,10 +206,9 @@ const LoginRoute = () => {
       }
       setIsCheckingAuth(false);
     };
-    
+
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -220,13 +220,12 @@ const LoginRoute = () => {
 
   const handleLoginSuccess = (userData) => {
     setCurrentUser(userData);
-    window.location.href = '/app';
+    window.location.href = "/app";
   };
-
   return (
     <Login
       onLoginSuccess={handleLoginSuccess}
-      onSwitchToRegister={() => window.location.href = '/register'}
+      onSwitchToRegister={() => (window.location.href = "/register")}
     />
   );
 };
@@ -254,10 +253,9 @@ const RegisterRoute = () => {
       }
       setIsCheckingAuth(false);
     };
-    
+
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -268,13 +266,12 @@ const RegisterRoute = () => {
   }
 
   const handleRegisterSuccess = () => {
-    window.location.href = '/login';
+    window.location.href = "/login";
   };
-
   return (
     <Register
       onRegisterSuccess={handleRegisterSuccess}
-      onSwitchToLogin={() => window.location.href = '/login'}
+      onSwitchToLogin={() => (window.location.href = "/login")}
     />
   );
 };
@@ -304,12 +301,11 @@ const ProtectedAppRoute = () => {
       }
       // If no valid token, redirect to landing page
       clearTokens();
-      window.location.href = '/';
+      window.location.href = "/";
     };
-    
+
     checkAuth();
   }, []);
-
   if (!isAuthCheckComplete || !currentUser) {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
@@ -321,7 +317,7 @@ const ProtectedAppRoute = () => {
 const MainApp = ({ currentUser, setCurrentUser }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
-  
+
   useEffect(() => {
     if (isSearchOpen) {
       const observer = new MutationObserver(() => {
@@ -339,7 +335,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       return () => observer.disconnect();
     }
   }, [isSearchOpen]);
-  
   const { settings } = useSettings();
   const {
     tree,
@@ -376,7 +371,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     fetchUserTree,
     isFetchingTree,
   } = useTree();
-
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
 
@@ -413,7 +407,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
   // Loading states
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -425,7 +418,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     confirmText: "Confirm",
     cancelText: "Cancel",
   });
-
   const showConfirm = useCallback((options) => {
     setConfirmDialog({
       isOpen: true,
@@ -440,7 +432,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       cancelText: options.cancelText || "Cancel",
     });
   }, []);
-
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
       setUiMessage(message);
@@ -448,7 +439,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     []
   );
-
   const handleActualLogout = useCallback(() => {
     clearTokens();
     setCurrentUser(null);
@@ -457,19 +447,16 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     setAccountMenuOpen(false);
     setTopMenuOpen(false);
     setIsLoggingOut(false);
-    window.location.href = '/';
+    window.location.href = "/";
   }, [resetTreeHistory, setCurrentUser]);
-
   useEffect(() => {
     initApiClient(handleActualLogout);
   }, [handleActualLogout]);
-
   useEffect(() => {
     if (fetchUserTree) {
       fetchUserTree();
     }
   }, [fetchUserTree]);
-
   const handleInitiateLogout = async () => {
     setIsLoggingOut(true);
     const currentRefreshToken = getRefreshToken();
@@ -492,11 +479,10 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
   // Auto export functionality
   const autoExportIntervalRef = useRef(null);
   const performAutoExportRef = useRef(null);
-  
+
   useEffect(() => {
     performAutoExportRef.current = () => {
-      if (!settings.autoExportEnabled || !currentUser)
-        return;
+      if (!settings.autoExportEnabled || !currentUser) return;
       if (!tree || tree.length === 0) {
         console.info("Auto Export: Tree is empty, skipping.");
         return;
@@ -538,7 +524,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     currentUser,
     showMessage,
   ]);
-
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
@@ -579,7 +564,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     currentUser,
     showMessage,
   ]);
-
   // All the handler functions (keeping them similar to original)
   const startInlineRename = useCallback(
     (item) => {
@@ -591,7 +575,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
-
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
@@ -603,17 +586,14 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       treeNav?.focus({ preventScroll: true });
     });
   }, [showMessage]);
-
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
   );
-
   const findParentAndSiblingsFromTree = useCallback(
     (id) => findParentAndSiblingsUtil(tree, id),
     [tree]
   );
-
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
@@ -657,7 +637,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     findItemByIdFromTree,
     showMessage,
   ]);
-
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -671,7 +650,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [showMessage, setContextMenu]
   );
-
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
@@ -706,7 +684,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     };
 
     setAddDialogErrorMessage("");
-
     const result = await addItem(newItemData, parentId);
 
     if (result.success) {
@@ -738,7 +715,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           result.error.includes("500") ||
           result.error.includes("timeout") ||
           result.error.includes("fetch"));
-      
       if (isNetworkOrServerError) {
         showMessage(result.error, "error");
         setAddDialogErrorMessage("");
@@ -758,7 +734,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     tree,
     findParentAndSiblingsFromTree,
   ]);
-
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       const result = await updateTask(id, {
@@ -773,7 +748,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [updateTask, showMessage]
   );
-
   const handleSaveItemData = useCallback(
     async (itemId, dataToSave) => {
       const item = findItemByIdFromTree(itemId);
@@ -806,7 +780,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
   );
-
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
 
   const openExportDialog = useCallback(
@@ -817,7 +790,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [setContextMenu]
   );
-
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -826,7 +798,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [setContextMenu]
   );
-
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
@@ -860,7 +831,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
-
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
@@ -872,7 +842,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [pasteItem, showMessage]
   );
-
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
@@ -887,7 +856,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [deleteItem, showMessage, setContextMenu]
   );
-
   const handleDuplicate = useCallback(
     async (itemId) => {
       setIsDuplicating(true);
@@ -904,7 +872,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [duplicateItem, showMessage]
   );
-
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
       if (!item || !buttonElement) return;
@@ -925,7 +892,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [selectItemById, setContextMenu]
   );
-
   const handleNativeContextMenu = useCallback(
     (event, item) => {
       if (draggedId || inlineRenameId) {
@@ -953,7 +919,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
-
   // Search functionality
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
@@ -1117,7 +1082,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     searchSheetOpen,
     tree,
   ]);
-
   // Keyboard shortcuts and event handlers
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -1205,14 +1169,12 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     inlineRenameId,
     setSearchSheetOpen,
   ]);
-
   const handleAccountDisplayClick = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
   };
 
   const iconBaseClass = "w-4 h-4 mr-2";
-
   return (
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <ErrorDisplay
@@ -1637,10 +1599,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           setNewItemLabel(val);
           if (addDialogOpen) setAddDialogErrorMessage("");
         }}
-        onAdd={() => {
-          handleAdd();
-          setNewItemLabel("");
-        }}
+        onAdd={handleAdd}
         onCancel={() => {
           setAddDialogOpen(false);
           setAddDialogErrorMessage("");

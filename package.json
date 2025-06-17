@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "6.0.8",
-  "commitMessage": "Enhanced protection for non-folder items on tree top level",
+  "version": "6.0.9",
+  "commitMessage": "If a new item name is invalid - give the error message but dont clear the text field",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
