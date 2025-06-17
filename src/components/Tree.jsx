@@ -22,7 +22,7 @@ const Tree = ({
   onDrop,
   onNativeContextMenu,
   onShowItemMenu,
-  onRename,
+  onRename, // This should be the startInlineRename function from App.jsx
   onDragEnd,
   uiError,
   setUiError,
@@ -94,6 +94,7 @@ const Tree = ({
         !(activeElement === document.body && selectedItemId)
       )
         return;
+      
       const visibleItems = getVisible(items, expandedFolders);
       const currentIndex = visibleItems.findIndex(
         (it) => it.id === selectedItemId
@@ -101,6 +102,7 @@ const Tree = ({
       const currentItem =
         currentIndex !== -1 ? visibleItems[currentIndex] : null;
       let nextItemId = null;
+      
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
@@ -164,6 +166,13 @@ const Tree = ({
             onToggleTask(currentItem.id, !currentItem.completed);
           }
           break;
+        case "F2":
+          // Add F2 rename functionality
+          e.preventDefault();
+          if (currentItem && onRename && !inlineRenameId) {
+            onRename(currentItem);
+          }
+          break;
         default:
           break;
       }
@@ -178,6 +187,7 @@ const Tree = ({
       getVisible,
       onToggleTask,
       inlineRenameId,
+      onRename, // Add onRename to dependencies
     ]
   );
 
