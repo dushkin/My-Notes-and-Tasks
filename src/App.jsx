@@ -33,7 +33,7 @@ import {
   Download,
   Upload,
   Plus,
-  Gem, // Added Gem Icon
+  Gem,
 } from "lucide-react";
 import SearchResultsPane from "./components/SearchResultsPane";
 import { matchText } from "./utils/searchUtils";
@@ -366,7 +366,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     resetState: resetTreeHistory,
     fetchUserTree,
     isFetchingTree,
-    currentItemCount, // Get the count from the hook
+    currentItemCount,
   } = useTree();
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
@@ -1223,11 +1223,11 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       isLoading={isLoggingOut}
                       loadingText="Logging out..."
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-700/30 border-0 bg-transparent"
-                      variant="danger"
+                      variant="danger-ghost"
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left"
                       size="small"
                     >
-                      <LogOut className="w-4 h-4 opacity-70" /> Logout
+                      <LogOut className="w-4 h-4" /> Logout
                     </LoadingButton>
                   </div>
                 )}
@@ -1407,7 +1407,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 setUiError={(msg) => showMessage(msg, "error")}
               />
             </div>
-            {/* === ADDED: Free Plan Indicator === */}
+            {/* === Free Plan Indicator === */}
             <div className="flex-shrink-0 p-3 border-t border-zinc-200 dark:border-zinc-700/50 bg-zinc-50 dark:bg-zinc-800/30">
                 <div className="flex justify-between items-center mb-2">
                     <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">Free Plan</span>
