@@ -61,6 +61,43 @@ const ContextMenu = ({
     };
   }, [visible, onClose]);
 
+  useEffect(() => {
+    if (visible && contextMenuRef.current) {
+      const menu = contextMenuRef.current;
+      const rect = menu.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let adjustedX = x;
+      let adjustedY = y;
+
+      // Adjust horizontal position if menu overflows right edge
+      if (x + rect.width > viewportWidth - 10) {
+        adjustedX = viewportWidth - rect.width - 10;
+      }
+      
+      // Adjust horizontal position if menu overflows left edge
+      if (adjustedX < 10) {
+        adjustedX = 10;
+      }
+
+      // Adjust vertical position if menu overflows bottom edge
+      if (y + rect.height > viewportHeight - 10) {
+        adjustedY = viewportHeight - rect.height - 10;
+      }
+      
+      // Adjust vertical position if menu overflows top edge
+      if (adjustedY < 10) {
+        adjustedY = 10;
+      }
+
+      if (adjustedX !== x || adjustedY !== y) {
+        menu.style.left = `${adjustedX}px`;
+        menu.style.top = `${adjustedY}px`;
+      }
+    }
+  }, [visible, x, y]);
+
   if (!visible) return null;
 
   const canPaste = !!clipboardItem;
