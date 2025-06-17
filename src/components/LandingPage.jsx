@@ -133,7 +133,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                 </motion.div>
               </div>
 
-              {/* === UPDATED: Video Placeholder + Image === */}
               <motion.div 
                 className="lg:w-1/2 flex flex-col gap-8"
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -163,41 +162,99 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                       </div>
                       <div className="ml-3 text-white text-xs font-medium">Notes & Tasks</div>
                     </div>
-                    <div className="flex h-64">
-                      <div className="w-1/2 p-3 bg-gray-50/50 border-r border-gray-200">
-                        <div className="space-y-1.5 text-xs">
-                           <div className="flex items-center space-x-2 text-gray-700">
-                               <span className="text-blue-500">▾</span>
-                               <span className="text-sm">📁</span>
-                               <span className="font-medium">Work Projects</span>
-                           </div>
-                           <div className="ml-5 space-y-1">
-                              <div className="flex items-center space-x-2 text-gray-600 bg-blue-50 px-2 py-0.5 rounded">
-                                 <span className="text-sm">📝</span>
-                                 <span className="text-blue-700 font-medium">Meeting Notes</span>
-                              </div>
-                              <div className="flex items-center space-x-2 text-gray-600">
-                                 <span className="text-sm">✅</span>
-                                 <span className="line-through opacity-60">Setup repository</span>
-                              </div>
-                           </div>
-                           <div className="flex items-center space-x-2 text-gray-700 pt-1">
-                               <span className="text-blue-500">▸</span>
-                               <span className="text-sm">📁</span>
-                               <span className="font-medium">Knowledge Base</span>
-                           </div>
+                    <div className="flex h-80">
+                      {/* Left panel - Tree structure */}
+                      <div className="w-1/2 p-4 bg-gray-50/50 border-r border-gray-200">
+                        <div className="space-y-2 text-sm">
+                          {/* Work Projects folder */}
+                          <div className="flex items-center space-x-2 text-gray-700">
+                            <span className="text-blue-500">▾</span>
+                            <span className="text-base">📁</span>
+                            <span className="font-medium">Work Projects</span>
+                          </div>
+                          
+                          {/* Nested items under Work Projects */}
+                          <div className="ml-6 space-y-1.5">
+                            {/* Meeting Notes (Selected) */}
+                            <div className="flex items-center space-x-2 text-gray-600 bg-blue-50 px-2 py-1 rounded">
+                              <span className="text-base">📝</span>
+                              <span className="text-blue-700 font-medium">Meeting Notes</span>
+                            </div>
+                            {/* Task Item 1 (Completed) */}
+                            <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
+                              <span className="text-base">✅</span>
+                              <span className="line-through opacity-60 text-xs">Setup repository</span>
+                            </div>
+                            {/* Task Item 2 */}
+                            <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
+                              <span className="text-base">⬜️</span>
+                              <span className="text-xs">Review mockups</span>
+                            </div>
+                          </div>
+
+                          {/* Personal folder */}
+                          <div className="flex items-center space-x-2 text-gray-700 mt-3">
+                            <span className="text-blue-500">▸</span>
+                            <span className="text-base">📁</span>
+                            <span className="font-medium">Personal</span>
+                          </div>
+
+                          {/* Knowledge Base folder */}
+                          <div className="flex items-center space-x-2 text-gray-700">
+                            <span className="text-blue-500">▾</span>
+                            <span className="text-base">📁</span>
+                            <span className="font-medium">Knowledge Base</span>
+                          </div>
+                          
+                          {/* Nested items under Knowledge Base */}
+                          <div className="ml-6 space-y-1.5">
+                            <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
+                              <span className="text-blue-500">▸</span>
+                              <span className="text-base">📁</span>
+                              <span className="text-xs">React Dev</span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
+                              <span className="text-base">📝</span>
+                              <span className="text-xs">API Docs</span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
+                              <span className="text-base">📝</span>
+                              <span className="text-xs">Resources</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="w-1/2 p-3 bg-white">
-                         <div className="text-xs text-gray-500 mb-2 flex items-center space-x-1.5">
+                      
+                      {/* Right panel - Content preview */}
+                      <div className="w-1/2 p-4 bg-white">
+                        <div className="h-full">
+                          <div className="text-xs text-gray-500 mb-3 flex items-center space-x-2">
                             <span>📝</span>
-                            <span>Meeting Notes - Q1</span>
-                         </div>
-                         <div className="space-y-2">
-                           <div className="h-1.5 bg-gray-200 rounded w-full"></div>
-                           <div className="h-1.5 bg-gray-200 rounded w-5/6"></div>
-                           <div className="h-1.5 bg-gray-200 rounded w-4/6"></div>
-                         </div>
+                            <span>Meeting Notes</span>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="h-2 bg-gray-200 rounded w-full"></div>
+                            <div className="h-2 bg-gray-200 rounded w-5/6"></div>
+                            <div className="h-2 bg-gray-200 rounded w-4/6"></div>
+                            
+                            {/* === THIS IS THE MODIFIED SECTION === */}
+                            <div className="mt-4 space-y-2">
+                              <div className="text-xs font-medium text-gray-700 mb-2">Action Items:</div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-gray-700 rounded-full"></div>
+                                <div className="h-1.5 bg-gray-200 rounded w-3/5"></div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-gray-700 rounded-full"></div>
+                                <div className="h-1.5 bg-gray-200 rounded w-4/5"></div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-gray-700 rounded-full"></div>
+                                <div className="h-1.5 bg-gray-200 rounded w-2/5"></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
