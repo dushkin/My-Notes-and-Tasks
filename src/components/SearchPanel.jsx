@@ -1,12 +1,10 @@
-import React, { useEffect, useRef, useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { matchText } from "../utils/searchUtils";
-
 const defaultOptions = {
   caseSensitive: false,
   wholeWord: false,
   useRegex: false,
 };
-
 export default function SearchPanel({
   searchItems,
   initialQuery = "",
@@ -17,7 +15,7 @@ export default function SearchPanel({
   const [opts, setOpts] = useState(options);
   const [results, setResults] = useState([]);
   const [preview, setPreview] = useState(null);
-
+  const inputRef = useRef(null);
   useEffect(() => {
     if (query) {
       const hits = searchItems(query, opts);
@@ -28,7 +26,6 @@ export default function SearchPanel({
       setPreview(null);
     }
   }, [query, opts, searchItems]);
-
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
@@ -38,7 +35,6 @@ export default function SearchPanel({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
-
   if (results.length === 0) {
     return (
       <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
@@ -53,7 +49,8 @@ export default function SearchPanel({
       <div className="p-2 border-b border-zinc-700 flex items-center space-x-2">
         <input
           autoFocus
-          type="text" ref={inputRef}
+          type="text"
+          ref={inputRef}
           className="flex-1 px-2 py-1 rounded bg-zinc-800 focus:outline-none"
           placeholder="Search..."
           value={query ?? ""}
@@ -87,13 +84,17 @@ export default function SearchPanel({
           />
           <span>Whole</span>
         </label>
-        <label className="flex items-center space-x-1">
+        <label
+          className="flex items-center space-x-1 cursor-not-allowed"
+          title="RegEx search will be implemented in the future"
+        >
           <input
             type="checkbox"
             checked={opts.useRegex}
             onChange={(e) => setOpts({ ...opts, useRegex: e.target.checked })}
+            disabled={true}
           />
-          <span>RegEx</span>
+          <span className="opacity-50">RegEx</span>
         </label>
       </div>
       {/* Body */}
