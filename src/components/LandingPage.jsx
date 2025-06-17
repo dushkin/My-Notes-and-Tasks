@@ -8,7 +8,6 @@ import { PlayCircle } from 'lucide-react';
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
   const [billingCycle, setBillingCycle] = useState('yearly'); // 'monthly', 'yearly', 'lifetime'
   
-  // === ADDED: Logic to ensure pricing is visible for logged-in users on upgrade flow ===
   const [showPricing, setShowPricing] = useState(!currentUser);
 
   useEffect(() => {
@@ -74,7 +73,8 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6 }}
                 >
-                  <h2 className="text-5xl lg:text-6xl font-bold leading-tight">
+                  {/* === THIS IS THE MODIFIED LINE === */}
+                  <h2 className="text-5xl lg:text-6xl font-bold leading-tight text-zinc-900">
                     Organize Your{' '}
                     <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                       Digital Life
@@ -277,7 +277,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           </div>
         </section>
         
-        {/* === UPDATED: Pricing section is now conditionally rendered based on state === */}
         {showPricing && (
           <section id="pricing" className="py-20 bg-white/50">
             <div className="max-w-7xl mx-auto px-6">
