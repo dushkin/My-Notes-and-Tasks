@@ -22,7 +22,6 @@ import { authFetch } from "../services/apiClient";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
-
 function htmlToPlainTextWithNewlines(html) {
   if (!html) return "";
   let text = html;
@@ -55,7 +54,7 @@ export const assignClientPropsForDuplicate = (item) => {
 
   // Recursively process children if this is a folder
   if (item.type === "folder" && Array.isArray(item.children)) {
-    newItem.children = item.children.map((child) => 
+    newItem.children = item.children.map((child) =>
       assignClientPropsForDuplicate(child)
     );
   }
@@ -77,7 +76,6 @@ export const useTree = () => {
       return [];
     }
   })();
-
   const {
     state: tree,
     setState: setTreeWithUndo,
@@ -87,7 +85,6 @@ export const useTree = () => {
     canUndo: canUndoTree,
     canRedo: canRedoTree,
   } = useUndoRedo(initialTreeState);
-
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [contextMenu, setContextMenu] = useState({
     visible: false,
@@ -114,7 +111,6 @@ export const useTree = () => {
     () => findItemById(tree, selectedItemId),
     [tree, selectedItemId]
   );
-
   const fetchUserTree = useCallback(async () => {
     setIsFetchingTree(true);
     try {
@@ -139,7 +135,6 @@ export const useTree = () => {
       setIsFetchingTree(false);
     }
   }, [resetTreeHistory]);
-
   useEffect(() => {
     try {
       if (Array.isArray(tree))
@@ -148,7 +143,6 @@ export const useTree = () => {
       console.error("Failed to save tree to localStorage:", error);
     }
   }, [tree]);
-
   useEffect(() => {
     try {
       localStorage.setItem(EXPANDED_KEY, JSON.stringify(expandedFolders));
@@ -156,7 +150,6 @@ export const useTree = () => {
       console.error("Failed to save expanded folders:", error);
     }
   }, [expandedFolders]);
-
   const selectItemById = useCallback((id) => setSelectedItemId(id), []);
 
   const replaceTree = useCallback(
@@ -230,13 +223,19 @@ export const useTree = () => {
       [id]: forceState !== undefined ? Boolean(forceState) : !prev[id],
     }));
   }, []);
-
   const addItem = useCallback(
     async (newItemData, parentId) => {
       const trimmedLabel = newItemData?.label?.trim();
       if (!trimmedLabel) return { success: false, error: "Label is required." };
       if (!["folder", "note", "task"].includes(newItemData.type))
         return { success: false, error: "Invalid item type." };
+
+      if (parentId === null && newItemData.type !== "folder") {
+        return {
+          success: false,
+          error: "Only folders can be created at the root level.",
+        };
+      }
 
       const payload = {
         label: trimmedLabel,
@@ -282,19 +281,15 @@ export const useTree = () => {
         return { success: true, item: createdItemFromServer };
       } catch (error) {
         console.error("addItem API error:", error);
-
-        // Preserve the specific error message from the API
         if (error && error.message) {
           return { success: false, error: error.message };
         }
 
-        // Fallback to a generic message only if no specific message is available
         return { success: false, error: "Network error adding item." };
       }
     },
     [tree, setTreeWithUndo, expandFolderPath, settings.autoExpandNewFolders]
   );
-
   const updateNoteContent = useCallback(
     async (itemId, updates) => {
       try {
@@ -327,7 +322,6 @@ export const useTree = () => {
     },
     [tree, setTreeWithUndo]
   );
-
   const updateTask = useCallback(
     async (taskId, updates) => {
       if (updates.hasOwnProperty("completed")) {
@@ -394,7 +388,6 @@ export const useTree = () => {
     },
     [tree, setTreeWithUndo]
   );
-
   const updateItemOptimistically = (item, targetId, updates) => {
     if (item.id === targetId) {
       return { ...item, ...updates };
@@ -416,7 +409,6 @@ export const useTree = () => {
       if (!trimmedLabel || !itemId)
         return { success: false, error: "Invalid ID or name." };
 
-      // Use findParentAndSiblings from treeUtils instead of the undefined function
       const { parentArray } = findParentAndSiblings(tree, itemId);
 
       if (hasSiblingWithName(parentArray || tree, trimmedLabel, itemId)) {
@@ -458,19 +450,15 @@ export const useTree = () => {
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("renameItem API error:", error);
-
-        // Preserve the specific error message from the API
         if (error && error.message) {
           return { success: false, error: error.message };
         }
 
-        // Fallback to a generic message only if no specific message is available
         return { success: false, error: "Network error renaming item." };
       }
     },
     [tree, setTreeWithUndo]
   );
-
   const deleteItem = useCallback(
     async (idToDelete) => {
       if (!idToDelete) return { success: false, error: "No ID for deletion." };
@@ -502,7 +490,6 @@ export const useTree = () => {
     },
     [tree, selectedItemId, setTreeWithUndo]
   );
-
   const duplicateItem = useCallback(
     async (itemId) => {
       const itemToDuplicate = findItemById(tree, itemId);
@@ -512,12 +499,10 @@ export const useTree = () => {
       const { parent } = findParentAndSiblings(tree, itemId);
       const parentId = parent?.id ?? null;
 
-      // Create a deep copy with new client-side IDs
       let newDuplicateDataForServer = assignClientPropsForDuplicate(
         structuredClone(itemToDuplicate)
       );
 
-      // Generate a unique name for the duplicate
       let baseName = itemToDuplicate.label;
       let newLabel = `${baseName} (copy)`;
       let counter = 1;
@@ -530,9 +515,7 @@ export const useTree = () => {
       }
       newDuplicateDataForServer.label = newLabel;
 
-      // Recursive function to create items on the server
       const createItemWithChildren = async (itemData, currentParentId) => {
-        // Prepare the payload for the server
         const payload = {
           label: itemData.label,
           type: itemData.type,
@@ -547,7 +530,6 @@ export const useTree = () => {
         }
 
         try {
-          // Create the item on the server
           const endpoint = currentParentId
             ? `/items/${currentParentId}`
             : `/items`;
@@ -564,7 +546,6 @@ export const useTree = () => {
             );
           }
 
-          // If this is a folder with children, recursively create the children
           if (
             itemData.type === "folder" &&
             Array.isArray(itemData.children) &&
@@ -580,7 +561,6 @@ export const useTree = () => {
                 createdChildren.push(createdChild);
               }
             }
-            // Update the server item with the created children for our local tree
             createdItemFromServer.children = createdChildren;
           }
 
@@ -592,17 +572,13 @@ export const useTree = () => {
       };
 
       try {
-        // Create the entire structure on the server
         const createdItem = await createItemWithChildren(
           newDuplicateDataForServer,
           parentId
         );
-
-        // Update the local tree with the new item
         const newTreeState = insertItemRecursive(tree, parentId, createdItem);
         setTreeWithUndo(newTreeState);
 
-        // Auto-expand if needed
         if (parentId && settings.autoExpandNewFolders) {
           setTimeout(() => expandFolderPath(parentId), 0);
         }
@@ -610,13 +586,10 @@ export const useTree = () => {
         return { success: true, item: createdItem };
       } catch (error) {
         console.error("duplicateItem error:", error);
-
-        // Preserve the specific error message from the API
         if (error && error.message) {
           return { success: false, error: error.message };
         }
 
-        // Fallback to a generic message only if no specific message is available
         return { success: false, error: "Network error duplicating item." };
       }
     },
@@ -629,7 +602,6 @@ export const useTree = () => {
       expandFolderPath,
     ]
   );
-
   /**
    * REFACTORED `handleDrop`
    * This function now calls the backend `moveItem` endpoint.
@@ -652,6 +624,13 @@ export const useTree = () => {
       const itemToDrop = findItemById(tree, currentDraggedId);
       if (!itemToDrop) {
         return { success: false, error: "Dragged item not found." };
+      }
+
+      if (targetFolderId === null && itemToDrop.type !== "folder") {
+        return {
+          success: false,
+          error: "Only folders can be moved to the root level.",
+        };
       }
 
       const targetFolder = targetFolderId
@@ -690,7 +669,6 @@ export const useTree = () => {
           method: "PATCH",
           body: JSON.stringify({ newParentId: targetFolderId, newIndex }),
         });
-
         if (!response.ok) {
           const data = await response.json();
           throw new Error(
@@ -719,7 +697,6 @@ export const useTree = () => {
     },
     [draggedId, tree, fetchUserTree, expandFolderPath]
   );
-
   const copyItem = useCallback(
     (itemId) => {
       const itemToCopy = findItemById(tree, itemId);
@@ -739,7 +716,6 @@ export const useTree = () => {
     },
     [tree]
   );
-
   const cutItem = useCallback(
     (itemId) => {
       const itemToCut = findItemById(tree, itemId);
@@ -759,7 +735,6 @@ export const useTree = () => {
     },
     [tree]
   );
-
   /**
    * REFACTORED `pasteItem` for 'cut' mode.
    * This function now calls the backend `moveItem` endpoint for cut operations.
@@ -768,6 +743,13 @@ export const useTree = () => {
     async (targetFolderId) => {
       if (!clipboardItem)
         return { success: false, error: "Clipboard is empty." };
+
+      if (targetFolderId === null && clipboardItem.type !== "folder") {
+        return {
+          success: false,
+          error: "Only folders can be pasted at the root level.",
+        };
+      }
 
       const targetParent = targetFolderId
         ? findItemById(tree, targetFolderId)
@@ -816,7 +798,6 @@ export const useTree = () => {
         const itemToMove = clipboardItem;
         const parentInfo = findParentAndSiblings(tree, cutItemId);
         const oldParentId = parentInfo.parent ? parentInfo.parent.id : null;
-
         if (oldParentId === targetFolderId) {
           setClipboardItem(null);
           setClipboardMode(null);
@@ -835,13 +816,11 @@ export const useTree = () => {
         }
 
         const newIndex = targetSiblings.length;
-
         try {
           const response = await authFetch(`/items/${cutItemId}/move`, {
             method: "PATCH",
             body: JSON.stringify({ newParentId: targetFolderId, newIndex }),
           });
-
           if (!response.ok) {
             const data = await response.json();
             throw new Error(
@@ -855,7 +834,6 @@ export const useTree = () => {
           setCutItemId(null);
 
           await fetchUserTree();
-
           if (targetFolderId && settings.autoExpandNewFolders) {
             expandFolderPath(targetFolderId);
           }
@@ -883,7 +861,6 @@ export const useTree = () => {
       fetchUserTree,
     ]
   );
-
   const handleExport = useCallback(
     (target, format) => {
       let dataToExport;
@@ -922,7 +899,6 @@ export const useTree = () => {
     },
     [tree, selectedItemId]
   );
-
   const handleImport = useCallback(
     async (file, importTargetOption) => {
       return new Promise((resolveOuter) => {
@@ -966,7 +942,6 @@ export const useTree = () => {
 
             // On successful import, refresh the tree
             await fetchUserTree();
-
             resolveOuter({
               success: true,
               message: "Import successful! Tree has been updated.",
@@ -988,7 +963,6 @@ export const useTree = () => {
     },
     [fetchUserTree]
   );
-
   const searchItems = useCallback(
     (query, opts) => {
       if (!query) return [];
@@ -1012,10 +986,8 @@ export const useTree = () => {
     },
     [tree]
   );
-
   // Make fetchUserTree available globally for debugging
   window.fetchUserTree = fetchUserTree;
-
   return {
     fetchUserTree,
     tree,
