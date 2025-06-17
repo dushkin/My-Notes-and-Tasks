@@ -46,17 +46,20 @@ export const assignClientPropsForDuplicate = (item) => {
   const newItem = { ...item };
   const now = new Date().toISOString();
 
+  // Generate a new client-side ID
   newItem.id = `client-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .substring(2, 9)}`;
   newItem.createdAt = now;
   newItem.updatedAt = now;
 
+  // Recursively process children if this is a folder
   if (item.type === "folder" && Array.isArray(item.children)) {
-    newItem.children = item.children.map((child) =>
+    newItem.children = item.children.map((child) => 
       assignClientPropsForDuplicate(child)
     );
   }
+
   return newItem;
 };
 
@@ -505,13 +508,16 @@ export const useTree = () => {
       const itemToDuplicate = findItemById(tree, itemId);
       if (!itemToDuplicate)
         return { success: false, error: "Item to duplicate not found." };
+
       const { parent } = findParentAndSiblings(tree, itemId);
       const parentId = parent?.id ?? null;
 
+      // Create a deep copy with new client-side IDs
       let newDuplicateDataForServer = assignClientPropsForDuplicate(
         structuredClone(itemToDuplicate)
       );
 
+      // Generate a unique name for the duplicate
       let baseName = itemToDuplicate.label;
       let newLabel = `${baseName} (copy)`;
       let counter = 1;
@@ -524,21 +530,104 @@ export const useTree = () => {
       }
       newDuplicateDataForServer.label = newLabel;
 
-      const result = await addItem(newDuplicateDataForServer, parentId);
+      // Recursive function to create items on the server
+      const createItemWithChildren = async (itemData, currentParentId) => {
+        // Prepare the payload for the server
+        const payload = {
+          label: itemData.label,
+          type: itemData.type,
+        };
 
-      if (result.success && result.item) {
+        if (itemData.type === "note" || itemData.type === "task") {
+          payload.content = itemData.content || "";
+          payload.direction = itemData.direction || "ltr";
+        }
+        if (itemData.type === "task") {
+          payload.completed = !!itemData.completed;
+        }
+
+        try {
+          // Create the item on the server
+          const endpoint = currentParentId
+            ? `/items/${currentParentId}`
+            : `/items`;
+          const response = await authFetch(endpoint, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          const createdItemFromServer = await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              createdItemFromServer.error ||
+                `Failed to create item: ${response.status}`
+            );
+          }
+
+          // If this is a folder with children, recursively create the children
+          if (
+            itemData.type === "folder" &&
+            Array.isArray(itemData.children) &&
+            itemData.children.length > 0
+          ) {
+            const createdChildren = [];
+            for (const childData of itemData.children) {
+              const createdChild = await createItemWithChildren(
+                childData,
+                createdItemFromServer.id
+              );
+              if (createdChild) {
+                createdChildren.push(createdChild);
+              }
+            }
+            // Update the server item with the created children for our local tree
+            createdItemFromServer.children = createdChildren;
+          }
+
+          return createdItemFromServer;
+        } catch (error) {
+          console.error("Error creating item during duplication:", error);
+          throw error;
+        }
+      };
+
+      try {
+        // Create the entire structure on the server
+        const createdItem = await createItemWithChildren(
+          newDuplicateDataForServer,
+          parentId
+        );
+
+        // Update the local tree with the new item
+        const newTreeState = insertItemRecursive(tree, parentId, createdItem);
+        setTreeWithUndo(newTreeState);
+
+        // Auto-expand if needed
         if (parentId && settings.autoExpandNewFolders) {
           setTimeout(() => expandFolderPath(parentId), 0);
         }
-        return { success: true, item: result.item };
-      } else {
-        return {
-          success: false,
-          error: result.error || "Failed to save duplicated item.",
-        };
+
+        return { success: true, item: createdItem };
+      } catch (error) {
+        console.error("duplicateItem error:", error);
+
+        // Preserve the specific error message from the API
+        if (error && error.message) {
+          return { success: false, error: error.message };
+        }
+
+        // Fallback to a generic message only if no specific message is available
+        return { success: false, error: "Network error duplicating item." };
       }
     },
-    [tree, addItem, settings.autoExpandNewFolders, expandFolderPath]
+    [
+      tree,
+      findParentAndSiblings,
+      insertItemRecursive,
+      setTreeWithUndo,
+      settings.autoExpandNewFolders,
+      expandFolderPath,
+    ]
   );
 
   /**
@@ -877,7 +966,7 @@ export const useTree = () => {
 
             // On successful import, refresh the tree
             await fetchUserTree();
-            
+
             resolveOuter({
               success: true,
               message: "Import successful! Tree has been updated.",
