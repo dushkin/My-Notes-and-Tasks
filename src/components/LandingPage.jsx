@@ -155,14 +155,17 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
               >
                 {/* Video Placeholder */}
                 <div className="relative">
-                   <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-20 transform -rotate-3"></div>
-                   <div className="relative aspect-video bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-200/50 flex items-center justify-center group cursor-pointer">
-                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors duration-300"></div>
-                      <div className="relative flex flex-col items-center text-white">
-                         <PlayCircle className="w-16 h-16 text-white/70 group-hover:text-white transition-colors transform group-hover:scale-110 duration-300" />
-                         <span className="mt-3 text-lg font-medium">Watch the Intro</span>
-                      </div>
-                   </div>
+                  <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-20 transform -rotate-3"></div>
+                  <div className="relative aspect-video rounded-2xl shadow-2xl overflow-hidden border border-gray-200/50">
+                    <iframe
+                      className="w-full h-full"
+                      src="https://www.youtube.com/embed/UTLnBwecwrc?autoplay=1&loop=1&playlist=UTLnBwecwrc&controls=0&mute=1&rel=0&modestbranding=1"
+                      title="My Notes & Tasks Intro"
+                      frameBorder="0"
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                    ></iframe>
+                  </div>
                 </div>
 
                 {/* App Image Mockup */}
