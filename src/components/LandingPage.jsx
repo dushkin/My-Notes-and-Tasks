@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { PRICING_PLANS } from '../config/pricing';
 import Button from './ui/button';
 import { Card, CardContent } from './ui/card';
 import logo from '../assets/logo_dual_48x48.png';
@@ -314,7 +315,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                       </div>
                       <ul className="space-y-4 mb-8">
                         {[
-                          'Up to 100 total items',
+                          'Up to 100 tree items (Folders, notes & tasks)',
                           'Rich text & Markdown support', 
                           'Advanced organization', 
                           'Cloud sync', 
@@ -362,25 +363,19 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                           <button onClick={() => setBillingCycle('lifetime')} className={`w-1/3 py-1.5 text-sm font-semibold rounded-full transition-colors ${billingCycle === 'lifetime' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Lifetime</button>
                         </div>
 
-                        {billingCycle === 'monthly' && (
-                           <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">$9</div>
-                        )}
-                         {billingCycle === 'yearly' && (
-                           <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">$90</div>
-                        )}
-                        {billingCycle === 'lifetime' && (
-                           <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">$249</div>
-                        )}
+                        <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
+  ${PRICING_PLANS[billingCycle].price}
+</div>
                         <div className="text-gray-500 h-10 flex items-center justify-center">
-                          {billingCycle === 'monthly' && 'per month'}
-                          {billingCycle === 'yearly' && 'per year (Save 25%)'}
-                          {billingCycle === 'lifetime' && 'one-time payment'}
+                          {billingCycle === 'monthly' && PRICING_PLANS.monthly.description}
+                          {billingCycle === 'yearly' && PRICING_PLANS.yearly.description}
+                          {billingCycle === 'lifetime' && PRICING_PLANS.lifetime.description}
                         </div>
                       </div>
                       <ul className="space-y-4 mb-8">
                         {[
                           'All in free plan',
-                          'Unlimited notes & tasks', 
+                          'Unlimited tree items (Folders, notes & tasks)', 
                         ].map((feature, index) => (
                           <li key={index} className="flex items-center space-x-3">
                             <span className="text-green-500">✓</span>
