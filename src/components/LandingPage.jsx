@@ -327,7 +327,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                         ))}
                          <li className="flex items-center space-x-3">
                             <span className="text-transparent">✓</span>
-                            <span className="text-gray-400 italic">(Notes, tasks, and folders)</span>
+                            <span className="text-gray-400 italic">(Items are notes, tasks, and folders)</span>
                           </li>
                       </ul>
                       <button 
@@ -379,7 +379,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                       </div>
                       <ul className="space-y-4 mb-8">
                         {[
-                          'All in free plan +',
+                          'All in free plan',
                           'Unlimited notes & tasks', 
                         ].map((feature, index) => (
                           <li key={index} className="flex items-center space-x-3">
