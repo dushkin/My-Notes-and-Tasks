@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "6.4.2",
-  "commitMessage": "Anothe plans details update",
+  "version": "6.5.0",
+  "commitMessage": "Created pricing config file + some minor adjustments",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
