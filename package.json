@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "6.3.0",
-  "commitMessage": "Support admin (no limitations) free accounts",
+  "version": "6.4.0",
+  "commitMessage": "Added an into video to landing page",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
