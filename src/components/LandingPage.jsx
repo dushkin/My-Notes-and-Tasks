@@ -315,9 +315,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                       <ul className="space-y-4 mb-8">
                         {[
                           'Up to 100 total items',
-                          'Basic editor features', 
-                          'Tree view organization', 
-                          'Email support'
+                          'Rich text & Markdown support', 
+                          'Advanced organization', 
+                          'Cloud sync', 
+                          'Export features'
                         ].map((feature, index) => (
                           <li key={index} className="flex items-center space-x-3">
                             <span className="text-green-500">✓</span>
@@ -378,12 +379,8 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                       </div>
                       <ul className="space-y-4 mb-8">
                         {[
+                          'All in free plan +',
                           'Unlimited notes & tasks', 
-                          'Rich text & Markdown support', 
-                          'Advanced organization', 
-                          'Priority support', 
-                          'Cloud sync', 
-                          'Export features'
                         ].map((feature, index) => (
                           <li key={index} className="flex items-center space-x-3">
                             <span className="text-green-500">✓</span>
