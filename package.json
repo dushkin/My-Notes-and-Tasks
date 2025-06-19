@@ -2,7 +2,7 @@
   "type": "module",
   "name": "my-notes-and-tasks-modern",
   "version": "7.0.3",
-  "commitMessage": "Mobile topbar scrolling",
+  "commitMessage": "Mobile topbar scrolling + favicon adjustments",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
