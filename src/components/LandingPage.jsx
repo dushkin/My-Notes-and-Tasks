@@ -438,11 +438,11 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           <div className="text-center text-gray-600">
             <p>© {new Date().getFullYear()} Notes & Tasks. Made with ❤️ for productivity enthusiasts.</p>
              <p className="mt-2 text-sm">
-                <a href="#" className="hover:underline">Privacy Policy</a>
+                <a href="/privacy_policy.html" className="hover:underline">Privacy Policy</a>
                 <span className="mx-2">·</span>
-                <a href="#" className="hover:underline">Terms of Service</a>
+                <a href="/terms_of_service.html" className="hover:underline">Terms of Service</a>
                 <span className="mx-2">·</span>
-                <a href="https://github.com/your-repo/address" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
+                <a href="https://github.com/dushkin/My-Notes-and-Tasks" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
              </p>
           </div>
         </div>
