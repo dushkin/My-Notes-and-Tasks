@@ -79,7 +79,6 @@ const Tree = ({
       );
       if (isRenameInputFocused) {
         if (e.key === "Enter" || e.key === "Escape") {
-          /* handled by input */
         }
         return;
       }
@@ -319,7 +318,11 @@ const Tree = ({
                 onClick={(e) => {
                   if (isBeingDragged || isRenaming) return;
                   e.stopPropagation();
-                  onSelect(item.id);
+                  if (item.type === "folder") {
+                    onToggleExpand(item.id);
+                  } else {
+                    onSelect(item.id);
+                  }
                 }}
               >
                 <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center mr-1">
