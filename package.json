@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "7.2.1",
-  "commitMessage": "Updated urls",
+  "version": "7.2.2",
+  "commitMessage": "Fix folder selection and missing item menu on mobile",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
