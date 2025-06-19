@@ -1199,27 +1199,34 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       <header
         className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
       >
-        {/* Mobile Layout - Stacked */}
-        <div className="block sm:hidden">
+        {/* Mobile Layout - Use 'hidden md:block' instead of 'block sm:hidden' for better mobile detection */}
+        <div className="md:hidden">
           {/* Top row: Logo and App title */}
-          <div className="flex justify-center items-center px-4 py-2 border-b border-zinc-200 dark:border-zinc-700/30">
+          <div className="flex justify-center items-center px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-700/30 bg-red-100">
             <div className="flex items-center">
               <img src={logo} alt="Application Logo" className="h-6 w-6 mr-2" />
-              <h1 className="font-semibold text-base text-zinc-800 dark:text-zinc-100">
+              <h1 className="font-semibold text-sm text-zinc-800 dark:text-zinc-100">
                 Notes & Tasks
               </h1>
             </div>
+            {/* Debug indicator */}
+            <span className="ml-2 text-xs bg-red-500 text-white px-1 rounded">
+              MOBILE
+            </span>
           </div>
 
           {/* Bottom row: Horizontally scrollable controls */}
-          <div className="px-2 py-2 overflow-x-auto">
+          <div
+            className="px-2 py-1.5 overflow-x-auto bg-green-100"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
             <div className="flex items-center justify-start gap-1 min-w-max">
               {/* User Account Display */}
               {currentUser && currentUser.email && (
                 <div className="relative flex-shrink-0" ref={accountMenuRef}>
                   <LoadingButton
                     onClick={handleAccountDisplayClick}
-                    className="flex items-center p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="flex items-center p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 whitespace-nowrap"
                     title={`Account: ${currentUser.email}`}
                     disabled={isLoggingOut}
                     variant="secondary"
@@ -1250,12 +1257,12 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 </div>
               )}
 
-              {/* Undo Button */}
+              {/* All buttons with flex-shrink-0 and whitespace-nowrap */}
               <LoadingButton
                 onClick={undoTreeChange}
                 disabled={!canUndoTree}
                 title="Undo"
-                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full flex-shrink-0 ${
                   !canUndoTree
                     ? "opacity-40 cursor-not-allowed"
                     : "text-zinc-600 dark:text-zinc-300"
@@ -1266,12 +1273,11 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 <Undo className="w-4 h-4" />
               </LoadingButton>
 
-              {/* Redo Button */}
               <LoadingButton
                 onClick={redoTreeChange}
                 disabled={!canRedoTree}
                 title="Redo"
-                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full flex-shrink-0 ${
                   !canRedoTree
                     ? "opacity-40 cursor-not-allowed"
                     : "text-zinc-600 dark:text-zinc-300"
@@ -1282,11 +1288,10 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 <Redo className="w-4 h-4" />
               </LoadingButton>
 
-              {/* Search Button */}
               <LoadingButton
                 onClick={() => setSearchSheetOpen((s) => !s)}
                 title="Search"
-                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full flex-shrink-0 ${
                   searchSheetOpen
                     ? "bg-blue-100 dark:bg-blue-700/50 text-blue-600 dark:text-blue-300"
                     : "text-zinc-600 dark:text-zinc-300"
@@ -1297,10 +1302,9 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 <SearchIcon className="w-4 h-4" />
               </LoadingButton>
 
-              {/* Settings Button */}
               <LoadingButton
                 onClick={() => setSettingsDialogOpen(true)}
-                className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+                className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full flex-shrink-0"
                 title="Settings"
                 variant="secondary"
                 size="small"
@@ -1308,7 +1312,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 <SettingsIcon className="w-4 h-4" />
               </LoadingButton>
 
-              {/* More Actions Menu */}
               <div className="relative flex-shrink-0" ref={topMenuRef}>
                 <LoadingButton
                   onClick={() => {
@@ -1331,9 +1334,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <Plus
-                        className={`${iconBaseClass} text-purple-500 dark:text-purple-400`}
-                      />{" "}
+                      <Plus className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                       Add Root Folder
                     </button>
                     <button
@@ -1343,9 +1344,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <Download
-                        className={`${iconBaseClass} text-teal-500 dark:text-teal-400`}
-                      />{" "}
+                      <Download className="w-4 h-4 text-teal-500 dark:text-teal-400" />
                       Export Full Tree...
                     </button>
                     <button
@@ -1355,9 +1354,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <Upload
-                        className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`}
-                      />{" "}
+                      <Upload className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
                       Import Full Tree...
                     </button>
                     <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
@@ -1368,26 +1365,39 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <Info
-                        className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
-                      />{" "}
+                      <Info className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                       About
                     </button>
                   </div>
                 )}
               </div>
+
+              {/* Add some extra buttons to test scrolling */}
+              <div className="flex-shrink-0 p-2 bg-yellow-200 text-xs rounded">
+                TEST1
+              </div>
+              <div className="flex-shrink-0 p-2 bg-yellow-200 text-xs rounded">
+                TEST2
+              </div>
+              <div className="flex-shrink-0 p-2 bg-yellow-200 text-xs rounded">
+                TEST3
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Desktop Layout - Original horizontal layout */}
-        <div className="hidden sm:block">
+        {/* Desktop Layout - Use 'hidden md:flex' instead of 'hidden sm:block' */}
+        <div className="hidden md:flex">
           <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
             <div className="flex items-center">
               <img src={logo} alt="Application Logo" className="h-8 w-8 mr-2" />
               <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis text-zinc-800 dark:text-zinc-100">
                 Notes & Tasks
               </h1>
+              {/* Debug indicator */}
+              <span className="ml-2 text-xs bg-blue-500 text-white px-1 rounded">
+                DESKTOP
+              </span>
             </div>
             <div className="flex items-center space-x-0.5 sm:space-x-1">
               {currentUser && currentUser.email && (
@@ -1496,9 +1506,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <Plus
-                        className={`${iconBaseClass} text-purple-500 dark:text-purple-400`}
-                      />{" "}
+                      <Plus className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                       Add Root Folder
                     </button>
                     <button
@@ -1508,9 +1516,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <Download
-                        className={`${iconBaseClass} text-teal-500 dark:text-teal-400`}
-                      />{" "}
+                      <Download className="w-4 h-4 text-teal-500 dark:text-teal-400" />
                       Export Full Tree...
                     </button>
                     <button
@@ -1520,9 +1526,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <Upload
-                        className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`}
-                      />{" "}
+                      <Upload className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
                       Import Full Tree...
                     </button>
                     <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
@@ -1533,9 +1537,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       }}
                       className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <Info
-                        className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
-                      />{" "}
+                      <Info className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                       About
                     </button>
                   </div>
