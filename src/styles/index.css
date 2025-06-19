@@ -52,6 +52,16 @@
   .dark .custom-scrollbar {
     scrollbar-color: #52525b transparent;
   }
+
+  /* Hidden scrollbar utility for horizontal overflow */
+  .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+
+  .overflow-x-auto {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 .editor-pane code:not(pre > code) {
