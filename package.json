@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "7.0.5",
-  "commitMessage": "More mobile display adjustments",
+  "version": "7.1.0",
+  "commitMessage": "Added terms-of-service.html file",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
