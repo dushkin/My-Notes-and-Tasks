@@ -1188,180 +1188,363 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         type={uiMessageType}
         onClose={() => setUiMessage("")}
       />
-
       {isFetchingTree && (
         <LoadingSpinner
           variant="overlay"
           text="Loading your notes and tasks..."
         />
       )}
-
+      // Replace the header section in your App.jsx (around line 650-750) with
+      this mobile-friendly version:
       <header
         className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
       >
-        <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
-          <div className="flex items-center">
-            <img src={logo} alt="Application Logo" className="h-8 w-8 mr-2" />
-            <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis text-zinc-800 dark:text-zinc-100">
-              Notes & Tasks
-            </h1>
+        {/* Mobile Layout - Stacked */}
+        <div className="block sm:hidden">
+          {/* Top row: Logo and App title */}
+          <div className="flex justify-center items-center px-4 py-2 border-b border-zinc-200 dark:border-zinc-700/30">
+            <div className="flex items-center">
+              <img src={logo} alt="Application Logo" className="h-6 w-6 mr-2" />
+              <h1 className="font-semibold text-base text-zinc-800 dark:text-zinc-100">
+                Notes & Tasks
+              </h1>
+            </div>
           </div>
-          <div className="flex items-center space-x-0.5 sm:space-x-1">
-            {currentUser && currentUser.email && (
-              <div className="relative" ref={accountMenuRef}>
-                <LoadingButton
-                  onClick={handleAccountDisplayClick}
-                  className="flex items-center mr-1 sm:mr-2 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  title={`Account: ${currentUser.email}`}
-                  disabled={isLoggingOut}
-                  variant="secondary"
-                  size="small"
-                >
-                  <UserCircle2 className="w-5 h-5 text-zinc-500 dark:text-zinc-400 mr-1 sm:mr-1.5 flex-shrink-0" />
-                  <span className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-[150px]">
-                    {currentUser.email}
-                  </span>
-                </LoadingButton>
-                {accountMenuOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
-                    <LoadingButton
-                      onClick={() => {
-                        handleInitiateLogout();
-                        setAccountMenuOpen(false);
-                      }}
-                      isLoading={isLoggingOut}
-                      loadingText="Logging out..."
-                      variant="danger-ghost"
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left"
-                      size="small"
-                    >
-                      <LogOut className="w-4 h-4" /> Logout
-                    </LoadingButton>
-                  </div>
-                )}
-              </div>
-            )}
-            <LoadingButton
-              onClick={undoTreeChange}
-              disabled={!canUndoTree}
-              title="Undo (Ctrl+Z)"
-              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
-                !canUndoTree
-                  ? "opacity-40 cursor-not-allowed"
-                  : "text-zinc-600 dark:text-zinc-300"
-              }`}
-              variant="secondary"
-              size="small"
-            >
-              <Undo className="w-5 h-5" />
-            </LoadingButton>
-            <LoadingButton
-              onClick={redoTreeChange}
-              disabled={!canRedoTree}
-              title="Redo (Ctrl+Y)"
-              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
-                !canRedoTree
-                  ? "opacity-40 cursor-not-allowed"
-                  : "text-zinc-600 dark:text-zinc-300"
-              }`}
-              variant="secondary"
-              size="small"
-            >
-              <Redo className="w-5 h-5" />
-            </LoadingButton>
-            <LoadingButton
-              onClick={() => setSearchSheetOpen((s) => !s)}
-              title="Search (Ctrl+Shift+F)"
-              className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
-                searchSheetOpen
-                  ? "bg-blue-100 dark:bg-blue-700/50 text-blue-600 dark:text-blue-300"
-                  : "text-zinc-600 dark:text-zinc-300"
-              }`}
-              variant="secondary"
-              size="small"
-            >
-              <SearchIcon className="w-5 h-5" />
-            </LoadingButton>
-            <LoadingButton
-              onClick={() => setSettingsDialogOpen(true)}
-              className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
-              title="Settings"
-              variant="secondary"
-              size="small"
-            >
-              <SettingsIcon className="w-5 h-5" />
-            </LoadingButton>
-            <div className="relative" ref={topMenuRef}>
+
+          {/* Bottom row: Horizontally scrollable controls */}
+          <div className="px-2 py-2 overflow-x-auto">
+            <div className="flex items-center justify-start gap-1 min-w-max">
+              {/* User Account Display */}
+              {currentUser && currentUser.email && (
+                <div className="relative flex-shrink-0" ref={accountMenuRef}>
+                  <LoadingButton
+                    onClick={handleAccountDisplayClick}
+                    className="flex items-center p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    title={`Account: ${currentUser.email}`}
+                    disabled={isLoggingOut}
+                    variant="secondary"
+                    size="small"
+                  >
+                    <UserCircle2 className="w-4 h-4 text-zinc-500 dark:text-zinc-400 mr-1 flex-shrink-0" />
+                    <span className="text-xs text-zinc-700 dark:text-zinc-300 truncate max-w-[60px]">
+                      {currentUser.email.split("@")[0]}
+                    </span>
+                  </LoadingButton>
+                  {accountMenuOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
+                      <LoadingButton
+                        onClick={() => {
+                          handleInitiateLogout();
+                          setAccountMenuOpen(false);
+                        }}
+                        isLoading={isLoggingOut}
+                        loadingText="Logging out..."
+                        variant="danger-ghost"
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left"
+                        size="small"
+                      >
+                        <LogOut className="w-4 h-4" /> Logout
+                      </LoadingButton>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Undo Button */}
               <LoadingButton
-                onClick={() => {
-                  setTopMenuOpen((p) => !p);
-                  setAccountMenuOpen(false);
-                }}
-                className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
-                title="More actions"
+                onClick={undoTreeChange}
+                disabled={!canUndoTree}
+                title="Undo"
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                  !canUndoTree
+                    ? "opacity-40 cursor-not-allowed"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
                 variant="secondary"
                 size="small"
               >
-                <EllipsisVertical className="w-5 h-5" />
+                <Undo className="w-4 h-4" />
               </LoadingButton>
-              {topMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
-                  <button
-                    onClick={() => {
-                      openAddDialog("folder", null);
-                      setTopMenuOpen(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+
+              {/* Redo Button */}
+              <LoadingButton
+                onClick={redoTreeChange}
+                disabled={!canRedoTree}
+                title="Redo"
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                  !canRedoTree
+                    ? "opacity-40 cursor-not-allowed"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
+                variant="secondary"
+                size="small"
+              >
+                <Redo className="w-4 h-4" />
+              </LoadingButton>
+
+              {/* Search Button */}
+              <LoadingButton
+                onClick={() => setSearchSheetOpen((s) => !s)}
+                title="Search"
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                  searchSheetOpen
+                    ? "bg-blue-100 dark:bg-blue-700/50 text-blue-600 dark:text-blue-300"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
+                variant="secondary"
+                size="small"
+              >
+                <SearchIcon className="w-4 h-4" />
+              </LoadingButton>
+
+              {/* Settings Button */}
+              <LoadingButton
+                onClick={() => setSettingsDialogOpen(true)}
+                className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+                title="Settings"
+                variant="secondary"
+                size="small"
+              >
+                <SettingsIcon className="w-4 h-4" />
+              </LoadingButton>
+
+              {/* More Actions Menu */}
+              <div className="relative flex-shrink-0" ref={topMenuRef}>
+                <LoadingButton
+                  onClick={() => {
+                    setTopMenuOpen((p) => !p);
+                    setAccountMenuOpen(false);
+                  }}
+                  className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+                  title="More actions"
+                  variant="secondary"
+                  size="small"
+                >
+                  <EllipsisVertical className="w-4 h-4" />
+                </LoadingButton>
+                {topMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
+                    <button
+                      onClick={() => {
+                        openAddDialog("folder", null);
+                        setTopMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <Plus
+                        className={`${iconBaseClass} text-purple-500 dark:text-purple-400`}
+                      />{" "}
+                      Add Root Folder
+                    </button>
+                    <button
+                      onClick={() => {
+                        openExportDialog("tree");
+                        setTopMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <Download
+                        className={`${iconBaseClass} text-teal-500 dark:text-teal-400`}
+                      />{" "}
+                      Export Full Tree...
+                    </button>
+                    <button
+                      onClick={() => {
+                        openImportDialog("tree");
+                        setTopMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <Upload
+                        className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`}
+                      />{" "}
+                      Import Full Tree...
+                    </button>
+                    <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
+                    <button
+                      onClick={() => {
+                        setAboutDialogOpen(true);
+                        setTopMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <Info
+                        className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
+                      />{" "}
+                      About
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Layout - Original horizontal layout */}
+        <div className="hidden sm:block">
+          <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
+            <div className="flex items-center">
+              <img src={logo} alt="Application Logo" className="h-8 w-8 mr-2" />
+              <h1 className="font-semibold text-lg sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis text-zinc-800 dark:text-zinc-100">
+                Notes & Tasks
+              </h1>
+            </div>
+            <div className="flex items-center space-x-0.5 sm:space-x-1">
+              {currentUser && currentUser.email && (
+                <div className="relative" ref={accountMenuRef}>
+                  <LoadingButton
+                    onClick={handleAccountDisplayClick}
+                    className="flex items-center mr-1 sm:mr-2 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    title={`Account: ${currentUser.email}`}
+                    disabled={isLoggingOut}
+                    variant="secondary"
+                    size="small"
                   >
-                    <Plus
-                      className={`${iconBaseClass} text-purple-500 dark:text-purple-400`}
-                    />{" "}
-                    Add Root Folder
-                  </button>
-                  <button
-                    onClick={() => {
-                      openExportDialog("tree");
-                      setTopMenuOpen(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                  >
-                    <Download
-                      className={`${iconBaseClass} text-teal-500 dark:text-teal-400`}
-                    />{" "}
-                    Export Full Tree...
-                  </button>
-                  <button
-                    onClick={() => {
-                      openImportDialog("tree");
-                      setTopMenuOpen(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                  >
-                    <Upload
-                      className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`}
-                    />{" "}
-                    Import Full Tree...
-                  </button>
-                  <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
-                  <button
-                    onClick={() => {
-                      setAboutDialogOpen(true);
-                      setTopMenuOpen(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                  >
-                    <Info
-                      className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
-                    />{" "}
-                    About
-                  </button>
+                    <UserCircle2 className="w-5 h-5 text-zinc-500 dark:text-zinc-400 mr-1 sm:mr-1.5 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-[150px]">
+                      {currentUser.email}
+                    </span>
+                  </LoadingButton>
+                  {accountMenuOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
+                      <LoadingButton
+                        onClick={() => {
+                          handleInitiateLogout();
+                          setAccountMenuOpen(false);
+                        }}
+                        isLoading={isLoggingOut}
+                        loadingText="Logging out..."
+                        variant="danger-ghost"
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left"
+                        size="small"
+                      >
+                        <LogOut className="w-4 h-4" /> Logout
+                      </LoadingButton>
+                    </div>
+                  )}
                 </div>
               )}
+              <LoadingButton
+                onClick={undoTreeChange}
+                disabled={!canUndoTree}
+                title="Undo (Ctrl+Z)"
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                  !canUndoTree
+                    ? "opacity-40 cursor-not-allowed"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
+                variant="secondary"
+                size="small"
+              >
+                <Undo className="w-5 h-5" />
+              </LoadingButton>
+              <LoadingButton
+                onClick={redoTreeChange}
+                disabled={!canRedoTree}
+                title="Redo (Ctrl+Y)"
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                  !canRedoTree
+                    ? "opacity-40 cursor-not-allowed"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
+                variant="secondary"
+                size="small"
+              >
+                <Redo className="w-5 h-5" />
+              </LoadingButton>
+              <LoadingButton
+                onClick={() => setSearchSheetOpen((s) => !s)}
+                title="Search (Ctrl+Shift+F)"
+                className={`p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
+                  searchSheetOpen
+                    ? "bg-blue-100 dark:bg-blue-700/50 text-blue-600 dark:text-blue-300"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
+                variant="secondary"
+                size="small"
+              >
+                <SearchIcon className="w-5 h-5" />
+              </LoadingButton>
+              <LoadingButton
+                onClick={() => setSettingsDialogOpen(true)}
+                className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+                title="Settings"
+                variant="secondary"
+                size="small"
+              >
+                <SettingsIcon className="w-5 h-5" />
+              </LoadingButton>
+              <div className="relative" ref={topMenuRef}>
+                <LoadingButton
+                  onClick={() => {
+                    setTopMenuOpen((p) => !p);
+                    setAccountMenuOpen(false);
+                  }}
+                  className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+                  title="More actions"
+                  variant="secondary"
+                  size="small"
+                >
+                  <EllipsisVertical className="w-5 h-5" />
+                </LoadingButton>
+                {topMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
+                    <button
+                      onClick={() => {
+                        openAddDialog("folder", null);
+                        setTopMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <Plus
+                        className={`${iconBaseClass} text-purple-500 dark:text-purple-400`}
+                      />{" "}
+                      Add Root Folder
+                    </button>
+                    <button
+                      onClick={() => {
+                        openExportDialog("tree");
+                        setTopMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <Download
+                        className={`${iconBaseClass} text-teal-500 dark:text-teal-400`}
+                      />{" "}
+                      Export Full Tree...
+                    </button>
+                    <button
+                      onClick={() => {
+                        openImportDialog("tree");
+                        setTopMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <Upload
+                        className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`}
+                      />{" "}
+                      Import Full Tree...
+                    </button>
+                    <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
+                    <button
+                      onClick={() => {
+                        setAboutDialogOpen(true);
+                        setTopMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <Info
+                        className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
+                      />{" "}
+                      About
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </header>
-
       <>
         <main className={`flex-1 flex min-h-0 pt-14 sm:pt-12`}>
           {isMobile ? (
@@ -1622,7 +1805,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} />
         </Sheet>
       </>
-
       {contextMenu.visible && (
         <ContextMenu
           visible={contextMenu.visible}
@@ -1697,7 +1879,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           onImportTree={() => openImportDialog("tree")}
         />
       )}
-
       <AddDialog
         isOpen={addDialogOpen}
         newItemType={newItemType}
@@ -1716,12 +1897,10 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           setNewItemLabel("");
         }}
       />
-
       <AboutDialog
         isOpen={aboutDialogOpen}
         onClose={() => setAboutDialogOpen(false)}
       />
-
       <ExportDialog
         isOpen={exportDialogState.isOpen}
         context={exportDialogState.context}
@@ -1729,7 +1908,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         onClose={() => setExportDialogState({ isOpen: false, context: null })}
         onExport={handleExport}
       />
-
       <ImportDialog
         isOpen={importDialogState.isOpen}
         context={importDialogState.context}
@@ -1740,12 +1918,10 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         }}
         onImport={handleFileImport}
       />
-
       <SettingsDialog
         isOpen={settingsDialogOpen}
         onClose={() => setSettingsDialogOpen(false)}
       />
-
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}
@@ -1756,7 +1932,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         onConfirm={confirmDialog.onConfirm}
         onCancel={confirmDialog.onCancel}
       />
-
       {isDuplicating && (
         <LoadingSpinner variant="overlay" text="Duplicating item..." />
       )}
