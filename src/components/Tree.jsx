@@ -3,7 +3,7 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { sortItems, isSelfOrDescendant } from "../utils/treeUtils";
 import { MoreVertical } from "lucide-react";
 
-const INDENT_SIZE = 16; // Pixels for indentation per level
+const INDENT_SIZE = 16;
 
 const Tree = ({
   items,
@@ -22,7 +22,7 @@ const Tree = ({
   onDrop,
   onNativeContextMenu,
   onShowItemMenu,
-  onRename, // This should be the startInlineRename function from App.jsx
+  onRename,
   onDragEnd,
   uiError,
   setUiError,
@@ -94,7 +94,7 @@ const Tree = ({
         !(activeElement === document.body && selectedItemId)
       )
         return;
-      
+
       const visibleItems = getVisible(items, expandedFolders);
       const currentIndex = visibleItems.findIndex(
         (it) => it.id === selectedItemId
@@ -102,7 +102,7 @@ const Tree = ({
       const currentItem =
         currentIndex !== -1 ? visibleItems[currentIndex] : null;
       let nextItemId = null;
-      
+
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
@@ -167,7 +167,6 @@ const Tree = ({
           }
           break;
         case "F2":
-          // Add F2 rename functionality
           e.preventDefault();
           if (currentItem && onRename && !inlineRenameId) {
             onRename(currentItem);
@@ -187,7 +186,7 @@ const Tree = ({
       getVisible,
       onToggleTask,
       inlineRenameId,
-      onRename, // Add onRename to dependencies
+      onRename,
     ]
   );
 
@@ -235,41 +234,23 @@ const Tree = ({
     (e, taskId, completed) => {
       e.preventDefault();
       e.stopPropagation();
-      console.log(
-        `[Tree] Task toggle clicked: ${taskId}, current completed: ${completed}`
-      );
       onToggleTask(taskId, completed);
     },
     [onToggleTask]
   );
 
-  // Fixed context menu handler for the nav element
   const handleNavContextMenu = useCallback(
     (e) => {
-      console.log("[Tree] Nav context menu triggered", {
-        target: e.target,
-        currentTarget: e.currentTarget,
-      });
-
-      // Don't show context menu if dragging or renaming
       if (draggedId || inlineRenameId) {
         e.preventDefault();
         return;
       }
-
-      // Only show empty area context menu if the click is on the nav itself or empty space
       const isDirectNavClick = e.target === navRef.current;
       const isEmptySpaceClick = e.target.closest("li") === null;
-
-      console.log("[Tree] Context menu check", {
-        isDirectNavClick,
-        isEmptySpaceClick,
-      });
-
       if (isDirectNavClick || isEmptySpaceClick) {
         e.preventDefault();
-        onSelect(null); // Clear selection for empty area
-        onNativeContextMenu(e, null); // Show empty area menu
+        onSelect(null);
+        onNativeContextMenu(e, null);
       }
     },
     [draggedId, inlineRenameId, onSelect, onNativeContextMenu]
@@ -306,11 +287,6 @@ const Tree = ({
               onDrop={(e) => handleItemDrop(e, item)}
               onDragEnd={onDragEnd}
               onContextMenu={(e) => {
-                console.log("[Tree] Item context menu triggered", {
-                  item: item.label,
-                  target: e.target,
-                });
-
                 if (draggedId || isRenaming) {
                   e.preventDefault();
                   return;
@@ -326,7 +302,7 @@ const Tree = ({
                   data-item-id="drag-over-indicator"
                   className="absolute inset-y-0 left-0 right-0 bg-blue-200 dark:bg-blue-800 opacity-30 rounded pointer-events-none z-0"
                   aria-hidden="true"
-                ></div>
+                />
               )}
               <div
                 className={`relative z-10 flex items-center cursor-pointer rounded py-1.5 sm:py-1 pr-1 ${
@@ -347,7 +323,6 @@ const Tree = ({
                   onSelect(item.id);
                 }}
               >
-                {/* Expand/Collapse Button & Icon Area */}
                 <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center mr-1">
                   {item.type === "folder" ? (
                     <button
@@ -366,7 +341,7 @@ const Tree = ({
                           ? `Collapse ${item.label}`
                           : `Expand ${item.label}`
                       }
-                      title={expandedFolders[item.id] ? `Collapse` : `Expand`}
+                      title={expandedFolders[item.id] ? "Collapse" : "Expand"}
                     >
                       {expandedFolders[item.id] ? "▾" : "▸"}
                     </button>
@@ -379,7 +354,6 @@ const Tree = ({
                     </span>
                   )}
                 </div>
-                {/* Item Icon */}
                 <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center mr-1.5 sm:mr-1">
                   {item.type === "folder" ? (
                     <span
@@ -413,7 +387,6 @@ const Tree = ({
                     <span aria-hidden="true">📝</span>
                   )}
                 </div>
-                {/* Label or Rename Input */}
                 <div
                   className="flex-1 truncate relative"
                   style={{ minWidth: 0 }}
@@ -475,7 +448,6 @@ const Tree = ({
                     </span>
                   )}
                 </div>
-                {/* More Options Button */}
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -487,7 +459,7 @@ const Tree = ({
                     isSelected && !isRenaming
                       ? "text-white"
                       : "text-zinc-500 dark:text-zinc-400"
-                  } opacity-0 group-hover:opacity-100 focus:opacity-100`}
+                  } opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100`}
                   aria-label={`More options for ${item.label}`}
                   title="More options"
                 >
