@@ -299,8 +299,7 @@ const Tree = ({
             >
               {isDragOverTarget && (
                 <div
-                  data-item-id="drag-over-indicator"
-                  className="absolute inset-y-0 left-0 right-0 bg-blue-200 dark:bg-blue-800 opacity-30 rounded pointer-events-none z-0"
+                  className="absolute inset-0 bg-blue-200 dark:bg-blue-800 opacity-30 rounded pointer-events-none z-0"
                   aria-hidden="true"
                 />
               )}
@@ -452,7 +451,6 @@ const Tree = ({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onSelect(item.id);
                     onShowItemMenu(item, e.currentTarget);
                   }}
                   className={`ml-1 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 ${
