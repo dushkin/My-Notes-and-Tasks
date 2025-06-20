@@ -31,6 +31,8 @@ const Tree = ({
   const longPressTimeoutRef = useRef(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [localRenameError, setLocalRenameError] = useState("");
+  const [lastClickTime, setLastClickTime] = useState(0);
+  const [lastClickedItem, setLastClickedItem] = useState(null);
 
   const refocusTree = useCallback(() => {
     requestAnimationFrame(() => {
@@ -256,6 +258,67 @@ const Tree = ({
     [draggedId, inlineRenameId, onSelect, onNativeContextMenu]
   );
 
+  const handleItemClick = useCallback(
+    (e, item) => {
+      if (e.detail > 1) return; // Ignore multiple clicks (handled by double-click)
+
+      const currentTime = Date.now();
+      const isMobile = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      const isBeingDragged = item.id === draggedId;
+      const isRenaming = item.id === inlineRenameId;
+
+      if (isBeingDragged || isRenaming) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      e.stopPropagation();
+
+      if (isMobile) {
+        // Mobile: Always just select
+        onSelect(item.id);
+      } else {
+        // Desktop: Select, but if already selected folder, rename
+        if (selectedItemId === item.id && item.type === "folder") {
+          // Already selected folder - rename on second click (but not too fast)
+          if (
+            currentTime - lastClickTime > 300 &&
+            lastClickedItem === item.id
+          ) {
+            onRename(item);
+            return;
+          }
+        }
+        onSelect(item.id);
+      }
+
+      setLastClickTime(currentTime);
+      setLastClickedItem(item.id);
+    },
+    [
+      selectedItemId,
+      onSelect,
+      onRename,
+      lastClickTime,
+      lastClickedItem,
+      draggedId,
+      inlineRenameId,
+    ]
+  );
+
+  const handleDoubleClick = useCallback((e, item) => {
+    const isMobile = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+    if (isMobile) {
+      // Mobile: No double-click behavior
+      return;
+    }
+
+    // This handler is now only used for the main div - do nothing for folders
+    // Individual elements handle their own double-click behavior
+  }, []);
+
   const renderItems = useCallback(
     (nodes, depth = 0) => (
       <ul className="list-none p-0 m-0">
@@ -316,19 +379,8 @@ const Tree = ({
                 style={{
                   paddingLeft: `${depth * INDENT_SIZE + (depth > 0 ? 4 : 0)}px`,
                 }}
-                onClick={(e) => {
-                  if (isBeingDragged || isRenaming) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return;
-                  }
-                  e.stopPropagation();
-                  if (item.type === "folder") {
-                    onToggleExpand(item.id);
-                  } else {
-                    onSelect(item.id);
-                  }
-                }}
+                onClick={(e) => handleItemClick(e, item)}
+                onDoubleClick={(e) => handleDoubleClick(e, item)}
               >
                 <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center mr-1">
                   {item.type === "folder" ? (
@@ -370,6 +422,16 @@ const Tree = ({
                           : ""
                       }`}
                       aria-hidden="true"
+                      onDoubleClick={(e) => {
+                        const isMobile =
+                          "ontouchstart" in window ||
+                          navigator.maxTouchPoints > 0;
+                        if (!isMobile) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onToggleExpand(item.id);
+                        }
+                      }}
                     >
                       {expandedFolders[item.id] ? "📂" : "📁"}
                     </span>
@@ -419,7 +481,6 @@ const Tree = ({
                         onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         onFocus={(e) => {
-                          // Check if this is a mobile device
                           const isMobile =
                             /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
                               navigator.userAgent
@@ -429,10 +490,8 @@ const Tree = ({
 
                           if (!e.target.dataset.hasSelected) {
                             if (isMobile) {
-                              // On mobile, don't auto-select text to allow immediate cursor positioning
                               e.target.dataset.hasSelected = "true";
                             } else {
-                              // On desktop, select all text as before
                               e.target.select();
                               e.target.dataset.hasSelected = "true";
                             }
@@ -474,6 +533,36 @@ const Tree = ({
                       }}
                       onTouchMove={(e) => {
                         clearTimeout(longPressTimeoutRef.current);
+                      }}
+                      onClick={(e) => {
+                        const isMobile =
+                          "ontouchstart" in window ||
+                          navigator.maxTouchPoints > 0;
+                        if (
+                          !isMobile &&
+                          selectedItemId === item.id &&
+                          item.type === "folder"
+                        ) {
+                          const currentTime = Date.now();
+                          if (
+                            currentTime - lastClickTime > 300 &&
+                            lastClickedItem === item.id
+                          ) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onRename(item);
+                          }
+                        }
+                      }}
+                      onDoubleClick={(e) => {
+                        const isMobile =
+                          "ontouchstart" in window ||
+                          navigator.maxTouchPoints > 0;
+                        if (!isMobile && item.type !== "folder") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onRename(item);
+                        }
                       }}
                       className={`${
                         item.type === "task" && item.completed
@@ -538,6 +627,8 @@ const Tree = ({
       uiError,
       setUiError,
       localRenameError,
+      handleItemClick,
+      handleDoubleClick,
     ]
   );
 
