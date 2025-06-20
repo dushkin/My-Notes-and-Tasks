@@ -276,7 +276,7 @@ const Tree = ({
       e.stopPropagation();
 
       if (isMobile) {
-        // Mobile: Always just select
+        // Mobile: Always just select - no rename on click
         onSelect(item.id);
       } else {
         // Desktop: Select, but if already selected folder, rename
@@ -315,9 +315,13 @@ const Tree = ({
       return;
     }
 
-    // This handler is now only used for the main div - do nothing for folders
-    // Individual elements handle their own double-click behavior
-  }, []);
+    // Desktop: Double-click to rename non-folders
+    if (item.type !== "folder") {
+      e.preventDefault();
+      e.stopPropagation();
+      onRename(item);
+    }
+  }, [onRename]);
 
   const renderItems = useCallback(
     (nodes, depth = 0) => (
@@ -524,44 +528,47 @@ const Tree = ({
                   ) : (
                     <span
                       onTouchStart={(e) => {
+                        // Clear any existing timeout
+                        if (longPressTimeoutRef.current) {
+                          clearTimeout(longPressTimeoutRef.current);
+                        }
+                        
+                        // Store initial touch position to detect movement
+                        const touch = e.touches[0];
+                        const initialX = touch.clientX;
+                        const initialY = touch.clientY;
+                        
+                        // Set up long press detection (800ms)
                         longPressTimeoutRef.current = setTimeout(() => {
                           onRename(item);
-                        }, 500);
+                        }, 800);
+                        
+                        // Store initial position for movement detection
+                        e.target.dataset.initialX = initialX;
+                        e.target.dataset.initialY = initialY;
                       }}
                       onTouchEnd={(e) => {
-                        clearTimeout(longPressTimeoutRef.current);
-                      }}
-                      onTouchMove={(e) => {
-                        clearTimeout(longPressTimeoutRef.current);
-                      }}
-                      onClick={(e) => {
-                        const isMobile =
-                          "ontouchstart" in window ||
-                          navigator.maxTouchPoints > 0;
-                        if (
-                          !isMobile &&
-                          selectedItemId === item.id &&
-                          item.type === "folder"
-                        ) {
-                          const currentTime = Date.now();
-                          if (
-                            currentTime - lastClickTime > 300 &&
-                            lastClickedItem === item.id
-                          ) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onRename(item);
-                          }
+                        // Always clear the timeout on touch end
+                        if (longPressTimeoutRef.current) {
+                          clearTimeout(longPressTimeoutRef.current);
+                          longPressTimeoutRef.current = null;
                         }
                       }}
-                      onDoubleClick={(e) => {
-                        const isMobile =
-                          "ontouchstart" in window ||
-                          navigator.maxTouchPoints > 0;
-                        if (!isMobile && item.type !== "folder") {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onRename(item);
+                      onTouchMove={(e) => {
+                        // Clear timeout if user moves finger significantly
+                        if (longPressTimeoutRef.current) {
+                          const touch = e.touches[0];
+                          const initialX = parseFloat(e.target.dataset.initialX || 0);
+                          const initialY = parseFloat(e.target.dataset.initialY || 0);
+                          
+                          const deltaX = Math.abs(touch.clientX - initialX);
+                          const deltaY = Math.abs(touch.clientY - initialY);
+                          
+                          // Cancel long press if moved more than 10px
+                          if (deltaX > 10 || deltaY > 10) {
+                            clearTimeout(longPressTimeoutRef.current);
+                            longPressTimeoutRef.current = null;
+                          }
                         }
                       }}
                       className={`${
