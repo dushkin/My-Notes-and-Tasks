@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "7.2.4",
-  "commitMessage": "Fix folder selection on mobile",
+  "version": "7.2.5",
+  "commitMessage": "Mobile: distinguish between item icon long touch and items text long touce",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
