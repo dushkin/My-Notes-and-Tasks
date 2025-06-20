@@ -1,3 +1,4 @@
+// src/components/Tree.jsx
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { sortItems, isSelfOrDescendant } from "../utils/treeUtils";
 import { MoreVertical } from "lucide-react";
@@ -400,6 +401,7 @@ const Tree = ({
                   {isRenaming ? (
                     <>
                       <input
+                        style={{ pointerEvents: "auto" }}
                         type="text"
                         className={`w-full bg-white dark:bg-zinc-800 outline-none border px-1 py-0.5 text-base md:text-sm rounded ${
                           hasError
@@ -412,20 +414,28 @@ const Tree = ({
                           setLocalRenameError("");
                           if (setUiError) setUiError("");
                         }}
-                        onTouchStartCapture={(e) => e.stopPropagation()}
                         onTouchStart={(e) => e.stopPropagation()}
-                        onTouchEndCapture={(e) => e.stopPropagation()}
                         onTouchEnd={(e) => e.stopPropagation()}
-                        onMouseDownCapture={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
-                        onClickCapture={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
-                        onPointerDownCapture={(e) => e.stopPropagation()}
-                        onPointerUpCapture={(e) => e.stopPropagation()}
                         onFocus={(e) => {
+                          // Check if this is a mobile device
+                          const isMobile =
+                            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                              navigator.userAgent
+                            ) ||
+                            "ontouchstart" in window ||
+                            navigator.maxTouchPoints > 0;
+
                           if (!e.target.dataset.hasSelected) {
-                            e.target.select();
-                            e.target.dataset.hasSelected = "true";
+                            if (isMobile) {
+                              // On mobile, don't auto-select text to allow immediate cursor positioning
+                              e.target.dataset.hasSelected = "true";
+                            } else {
+                              // On desktop, select all text as before
+                              e.target.select();
+                              e.target.dataset.hasSelected = "true";
+                            }
                           }
                         }}
                         onBlur={() => {
