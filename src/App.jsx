@@ -317,7 +317,12 @@ const ProtectedAppRoute = () => {
 
   return (
     <Routes>
-      <Route index element={<MainApp currentUser={currentUser} setCurrentUser={setCurrentUser} />} />
+      <Route
+        index
+        element={
+          <MainApp currentUser={currentUser} setCurrentUser={setCurrentUser} />
+        }
+      />
       <Route path="item/:id" element={<EditorPage />} />
       <Route path="*" element={<Navigate to="" replace />} />
     </Routes>
@@ -939,6 +944,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
+
   // Search functionality
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
@@ -1192,6 +1198,32 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     inlineRenameId,
     setSearchSheetOpen,
   ]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handlePopState = (event) => {
+      // If we're in content view mode, go back to tree view
+      if (mobileViewMode === "content") {
+        event.preventDefault();
+        setMobileViewMode("tree");
+        // Push a new state to prevent the browser from actually navigating back
+        window.history.pushState(
+          { viewMode: "tree" },
+          "",
+          window.location.href
+        );
+      }
+    };
+
+    // Listen for back button events
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [isMobile, mobileViewMode]);
+
   const handleAccountDisplayClick = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
@@ -1607,6 +1639,12 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       // Only switch to content view for notes and tasks, not folders
                       if (selectedItem && selectedItem.type !== "folder") {
                         setMobileViewMode("content");
+                        // Push state for back button handling
+                        window.history.pushState(
+                          { viewMode: "content", itemId: id },
+                          "",
+                          window.location.href
+                        );
                       }
                     }
                   }}
