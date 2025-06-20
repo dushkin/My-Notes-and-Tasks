@@ -413,9 +413,14 @@ const Tree = ({
                           setLocalRenameError("");
                           if (setUiError) setUiError("");
                         }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onFocus={(e) => {
+                          if (!e.target.dataset.hasSelected) {
+                            e.target.select();
+                            e.target.dataset.hasSelected = "true";
+                          }
                         }}
                         onBlur={() => {
                           if (onAttemptRename) onAttemptRename();
@@ -431,11 +436,6 @@ const Tree = ({
                           }
                         }}
                         autoFocus
-                        onFocus={(e) => e.target.select()}
-                        aria-invalid={!!hasError}
-                        aria-describedby={
-                          hasError ? `${item.id}-rename-error` : undefined
-                        }
                       />
                       {hasError && (
                         <span
