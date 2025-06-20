@@ -28,6 +28,7 @@ const Tree = ({
   setUiError,
 }) => {
   const navRef = useRef(null);
+  const longPressTimeoutRef = useRef(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [localRenameError, setLocalRenameError] = useState("");
 
@@ -316,7 +317,11 @@ const Tree = ({
                   paddingLeft: `${depth * INDENT_SIZE + (depth > 0 ? 4 : 0)}px`,
                 }}
                 onClick={(e) => {
-                  if (isBeingDragged || isRenaming) return;
+                  if (isBeingDragged || isRenaming) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                  }
                   e.stopPropagation();
                   if (item.type === "folder") {
                     onToggleExpand(item.id);
@@ -408,7 +413,10 @@ const Tree = ({
                           setLocalRenameError("");
                           if (setUiError) setUiError("");
                         }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
                         onBlur={() => {
                           if (onAttemptRename) onAttemptRename();
                         }}
@@ -440,6 +448,17 @@ const Tree = ({
                     </>
                   ) : (
                     <span
+                      onTouchStart={(e) => {
+                        longPressTimeoutRef.current = setTimeout(() => {
+                          onRename(item);
+                        }, 500);
+                      }}
+                      onTouchEnd={(e) => {
+                        clearTimeout(longPressTimeoutRef.current);
+                      }}
+                      onTouchMove={(e) => {
+                        clearTimeout(longPressTimeoutRef.current);
+                      }}
                       className={`${
                         item.type === "task" && item.completed
                           ? "line-through text-zinc-500 dark:text-zinc-400"
