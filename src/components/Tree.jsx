@@ -1,4 +1,3 @@
-// src/components/Tree.jsx
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { sortItems, isSelfOrDescendant } from "../utils/treeUtils";
 import { MoreVertical } from "lucide-react";
@@ -413,9 +412,16 @@ const Tree = ({
                           setLocalRenameError("");
                           if (setUiError) setUiError("");
                         }}
+                        onTouchStartCapture={(e) => e.stopPropagation()}
                         onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEndCapture={(e) => e.stopPropagation()}
                         onTouchEnd={(e) => e.stopPropagation()}
+                        onMouseDownCapture={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
+                        onClickCapture={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDownCapture={(e) => e.stopPropagation()}
+                        onPointerUpCapture={(e) => e.stopPropagation()}
                         onFocus={(e) => {
                           if (!e.target.dataset.hasSelected) {
                             e.target.select();
