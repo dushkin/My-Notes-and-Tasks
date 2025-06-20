@@ -1587,7 +1587,21 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   selectedItemId={selectedItemId}
                   onSelect={(id) => {
                     selectItemById(id);
-                    if (!inlineRenameId) { setMobileViewMode("content"); }
+                    if (!inlineRenameId) {
+                      const selectedItem =
+                        tree?.find((item) => item.id === id) ||
+                        tree?.flatMap(function findInTree(item) {
+                          if (item.id === id) return [item];
+                          if (item.children)
+                            return item.children.flatMap(findInTree);
+                          return [];
+                        })[0];
+
+                      // Only switch to content view for notes and tasks, not folders
+                      if (selectedItem && selectedItem.type !== "folder") {
+                        setMobileViewMode("content");
+                      }
+                    }
                   }}
                   inlineRenameId={inlineRenameId}
                   inlineRenameValue={inlineRenameValue}
