@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "7.3.0",
-  "commitMessage": "Refactored dialog files to use a base modal file.",
+  "version": "7.4.0",
+  "commitMessage": "Implemented react router",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

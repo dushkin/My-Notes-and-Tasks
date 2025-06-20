@@ -54,6 +54,7 @@ import {
   clearTokens,
 } from "./services/authService";
 import { initApiClient, authFetch } from "./services/apiClient";
+import EditorPage from "./pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
@@ -139,7 +140,7 @@ const App = () => {
         <Route path="/" element={<LandingPageRoute />} />
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/register" element={<RegisterRoute />} />
-        <Route path="/app" element={<ProtectedAppRoute />} />
+        <Route path="/app/*" element={<ProtectedAppRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
@@ -314,7 +315,13 @@ const ProtectedAppRoute = () => {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
 
-  return <MainApp currentUser={currentUser} setCurrentUser={setCurrentUser} />;
+  return (
+    <Routes>
+      <Route index element={<MainApp currentUser={currentUser} setCurrentUser={setCurrentUser} />} />
+      <Route path="item/:id" element={<EditorPage />} />
+      <Route path="*" element={<Navigate to="" replace />} />
+    </Routes>
+  );
 };
 
 // Main App Component (the actual notes app)
