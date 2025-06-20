@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "7.2.9",
-  "commitMessage": "Some tree navigation changes",
+  "version": "7.3.0",
+  "commitMessage": "Refactored dialog files to use a base modal file.",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
