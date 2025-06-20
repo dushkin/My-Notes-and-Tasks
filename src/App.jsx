@@ -1587,7 +1587,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   selectedItemId={selectedItemId}
                   onSelect={(id) => {
                     selectItemById(id);
-                    setMobileViewMode("content");
+                    if (!inlineRenameId) { setMobileViewMode("content"); }
                   }}
                   inlineRenameId={inlineRenameId}
                   inlineRenameValue={inlineRenameValue}
