@@ -25,7 +25,7 @@
 
 /* Enhanced Variant for the Landing Page - Much Slicker */
 .beta-banner.beta-banner--landing {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  background: linear-gradient(135deg, #667eea 0%, #4338ca 25%, #1e40af 50%, #0ea5e9 75%, #06b6d4 100%);
   background-size: 300% 300%;
   animation: gradientShift 8s ease infinite, slideDown 0.6s ease-out, pulse 2s ease-in-out infinite;
   color: white;
