@@ -7,10 +7,10 @@ import logo from "../assets/logo_dual_48x48.png";
 import { PlayCircle } from "lucide-react";
 
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
-  const [billingCycle, setBillingCycle] = useState("yearly"); // 'monthly', 'yearly', 'lifetime'
+  const [billingCycle, setBillingCycle] = useState("yearly");
+  // 'monthly', 'yearly', 'lifetime'
 
   const [showPricing, setShowPricing] = useState(!currentUser);
-
   useEffect(() => {
     // If the URL has #pricing, ensure the pricing section is visible and scrolled to.
     if (window.location.hash === "#pricing") {
@@ -22,9 +22,11 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       }, 100);
     }
   }, []);
-
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div
+      className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50"
+      style={{ paddingTop: "var(--beta-banner-height, 0px)" }}
+    >
       {/* Header */}
       <header className="relative z-10 backdrop-blur-sm bg-white/80 border-b border-gray-200/50">
         {/* Mobile: Stack vertically */}
@@ -77,6 +79,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
               Notes & Tasks
             </h1>
           </div>
+
           <nav>
             {currentUser ? (
               <div className="flex items-center gap-4">

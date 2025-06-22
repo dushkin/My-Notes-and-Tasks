@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import BetaBanner from "./components/BetaBanner";
 import Tree from "./components/Tree";
 import FolderContents from "./components/FolderContents";
 import ContentEditor from "./components/ContentEditor";
@@ -56,6 +57,7 @@ import {
 import { initApiClient, authFetch } from "./services/apiClient";
 import EditorPage from "./pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
+
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
   const year = now.getFullYear();
@@ -95,6 +97,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
+
   if (!message) {
     return null;
   }
@@ -173,18 +176,20 @@ const LandingPageRoute = () => {
 
     checkAuth();
   }, []);
+
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
 
-  // Show landing page regardless of auth status
-  // Users can navigate to their account from here
   return (
-    <LandingPage
-      onLogin={() => (window.location.href = "/login")}
-      onSignup={() => (window.location.href = "/register")}
-      currentUser={currentUser} // Pass user info to landing page
-    />
+    <>
+      <BetaBanner variant="landing" />
+      <LandingPage
+        onLogin={() => (window.location.href = "/login")}
+        onSignup={() => (window.location.href = "/register")}
+        currentUser={currentUser}
+      />
+    </>
   );
 };
 
@@ -214,11 +219,11 @@ const LoginRoute = () => {
 
     checkAuth();
   }, []);
+
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
 
-  // If user is already logged in, redirect to app
   if (currentUser) {
     return <Navigate to="/app" replace />;
   }
@@ -228,10 +233,13 @@ const LoginRoute = () => {
     window.location.href = "/app";
   };
   return (
-    <Login
-      onLoginSuccess={handleLoginSuccess}
-      onSwitchToRegister={() => (window.location.href = "/register")}
-    />
+    <>
+      <BetaBanner variant="auth" />
+      <Login
+        onLoginSuccess={handleLoginSuccess}
+        onSwitchToRegister={() => (window.location.href = "/register")}
+      />
+    </>
   );
 };
 
@@ -261,11 +269,11 @@ const RegisterRoute = () => {
 
     checkAuth();
   }, []);
+
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
 
-  // If user is already logged in, redirect to app
   if (currentUser) {
     return <Navigate to="/app" replace />;
   }
@@ -274,10 +282,13 @@ const RegisterRoute = () => {
     window.location.href = "/login";
   };
   return (
-    <Register
-      onRegisterSuccess={handleRegisterSuccess}
-      onSwitchToLogin={() => (window.location.href = "/login")}
-    />
+    <>
+      <BetaBanner variant="auth" />
+      <Register
+        onRegisterSuccess={handleRegisterSuccess}
+        onSwitchToLogin={() => (window.location.href = "/login")}
+      />
+    </>
   );
 };
 
@@ -311,6 +322,7 @@ const ProtectedAppRoute = () => {
 
     checkAuth();
   }, []);
+
   if (!isAuthCheckComplete || !currentUser) {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
@@ -336,7 +348,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const searchInputRef = useRef(null);
-
   useEffect(() => {
     if (isSearchOpen) {
       const observer = new MutationObserver(() => {
@@ -944,7 +955,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
-
   // Search functionality
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
@@ -1127,7 +1137,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mobileMenuOpen]);
-
   useEffect(() => {
     const handler = (e) => {
       const activeElement = document.activeElement;
@@ -1198,7 +1207,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     inlineRenameId,
     setSearchSheetOpen,
   ]);
-
   useEffect(() => {
     if (!isMobile) return;
 
@@ -1223,7 +1231,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       window.removeEventListener("popstate", handlePopState);
     };
   }, [isMobile, mobileViewMode]);
-
   const handleAccountDisplayClick = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
@@ -1232,6 +1239,8 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
   const iconBaseClass = "w-4 h-4 mr-2";
   return (
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
+      <BetaBanner />
+
       <ErrorDisplay
         message={uiMessage}
         type={uiMessageType}
@@ -1246,10 +1255,13 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       )}
 
       <header
-        className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
+        className={`fixed left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
+        style={{
+          top: "var(--beta-banner-height, 0px)",
+        }}
       >
         {/* Mobile Layout - Compact header with hamburger menu */}
-        <div className="md:hidden mobile-menu-container">
+        <div className="md:hidden mobile-menu-container h-full">
           <div className="flex justify-between items-center px-4 py-2 h-full">
             {/* Left: Logo and Title */}
             <div className="flex items-center flex-1 min-w-0">
@@ -1320,7 +1332,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   <Menu className="w-5 h-5" />
                 )}
               </LoadingButton>
-            </div>
+          </div>
           </div>
 
           {/* Mobile Menu Dropdown */}
@@ -1451,7 +1463,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         </div>
 
         {/* Desktop Layout - Original horizontal layout */}
-        <div className="hidden md:block">
+        <div className="hidden md:block h-full">
           <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
             <div className="flex items-center">
               <img src={logo} alt="Application Logo" className="h-8 w-8 mr-2" />
@@ -1572,7 +1584,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       Add Root Folder
                     </button>
                     <button
-                      onClick={() => {
+                       onClick={() => {
                         openExportDialog("tree");
                         setTopMenuOpen(false);
                       }}
@@ -1584,7 +1596,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       Export Full Tree...
                     </button>
                     <button
-                      onClick={() => {
+                       onClick={() => {
                         openImportDialog("tree");
                         setTopMenuOpen(false);
                       }}
@@ -1617,7 +1629,12 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       </header>
 
       <>
-        <main className={`flex-1 flex min-h-0 pt-14 sm:pt-12`}>
+        <main
+          className={`flex-1 flex min-h-0`}
+          style={{
+            paddingTop: "calc(var(--beta-banner-height, 0px) + 3.5rem)", // 3.5rem = h-14
+          }}
+        >
           {isMobile ? (
             mobileViewMode === "tree" ? (
               <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
@@ -1632,7 +1649,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                         tree?.flatMap(function findInTree(item) {
                           if (item.id === id) return [item];
                           if (item.children)
-                            return item.children.flatMap(findInTree);
+                             return item.children.flatMap(findInTree);
                           return [];
                         })[0];
 
@@ -1722,7 +1739,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     draggedId={draggedId}
                     onDragStart={(e, id) => {
                       if (inlineRenameId) {
-                        e.preventDefault();
+                         e.preventDefault();
                         return;
                       }
                       try {
@@ -1777,7 +1794,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                         ></div>
                       </div>
                       <button
-                        onClick={() => {
+                         onClick={() => {
                           window.open("/#pricing", "_blank");
                         }}
                         className="mt-3 w-full flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
@@ -1826,8 +1843,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                           onShowItemMenu={handleShowItemMenu}
                         />
                       </div>
-                    ) : selectedItem.type === "note" ||
-                      selectedItem.type === "task" ? (
+                    ) : selectedItem.type === "note" || selectedItem.type === "task" ? (
                       <ContentEditor
                         key={selectedItemId}
                         item={selectedItem}

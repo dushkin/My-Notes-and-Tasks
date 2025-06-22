@@ -1,5 +1,5 @@
 // src/components/Login.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { storeTokens } from "../services/authService";
 import LoadingButton from "./LoadingButton";
 
@@ -11,6 +11,37 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Beta user limit state
+  const [betaLimitReached, setBetaLimitReached] = useState(false);
+  const [betaLimitCheckLoading, setBetaLimitCheckLoading] = useState(true);
+  const [betaInfo, setBetaInfo] = useState(null);
+
+  // Check beta user limit on component mount
+  useEffect(() => {
+    const checkBetaUserLimit = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/meta/user-count`);
+        if (response.ok) {
+          const data = await response.json();
+          setBetaInfo(data);
+
+          // Check if beta limit is enabled and reached
+          if (data.betaEnabled && data.userCount >= data.betaLimit) {
+            setBetaLimitReached(true);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check beta user limit:", error);
+        // If we can't check the limit, allow registration (fail open)
+        setBetaLimitReached(false);
+      } finally {
+        setBetaLimitCheckLoading(false);
+      }
+    };
+
+    checkBetaUserLimit();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,9 +71,15 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
       if (data.accessToken && data.refreshToken) {
         storeTokens(data.accessToken, data.refreshToken);
 
-        console.log('[DEBUG Login] Tokens stored successfully');
-        console.log('[DEBUG Login] AccessToken exists:', !!localStorage.getItem('accessToken'));
-        console.log('[DEBUG Login] RefreshToken exists:', !!localStorage.getItem('refreshToken'));
+        console.log("[DEBUG Login] Tokens stored successfully");
+        console.log(
+          "[DEBUG Login] AccessToken exists:",
+          !!localStorage.getItem("accessToken")
+        );
+        console.log(
+          "[DEBUG Login] RefreshToken exists:",
+          !!localStorage.getItem("refreshToken")
+        );
 
         if (onLoginSuccess) {
           onLoginSuccess(data.user);
@@ -57,12 +94,37 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
     }
   };
 
+  const handleCreateAccountClick = () => {
+    if (betaLimitReached) {
+      return; // Do nothing if beta limit is reached
+    }
+    onSwitchToRegister();
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900">
       <div className="p-8 bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-md">
         <h2 className="text-2xl font-semibold text-center text-zinc-900 dark:text-white mb-6">
           Login to Notes & Tasks
         </h2>
+
+        {/* Beta limit notification */}
+        {betaInfo?.betaEnabled && (
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-blue-700 dark:text-blue-300 font-medium">
+                🚧 Beta Version
+              </span>
+            </div>
+            {betaLimitReached && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                Beta user limit reached. New registrations are temporarily
+                disabled.
+              </p>
+            )}
+          </div>
+        )}
+
         {error && (
           <p
             data-item-id="login-error-message"
@@ -121,13 +183,24 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
         </form>
         <p className="mt-6 text-sm text-center text-zinc-600 dark:text-zinc-400">
           Don't have an account?{" "}
-          <button
-            onClick={onSwitchToRegister}
-            className="font-medium text-blue-600 hover:text-blue-500"
-            disabled={isLoading}
-          >
-            Create one
-          </button>
+          {betaLimitCheckLoading ? (
+            <span className="text-zinc-400 dark:text-zinc-500">Loading...</span>
+          ) : betaLimitReached ? (
+            <span
+              className="text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+              title="Registration temporarily disabled - beta user limit reached"
+            >
+              Create one
+            </span>
+          ) : (
+            <button
+              onClick={handleCreateAccountClick}
+              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+              disabled={isLoading}
+            >
+              Create one
+            </button>
+          )}
         </p>
       </div>
     </div>

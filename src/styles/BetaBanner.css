@@ -1,0 +1,179 @@
+/* Default banner style for the main app */
+.beta-banner {
+  background-color: #f4f4f5; /* Tailwind zinc-100 */
+  color: #dc2626; /* Tailwind red-600 */
+  font-weight: 700; /* bold */
+  text-align: center;
+  padding: 10px 20px 15px; /* Added 5px to bottom for spacing */
+  font-size: 14px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1001;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e4e4e7; /* Tailwind zinc-200 */
+  animation: slideDown 0.5s ease-out;
+  letter-spacing: 0.5px;
+}
+
+/* Dark mode for the default banner */
+.dark .beta-banner {
+  background-color: #27272a; /* Tailwind zinc-800 */
+  border-bottom-color: #3f3f46; /* Tailwind zinc-700 */
+}
+
+/* Enhanced Variant for the Landing Page - Much Slicker */
+.beta-banner.beta-banner--landing {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  background-size: 300% 300%;
+  animation: gradientShift 8s ease infinite, slideDown 0.6s ease-out, pulse 2s ease-in-out infinite;
+  color: white;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.15),
+    0 0 30px rgba(102, 126, 234, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.8px;
+  backdrop-filter: blur(10px);
+}
+
+/* Add a subtle shimmer effect */
+.beta-banner.beta-banner--landing::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Variant for Auth pages (Login/Register) */
+.beta-banner.beta-banner--auth {
+  background-color: #f4f4f5; /* Tailwind zinc-100, matches login page light bg */
+}
+
+.dark .beta-banner.beta-banner--auth {
+  background-color: #18181b; /* Tailwind zinc-900, matches login page dark bg */
+}
+
+/* Enhanced animations */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 
+      0 4px 20px rgba(0, 0, 0, 0.15),
+      0 0 30px rgba(102, 126, 234, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 6px 25px rgba(0, 0, 0, 0.2),
+      0 0 40px rgba(102, 126, 234, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Enhanced emoji styling */
+.beta-banner.beta-banner--landing::first-letter {
+  font-size: 1.3em;
+  margin-right: 6px;
+  display: inline-block;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .beta-banner {
+    font-size: 13px;
+    padding-top: 8px;
+    padding-bottom: 12px; /* Maintain extra space */
+    letter-spacing: 0.3px;
+  }
+  
+  .beta-banner.beta-banner--landing {
+    letter-spacing: 0.6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .beta-banner {
+    font-size: 12px;
+    padding-top: 6px;
+    padding-bottom: 10px; /* Maintain extra space */
+    letter-spacing: 0.2px;
+  }
+  
+  .beta-banner.beta-banner--landing {
+    letter-spacing: 0.4px;
+  }
+}
+
+/* Performance optimization - reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .beta-banner.beta-banner--landing {
+    animation: slideDown 0.6s ease-out;
+  }
+  
+  .beta-banner.beta-banner--landing::before {
+    animation: none;
+  }
+  
+  .beta-banner.beta-banner--landing::first-letter {
+    animation: none;
+  }
+}
