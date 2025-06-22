@@ -1,0 +1,14 @@
+name: Sync labels
+on:
+  push:
+    paths:
+      - '.github/labels.yml'
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: repo-sync/label-sync@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          configuration-path: .github/labels.yml
