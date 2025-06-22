@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "7.6.0",
-  "commitMessage": "Support beta mode, max 50 users",
+  "version": "7.7.0",
+  "commitMessage": "Adjust visual notifications position",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
