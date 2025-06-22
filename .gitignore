@@ -74,7 +74,13 @@ dist/
 consolidated_output.txt
 playwright-report/index.html
 
+# ignore markdown by default
 *.md
+
+# but don’t ignore our issue templates
+!/.github/
+!/.github/ISSUE_TEMPLATE/
+!/.github/ISSUE_TEMPLATE/*.md
 
 # Playwright Test Artifacts
 test-results/
