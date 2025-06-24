@@ -63,7 +63,7 @@ node_modules/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
+.env*
 
 # text files
 *.txt
@@ -99,9 +99,3 @@ test-results/**/*.mp4
 !public/**/*.png
 !assets/**/*.png
 
-
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local

@@ -2,7 +2,7 @@
   "type": "module",
   "name": "my-notes-and-tasks-modern",
   "version": "8.0.0",
-  "commitMessage": "PAddle implementation",
+  "commitMessage": "Paddle implementation",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
