@@ -98,3 +98,10 @@ test-results/**/*.mp4
 !src/**/*.png
 !public/**/*.png
 !assets/**/*.png
+
+
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

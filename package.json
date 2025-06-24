@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "7.7.1",
-  "commitMessage": "Adjusted beta banner colors",
+  "version": "8.0.0",
+  "commitMessage": "PAddle implementation",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -17,6 +17,7 @@
     "codegen": "playwright codegen http://localhost:5173"
   },
   "dependencies": {
+    "@paddle/paddle-js": "^1.4.2",
     "@tiptap/extension-font-family": "^2.12.0",
     "@tiptap/extension-image": "^2.12.0",
     "@tiptap/extension-link": "^2.12.0",

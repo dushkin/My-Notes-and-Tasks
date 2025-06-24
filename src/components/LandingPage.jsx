@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { PRICING_PLANS } from "../config/pricing";
+import { PRICING_PLANS, getAvailablePlans } from "../config/pricing";
+import * as PaddleSDK from "@paddle/paddle-js";
 import Button from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import logo from "../assets/logo_dual_48x48.png";
@@ -8,11 +9,167 @@ import { PlayCircle } from "lucide-react";
 
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
   const [billingCycle, setBillingCycle] = useState("yearly");
-  // 'monthly', 'yearly', 'lifetime'
+  const [showPricing, setShowPricing] = useState(true);
+  const [paddleInitialized, setPaddleInitialized] = useState(false);
 
-  const [showPricing, setShowPricing] = useState(!currentUser);
+  // Add this line to detect localhost
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1';
+
+  // Initialize Paddle
   useEffect(() => {
-    // If the URL has #pricing, ensure the pricing section is visible and scrolled to.
+    const initializePaddle = async () => {
+      try {
+        // Get token from environment variable (with fallback for browser compatibility)
+        const paddleToken = import.meta.env?.VITE_PADDLE_CLIENT_TOKEN || 
+                           (typeof process !== 'undefined' ? process.env?.REACT_APP_PADDLE_CLIENT_TOKEN : null) ||
+                           'your_actual_paddle_token_here'; // Temporary fallback for testing
+
+        if (!paddleToken) {
+          console.error(
+            "❌ Paddle client token not found in environment variables"
+          );
+          return;
+        }
+
+        // Determine if we're in local development
+        const isLocalhost =
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1";
+
+        // For test plans, we'll use production environment but with debug enabled locally
+        // This allows us to test with real $0.01 payments instead of sandbox
+        const paddle = await PaddleSDK.initializePaddle({
+          environment: "production", // Always use production for real payment testing
+          token: paddleToken,
+          debug: isLocalhost, // Enable debug only in local development
+        });
+
+        if (paddle) {
+          window.Paddle = paddle;
+          setPaddleInitialized(true);
+          console.log("✅ Paddle initialized successfully");
+          console.log("Environment: production");
+          console.log("Debug mode:", isLocalhost ? "enabled" : "disabled");
+
+          if (isLocalhost) {
+            console.log(
+              "🧪 Local development detected - test plans will be available"
+            );
+            console.log(
+              "💡 Test plans use real payments ($0.01 + fees) - remember to refund!"
+            );
+          }
+        }
+      } catch (error) {
+        console.error("❌ Failed to initialize Paddle:", error);
+
+        // More helpful error messages for common issues
+        if (error.message?.includes("token")) {
+          console.error(
+            "💡 Check that VITE_PADDLE_CLIENT_TOKEN is set correctly"
+          );
+        }
+        if (error.message?.includes("403")) {
+          console.error(
+            "💡 Verify your Paddle token has the correct permissions"
+          );
+        }
+      }
+    };
+
+    initializePaddle();
+  }, []);
+
+  const handleCheckout = async (planId) => {
+    console.log("handleCheckout called with:", planId);
+    
+    const availablePlans = getAvailablePlans();
+    const plan = availablePlans[planId];
+    console.log("Plan details:", plan);
+
+    if (!paddleInitialized || !window.Paddle) {
+      console.error("❌ Paddle not initialized");
+      alert("Payment system is loading. Please try again in a moment.");
+      return;
+    }
+
+    if (!plan?.paddleProductId) {
+      console.error("❌ No paddle product ID for plan:", planId);
+      alert("This plan is not available for purchase yet.");
+      return;
+    }
+
+    // Special handling for test plans
+    if (plan.isTest) {
+      const confirmTest = window.confirm(
+        `🧪 REAL PAYMENT TEST\n\n` +
+        `This will charge your REAL payment method:\n` +
+        `• Product cost: $${plan.price}\n` +
+        `• Processing fees: ~$0.30\n` +
+        `• Total: ~$${(plan.price + 0.30).toFixed(2)}\n\n` +
+        `You can refund this in Paddle dashboard afterward.\n\n` +
+        `Use your real credit card, PayPal, etc.\n\n` +
+        `Continue with real payment test?`
+      );
+      
+      if (!confirmTest) {
+        return;
+      }
+    }
+
+    try {
+      console.log("🚀 Opening Paddle checkout...");
+      
+      await window.Paddle.Checkout.open({
+        items: [
+          {
+            priceId: plan.paddleProductId,
+            quantity: 1,
+          },
+        ],
+        customer: {
+          email: currentUser?.email || undefined,
+        },
+        customData: {
+          userId: currentUser?.id || undefined,
+          plan: planId,
+          isTest: plan.isTest || false,
+        },
+        successCallback: (data) => {
+          console.log("✅ Paddle checkout success:", data);
+          
+          if (plan.isTest) {
+            alert(
+              `✅ Real payment test completed!\n\n` +
+              `Transaction ID: ${data.transactionId}\n\n` +
+              `To refund:\n` +
+              `1. Go to Paddle Dashboard → Transactions\n` +
+              `2. Find transaction ${data.transactionId}\n` +
+              `3. Click "Issue Refund"\n\n` +
+              `The payment integration is working correctly!`
+            );
+          } else {
+            alert("Payment successful! Thank you for your purchase.");
+            window.location.href = "/app";
+          }
+        },
+        closeCallback: (data) => {
+          console.log("ℹ️ Paddle checkout closed:", data);
+        },
+        errorCallback: (error) => {
+          console.error("❌ Paddle checkout error:", error);
+          console.error("❌ Error details:", JSON.stringify(error, null, 2));
+          alert("There was an error processing your payment. Please try again or contact support.");
+        }
+      });
+    } catch (error) {
+      console.error("❌ Error opening Paddle checkout:", error);
+      alert("There was an error processing your payment. Please try again.");
+    }
+  };
+
+  useEffect(() => {
     if (window.location.hash === "#pricing") {
       setShowPricing(true);
       setTimeout(() => {
@@ -22,6 +179,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       }, 100);
     }
   }, []);
+
   return (
     <div
       className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50"
@@ -161,17 +319,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                         onClick={onSignup}
                         className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-full hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-200"
                       >
-                        🚀 Get Started Free
-                      </button>
-                      <button
-                        onClick={() => {
-                          document
-                            .getElementById("pricing")
-                            ?.scrollIntoView({ behavior: "smooth" });
-                        }}
-                        className="inline-flex items-center justify-center px-8 py-4 border-2 border-gray-300 text-gray-700 font-semibold rounded-full hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
-                      >
-                        💎 View Pricing
+                        🚀 Sign up free! (Up to 100 items)
                       </button>
                     </>
                   )}
@@ -362,7 +510,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
 
         {showPricing && (
           <section id="pricing" className="py-20 bg-white/50">
-            <div className="max-w-7xl mx-auto px-6">
+            <div className="max-w-4xl mx-auto px-6">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -378,140 +526,211 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                 </p>
               </motion.div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <Card className="relative overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-300 h-full flex flex-col">
-                    <CardContent className="p-8 flex-grow flex flex-col">
-                      <div className="text-center mb-6">
-                        <h4 className="text-2xl font-bold text-gray-900 mb-2">
-                          Free Plan
-                        </h4>
-                        <div className="text-4xl font-bold text-blue-600 mb-1">
-                          $0
+              {/* TEST PLANS SECTION - Only show on localhost and when user is logged in */}
+              {isLocalhost && currentUser && (
+                <section className="py-8 bg-yellow-50 border-t border-yellow-200 mb-8 rounded-lg">
+                  <div className="max-w-4xl mx-auto px-6">
+                    <div className="text-center mb-8">
+                      <h3 className="text-2xl font-bold text-yellow-800 mb-2">
+                        🧪 Test Plans (Development Only)
+                      </h3>
+                      <p className="text-yellow-700">
+                        These $0.01 plans are for testing the payment flow
+                      </p>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {['testRecurring', 'testOnetime'].map((planId) => {
+                        const availablePlans = getAvailablePlans();
+                        const plan = availablePlans[planId];
+                        if (!plan) return null;
+                        
+                        return (
+                          <Card key={planId} className="border-2 border-yellow-300">
+                            <CardContent className="p-6">
+                              <div className="text-center mb-4">
+                                <h4 className="text-lg font-bold text-gray-900 mb-2">
+                                  {plan.label}
+                                </h4>
+                                <div className="text-2xl font-bold text-yellow-600 mb-1">
+                                  ${plan.price}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {plan.description}
+                                </div>
+                              </div>
+                              
+                              <button
+                                onClick={() => handleCheckout(planId)}
+                                disabled={!paddleInitialized}
+                                className="w-full px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {paddleInitialized ? `Test ${plan.label}` : 'Loading...'}
+                              </button>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Vertical stack of pricing cards */}
+              <div className="space-y-8">
+                {/* Free Plan Card - Only show when no user is logged in */}
+                {!currentUser && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                    viewport={{ once: true }}
+                  >
+                    <Card className="relative overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-300">
+                      <CardContent className="p-8">
+                        <div className="text-center mb-6">
+                          <h4 className="text-2xl font-bold text-gray-900 mb-2">
+                            Free Plan
+                          </h4>
+                          <div className="text-4xl font-bold text-blue-600 mb-1">
+                            $0
+                          </div>
+                          <div className="text-gray-500">Forever free</div>
                         </div>
-                        <div className="text-gray-500">Forever free</div>
-                      </div>
-                      <ul className="space-y-4 mb-8">
-                        {[
-                          "Up to 100 tree items (Folders, notes & tasks)",
-                          "Rich text & Markdown support",
-                          "Advanced organization",
-                          "Cloud sync",
-                          "Export features",
-                        ].map((feature, index) => (
-                          <li
-                            key={index}
-                            className="flex items-center space-x-3"
-                          >
-                            <span className="text-green-500">✓</span>
-                            <span className="text-gray-700">{feature}</span>
-                          </li>
-                        ))}
-                        <li className="flex items-center space-x-3">
-                          <span className="text-transparent">✓</span>
-                          <span className="text-gray-400 italic">
-                            (Items are notes, tasks, and folders)
-                          </span>
-                        </li>
-                      </ul>
-                      <button
-                        onClick={onSignup}
-                        className="w-full mt-auto py-3 border-2 border-blue-600 text-blue-600 font-semibold rounded-full hover:bg-blue-50 transition-all duration-200"
-                      >
-                        Get Started Free
-                      </button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  viewport={{ once: true }}
-                >
-                  <Card className="relative overflow-hidden border-2 border-blue-500 shadow-xl shadow-blue-500/25 h-full flex flex-col">
-                    {billingCycle === "yearly" && (
-                      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center py-2 text-sm font-medium">
-                        ⭐ Most Popular
-                      </div>
-                    )}
-                    <CardContent className="p-8 pt-12 flex-grow flex flex-col">
-                      <div className="text-center mb-6">
-                        <h4 className="text-2xl font-bold text-gray-900 mb-4">
-                          Pro Plan
-                        </h4>
-
-                        <div className="p-1 bg-gray-100 rounded-full flex items-center mb-6">
+                        <ul className="space-y-4 mb-8">
+                          {[
+                            "Up to 100 tree items (Folders, notes & tasks)",
+                            "Rich text & Markdown support",
+                            "Advanced organization",
+                            "Cloud sync",
+                            "Export features",
+                          ].map((feature, index) => (
+                            <li
+                              key={index}
+                              className="flex items-center space-x-3"
+                            >
+                              <span className="text-green-500">✓</span>
+                              <span className="text-gray-700">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="flex justify-center">
                           <button
-                            onClick={() => setBillingCycle("monthly")}
-                            className={`w-1/3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                              billingCycle === "monthly"
-                                ? "bg-white shadow text-blue-600"
-                                : "text-gray-500 hover:text-gray-700"
-                            }`}
+                            onClick={onSignup}
+                            className="px-8 py-3 border-2 border-blue-600 text-blue-600 font-semibold rounded-full hover:bg-blue-50 transition-all duration-200"
                           >
-                            Monthly
-                          </button>
-                          <button
-                            onClick={() => setBillingCycle("yearly")}
-                            className={`w-1/3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                              billingCycle === "yearly"
-                                ? "bg-white shadow text-blue-600"
-                                : "text-gray-500 hover:text-gray-700"
-                            }`}
-                          >
-                            Yearly
-                          </button>
-                          <button
-                            onClick={() => setBillingCycle("lifetime")}
-                            className={`w-1/3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                              billingCycle === "lifetime"
-                                ? "bg-white shadow text-blue-600"
-                                : "text-gray-500 hover:text-gray-700"
-                            }`}
-                          >
-                            Lifetime
+                            Sign up free to try it out!
                           </button>
                         </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
 
-                        <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
-                          ${PRICING_PLANS[billingCycle].price}
+                {/* Pro Plan Card - Only show when user is logged in */}
+                {currentUser && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                    viewport={{ once: true }}
+                  >
+                    <Card className="relative overflow-hidden border-2 border-blue-500 shadow-xl shadow-blue-500/25">
+                      {billingCycle === "yearly" && (
+                        <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center py-2 text-sm font-medium">
+                          ⭐ Most Popular
                         </div>
-                        <div className="text-gray-500 h-10 flex items-center justify-center">
-                          {billingCycle === "monthly" &&
-                            PRICING_PLANS.monthly.description}
-                          {billingCycle === "yearly" &&
-                            PRICING_PLANS.yearly.description}
-                          {billingCycle === "lifetime" &&
-                            PRICING_PLANS.lifetime.description}
+                      )}
+                      <CardContent className="p-8 pt-12">
+                        <div className="text-center mb-6">
+                          <h4 className="text-2xl font-bold text-gray-900 mb-4">
+                            Pro Plan
+                          </h4>
+
+                          <div className="p-1 bg-gray-100 rounded-full flex items-center mb-6 max-w-md mx-auto">
+                            <button
+                              onClick={() => setBillingCycle("monthly")}
+                              className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                                billingCycle === "monthly"
+                                  ? "bg-white shadow text-blue-600"
+                                  : "text-gray-500 hover:text-gray-700"
+                              }`}
+                            >
+                              Monthly
+                            </button>
+                            <button
+                              onClick={() => setBillingCycle("yearly")}
+                              className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                                billingCycle === "yearly"
+                                  ? "bg-white shadow text-blue-600"
+                                  : "text-gray-500 hover:text-gray-700"
+                              }`}
+                            >
+                              Yearly
+                            </button>
+                            <button
+                              onClick={() => setBillingCycle("lifetime")}
+                              className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                                billingCycle === "lifetime"
+                                  ? "bg-white shadow text-blue-600"
+                                  : "text-gray-500 hover:text-gray-700"
+                              }`}
+                            >
+                              Lifetime
+                            </button>
+                          </div>
+
+                          <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
+                            ${PRICING_PLANS[billingCycle].price}
+                          </div>
+                          <div className="text-gray-500 h-10 flex items-center justify-center">
+                            {billingCycle === "monthly" &&
+                              PRICING_PLANS.monthly.description}
+                            {billingCycle === "yearly" &&
+                              PRICING_PLANS.yearly.description}
+                            {billingCycle === "lifetime" &&
+                              PRICING_PLANS.lifetime.description}
+                          </div>
                         </div>
-                      </div>
-                      <ul className="space-y-4 mb-8">
-                        {[
-                          "All in free plan",
-                          "Unlimited tree items (Folders, notes & tasks)",
-                        ].map((feature, index) => (
-                          <li
-                            key={index}
-                            className="flex items-center space-x-3"
+                        <ul className="space-y-4 mb-8">
+                          {[
+                            "All in free plan",
+                            "Unlimited tree items (Folders, notes & tasks)",
+                          ].map((feature, index) => (
+                            <li
+                              key={index}
+                              className="flex items-center space-x-3"
+                            >
+                              <span className="text-green-500">✓</span>
+                              <span className="text-gray-700">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => handleCheckout(billingCycle)}
+                            disabled={!paddleInitialized}
+                            className={`px-8 py-3 font-semibold rounded-full transition-all duration-200 ${
+                              paddleInitialized
+                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg transform hover:scale-105"
+                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            }`}
                           >
-                            <span className="text-green-500">✓</span>
-                            <span className="text-gray-700">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <button className="w-full mt-auto py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200">
-                        Start Pro Trial
-                      </button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                            {!paddleInitialized
+                              ? "Loading..."
+                              : billingCycle === "lifetime"
+                              ? "Buy Lifetime Access"
+                              : `Start ${
+                                  billingCycle === "monthly"
+                                    ? "Monthly"
+                                    : "Yearly"
+                                } Plan`}
+                          </button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
               </div>
             </div>
           </section>
