@@ -1,7 +1,7 @@
 labels:
   - name: bug
     color: d73a4a
-    description: Something isn’t working
+    description: Something isn't working
   - name: enhancement
     color: a2eeef
     description: New feature or request
@@ -28,7 +28,7 @@ labels:
     description: Needs more info from OP or stakeholders
   - name: blocked
     color: d4c5f9
-    description: Can’t proceed until another issue is resolved
+    description: Can't proceed until another issue is resolved
   - name: help wanted
     color: 008672
     description: Looking for outside contributors
@@ -40,7 +40,7 @@ labels:
     description: This issue is a duplicate of another
   - name: invalid
     color: e4e669
-    description: Not a bug or feature, or can’t be reproduced
+    description: Not a bug or feature, or can't be reproduced
   - name: wontfix
     color: ffffff
-    description: Issue acknowledged but won’t be addressed
+    description: Issue acknowledged but won't be addressed
