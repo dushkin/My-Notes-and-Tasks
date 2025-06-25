@@ -103,13 +103,13 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
     // Special handling for test plans
     if (plan.isTest) {
       const confirmTest = window.confirm(
-        `🧪 REAL PAYMENT TEST\n\n` +
-        `This will charge your REAL payment method:\n` +
-        `• Product cost: $${plan.price}\n` +
-        `• Processing fees: ~$0.30\n` +
-        `• Total: ~$${(plan.price + 0.30).toFixed(2)}\n\n` +
-        `You can refund this in Paddle dashboard afterward.\n\n` +
-        `Use your real credit card, PayPal, etc.\n\n` +
+        `🧪 REAL PAYMENT TEST\\n\\n` +
+        `This will charge your REAL payment method:\\n` +
+        `• Product cost: $${plan.price}\\n` +
+        `• Processing fees: ~$0.30\\n` +
+        `• Total: ~$${(plan.price + 0.30).toFixed(2)}\\n\\n` +
+        `You can refund this in Paddle dashboard afterward.\\n\\n` +
+        `Use your real credit card, PayPal, etc.\\n\\n` +
         `Continue with real payment test?`
       );
       
@@ -129,7 +129,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           },
         ],
         customer: {
-          email: currentUser?.email || undefined,
+          email: currentUser?.email || "guest@notask.co", // Added fallback email
         },
         customData: {
           userId: currentUser?.id || undefined,
@@ -141,12 +141,12 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           
           if (plan.isTest) {
             alert(
-              `✅ Real payment test completed!\n\n` +
-              `Transaction ID: ${data.transactionId}\n\n` +
-              `To refund:\n` +
-              `1. Go to Paddle Dashboard → Transactions\n` +
-              `2. Find transaction ${data.transactionId}\n` +
-              `3. Click "Issue Refund"\n\n` +
+              `✅ Real payment test completed!\\n\\n` +
+              `Transaction ID: ${data.transactionId}\\n\\n` +
+              `To refund:\\n` +
+              `1. Go to Paddle Dashboard → Transactions\\n` +
+              `2. Find transaction ${data.transactionId}\\n` +
+              `3. Click "Issue Refund"\\n\\n` +
               `The payment integration is working correctly!`
             );
           } else {

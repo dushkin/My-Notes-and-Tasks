@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.0.3",
-  "commitMessage": "Paddle token fix",
+  "version": "8.0.4",
+  "commitMessage": "Paddle checkout fix",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
