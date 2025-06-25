@@ -22,7 +22,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       try {
         // Get token from environment variable (with fallback for browser compatibility)
         const paddleToken = import.meta.env?.VITE_PADDLE_CLIENT_TOKEN || 
-                           (typeof process !== 'undefined' ? process.env?.REACT_APP_PADDLE_CLIENT_TOKEN : null) ||
+                           (typeof process !== 'undefined' ? process.env?.VITE_PADDLE_CLIENT_TOKEN : null) ||
                            'your_actual_paddle_token_here'; // Temporary fallback for testing
 
         if (!paddleToken) {
