@@ -13,17 +13,21 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
   const [paddleInitialized, setPaddleInitialized] = useState(false);
 
   // Add this line to detect localhost
-  const isLocalhost = window.location.hostname === 'localhost' || 
-                     window.location.hostname === '127.0.0.1';
+  const isLocalhost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
 
   // Initialize Paddle
   useEffect(() => {
     const initializePaddle = async () => {
       try {
         // Get token from environment variable (with fallback for browser compatibility)
-        const paddleToken = import.meta.env?.VITE_PADDLE_CLIENT_TOKEN || 
-                           (typeof process !== 'undefined' ? process.env?.VITE_PADDLE_CLIENT_TOKEN : null) ||
-                           'your_actual_paddle_token_here'; // Temporary fallback for testing
+        const paddleToken =
+          import.meta.env?.VITE_PADDLE_CLIENT_TOKEN ||
+          (typeof process !== "undefined"
+            ? process.env?.VITE_PADDLE_CLIENT_TOKEN
+            : null) ||
+          "your_actual_paddle_token_here"; // Temporary fallback for testing
 
         if (!paddleToken) {
           console.error(
@@ -83,7 +87,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
 
   const handleCheckout = async (planId) => {
     console.log("handleCheckout called with:", planId);
-    
+
     const availablePlans = getAvailablePlans();
     const plan = availablePlans[planId];
     console.log("Plan details:", plan);
@@ -101,7 +105,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
     }
 
     // Temporarily removed test plan confirmation for this minimal test
-    // if (plan.isTest) { 
+    // if (plan.isTest) {
     //   const confirmTest = window.confirm(
     //     `🧪 REAL PAYMENT TEST\\n\\n` +
     //     `This will charge your REAL payment method:\\n` +
@@ -112,15 +116,17 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
     //     `Use your real credit card, PayPal, etc.\\n\\n` +
     //     `Continue with real payment test?`
     //   );
-      
+
     //   if (!confirmTest) {
     //     return;
     //   }
     // }
 
     try {
-      console.log("🚀 Opening Paddle checkout with absolute MINIMAL payload...");
-      
+      console.log(
+        "🚀 Opening Paddle checkout with absolute MINIMAL payload..."
+      );
+
       await window.Paddle.Checkout.open({
         items: [
           {
@@ -128,15 +134,17 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
             quantity: 1,
           },
         ],
-        // All other parameters removed for this test
-        // customer: {
-        //   email: currentUser?.email || "guest@notask.co", 
-        // },
-        // customData: {
-        //   userId: currentUser?.id || undefined,
-        //   plan: planId,
-        //   isTest: plan.isTest || false,
-        // },
+        customer: {
+          // Pre-fills the email if the user is logged in.
+          // If not, Paddle's checkout will prompt the user to enter one.
+          email: currentUser?.email || undefined,
+        },
+        customData: {
+          // Pass your internal user ID and the plan ID
+          // to link this transaction back to a user in your database.
+          userId: currentUser?.id || undefined,
+          plan: planId,
+        },
         // successCallback: (data) => {
         //   console.log("✅ Paddle checkout success:", data);
         //   if (plan.isTest) {
@@ -538,15 +546,18 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                         These $0.01 plans are for testing the payment flow
                       </p>
                     </div>
-                    
+
                     <div className="grid md:grid-cols-2 gap-6">
-                      {['testRecurring', 'testOnetime'].map((planId) => {
+                      {["testRecurring", "testOnetime"].map((planId) => {
                         const availablePlans = getAvailablePlans();
                         const plan = availablePlans[planId];
                         if (!plan) return null;
-                        
+
                         return (
-                          <Card key={planId} className="border-2 border-yellow-300">
+                          <Card
+                            key={planId}
+                            className="border-2 border-yellow-300"
+                          >
                             <CardContent className="p-6">
                               <div className="text-center mb-4">
                                 <h4 className="text-lg font-bold text-gray-900 mb-2">
@@ -559,13 +570,15 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                                   {plan.description}
                                 </div>
                               </div>
-                              
+
                               <button
                                 onClick={() => handleCheckout(planId)}
                                 disabled={!paddleInitialized}
                                 className="w-full px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                               >
-                                {paddleInitialized ? `Test ${plan.label}` : 'Loading...'}
+                                {paddleInitialized
+                                  ? `Test ${plan.label}`
+                                  : "Loading..."}
                               </button>
                             </CardContent>
                           </Card>
