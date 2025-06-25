@@ -11,16 +11,16 @@ labels:
   - name: question
     color: d876e3
     description: Further information is requested
-  - name: priority: high
+  - name: "priority: high"
     color: b60205
     description: Must be fixed/addressed immediately
-  - name: priority: medium
+  - name: "priority: medium"
     color: eb6420
     description: Important but non-critical
-  - name: priority: low
+  - name: "priority: low"
     color: 1d76db
     description: Nice-to-have, little impact
-  - name: in progress
+  - name: "in progress"
     color: 0052cc
     description: Work has started
   - name: awaiting feedback
