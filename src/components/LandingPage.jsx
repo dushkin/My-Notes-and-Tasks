@@ -100,26 +100,26 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       return;
     }
 
-    // Special handling for test plans
-    if (plan.isTest) {
-      const confirmTest = window.confirm(
-        `🧪 REAL PAYMENT TEST\\n\\n` +
-        `This will charge your REAL payment method:\\n` +
-        `• Product cost: $${plan.price}\\n` +
-        `• Processing fees: ~$0.30\\n` +
-        `• Total: ~$${(plan.price + 0.30).toFixed(2)}\\n\\n` +
-        `You can refund this in Paddle dashboard afterward.\\n\\n` +
-        `Use your real credit card, PayPal, etc.\\n\\n` +
-        `Continue with real payment test?`
-      );
+    // Temporarily removed test plan confirmation for this minimal test
+    // if (plan.isTest) { 
+    //   const confirmTest = window.confirm(
+    //     `🧪 REAL PAYMENT TEST\\n\\n` +
+    //     `This will charge your REAL payment method:\\n` +
+    //     `• Product cost: $${plan.price}\\n` +
+    //     `• Processing fees: ~$0.30\\n` +
+    //     `• Total: ~$${(plan.price + 0.30).toFixed(2)}\\n\\n` +
+    //     `You can refund this in Paddle dashboard afterward.\\n\\n` +
+    //     `Use your real credit card, PayPal, etc.\\n\\n` +
+    //     `Continue with real payment test?`
+    //   );
       
-      if (!confirmTest) {
-        return;
-      }
-    }
+    //   if (!confirmTest) {
+    //     return;
+    //   }
+    // }
 
     try {
-      console.log("🚀 Opening Paddle checkout...");
+      console.log("🚀 Opening Paddle checkout with absolute MINIMAL payload...");
       
       await window.Paddle.Checkout.open({
         items: [
@@ -128,40 +128,40 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
             quantity: 1,
           },
         ],
-        customer: {
-          email: currentUser?.email || "guest@notask.co", // Added fallback email
-        },
-        customData: {
-          userId: currentUser?.id || undefined,
-          plan: planId,
-          isTest: plan.isTest || false,
-        },
-        successCallback: (data) => {
-          console.log("✅ Paddle checkout success:", data);
-          
-          if (plan.isTest) {
-            alert(
-              `✅ Real payment test completed!\\n\\n` +
-              `Transaction ID: ${data.transactionId}\\n\\n` +
-              `To refund:\\n` +
-              `1. Go to Paddle Dashboard → Transactions\\n` +
-              `2. Find transaction ${data.transactionId}\\n` +
-              `3. Click "Issue Refund"\\n\\n` +
-              `The payment integration is working correctly!`
-            );
-          } else {
-            alert("Payment successful! Thank you for your purchase.");
-            window.location.href = "/app";
-          }
-        },
-        closeCallback: (data) => {
-          console.log("ℹ️ Paddle checkout closed:", data);
-        },
-        errorCallback: (error) => {
-          console.error("❌ Paddle checkout error:", error);
-          console.error("❌ Error details:", JSON.stringify(error, null, 2));
-          alert("There was an error processing your payment. Please try again or contact support.");
-        }
+        // All other parameters removed for this test
+        // customer: {
+        //   email: currentUser?.email || "guest@notask.co", 
+        // },
+        // customData: {
+        //   userId: currentUser?.id || undefined,
+        //   plan: planId,
+        //   isTest: plan.isTest || false,
+        // },
+        // successCallback: (data) => {
+        //   console.log("✅ Paddle checkout success:", data);
+        //   if (plan.isTest) {
+        //     alert(
+        //       `✅ Real payment test completed!\\n\\n` +
+        //       `Transaction ID: ${data.transactionId}\\n\\n` +
+        //       `To refund:\\n` +
+        //       `1. Go to Paddle Dashboard → Transactions\\n` +
+        //       `2. Find transaction ${data.transactionId}\\n` +
+        //       `3. Click "Issue Refund"\\n\\n` +
+        //       `The payment integration is working correctly!`
+        //     );
+        //   } else {
+        //     alert("Payment successful! Thank you for your purchase.");
+        //     window.location.href = "/app";
+        //   }
+        // },
+        // closeCallback: (data) => {
+        //   console.log("ℹ️ Paddle checkout closed:", data);
+        // },
+        // errorCallback: (error) => {
+        //   console.error("❌ Paddle checkout error:", error);
+        //   console.error("❌ Error details:", JSON.stringify(error, null, 2));
+        //   alert("There was an error processing your payment. Please try again or contact support.");
+        // }
       });
     } catch (error) {
       console.error("❌ Error opening Paddle checkout:", error);
