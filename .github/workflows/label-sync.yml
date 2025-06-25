@@ -3,11 +3,16 @@ on:
   push:
     paths:
       - '.github/labels.yml'
+
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: EndBug/label-sync@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
