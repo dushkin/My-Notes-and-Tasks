@@ -19,6 +19,7 @@ import ConfirmDialog from "./components/ConfirmDialog";
 import LoadingSpinner from "./components/LoadingSpinner";
 import LoadingButton from "./components/LoadingButton";
 import LandingPage from "./components/LandingPage";
+import DeletionStatusPage from "./components/DeletionStatusPage";
 import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -116,7 +117,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       : type === "info"
       ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
-  
   return (
     <div
       data-item-id="error-display-message"
@@ -149,12 +149,12 @@ const App = () => {
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/register" element={<RegisterRoute />} />
         <Route path="/app/*" element={<ProtectedAppRoute />} />
+        <Route path="/deletion-status" element={<DeletionStatusPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
 };
-
 // Landing Page Route Component
 const LandingPageRoute = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -181,7 +181,6 @@ const LandingPageRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -224,7 +223,6 @@ const LoginRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -274,7 +272,6 @@ const RegisterRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -327,7 +324,6 @@ const ProtectedAppRoute = () => {
 
     checkAuth();
   }, []);
-
   if (!isAuthCheckComplete || !currentUser) {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
@@ -1337,7 +1333,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   <Menu className="w-5 h-5" />
                 )}
               </LoadingButton>
-          </div>
+            </div>
           </div>
 
           {/* Mobile Menu Dropdown */}
@@ -1589,7 +1585,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       Add Root Folder
                     </button>
                     <button
-                       onClick={() => {
+                        onClick={() => {
                         openExportDialog("tree");
                         setTopMenuOpen(false);
                       }}
@@ -1601,7 +1597,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       Export Full Tree...
                     </button>
                     <button
-                       onClick={() => {
+                        onClick={() => {
                         openImportDialog("tree");
                         setTopMenuOpen(false);
                       }}
@@ -1654,7 +1650,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                         tree?.flatMap(function findInTree(item) {
                           if (item.id === id) return [item];
                           if (item.children)
-                             return item.children.flatMap(findInTree);
+                            return item.children.flatMap(findInTree);
                           return [];
                         })[0];
 
@@ -1744,7 +1740,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     draggedId={draggedId}
                     onDragStart={(e, id) => {
                       if (inlineRenameId) {
-                         e.preventDefault();
+                        e.preventDefault();
                         return;
                       }
                       try {
@@ -1799,7 +1795,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                         ></div>
                       </div>
                       <button
-                         onClick={() => {
+                        onClick={() => {
                           window.open("/#pricing", "_blank");
                         }}
                         className="mt-3 w-full flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
