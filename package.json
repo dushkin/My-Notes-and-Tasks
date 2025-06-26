@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.1.0",
-  "commitMessage": "Support account cancellation",
+  "version": "8.1.1",
+  "commitMessage": "Fix cancellation issue",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

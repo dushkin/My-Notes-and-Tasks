@@ -22,7 +22,7 @@ export default function CancelAccount() {
   return (
     <div>
       {step === 0 && (
-        <Button onClick={() => setStep(‘confirm’)}>Cancel Account</Button>
+        <Button onClick={() => setStep(‘confirm’)}>Delete Account</Button>
       )}
       {step === 'confirm' && (
         <Modal onClose={() => setStep(0)}>

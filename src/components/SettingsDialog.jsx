@@ -289,7 +289,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
         },
         {
           id: "cancelAccount",
-          label: "Cancel Account",
+          label: "Delete Account",
           desc: "Permanently delete your account and all data. A confirmation email will be sent.",
           control: (
             <button
@@ -306,7 +306,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
               className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
               data-item-id="setting-cancelaccount-button"
             >
-              <AlertTriangle className="w-4 h-4 mr-1" /> Cancel Account
+              <AlertTriangle className="w-4 h-4 mr-1" /> Delete Account
             </button>
           ),
         }
