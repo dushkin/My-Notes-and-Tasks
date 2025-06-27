@@ -26,6 +26,20 @@ const API_BASE_URL =
 // === FREE PLAN LIMITATION ===
 const FREE_PLAN_ITEM_LIMIT = 100;
 
+
+/** Checks if the user has active paid access (active or cancelled but until period end) */
+function hasActiveAccess(user) {
+  if (!user) return false;
+  if (user.subscriptionStatus === "active") return true;
+  if (
+    user.subscriptionStatus === "cancelled" &&
+    new Date(user.subscriptionEndsAt) > new Date()
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function htmlToPlainTextWithNewlines(html) {
   if (!html) return "";
   let text = html;
@@ -242,9 +256,9 @@ export const useTree = (currentUser) => {
   }, []);
   const addItem = useCallback(
     async (newItemData, parentId) => {
-      // === MODIFIED: Check for user role before applying limit ===
       if (
         currentUser?.role !== "admin" &&
+        !hasActiveAccess(currentUser) &&
         currentItemCount >= FREE_PLAN_ITEM_LIMIT
       ) {
         return {
@@ -812,16 +826,6 @@ export const useTree = (currentUser) => {
         : tree;
 
       if (clipboardMode === "copy") {
-        // === MODIFIED: Check for user role before applying limit ===
-        if (currentUser?.role !== "admin") {
-          const itemsToCreate = countTotalItems([clipboardItem]);
-          if (currentItemCount + itemsToCreate > FREE_PLAN_ITEM_LIMIT) {
-            return {
-              success: false,
-              error: `Pasting these items would exceed the 100-item limit for the free plan. Please upgrade.`,
-            };
-          }
-        }
 
         let itemToInsertData = assignClientPropsForDuplicate(
           structuredClone(clipboardItem)
@@ -914,6 +918,7 @@ export const useTree = (currentUser) => {
       currentUser,
     ]
   );
+
   const handleExport = useCallback(
     (target, format) => {
       let dataToExport;
