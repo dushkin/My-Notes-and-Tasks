@@ -122,7 +122,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       data-item-id="error-display-message"
       className={`${baseClasses} ${typeClasses}`}
       style={{
-        top: "calc(var(--beta-banner-height, 0px) + 0.75rem)" // 0.75rem = 12px spacing from banner
+        top: "calc(var(--beta-banner-height, 0px) + 0.75rem)", // 0.75rem = 12px spacing from banner
       }}
       role="alert"
     >
@@ -1338,7 +1338,11 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
 
           {/* Mobile Menu Dropdown */}
           {mobileMenuOpen && (
-            <div className="border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg">
+            <div
+              role="menu"
+              aria-label="Mobile navigation menu"
+              className="border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg"
+            >
               <div className="px-4 py-3 space-y-2">
                 {/* Action Buttons Row 1 */}
                 <div className="grid grid-cols-2 gap-2">
@@ -1415,6 +1419,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 {/* Menu Items */}
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 space-y-1">
                   <button
+                    role="menuitem"
                     onClick={() => {
                       openAddDialog("folder", null);
                       setMobileMenuOpen(false);
@@ -1426,6 +1431,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   </button>
 
                   <button
+                    role="menuitem"
                     onClick={() => {
                       openExportDialog("tree");
                       setMobileMenuOpen(false);
@@ -1437,6 +1443,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   </button>
 
                   <button
+                    role="menuitem"
                     onClick={() => {
                       openImportDialog("tree");
                       setMobileMenuOpen(false);
@@ -1448,6 +1455,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   </button>
 
                   <button
+                    role="menuitem"
                     onClick={() => {
                       setAboutDialogOpen(true);
                       setMobileMenuOpen(false);
@@ -1571,8 +1579,13 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   <EllipsisVertical className="w-5 h-5" />
                 </LoadingButton>
                 {topMenuOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
+                  <div
+                    role="menu"
+                    aria-label="More actions menu"
+                    className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1"
+                  >
                     <button
+                      role="menuitem"
                       onClick={() => {
                         openAddDialog("folder", null);
                         setTopMenuOpen(false);
@@ -1585,7 +1598,8 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       Add Root Folder
                     </button>
                     <button
-                        onClick={() => {
+                      role="menuitem"
+                      onClick={() => {
                         openExportDialog("tree");
                         setTopMenuOpen(false);
                       }}
@@ -1597,7 +1611,8 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       Export Full Tree...
                     </button>
                     <button
-                        onClick={() => {
+                      role="menuitem"
+                      onClick={() => {
                         openImportDialog("tree");
                         setTopMenuOpen(false);
                       }}
@@ -1608,8 +1623,12 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       />{" "}
                       Import Full Tree...
                     </button>
-                    <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"></div>
+                    <div
+                      className="my-1 h-px bg-zinc-200 dark:bg-zinc-700"
+                      role="separator"
+                    ></div>
                     <button
+                      role="menuitem"
                       onClick={() => {
                         setAboutDialogOpen(true);
                         setTopMenuOpen(false);
@@ -1844,7 +1863,8 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                           onShowItemMenu={handleShowItemMenu}
                         />
                       </div>
-                    ) : selectedItem.type === "note" || selectedItem.type === "task" ? (
+                    ) : selectedItem.type === "note" ||
+                      selectedItem.type === "task" ? (
                       <ContentEditor
                         key={selectedItemId}
                         item={selectedItem}

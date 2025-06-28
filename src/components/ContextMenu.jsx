@@ -107,13 +107,16 @@ const ContextMenu = ({
   return (
     <div
       ref={contextMenuRef}
-      className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-500 rounded-md shadow-lg text-base md:text-sm min-w-[200px] py-1" // Adjusted base font size
+      role="menu"
+      aria-label={isEmptyArea ? "Tree context menu" : `Context menu for ${item?.label}`}
+      className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-500 rounded-md shadow-lg text-base md:text-sm min-w-[200px] py-1"
       style={{ top: y, left: x }}
     >
       {/* --- Actions for Empty Area --- */}
       {isEmptyArea && (
         <>
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => {
               onAddRootFolder();
@@ -122,9 +125,10 @@ const ContextMenu = ({
           >
             <Plus className={`${iconBaseClass} text-purple-500 dark:text-purple-400`} /> Add Root Folder
           </button>
-          <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
+          <hr className="my-1 border-zinc-200 dark:border-zinc-700" role="separator" />
           {canPaste && (
             <button
+              role="menuitem"
               className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
               onClick={() => {
                 onPaste();
@@ -136,9 +140,10 @@ const ContextMenu = ({
             </button>
           )}
           {canPaste && (
-            <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
+            <hr className="my-1 border-zinc-200 dark:border-zinc-700" role="separator" />
           )}
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => {
               onExportTree();
@@ -149,6 +154,7 @@ const ContextMenu = ({
             <Download className={`${iconBaseClass} text-teal-500 dark:text-teal-400`} /> Export Full Tree...
           </button>
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => {
               onImportTree();
@@ -167,40 +173,46 @@ const ContextMenu = ({
           {item.type === "folder" && (
             <>
               <button
+                role="menuitem"
                 className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
                 onClick={() => { onAddFolder(); onClose(); }}
               >
                 <Plus className={`${iconBaseClass} text-purple-500 dark:text-purple-400`} /> Add Folder Here
               </button>
               <button
+                role="menuitem"
                 className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
                 onClick={() => { onAddNote(); onClose(); }}
               >
                 <Plus className={`${iconBaseClass} text-purple-500 dark:text-purple-400`} /> Add Note Here
               </button>
               <button
+                role="menuitem"
                 className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
                 onClick={() => { onAddTask(); onClose(); }}
               >
                 <Plus className={`${iconBaseClass} text-purple-500 dark:text-purple-400`} /> Add Task Here
               </button>
-              <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
+              <hr className="my-1 border-zinc-200 dark:border-zinc-700" role="separator" />
             </>
           )}
 
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => { onCut(); onClose(); }}
           >
             <Scissors className={`${iconBaseClass} text-orange-500 dark:text-orange-400`} /> Cut
           </button>
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => { onCopy(); onClose(); }}
           >
             <Copy className={`${iconBaseClass} text-blue-500 dark:text-blue-400`} /> Copy
           </button>
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => { onDuplicate(); onClose(); }}
           >
@@ -208,6 +220,7 @@ const ContextMenu = ({
           </button>
           {item.type === "folder" && canPaste && (
             <button
+              role="menuitem"
               className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
               onClick={() => { onPaste(); onClose(); }}
               title={`Paste item into ${item.label}`}
@@ -215,9 +228,10 @@ const ContextMenu = ({
               <ClipboardPaste className={`${iconBaseClass} text-green-500 dark:text-green-400`} /> Paste Here
             </button>
           )}
-          <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
+          <hr className="my-1 border-zinc-200 dark:border-zinc-700" role="separator" />
 
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => { onExportItem(); onClose(); }}
             title={`Export '${item.label}' and its contents`}
@@ -226,6 +240,7 @@ const ContextMenu = ({
           </button>
           {item.type === "folder" && (
             <button
+              role="menuitem"
               className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
               onClick={() => { onImportItem(); onClose(); }}
               title={`Import items under '${item.label}'`}
@@ -233,15 +248,17 @@ const ContextMenu = ({
               <Upload className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`} /> Import under Item...
             </button>
           )}
-          <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
+          <hr className="my-1 border-zinc-200 dark:border-zinc-700" role="separator" />
 
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => { onRename(); onClose(); }}
           >
             <Pencil className={`${iconBaseClass} text-yellow-500 dark:text-yellow-400`} /> Rename
           </button>
           <button
+            role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40`}
             onClick={() => { onDelete(); onClose(); }}
           >

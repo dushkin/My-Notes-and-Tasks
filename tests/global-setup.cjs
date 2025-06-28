@@ -1,96 +1,59 @@
-const { request } = require('@playwright/test');
+const path = require('path');
+const dotenv = require('dotenv');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
-const TEST_USERS = [
-  { email: 'test@e2e.com', password: 'password123' },
-  { email: 'admin@e2e.com', password: 'password123' },
-  { email: 'user@e2e.com', password: 'password123' }
-];
+// Resolve backend .env
+const backendEnvPath = path.resolve(__dirname, '../../my-notes-and-tasks-backend/.env');
+dotenv.config({ path: backendEnvPath });
+// Load root .env as well
+dotenv.config();
 
-async function globalSetup() {
-  console.log('🚀 Starting global test setup...');
-  
-  // Create API context
-  const apiContext = await request.newContext({
-    baseURL: 'http://localhost:5001',
-    extraHTTPHeaders: {
-      'Content-Type': 'application/json'
-    }
-  });
-
-  try {
-    // Wait for backend to be ready
-    console.log('⏳ Waiting for backend...');
-    let backendReady = false;
-    for (let i = 0; i < 30; i++) {
-      try {
-        // Try any endpoint to see if backend is responding
-        const response = await apiContext.post('/api/auth/register', {
-          data: { email: 'test-connectivity@e2e.com', password: 'test' },
-          timeout: 2000
-        });
-        // Any response (even error) means backend is running
-        backendReady = true;
-        break;
-      } catch (error) {
-        if (i < 29) {
-          console.log(`⏳ Backend not ready, attempt ${i + 1}/30...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-    }
-
-    if (!backendReady) {
-      console.error('❌ Backend not ready after 30 seconds');
-      console.error('Make sure your backend is running on http://localhost:5001');
-      throw new Error('Backend not ready after 30 seconds');
-    }
-
-    console.log('✅ Backend is ready');
-
-    // Create test users
-    let createdCount = 0;
-    let existingCount = 0;
-    
-    for (const user of TEST_USERS) {
-      try {
-        console.log(`👤 Creating user: ${user.email}`);
-        
-        const response = await apiContext.post('/api/auth/register', {
-          data: {
-            email: user.email,
-            password: user.password
-          }
-        });
-
-        if (response.ok()) {
-          console.log(`✅ Created: ${user.email}`);
-          createdCount++;
-        } else {
-          const error = await response.json();
-          if (error.error && error.error.toLowerCase().includes('already exists')) {
-            console.log(`ℹ️  Already exists: ${user.email}`);
-            existingCount++;
-          } else {
-            console.warn(`⚠️  Failed to create ${user.email}:`, error.error);
-          }
-        }
-      } catch (error) {
-        console.warn(`⚠️  Error creating ${user.email}:`, error.message);
-      }
-    }
-
-    console.log(`🎉 Global setup complete!`);
-    console.log(`📊 Users created: ${createdCount}, already existed: ${existingCount}`);
-    
-    // Store test user info for cleanup
-    global.__TEST_USERS__ = TEST_USERS;
-
-  } catch (error) {
-    console.error('❌ Global setup failed:', error.message);
-    throw error;
-  } finally {
-    await apiContext.dispose();
-  }
+// Fallback for encryption secret
+if (!process.env.DATA_ENCRYPTION_SECRET) {
+  console.warn('⚠️ DATA_ENCRYPTION_SECRET not set; falling back to test secret');
+  process.env.DATA_ENCRYPTION_SECRET = 'test_secret';
 }
 
-module.exports = globalSetup;
+module.exports = async function globalSetup() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI is not defined');
+  }
+
+  console.log('🔗 Connecting to MongoDB at:', uri);
+  await mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    family: 4,
+  });
+  console.log('✅ MongoDB connected');
+
+  const db = mongoose.connection.db;
+  const usersCol = db.collection('users');
+  const plainPassword = 'password123!';
+  const hashedPassword = await bcrypt.hash(plainPassword, 10);
+  const emails = ['test@e2e.com', 'admin@e2e.com', 'user@e2e.com'];
+
+  for (const email of emails) {
+    const existing = await usersCol.findOne({ email });
+    if (!existing) {
+      await usersCol.insertOne({
+        email,
+        password: hashedPassword,
+        role: 'user',
+        isVerified: true,
+        notesTree: [],
+      });
+      console.log(`✅ Created & verified ${email}`);
+    } else if (!existing.isVerified) {
+      await usersCol.updateOne({ email }, { $set: { isVerified: true } });
+      console.log(`🔄 Verified existing ${email}`);
+    } else {
+      console.log(`ℹ️  ${email} already exists and verified`);
+    }
+  }
+
+  await mongoose.disconnect();
+  console.log('🔌 Disconnected from MongoDB after global setup');
+};
