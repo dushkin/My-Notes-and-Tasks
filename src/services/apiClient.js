@@ -1,4 +1,5 @@
 // src/services/apiClient.js
+// src/services/apiClient.js
 import { getAccessToken, getRefreshToken, storeTokens, clearTokens } from './authService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
@@ -86,6 +87,7 @@ const refreshTokenFlow = async () => {
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
     const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+      credentials: 'include',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -174,10 +176,11 @@ export const authFetch = async (url, options = {}) => {
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const finalOptions = {
-        ...options,
-        headers,
-        signal: controller.signal,
-      };
+      credentials: 'include',
+      ...options,
+              headers,
+              signal: controller.signal,
+    };
 
       const response = await fetch(
         url.startsWith('http') ? url : `${API_BASE_URL}${url}`, 
