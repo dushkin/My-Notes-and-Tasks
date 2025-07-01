@@ -28,7 +28,7 @@ export class TreePage {
     for (const selector of treeSelectors) {
       try {
         const element = this.page.locator(selector);
-        await element.waitFor({ state: 'attached', timeout: 3000 });
+        await element.waitFor({ state: 'attached', timeout: 10000 });
         console.log(`[TreePage] Tree container found with selector: ${selector}`);
         // Update the tree container reference if we found it with a different selector
         if (selector !== '#tree-navigation-area') {
@@ -42,39 +42,7 @@ export class TreePage {
     }
     
     if (!treeFound) {
-      console.log('[TreePage] No tree container found, checking page state...');
-      await this.debugCurrentState();
-      
-      // Try to wait a bit longer for the app to load
-      console.log('[TreePage] Waiting additional time for app to load...');
-      await this.page.waitForTimeout(2000);
-      
-      // Try one more time with a broader search
-      const fallbackSelectors = [
-        'body',
-        'main',
-        '[class*="tree"]',
-        '[class*="nav"]',
-        '[class*="sidebar"]'
-      ];
-      
-      for (const selector of fallbackSelectors) {
-        try {
-          const element = this.page.locator(selector);
-          if (await element.count() > 0) {
-            console.log(`[TreePage] Using fallback container: ${selector}`);
-            this.treeContainer = element;
-            treeFound = true;
-            break;
-          }
-        } catch (e) {
-          console.log(`[TreePage] Fallback selector "${selector}" failed`);
-        }
-      }
-      
-      if (!treeFound) {
-        throw new Error('Could not find tree navigation area with any selector');
-      }
+      throw new Error('Could not find tree navigation area with any selector');
     }
   }
 
@@ -85,61 +53,7 @@ export class TreePage {
     await this.treeContainer.click({ button: 'right' });
     console.log('[TreePage] Right-clicked on tree container');
     
-    // Wait for ANY context menu to appear (fallback selectors)
-    const contextMenuSelectors = [
-      '[role="menu"]',
-      '.context-menu',
-      '.fixed.z-50:has-text("Add Root Folder")',
-      'div:has-text("Add Root Folder"):visible',
-      '[aria-label*="Tree context menu"]'
-    ];
-    
-    let contextMenu = null;
-    for (const selector of contextMenuSelectors) {
-      try {
-        contextMenu = this.page.locator(selector);
-        await contextMenu.waitFor({ state: 'visible', timeout: 3000 });
-        console.log(`[TreePage] Context menu found with selector: ${selector}`);
-        break;
-      } catch (e) {
-        console.log(`[TreePage] Selector "${selector}" not found, trying next...`);
-      }
-    }
-    
-    if (!contextMenu) {
-      // Take screenshot for debugging
-      await this.page.screenshot({ path: `debug-no-context-menu-${Date.now()}.png` });
-      throw new Error('Could not find context menu with any selector');
-    }
-    
-    // Click "Add Root Folder" - try multiple selectors
-    const addFolderSelectors = [
-      '[role="menuitem"]:has-text("Add Root Folder")',
-      'button:has-text("Add Root Folder")',
-      ':text("Add Root Folder")'
-    ];
-    
-    let addFolderItem = null;
-    for (const selector of addFolderSelectors) {
-      try {
-        addFolderItem = contextMenu.locator(selector);
-        if (await addFolderItem.isVisible({ timeout: 1000 })) {
-          console.log(`[TreePage] Found "Add Root Folder" with selector: ${selector}`);
-          break;
-        }
-      } catch (e) {
-        console.log(`[TreePage] "Add Root Folder" selector "${selector}" not found`);
-      }
-    }
-    
-    if (!addFolderItem) {
-      await this.page.screenshot({ path: `debug-no-add-folder-item-${Date.now()}.png` });
-      throw new Error('Could not find "Add Root Folder" menu item');
-    }
-    
-    await addFolderItem.click();
-    console.log('[TreePage] Clicked "Add Root Folder" menu item');
-    
+    await this._selectContextMenuItem('Add Root Folder');
     await this._completeAddDialog(label);
   }
 
@@ -207,6 +121,134 @@ export class TreePage {
     console.log('[TreePage] Clicked "Add Root Folder" in dropdown');
     
     await this._completeAddDialog(label);
+  }
+
+  async addSubfolderViaContextMenu(parentFolderName, subfolderName) {
+    console.log(`[TreePage] Adding subfolder "${subfolderName}" under "${parentFolderName}"`);
+    
+    // Find and right-click on the parent folder
+    const parentFolder = await this._findFolderInTree(parentFolderName);
+    await parentFolder.click({ button: 'right' });
+    console.log(`[TreePage] Right-clicked on parent folder: "${parentFolderName}"`);
+    
+    await this._selectContextMenuItem('Add Folder Here');
+    await this._completeAddDialog(subfolderName);
+  }
+
+  async addNoteViaContextMenu(parentFolderName, noteName) {
+    console.log(`[TreePage] Adding note "${noteName}" under "${parentFolderName}"`);
+    
+    // Find and right-click on the parent folder
+    const parentFolder = await this._findFolderInTree(parentFolderName);
+    await parentFolder.click({ button: 'right' });
+    console.log(`[TreePage] Right-clicked on folder: "${parentFolderName}"`);
+    
+    await this._selectContextMenuItem('Add Note Here');
+    await this._completeAddDialog(noteName);
+  }
+
+  async addTaskViaContextMenu(parentFolderName, taskName) {
+    console.log(`[TreePage] Adding task "${taskName}" under "${parentFolderName}"`);
+    
+    // Find and right-click on the parent folder
+    const parentFolder = await this._findFolderInTree(parentFolderName);
+    await parentFolder.click({ button: 'right' });
+    console.log(`[TreePage] Right-clicked on folder: "${parentFolderName}"`);
+    
+    await this._selectContextMenuItem('Add Task Here');
+    await this._completeAddDialog(taskName);
+  }
+
+  async _findFolderInTree(folderName) {
+    console.log(`[TreePage] Looking for folder: "${folderName}"`);
+    
+    // Try multiple selectors to find the folder
+    const folderSelectors = [
+      `li:has-text("${folderName}")`,
+      `[data-testid*="folder"]:has-text("${folderName}")`,
+      `.folder:has-text("${folderName}")`,
+      `div:has-text("${folderName}"):visible`,
+      `span:has-text("${folderName}")`,
+      `button:has-text("${folderName}")`
+    ];
+    
+    let folder = null;
+    for (const selector of folderSelectors) {
+      try {
+        folder = this.page.locator(selector).first();
+        if (await folder.isVisible({ timeout: 2000 })) {
+          console.log(`[TreePage] Found folder with selector: ${selector}`);
+          break;
+        }
+      } catch (e) {
+        console.log(`[TreePage] Folder selector "${selector}" not found`);
+      }
+    }
+    
+    if (!folder) {
+      await this.page.screenshot({ path: `debug-folder-not-found-${folderName}-${Date.now()}.png` });
+      throw new Error(`Could not find folder "${folderName}" in tree`);
+    }
+    
+    return folder;
+  }
+
+  async _selectContextMenuItem(menuItemText) {
+    console.log(`[TreePage] Selecting context menu item: "${menuItemText}"`);
+    
+    // Wait for ANY context menu to appear (fallback selectors)
+    const contextMenuSelectors = [
+      '[role="menu"]',
+      '[aria-label*="Context menu"]',
+      '.fixed.z-50.bg-white',
+      '.context-menu'
+    ];
+    
+    let contextMenu = null;
+    for (const selector of contextMenuSelectors) {
+      try {
+        contextMenu = this.page.locator(selector);
+        await contextMenu.waitFor({ state: 'visible', timeout: 3000 });
+        console.log(`[TreePage] Context menu found with selector: ${selector}`);
+        break;
+      } catch (e) {
+        console.log(`[TreePage] Selector "${selector}" not found, trying next...`);
+      }
+    }
+    
+    if (!contextMenu) {
+      // Take screenshot for debugging
+      await this.page.screenshot({ path: `debug-no-context-menu-${Date.now()}.png` });
+      throw new Error('Could not find context menu with any selector');
+    }
+    
+    // Click the menu item - try multiple selectors
+    const menuItemSelectors = [
+      `[role="menuitem"]:has-text("${menuItemText}")`,
+      `button:has-text("${menuItemText}")`,
+      `:text("${menuItemText}")`
+    ];
+    
+    let menuItem = null;
+    for (const selector of menuItemSelectors) {
+      try {
+        menuItem = contextMenu.locator(selector);
+        if (await menuItem.isVisible({ timeout: 1000 })) {
+          console.log(`[TreePage] Found "${menuItemText}" with selector: ${selector}`);
+          break;
+        }
+      } catch (e) {
+        console.log(`[TreePage] "${menuItemText}" selector "${selector}" not found`);
+      }
+    }
+    
+    if (!menuItem) {
+      await this.page.screenshot({ path: `debug-no-menu-item-${menuItemText}-${Date.now()}.png` });
+      throw new Error(`Could not find "${menuItemText}" menu item`);
+    }
+    
+    await menuItem.click();
+    console.log(`[TreePage] Clicked "${menuItemText}" menu item`);
   }
 
   async addRootFolderViaMobile(label) {
@@ -320,7 +362,9 @@ export class TreePage {
       '.modal:visible',
       'div:has-text("Add"):has(input):visible',
       '.bg-white.dark\\:bg-zinc-800:has(input)',
-      '[data-testid="add-folder-dialog"]'
+      '[data-testid="add-folder-dialog"]',
+      '[data-testid="add-note-dialog"]',
+      '[data-testid="add-task-dialog"]'
     ];
     
     let dialog = null;
@@ -353,8 +397,12 @@ export class TreePage {
       'input[type="text"]',
       'input[placeholder*="name"]',
       'input[placeholder*="folder"]',
+      'input[placeholder*="note"]',
+      'input[placeholder*="task"]',
       'input:visible',
-      '[data-testid="folder-name-input"]'
+      '[data-testid="folder-name-input"]',
+      '[data-testid="note-name-input"]',
+      '[data-testid="task-name-input"]'
     ];
     
     let nameInput = null;
@@ -383,10 +431,12 @@ export class TreePage {
     // Find and click Add button
     const addButtonSelectors = [
       'button:has-text("Add")',
+      'button:has-text("Create")',
       'button[type="submit"]',
       '.bg-blue-600:has-text("Add")',
       'button:visible:has-text("Add")',
-      '[data-testid="add-button"]'
+      '[data-testid="add-button"]',
+      '[data-testid="create-button"]'
     ];
     
     let addButton = null;
@@ -410,13 +460,13 @@ export class TreePage {
     await addButton.click();
     console.log('[TreePage] Clicked Add button');
     
-    // Wait for dialog to close OR success message OR folder to appear
+    // Wait for dialog to close OR success message OR item to appear
     const waitPromises = [
       // Wait for modal overlay to disappear
       this.page.locator('.fixed.inset-0.bg-black.bg-opacity-50').waitFor({ state: 'detached', timeout: 10000 }),
       // Wait for success message
       this.page.locator('.text-green-600, .text-green-500').waitFor({ state: 'visible', timeout: 10000 }),
-      // Wait for folder to appear in tree
+      // Wait for item to appear in tree
       this.page.locator(`li:has-text("${label}")`).waitFor({ state: 'visible', timeout: 10000 })
     ];
     
@@ -442,6 +492,42 @@ export class TreePage {
     await folderLocator.waitFor({ state: 'visible', timeout: 10000 });
     console.log(`[TreePage] Folder "${folderName}" appeared in tree`);
     return folderLocator;
+  }
+
+  async waitForItemToAppear(itemName, itemType = 'item') {
+    console.log(`[TreePage] Waiting for ${itemType} to appear: "${itemName}"`);
+    
+    // Try multiple selectors based on item type
+    const itemSelectors = [
+      `li:has-text("${itemName}")`,
+      `[data-testid*="${itemType}"]:has-text("${itemName}")`,
+      `[data-testid*="note"]:has-text("${itemName}")`,
+      `[data-testid*="task"]:has-text("${itemName}")`,
+      `[data-testid*="folder"]:has-text("${itemName}")`,
+      `.${itemType}:has-text("${itemName}")`,
+      `div:has-text("${itemName}"):visible`
+    ];
+    
+    let itemLocator = null;
+    for (const selector of itemSelectors) {
+      try {
+        itemLocator = this.page.locator(selector).first();
+        await itemLocator.waitFor({ state: 'visible', timeout: 2000 });
+        console.log(`[TreePage] ${itemType} "${itemName}" found with selector: ${selector}`);
+        break;
+      } catch (e) {
+        console.log(`[TreePage] ${itemType} selector "${selector}" not found, trying next...`);
+      }
+    }
+    
+    if (!itemLocator) {
+      // Fallback to generic item locator
+      itemLocator = this.page.locator(`li:has-text("${itemName}")`);
+      await itemLocator.waitFor({ state: 'visible', timeout: 10000 });
+    }
+    
+    console.log(`[TreePage] ${itemType} "${itemName}" appeared in tree`);
+    return itemLocator;
   }
 
   async debugCurrentState() {

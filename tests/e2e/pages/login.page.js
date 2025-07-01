@@ -1,4 +1,4 @@
-export class LoginPage {
+class LoginPage {
   /** @param {import('@playwright/test').Page} page */
   constructor(page) {
     this.page = page;
@@ -12,6 +12,7 @@ export class LoginPage {
   }
 
   async login(email, password) {
+    
     console.log(`[LoginPage] Attempting login with email: ${email}`);
     
     await this.emailInput.fill(email);
@@ -54,3 +55,5 @@ export class LoginPage {
   }
 
 }
+export default LoginPage;
+export { LoginPage };

@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.3.0",
-  "commitMessage": "Added new basic e2e tree and login e2e tests",
+  "version": "8.4.0",
+  "commitMessage": "Added landing page and beta banner  e2e tests",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

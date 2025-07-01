@@ -44,9 +44,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         // For test plans, we'll use production environment but with debug enabled locally
         // This allows us to test with real $0.01 payments instead of sandbox
         const paddle = await PaddleSDK.initializePaddle({
-          environment: "production", // Always use production for real payment testing
+          // only use sandbox for now
+          environment: import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "sandbox",
           token: paddleToken,
-          debug: isLocalhost, // Enable debug only in local development
+          debug: isLocalhost,
         });
 
         if (paddle) {
