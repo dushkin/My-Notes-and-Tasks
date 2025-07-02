@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.4.1",
-  "commitMessage": "Fixed iOS login issues",
+  "version": "8.4.2",
+  "commitMessage": "Fixed mobile logout issue",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

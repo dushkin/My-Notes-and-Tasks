@@ -491,22 +491,37 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       fetchUserTree();
     }
   }, [fetchUserTree]);
+
   const handleInitiateLogout = async () => {
+    console.log("[Logout] Initiating logout…");
     setIsLoggingOut(true);
+
     const currentRefreshToken = getRefreshToken();
+    console.log("[Logout] Retrieved refresh token:", currentRefreshToken);
+
     if (currentRefreshToken) {
       try {
-        await authFetch("/auth/logout", {
+        const response = await authFetch("/auth/logout", {
           method: "POST",
           body: JSON.stringify({ refreshToken: currentRefreshToken }),
         });
+        console.log(
+          "[Logout] Backend logout response status:",
+          response.status
+        );
+        const responseBody = await response.json().catch(() => null);
+        console.log("[Logout] Backend logout response body:", responseBody);
       } catch (error) {
         console.error(
-          "Error calling backend logout, proceeding with client-side logout:",
+          "[Logout] Error calling backend logout, proceeding with client-side logout:",
           error
         );
       }
+    } else {
+      console.warn("[Logout] No refresh token found, skipping backend logout");
     }
+
+    console.log("[Logout] Proceeding with client-side logout");
     handleActualLogout();
   };
 
@@ -1302,9 +1317,9 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                         </p>
                       </div>
                       <LoadingButton
-                        onClick={() => {
+                        onMouseDown={() => {
+                          console.log('[UI] Logout button clicked');
                           handleInitiateLogout();
-                          setAccountMenuOpen(false);
                         }}
                         isLoading={isLoggingOut}
                         loadingText="Logging out..."
@@ -1500,6 +1515,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
                       <LoadingButton
                         onClick={() => {
+                          console.log('[UI] Logout button clicked');
                           handleInitiateLogout();
                           setAccountMenuOpen(false);
                         }}
