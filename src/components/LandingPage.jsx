@@ -31,7 +31,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           return;
         }
 
-        window.Paddle.Environment.set("sandbox");
+        //window.Paddle.Environment.set("sandbox");
         window.Paddle.Initialize({
           token: paddleToken,
           eventCallback: (event) => {

@@ -4,24 +4,24 @@ export const PRICING_PLANS = {
     id: 'monthly',
     label: 'Monthly',
     price: 8,
-    // paddleProductId: 'pri_01jye8wkv4jd6efagj53fq6tja', // Verify in Paddle sandbox dashboard (Products > Prices)
-    paddleProductId: 'pri_01jz1043r8e6pq4hkze626xhxz', // Verify in Paddle sandbox dashboard (Products > Prices)
+    paddleProductId: 'pri_01jye8wkv4jd6efagj53fq6tja', // production
+    // paddleProductId: 'pri_01jz1043r8e6pq4hkze626xhxz', // sandbox
     description: 'per month'
   },
   yearly: {
     id: 'yearly',
     label: 'Yearly',
     price: 80,
-    // paddleProductId: 'pri_01jye8zf69nezhaakp0ymharrf', // production
-    paddleProductId: 'pri_01jz105py7ptzh8pj9av8ve48b', // sandbox
+    paddleProductId: 'pri_01jye8zf69nezhaakp0ymharrf', // production
+    // paddleProductId: 'pri_01jz105py7ptzh8pj9av8ve48b', // sandbox
     description: 'per year (Save 16.6%)'
   },
   lifetime: {
     id: 'lifetime',
     label: 'Lifetime',
     price: 200,
-    // paddleProductId: 'pri_01jye945p2k95at00t2f3z1vj7', // production
-    paddleProductId: 'pri_01jz107g4635cfdag5vs6zvhy7', // sandbox
+    paddleProductId: 'pri_01jye945p2k95at00t2f3z1vj7', // production
+    // paddleProductId: 'pri_01jz107g4635cfdag5vs6zvhy7', // sandbox
     description: 'one-time payment'
   },
   // Test plans (only shown in development)
