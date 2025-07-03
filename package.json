@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.5.0",
-  "commitMessage": "Pro plan upgrade on localhost, firewalls disabled, , ngrok tunneling, mobile hotspot network support",
+  "version": "8.5.1",
+  "commitMessage": "Pro plan upgrade on localhost, firewalls disabled, , ngrok tunneling, mobile hotspot network, Paddle Sandbox support",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
