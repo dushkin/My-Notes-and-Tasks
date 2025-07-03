@@ -155,6 +155,7 @@ const App = () => {
     </Router>
   );
 };
+
 // Landing Page Route Component
 const LandingPageRoute = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -181,6 +182,7 @@ const LandingPageRoute = () => {
 
     checkAuth();
   }, []);
+
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -223,6 +225,7 @@ const LoginRoute = () => {
 
     checkAuth();
   }, []);
+
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -235,6 +238,7 @@ const LoginRoute = () => {
     setCurrentUser(userData);
     window.location.href = "/app";
   };
+
   return (
     <>
       <BetaBanner variant="auth" />
@@ -272,6 +276,7 @@ const RegisterRoute = () => {
 
     checkAuth();
   }, []);
+
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -283,6 +288,7 @@ const RegisterRoute = () => {
   const handleRegisterSuccess = () => {
     window.location.href = "/login";
   };
+
   return (
     <>
       <BetaBanner variant="auth" />
@@ -324,6 +330,7 @@ const ProtectedAppRoute = () => {
 
     checkAuth();
   }, []);
+
   if (!isAuthCheckComplete || !currentUser) {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
@@ -367,7 +374,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     }
   }, [isSearchOpen]);
   const { settings } = useSettings();
-  // === MODIFIED: Pass currentUser to the useTree hook ===
   const {
     tree,
     selectedItem,
@@ -451,6 +457,19 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     confirmText: "Confirm",
     cancelText: "Cancel",
   });
+
+  const hasActiveAccess = (user) => {
+    if (!user) return false;
+    if (user.subscriptionStatus === "active") return true;
+    if (
+      user.subscriptionStatus === "cancelled" &&
+      new Date(user.subscriptionEndsAt) > new Date()
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   const showConfirm = useCallback((options) => {
     setConfirmDialog({
       isOpen: true,
@@ -491,7 +510,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       fetchUserTree();
     }
   }, [fetchUserTree]);
-
   const handleInitiateLogout = async () => {
     console.log("[Logout] Initiating logout…");
     setIsLoggingOut(true);
@@ -1799,16 +1817,15 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   />
                 </div>
 
-                {/* === MODIFIED: Conditionally render plan indicator based on user role === */}
                 <div className="flex-shrink-0 p-3 border-t border-zinc-200 dark:border-zinc-700/50 bg-zinc-50 dark:bg-zinc-800/30">
-                  {currentUser?.role === "admin" ? (
+                  {currentUser?.role === "admin" || hasActiveAccess(currentUser) ? (
                     <div className="text-center p-2">
                       <div className="flex items-center justify-center gap-2 font-semibold text-sm text-purple-600 dark:text-purple-400">
                         <Gem className="w-4 h-4" />
-                        <span>Admin Account</span>
+                        <span>{currentUser.role === 'admin' ? 'Admin Account' : 'Pro Plan'}</span>
                       </div>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                        No limitations apply.
+                        {currentUser.role === 'admin' ? 'No limitations apply.' : 'You have unlimited items.'}
                       </p>
                     </div>
                   ) : (

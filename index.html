@@ -25,26 +25,15 @@
       content="Organize Your Digital Life & To-Dos - A powerful, intuitive platform for notes, tasks, and knowledge management"
     />
     <meta name="theme-color" content="#3b82f6" />
-    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Notes & Tasks" />
 
-    <!-- Add this to your public/index.html in the <head> section -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="
-  default-src 'self' http: https:;
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https:;
-  frame-src 'self' http: https:;
-  connect-src 'self' http://localhost:5001 https://my-notes-and-tasks-backend.onrender.com https://checkout.paddle.com https://checkout-service.paddle.com;
-  img-src 'self' data: http: https:;
-  style-src 'self' 'unsafe-inline' http: https:;
-"
-    />
+    <!-- Paddle SDK -->
+    <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   </head>
   <body>
     <div id="root"></div>
-
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

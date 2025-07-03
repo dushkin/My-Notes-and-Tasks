@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.4.2",
-  "commitMessage": "Fixed mobile logout issue",
+  "version": "8.5.0",
+  "commitMessage": "Pro plan upgrade on localhost, firewalls disabled, , ngrok tunneling, mobile hotspot network support",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

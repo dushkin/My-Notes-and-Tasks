@@ -1,83 +1,73 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PRICING_PLANS, getAvailablePlans } from "../config/pricing";
-import * as PaddleSDK from "@paddle/paddle-js";
 import Button from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import logo from "../assets/logo_dual_48x48.png";
-import { PlayCircle } from "lucide-react";
 
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
   const [billingCycle, setBillingCycle] = useState("yearly");
   const [showPricing, setShowPricing] = useState(true);
   const [paddleInitialized, setPaddleInitialized] = useState(false);
 
-  // Add this line to detect localhost
   const isLocalhost =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1";
 
-  // Initialize Paddle
   useEffect(() => {
-    const initializePaddle = async () => {
+    if (window.__PADDLE_INITIALIZED__) {
+      setPaddleInitialized(true);
+      return;
+    }
+
+    const initializePaddle = () => {
       try {
-        // Get token from environment variable (with fallback for browser compatibility)
-        const paddleToken =
-          import.meta.env?.VITE_PADDLE_CLIENT_TOKEN ||
-          (typeof process !== "undefined"
-            ? process.env?.VITE_PADDLE_CLIENT_TOKEN
-            : null) ||
-          "your_actual_paddle_token_here"; // Temporary fallback for testing
+        const paddleToken = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
 
         if (!paddleToken) {
           console.error(
-            "❌ Paddle client token not found in environment variables"
+            "❌ Paddle sandbox client token not found. Please set VITE_PADDLE_CLIENT_TOKEN in your .env file."
           );
           return;
         }
 
-        // Determine if we're in local development
-        const isLocalhost =
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1";
-
-        // For test plans, we'll use production environment but with debug enabled locally
-        // This allows us to test with real $0.01 payments instead of sandbox
-        const paddle = await PaddleSDK.initializePaddle({
-          // only use sandbox for now
-          environment: import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "sandbox",
+        window.Paddle.Environment.set("sandbox");
+        window.Paddle.Initialize({
           token: paddleToken,
-          debug: isLocalhost,
+          eventCallback: (event) => {
+            if (event.name === "checkout.loaded") {
+              console.log("✅ Paddle checkout loaded");
+            }
+            if (event.name === "checkout.error") {
+              console.error("❌ Paddle checkout error:", event.data);
+            }
+          },
         });
 
-        if (paddle) {
-          window.Paddle = paddle;
-          setPaddleInitialized(true);
-          console.log("✅ Paddle initialized successfully");
-          console.log("Environment: production");
-          console.log("Debug mode:", isLocalhost ? "enabled" : "disabled");
+        window.__PADDLE_INITIALIZED__ = true;
+        setPaddleInitialized(true);
+        console.log("✅ Paddle sandbox initialized successfully");
+        console.log("Environment: sandbox");
+        console.log("Debug mode:", isLocalhost ? "enabled" : "disabled");
 
-          if (isLocalhost) {
-            console.log(
-              "🧪 Local development detected - test plans will be available"
-            );
-            console.log(
-              "💡 Test plans use real payments ($0.01 + fees) - remember to refund!"
-            );
-          }
+        if (isLocalhost) {
+          console.log(
+            "🧪 Local development detected - sandbox test plans available"
+          );
+          console.log(
+            "💡 Use test card details (e.g., 4242 4242 4242 4242) for payments"
+          );
         }
       } catch (error) {
-        console.error("❌ Failed to initialize Paddle:", error);
-
-        // More helpful error messages for common issues
+        console.error("❌ Failed to initialize Paddle sandbox:", error);
         if (error.message?.includes("token")) {
           console.error(
-            "💡 Check that VITE_PADDLE_CLIENT_TOKEN is set correctly"
+            "💡 Ensure VITE_PADDLE_CLIENT_TOKEN is set to a valid sandbox token in your .env file"
           );
         }
         if (error.message?.includes("403")) {
           console.error(
-            "💡 Verify your Paddle token has the correct permissions"
+            "💡 Verify your sandbox token permissions in the Paddle dashboard"
           );
         }
       }
@@ -105,73 +95,63 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       return;
     }
 
-    // Temporarily removed test plan confirmation for this minimal test
-    // if (plan.isTest) {
-    //   const confirmTest = window.confirm(
-    //     `🧪 REAL PAYMENT TEST\\n\\n` +
-    //     `This will charge your REAL payment method:\\n` +
-    //     `• Product cost: $${plan.price}\\n` +
-    //     `• Processing fees: ~$0.30\\n` +
-    //     `• Total: ~$${(plan.price + 0.30).toFixed(2)}\\n\\n` +
-    //     `You can refund this in Paddle dashboard afterward.\\n\\n` +
-    //     `Use your real credit card, PayPal, etc.\\n\\n` +
-    //     `Continue with real payment test?`
-    //   );
-
-    //   if (!confirmTest) {
-    //     return;
-    //   }
-    // }
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      console.error("❌ No access token found. User must be logged in.");
+      alert("Please log in to proceed with the purchase.");
+      return;
+    }
 
     try {
-      console.log(
-        "🚀 Opening Paddle checkout with absolute MINIMAL payload..."
+      console.log("🚀 Opening Paddle checkout with backend transaction...");
+      const requestBody = {
+        priceId: plan.paddleProductId,
+        quantity: 1,
+        customerEmail: currentUser?.email || "",
+        customData: { plan: planId },
+        successUrl: `${window.location.origin}/app`,
+        cancelUrl: `${window.location.href}`
+      };
+      console.log("Sending request body:", requestBody);
+
+      const response = await fetch(
+        isLocalhost
+          ? "http://localhost:5001/api/paddle/create-transaction"
+          : "https://my-notes-and-tasks-backend.onrender.com/api/paddle/create-transaction",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        }
       );
 
-      await window.Paddle.Checkout.open({
-        items: [
-          {
-            priceId: plan.paddleProductId,
-            quantity: 1,
-          },
-        ],
-        customer: {
-          // Pre-fills the email if the user is logged in.
-          // If not, Paddle's checkout will prompt the user to enter one.
-          email: currentUser?.email || undefined,
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("❌ Backend error:", data);
+        throw new Error(data.error || "Failed to create transaction");
+      }
+
+      window.Paddle.Checkout.open({
+        transactionId: data.transactionId,
+        email: currentUser?.email || "",
+        settings: {
+          displayMode: "overlay",
+          theme: "light",
+          allowLogout: true,
+          showAddDiscounts: true,
+          allowDiscountRemoval: true,
+          showAddTaxId: true,
+          variant: "multi-page",
+          sourcePage: window.location.href,
+          referrer: window.location.hostname,
         },
-        customData: {
-          // Pass your internal user ID and the plan ID
-          // to link this transaction back to a user in your database.
-          userId: currentUser?.id || undefined,
-          plan: planId,
-        },
-        // successCallback: (data) => {
-        //   console.log("✅ Paddle checkout success:", data);
-        //   if (plan.isTest) {
-        //     alert(
-        //       `✅ Real payment test completed!\\n\\n` +
-        //       `Transaction ID: ${data.transactionId}\\n\\n` +
-        //       `To refund:\\n` +
-        //       `1. Go to Paddle Dashboard → Transactions\\n` +
-        //       `2. Find transaction ${data.transactionId}\\n` +
-        //       `3. Click "Issue Refund"\\n\\n` +
-        //       `The payment integration is working correctly!`
-        //     );
-        //   } else {
-        //     alert("Payment successful! Thank you for your purchase.");
-        //     window.location.href = "/app";
-        //   }
-        // },
-        // closeCallback: (data) => {
-        //   console.log("ℹ️ Paddle checkout closed:", data);
-        // },
-        // errorCallback: (error) => {
-        //   console.error("❌ Paddle checkout error:", error);
-        //   console.error("❌ Error details:", JSON.stringify(error, null, 2));
-        //   alert("There was an error processing your payment. Please try again or contact support.");
-        // }
       });
+
+      console.log("✅ Paddle checkout opened with transaction ID:", data.transactionId);
     } catch (error) {
       console.error("❌ Error opening Paddle checkout:", error);
       alert("There was an error processing your payment. Please try again.");
@@ -194,11 +174,8 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50"
       style={{ paddingTop: "var(--beta-banner-height, 0px)" }}
     >
-      {/* Header */}
       <header className="relative z-10 backdrop-blur-sm bg-white/80 border-b border-gray-200/50">
-        {/* Mobile: Stack vertically */}
         <div className="block sm:hidden">
-          {/* Top row: Logo */}
           <div className="flex justify-center items-center p-4 border-b border-gray-200/30">
             <div className="flex items-center space-x-2">
               <img src={logo} alt="Notes & Tasks Logo" className="w-10 h-10" />
@@ -207,8 +184,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
               </h1>
             </div>
           </div>
-
-          {/* Bottom row: Navigation - Horizontally scrollable */}
           <div className="px-4 py-3 overflow-x-auto">
             <nav className="flex items-center justify-center">
               {currentUser ? (
@@ -237,8 +212,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
             </nav>
           </div>
         </div>
-
-        {/* Desktop: Horizontal layout */}
         <div className="hidden sm:flex justify-between items-center p-6 max-w-7xl mx-auto w-full">
           <div className="flex items-center space-x-3">
             <img src={logo} alt="Notes & Tasks Logo" className="w-12 h-12" />
@@ -246,7 +219,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
               Notes & Tasks
             </h1>
           </div>
-
           <nav>
             {currentUser ? (
               <div className="flex items-center gap-4">
@@ -274,13 +246,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       </header>
 
       <main className="flex-grow">
-        {/* Hero Section */}
         <section className="relative overflow-hidden">
-          {/* Background decoration */}
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5"></div>
           <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-400/10 rounded-full blur-3xl"></div>
-
           <div className="relative max-w-7xl mx-auto px-6 py-20 lg:py-32">
             <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
               <div className="lg:w-1/2 space-y-8">
@@ -297,7 +266,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                     & To‑Dos
                   </h2>
                 </motion.div>
-
                 <motion.p
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -308,7 +276,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                   ideas, build knowledge bases, manage tasks, and stay
                   productive. Everything you need to turn thoughts into action.
                 </motion.p>
-
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -333,7 +300,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                     </>
                   )}
                 </motion.div>
-
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -361,20 +327,18 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                   </p>
                 </motion.div>
               </div>
-
               <motion.div
                 className="lg:w-1/2 flex flex-col gap-8"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.3, duration: 0.8 }}
               >
-                {/* Video Placeholder */}
                 <div className="relative">
                   <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-20 transform -rotate-3"></div>
                   <div className="relative aspect-video rounded-2xl shadow-2xl overflow-hidden border border-gray-200/50">
                     <iframe
                       className="w-full h-full"
-                      src="https://www.youtube.com/embed/UTLnBwecwrc?autoplay=0&loop=1&playlist=UTLnBwecwrc&controls=1&mute=0&rel=0&modestbranding=1"
+                      src="https://www.youtube.com/embed/UTLnBwecwrc?autoplay=1&loop=1&controls=1&mute=0&modestbranding=1"
                       title="My Notes & Tasks Intro"
                       frameBorder="0"
                       allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
@@ -386,9 +350,9 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                         e.target.parentElement.innerHTML = `
                           <div class="flex items-center justify-center h-full bg-gray-100 dark:bg-gray-800 rounded-2xl">
                             <div class="text-center p-8">
-                              <div class="text-6xl mb-4">🎥</div>
-                              <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Demo Video</h3>
-                              <p class="text-gray-500 dark:text-gray-400">Video temporarily unavailable</p>
+                              <div className="text-6xl mb-4">🎥</div>
+                              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Demo Video</h3>
+                              <p className="text-gray-500 dark:text-gray-400">Video temporarily unavailable</p>
                             </div>
                           </div>
                         `;
@@ -396,8 +360,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                     ></iframe>
                   </div>
                 </div>
-
-                {/* App Image Mockup */}
                 <div className="relative">
                   <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200/50">
                     <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-10 flex items-center px-4">
@@ -411,54 +373,41 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                       </div>
                     </div>
                     <div className="flex h-80">
-                      {/* Left panel - Tree structure */}
                       <div className="w-1/2 p-4 bg-gray-50/50 border-r border-gray-200">
                         <div className="space-y-2 text-sm">
-                          {/* Work Projects folder */}
                           <div className="flex items-center space-x-2 text-gray-700">
                             <span className="text-blue-500">▾</span>
                             <span className="text-base">📁</span>
                             <span className="font-medium">Work Projects</span>
                           </div>
-
-                          {/* Nested items under Work Projects */}
                           <div className="ml-6 space-y-1.5">
-                            {/* Meeting Notes (Selected) */}
                             <div className="flex items-center space-x-2 text-gray-600 bg-blue-50 px-2 py-1 rounded">
                               <span className="text-base">📝</span>
                               <span className="text-blue-700 font-medium">
                                 Meeting Notes
                               </span>
                             </div>
-                            {/* Task Item 1 (Completed) */}
                             <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
                               <span className="text-base">✅</span>
                               <span className="line-through opacity-60 text-xs">
                                 Setup repository
                               </span>
                             </div>
-                            {/* Task Item 2 */}
                             <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
                               <span className="text-base">⬜️</span>
                               <span className="text-xs">Review mockups</span>
                             </div>
                           </div>
-
-                          {/* Personal folder */}
                           <div className="flex items-center space-x-2 text-gray-700 mt-3">
                             <span className="text-blue-500">▸</span>
                             <span className="text-base">📁</span>
                             <span className="font-medium">Personal</span>
                           </div>
-
-                          {/* Knowledge Base folder */}
                           <div className="flex items-center space-x-2 text-gray-700">
                             <span className="text-blue-500">▾</span>
                             <span className="text-base">📁</span>
                             <span className="font-medium">Knowledge Base</span>
                           </div>
-
-                          {/* Nested items under Knowledge Base */}
                           <div className="ml-6 space-y-1.5">
                             <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
                               <span className="text-blue-500">▸</span>
@@ -476,8 +425,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                           </div>
                         </div>
                       </div>
-
-                      {/* Right panel - Content preview */}
                       <div className="w-1/2 p-4 bg-white">
                         <div className="h-full">
                           <div className="text-xs text-gray-500 mb-3 flex items-center space-x-2">
@@ -488,7 +435,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                             <div className="h-2 bg-gray-200 rounded w-full"></div>
                             <div className="h-2 bg-gray-200 rounded w-5/6"></div>
                             <div className="h-2 bg-gray-200 rounded w-4/6"></div>
-
                             <div className="mt-4 space-y-2">
                               <div className="text-xs font-medium text-gray-700 mb-2">
                                 Action Items:
@@ -535,7 +481,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                 </p>
               </motion.div>
 
-              {/* TEST PLANS SECTION - Only show on localhost and when user is logged in */}
               {isLocalhost && currentUser && (
                 <section className="py-8 bg-yellow-50 border-t border-yellow-200 mb-8 rounded-lg">
                   <div className="max-w-4xl mx-auto px-6">
@@ -544,16 +489,14 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                         🧪 Test Plans (Development Only)
                       </h3>
                       <p className="text-yellow-700">
-                        These $0.01 plans are for testing the payment flow
+                        These $1.00 plans are for testing the payment flow
                       </p>
                     </div>
-
                     <div className="grid md:grid-cols-2 gap-6">
                       {["testRecurring", "testOnetime"].map((planId) => {
                         const availablePlans = getAvailablePlans();
                         const plan = availablePlans[planId];
                         if (!plan) return null;
-
                         return (
                           <Card
                             key={planId}
@@ -565,13 +508,12 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                                   {plan.label}
                                 </h4>
                                 <div className="text-2xl font-bold text-yellow-600 mb-1">
-                                  ${plan.price}
+                                  ${plan.price.toFixed(2)}
                                 </div>
                                 <div className="text-sm text-gray-500">
                                   {plan.description}
                                 </div>
                               </div>
-
                               <button
                                 onClick={() => handleCheckout(planId)}
                                 disabled={!paddleInitialized}
@@ -590,9 +532,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                 </section>
               )}
 
-              {/* Vertical stack of pricing cards */}
               <div className="space-y-8">
-                {/* Free Plan Card - Only show when no user is logged in */}
                 {!currentUser && (
                   <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -640,8 +580,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                     </Card>
                   </motion.div>
                 )}
-
-                {/* Pro Plan Card - Only show when user is logged in */}
                 {currentUser && (
                   <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -660,7 +598,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                           <h4 className="text-2xl font-bold text-gray-900 mb-4">
                             Pro Plan
                           </h4>
-
                           <div className="p-1 bg-gray-100 rounded-full flex items-center mb-6 max-w-md mx-auto">
                             <button
                               onClick={() => setBillingCycle("monthly")}
@@ -693,7 +630,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                               Lifetime
                             </button>
                           </div>
-
                           <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
                             ${PRICING_PLANS[billingCycle].price}
                           </div>

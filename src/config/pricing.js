@@ -1,30 +1,30 @@
-// src/config/pricing.js
-
 export const PRICING_PLANS = {
-  // Your existing production plans
+  // Production plans
   monthly: {
     id: 'monthly',
     label: 'Monthly',
     price: 8,
-    paddleProductId: 'pri_01jye8wkv4jd6efagj53fq6tja', // Your actual monthly price ID
+    // paddleProductId: 'pri_01jye8wkv4jd6efagj53fq6tja', // Verify in Paddle sandbox dashboard (Products > Prices)
+    paddleProductId: 'pri_01jz1043r8e6pq4hkze626xhxz', // Verify in Paddle sandbox dashboard (Products > Prices)
     description: 'per month'
   },
   yearly: {
     id: 'yearly',
     label: 'Yearly',
     price: 80,
-    paddleProductId: 'pri_01jye8zf69nezhaakp0ymharrf', // Your actual yearly price ID
+    // paddleProductId: 'pri_01jye8zf69nezhaakp0ymharrf', // production
+    paddleProductId: 'pri_01jz105py7ptzh8pj9av8ve48b', // sandbox
     description: 'per year (Save 16.6%)'
   },
   lifetime: {
     id: 'lifetime',
     label: 'Lifetime',
     price: 200,
-    paddleProductId: 'pri_01jye945p2k95at00t2f3z1vj7', // Your actual lifetime price ID
+    // paddleProductId: 'pri_01jye945p2k95at00t2f3z1vj7', // production
+    paddleProductId: 'pri_01jz107g4635cfdag5vs6zvhy7', // sandbox
     description: 'one-time payment'
   },
-  
-  // Add test products (only show in development)
+  // Test plans (only shown in development)
   testRecurring: {
     id: 'testRecurring',
     label: 'Test Recurring',
@@ -37,7 +37,7 @@ export const PRICING_PLANS = {
     id: 'testOnetime',
     label: 'Test One-time',
     price: 1.00,
-    paddleProductId: 'pri_01jygq1f8vt0a7nwab12yv1m62',
+    paddleProductId: 'pri_01jygq1f8vt0a7nwab12yv1m62', // Verify in Paddle sandbox dashboard (Products > Prices)
     description: 'one-time payment (TEST ONLY)',
     isTest: true
   }
