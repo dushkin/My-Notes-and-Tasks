@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.6.1",
-  "commitMessage": "Added a banner: Currently supports Desktop and Android only",
+  "version": "8.6.2",
+  "commitMessage": "Fixed live paddle process",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

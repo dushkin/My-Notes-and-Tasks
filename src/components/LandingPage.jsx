@@ -20,18 +20,24 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       return;
     }
 
+    
     const initializePaddle = () => {
       try {
         const paddleToken = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
+        const sellerId    = import.meta.env.VITE_PADDLE_SELLER_ID;
 
-        if (!paddleToken) {
+        if (!paddleToken || !sellerId) {
           console.error(
-            "❌ Paddle sandbox client token not found. Please set VITE_PADDLE_CLIENT_TOKEN in your .env file."
+            "❌ Paddle client token or seller ID not found. Please set VITE_PADDLE_CLIENT_TOKEN and VITE_PADDLE_SELLER_ID in your .env file."
           );
           return;
         }
 
-        //window.Paddle.Environment.set("sandbox");
+        // Sandbox on localhost, Production otherwise
+        window.Paddle.Environment.set(isLocalhost ? "sandbox" : "production");
+        // Supply your live Vendor (Seller) ID
+        window.Paddle.Setup({ vendor: Number(sellerId) });
+
         window.Paddle.Initialize({
           token: paddleToken,
           eventCallback: (event) => {
@@ -46,32 +52,29 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
 
         window.__PADDLE_INITIALIZED__ = true;
         setPaddleInitialized(true);
-        console.log("✅ Paddle sandbox initialized successfully");
-        console.log("Environment: sandbox");
+        console.log(
+          `✅ Paddle ${isLocalhost ? "sandbox" : "production"} initialized successfully`
+        );
+        console.log(`Environment: ${isLocalhost ? "sandbox" : "production"}`);
         console.log("Debug mode:", isLocalhost ? "enabled" : "disabled");
-
-        if (isLocalhost) {
-          console.log(
-            "🧪 Local development detected - sandbox test plans available"
-          );
-          console.log(
-            "💡 Use test card details (e.g., 4242 4242 4242 4242) for payments"
-          );
-        }
       } catch (error) {
-        console.error("❌ Failed to initialize Paddle sandbox:", error);
+        console.error(
+          `❌ Failed to initialize Paddle ${isLocalhost ? "sandbox" : "production"}:`,
+          error
+        );
         if (error.message?.includes("token")) {
           console.error(
-            "💡 Ensure VITE_PADDLE_CLIENT_TOKEN is set to a valid sandbox token in your .env file"
+            "💡 Ensure VITE_PADDLE_CLIENT_TOKEN and VITE_PADDLE_SELLER_ID are set in your .env file"
           );
         }
         if (error.message?.includes("403")) {
           console.error(
-            "💡 Verify your sandbox token permissions in the Paddle dashboard"
+            "💡 Verify your domain is approved in the Paddle Dashboard under Live → Website Approval"
           );
         }
       }
     };
+
 
     initializePaddle();
   }, []);
