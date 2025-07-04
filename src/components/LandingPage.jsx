@@ -110,7 +110,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         customerEmail: currentUser?.email || "",
         customData: { plan: planId },
         successUrl: `${window.location.origin}/app`,
-        cancelUrl: `${window.location.href}`
+        cancelUrl: `${window.location.href}`,
       };
       console.log("Sending request body:", requestBody);
 
@@ -151,7 +151,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         },
       });
 
-      console.log("✅ Paddle checkout opened with transaction ID:", data.transactionId);
+      console.log(
+        "✅ Paddle checkout opened with transaction ID:",
+        data.transactionId
+      );
     } catch (error) {
       console.error("❌ Error opening Paddle checkout:", error);
       alert("There was an error processing your payment. Please try again.");
@@ -174,6 +177,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50"
       style={{ paddingTop: "var(--beta-banner-height, 0px)" }}
     >
+      {/* Banner Notice */}
+      <div className="bg-yellow-100 border-b border-yellow-200 text-yellow-800 text-center py-1 text-sm">
+        Currently supports Desktop and Android only; iOS support coming soon.
+      </div>
       <header className="relative z-10 backdrop-blur-sm bg-white/80 border-b border-gray-200/50">
         <div className="block sm:hidden">
           <div className="flex justify-center items-center p-4 border-b border-gray-200/30">
