@@ -24,11 +24,11 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
     const initializePaddle = () => {
       try {
         const paddleToken = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
-        const sellerId    = import.meta.env.PADDLE_VENDOR_ID;
+        const sellerId    = import.meta.env.VITE_PADDLE_SELLER_ID;
 
         if (!paddleToken || !sellerId) {
           console.error(
-            "❌ Paddle client token or seller ID not found. Please set VITE_PADDLE_CLIENT_TOKEN and PADDLE_VENDOR_ID in your .env file."
+            "❌ Paddle client token or seller ID not found. Please set VITE_PADDLE_CLIENT_TOKEN and VITE_PADDLE_SELLER_ID in your .env file."
           );
           return;
         }
@@ -64,7 +64,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         );
         if (error.message?.includes("token")) {
           console.error(
-            "💡 Ensure VITE_PADDLE_CLIENT_TOKEN and PADDLE_VENDOR_ID are set in your .env file"
+            "💡 Ensure VITE_PADDLE_CLIENT_TOKEN and VITE_PADDLE_SELLER_ID are set in your .env file"
           );
         }
         if (error.message?.includes("403")) {
