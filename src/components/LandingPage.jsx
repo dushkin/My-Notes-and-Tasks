@@ -37,6 +37,9 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         window.Paddle.Initialize({
           token: paddleToken,
           eventCallback: (event) => {
+            if (event.name === "checkout.complete") {
+              window.location.href = "/app";
+            }
             if (event.name === "checkout.loaded") {
               console.log("✅ Paddle checkout loaded");
             }
@@ -133,6 +136,9 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       }
 
       window.Paddle.Checkout.open({
+        successCallback: () => {
+          window.location.href = "/app";
+        },
         transactionId: data.transactionId,
         email: currentUser?.email || "",
         settings: {
