@@ -36,10 +36,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         // Sandbox on localhost, Production otherwise
         window.Paddle.Environment.set(isLocalhost ? "sandbox" : "production");
         // Supply your live Vendor (Seller) ID
-        window.Paddle.Setup({ vendor: Number(sellerId) });
 
         window.Paddle.Initialize({
           token: paddleToken,
+          vendor: Number(sellerId),
           eventCallback: (event) => {
             if (event.name === "checkout.loaded") {
               console.log("✅ Paddle checkout loaded");

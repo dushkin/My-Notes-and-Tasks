@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.7.1",
-  "commitMessage": "Moved static.json file to public folder",
+  "version": "8.7.2",
+  "commitMessage": "Paddle fix",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
