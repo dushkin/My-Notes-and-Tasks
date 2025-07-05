@@ -24,23 +24,6 @@ export const PRICING_PLANS = {
     // paddleProductId: 'pri_01jz107g4635cfdag5vs6zvhy7', // sandbox
     description: 'one-time payment'
   },
-  // Test plans (only shown in development)
-  testRecurring: {
-    id: 'testRecurring',
-    label: 'Test Recurring',
-    price: 1.00,
-    paddleProductId: 'pri_01jygpyt96eqt06789zkgtm5qw',
-    description: 'per month (TEST ONLY)',
-    isTest: true
-  },
-  testOnetime: {
-    id: 'testOnetime',
-    label: 'Test One-time',
-    price: 1.00,
-    paddleProductId: 'pri_01jygq1f8vt0a7nwab12yv1m62', // Verify in Paddle sandbox dashboard (Products > Prices)
-    description: 'one-time payment (TEST ONLY)',
-    isTest: true
-  }
 };
 
 // Helper function to get available plans based on environment

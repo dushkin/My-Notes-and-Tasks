@@ -38,8 +38,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           token: paddleToken,
           eventCallback: (event) => {
             if (event.name === "checkout.complete") {
-              setNotification("Payment successful! Redirecting to your private area...");
-              setTimeout(() => window.location.href = "/app", 2000);
+              setNotification(
+                "Payment successful! Redirecting to your private area..."
+              );
+              setTimeout(() => (window.location.href = "/app"), 2000);
             }
             if (event.name === "checkout.loaded") {
               console.log("✅ Paddle checkout loaded");
@@ -53,12 +55,17 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         window.__PADDLE_INITIALIZED__ = true;
         setPaddleInitialized(true);
         console.log(
-          `✅ Paddle ${isLocalhost ? "sandbox" : "production"} initialized successfully`
+          `✅ Paddle ${
+            isLocalhost ? "sandbox" : "production"
+          } initialized successfully`
         );
         console.log(`Environment: ${isLocalhost ? "sandbox" : "production"}`);
         console.log("Debug mode:", isLocalhost ? "enabled" : "disabled");
       } catch (error) {
-        console.error(`❌ Failed to initialize Paddle ${isLocalhost ? "sandbox" : "production"}:`,
+        console.error(
+          `❌ Failed to initialize Paddle ${
+            isLocalhost ? "sandbox" : "production"
+          }:`,
           error
         );
         if (error.message?.includes("token")) {
@@ -138,8 +145,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
 
       window.Paddle.Checkout.open({
         successCallback: () => {
-          setNotification("Payment successful! Redirecting to your private area...");
-          setTimeout(() => window.location.href = "/app", 2000);
+          setNotification(
+            "Payment successful! Redirecting to your private area..."
+          );
+          setTimeout(() => (window.location.href = "/app"), 2000);
         },
         transactionId: data.transactionId,
         email: currentUser?.email || "",
@@ -197,7 +206,11 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           <div className="block sm:hidden">
             <div className="flex justify-center items-center p-4 border-b border-gray-200/30">
               <div className="flex items-center space-x-2">
-                <img src={logo} alt="Notes & Tasks Logo" className="w-10 h-10" />
+                <img
+                  src={logo}
+                  alt="Notes & Tasks Logo"
+                  className="w-10 h-10"
+                />
                 <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Notes & Tasks
                 </h1>
@@ -291,9 +304,10 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                     transition={{ delay: 0.2, duration: 0.6 }}
                     className="text-xl text-gray-600 leading-relaxed"
                   >
-                    A powerful, intuitive platform that transforms how you capture
-                    ideas, build knowledge bases, manage tasks, and stay
-                    productive. Everything you need to turn thoughts into action.
+                    A powerful, intuitive platform that transforms how you
+                    capture ideas, build knowledge bases, manage tasks, and stay
+                    productive. Everything you need to turn thoughts into
+                    action.
                   </motion.p>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -425,7 +439,9 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                             <div className="flex items-center space-x-2 text-gray-700">
                               <span className="text-blue-500">▾</span>
                               <span className="text-base">📁</span>
-                              <span className="font-medium">Knowledge Base</span>
+                              <span className="font-medium">
+                                Knowledge Base
+                              </span>
                             </div>
                             <div className="ml-6 space-y-1.5">
                               <div className="flex items-center space-x-2 text-gray-600 px-2 py-1">
@@ -499,58 +515,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                     Choose the plan that works best for you
                   </p>
                 </motion.div>
-
-                {isLocalhost && currentUser && (
-                  <section className="py-8 bg-yellow-50 border-t border-yellow-200 mb-8 rounded-lg">
-                    <div className="max-w-4xl mx-auto px-6">
-                      <div className="text-center mb-8">
-                        <h3 className="text-2xl font-bold text-yellow-800 mb-2">
-                          🧪 Test Plans (Development Only)
-                        </h3>
-                        <p className="text-yellow-700">
-                          These $1.00 plans are for testing the payment flow
-                        </p>
-                      </div>
-                      <div className="grid md:grid-cols-2 gap-6">
-                        {["testRecurring", "testOnetime"].map((planId) => {
-                          const availablePlans = getAvailablePlans();
-                          const plan = availablePlans[planId];
-                          if (!plan) return null;
-                          return (
-                            <Card
-                              key={planId}
-                              className="border-2 border-yellow-300"
-                            >
-                              <CardContent className="p-6">
-                                <div className="text-center mb-4">
-                                  <h4 className="text-lg font-bold text-gray-900 mb-2">
-                                    {plan.label}
-                                  </h4>
-                                  <div className="text-2xl font-bold text-yellow-600 mb-1">
-                                    ${plan.price.toFixed(2)}
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    {plan.description}
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => handleCheckout(planId)}
-                                  disabled={!paddleInitialized}
-                                  className="w-full px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  {paddleInitialized
-                                    ? `Test ${plan.label}`
-                                    : "Loading..."}
-                                </button>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </section>
-                )}
-
                 <div className="space-y-8">
                   {!currentUser && (
                     <motion.div
