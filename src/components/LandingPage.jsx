@@ -9,6 +9,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
   const [billingCycle, setBillingCycle] = useState("yearly");
   const [showPricing, setShowPricing] = useState(true);
   const [paddleInitialized, setPaddleInitialized] = useState(false);
+  const [notification, setNotification] = useState("");, setPaddleInitialized] = useState(false);
 
   const isLocalhost =
     window.location.hostname === "localhost" ||
@@ -38,7 +39,8 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           token: paddleToken,
           eventCallback: (event) => {
             if (event.name === "checkout.complete") {
-              window.location.href = "/app";
+              setNotification("Payment successful! Redirecting to your private area...");
+              setTimeout(() => window.location.href = "/app", 2000);
             }
             if (event.name === "checkout.loaded") {
               console.log("✅ Paddle checkout loaded");
@@ -137,7 +139,8 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
 
       window.Paddle.Checkout.open({
         successCallback: () => {
-          window.location.href = "/app";
+          setNotification("Payment successful! Redirecting to your private area...");
+          setTimeout(() => window.location.href = "/app", 2000);
         },
         transactionId: data.transactionId,
         email: currentUser?.email || "",
@@ -176,6 +179,12 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
   }, []);
 
   return (
+    {notification && (
+      <div className="fixed top-0 left-0 w-full bg-green-100 text-green-800 text-center py-2 z-50">
+        {notification}
+      </div>
+    )}
+
     <div
       className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50"
       style={{ paddingTop: "var(--beta-banner-height, 0px)" }}
@@ -508,6 +517,12 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                         const plan = availablePlans[planId];
                         if (!plan) return null;
                         return (
+    {notification && (
+      <div className="fixed top-0 left-0 w-full bg-green-100 text-green-800 text-center py-2 z-50">
+        {notification}
+      </div>
+    )}
+
                           <Card
                             key={planId}
                             className="border-2 border-yellow-300"
