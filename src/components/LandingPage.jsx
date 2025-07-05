@@ -20,7 +20,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       return;
     }
 
-    
     const initializePaddle = () => {
       try {
         const paddleToken = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
@@ -39,7 +38,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
 
         window.Paddle.Initialize({
           token: paddleToken,
-          vendor: Number(sellerId),
+          vendorId: Number(sellerId),
           eventCallback: (event) => {
             if (event.name === "checkout.loaded") {
               console.log("✅ Paddle checkout loaded");
@@ -58,8 +57,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         console.log(`Environment: ${isLocalhost ? "sandbox" : "production"}`);
         console.log("Debug mode:", isLocalhost ? "enabled" : "disabled");
       } catch (error) {
-        console.error(
-          `❌ Failed to initialize Paddle ${isLocalhost ? "sandbox" : "production"}:`,
+        console.error(`❌ Failed to initialize Paddle ${isLocalhost ? "sandbox" : "production"}:`,
           error
         );
         if (error.message?.includes("token")) {
@@ -74,7 +72,6 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
         }
       }
     };
-
 
     initializePaddle();
   }, []);
