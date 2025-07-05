@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.7.10",
-  "commitMessage": "Move user to app after subscription",
+  "version": "8.7.11",
+  "commitMessage": "Removed deploy script; Updated lifetime price to 200",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
