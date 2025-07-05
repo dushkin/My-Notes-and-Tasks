@@ -624,116 +624,117 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                                   billingCycle === "monthly"
                                     ? "bg-white shadow text-blue-600"
                                     : "text-gray-500 hover hover:text-gray-700"
-                              }`}
-                            >
-                              Monthly
-                            </button>
+                                }`}
+                              >
+                                Monthly
+                              </button>
+                              <button
+                                onClick={() => setBillingCycle("yearly")}
+                                className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                                  billingCycle === "yearly"
+                                    ? "bg-white shadow text-blue-600"
+                                    : "text-gray-500 hover:text-gray-700"
+                                }`}
+                              >
+                                Yearly
+                              </button>
+                              <button
+                                onClick={() => setBillingCycle("lifetime")}
+                                className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                                  billingCycle === "lifetime"
+                                    ? "bg-white shadow text-blue-600"
+                                    : "text-gray-500 hover:text-gray-700"
+                                }`}
+                              >
+                                Lifetime
+                              </button>
+                            </div>
+                            <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
+                              ${PRICING_PLANS[billingCycle].price}
+                            </div>
+                            <div className="text-gray-500 h-10 flex items-center justify-center">
+                              {billingCycle === "monthly" &&
+                                PRICING_PLANS.monthly.description}
+                              {billingCycle === "yearly" &&
+                                PRICING_PLANS.yearly.description}
+                              {billingCycle === "lifetime" &&
+                                PRICING_PLANS.lifetime.description}
+                            </div>
+                          </div>
+                          <ul className="space-y-4 mb-8">
+                            {[
+                              "All in free plan",
+                              "Unlimited tree items (Folders, notes & tasks)",
+                            ].map((feature, index) => (
+                              <li
+                                key={index}
+                                className="flex items-center space-x-3"
+                              >
+                                <span className="text-green-500">✓</span>
+                                <span className="text-gray-700">{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="flex justify-center">
                             <button
-                              onClick={() => setBillingCycle("yearly")}
-                              className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                                billingCycle === "yearly"
-                                  ? "bg-white shadow text-blue-600"
-                                  : "text-gray-500 hover:text-gray-700"
+                              onClick={() => handleCheckout(billingCycle)}
+                              disabled={!paddleInitialized}
+                              className={`px-8 py-3 font-semibold rounded-full transition-all duration-200 ${
+                                paddleInitialized
+                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg transform hover:scale-105"
+                                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
                               }`}
                             >
-                              Yearly
-                            </button>
-                            <button
-                              onClick={() => setBillingCycle("lifetime")}
-                              className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                                billingCycle === "lifetime"
-                                  ? "bg-white shadow text-blue-600"
-                                  : "text-gray-500 hover:text-gray-700"
-                              }`}
-                            >
-                              Lifetime
+                              {!paddleInitialized
+                                ? "Loading..."
+                                : billingCycle === "lifetime"
+                                ? "Buy Lifetime Access"
+                                : `Start ${
+                                    billingCycle === "monthly"
+                                      ? "Monthly"
+                                      : "Yearly"
+                                  } Plan`}
                             </button>
                           </div>
-                          <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
-                            ${PRICING_PLANS[billingCycle].price}
-                          </div>
-                          <div className="text-gray-500 h-10 flex items-center justify-center">
-                            {billingCycle === "monthly" &&
-                              PRICING_PLANS.monthly.description}
-                            {billingCycle === "yearly" &&
-                              PRICING_PLANS.yearly.description}
-                            {billingCycle === "lifetime" &&
-                              PRICING_PLANS.lifetime.description}
-                          </div>
-                        </div>
-                        <ul className="space-y-4 mb-8">
-                          {[
-                            "All in free plan",
-                            "Unlimited tree items (Folders, notes & tasks)",
-                          ].map((feature, index) => (
-                            <li
-                              key={index}
-                              className="flex items-center space-x-3"
-                            >
-                              <span className="text-green-500">✓</span>
-                              <span className="text-gray-700">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="flex justify-center">
-                          <button
-                            onClick={() => handleCheckout(billingCycle)}
-                            disabled={!paddleInitialized}
-                            className={`px-8 py-3 font-semibold rounded-full transition-all duration-200 ${
-                              paddleInitialized
-                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg transform hover:scale-105"
-                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            }`}
-                          >
-                            {!paddleInitialized
-                              ? "Loading..."
-                              : billingCycle === "lifetime"
-                              ? "Buy Lifetime Access"
-                              : `Start ${
-                                  billingCycle === "monthly"
-                                    ? "Monthly"
-                                    : "Yearly"
-                                } Plan`}
-                          </button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )}
+                </div>
               </div>
-            </div>
-          </section>
-        )}
-      </main>
+            </section>
+          )}
+        </main>
 
-      <footer className="bg-gray-50 border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center text-gray-600">
-            <p>
-              © {new Date().getFullYear()} Notes & Tasks. Made with ❤️ for
-              productivity enthusiasts.
-            </p>
-            <p className="mt-2 text-sm">
-              <a href="/privacy_policy.html" className="hover:underline">
-                Privacy Policy
-              </a>
-              <span className="mx-2">·</span>
-              <a href="/terms_of_service.html" className="hover:underline">
-                Terms of Service
-              </a>
-              <span className="mx-2">·</span>
-              <a
-                href="https://github.com/dushkin/My-Notes-and-Tasks"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline"
-              >
-                GitHub
-              </a>
-            </p>
+        <footer className="bg-gray-50 border-t border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <div className="text-center text-gray-600">
+              <p>
+                © {new Date().getFullYear()} Notes & Tasks. Made with ❤️ for
+                productivity enthusiasts.
+              </p>
+              <p className="mt-2 text-sm">
+                <a href="/privacy_policy.html" className="hover:underline">
+                  Privacy Policy
+                </a>
+                <span className="mx-2">·</span>
+                <a href="/terms_of_service.html" className="hover:underline">
+                  Terms of Service
+                </a>
+                <span className="mx-2">·</span>
+                <a
+                  href="https://github.com/dushkin/My-Notes-and-Tasks"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  GitHub
+                </a>
+              </p>
+            </div>
           </div>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </>
   );
 }
