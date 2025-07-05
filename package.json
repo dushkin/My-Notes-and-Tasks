@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.6.4",
-  "commitMessage": "Fixed live paddle process",
+  "version": "8.7.0",
+  "commitMessage": "Added static.json file",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
