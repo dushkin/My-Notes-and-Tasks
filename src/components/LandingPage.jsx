@@ -8,7 +8,8 @@ import logo from "../assets/logo_dual_48x48.png";
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
   const [billingCycle, setBillingCycle] = useState("yearly");
   const [showPricing, setShowPricing] = useState(true);
-  const [paddleInitialized, setPaddleInitialized] = useState(false);
+    const [paddleInitialized, setPaddleInitialized] = useState(false);
+  const [notification, setNotification] = useState("");
   const [notification, setNotification] = useState("");, setPaddleInitialized] = useState(false);
 
   const isLocalhost =
