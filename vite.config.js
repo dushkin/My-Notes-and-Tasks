@@ -17,7 +17,7 @@ export default defineConfig({
         frame-src 'self' https://sandbox-buy.paddle.com https://www.youtube.com http://googleusercontent.com;
         frame-ancestors 'self' http://localhost:5173 https://sandbox-buy.paddle.com;
         connect-src 'self' http://localhost:5001 https://my-notes-and-tasks-backend.onrender.com https://checkout.paddle.com https://checkout-service.paddle.com https://sandbox-checkout-service.paddle.com https://play.google.com;
-        img-src 'self' data: https:;
+        img-src 'self' data: https: http://localhost:5001;
         style-src 'self' 'unsafe-inline' https://cdn.paddle.com https://sandbox-cdn.paddle.com;
       `.replace(/\s+/g, ' ').trim(),
     },

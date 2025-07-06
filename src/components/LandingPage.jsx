@@ -22,6 +22,12 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
 
     const initializePaddle = () => {
       try {
+
+        console.log('[DEBUG] ENV', {
+          token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN,
+          seller: import.meta.env.VITE_PADDLE_SELLER_ID,
+        });
+
         const paddleToken = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
         const sellerId = import.meta.env.VITE_PADDLE_SELLER_ID;
 
