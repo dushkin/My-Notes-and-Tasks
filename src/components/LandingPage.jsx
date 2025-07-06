@@ -684,23 +684,14 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                 productivity enthusiasts.
               </p>
               <p className="mt-2 text-sm">
-                <a href="/privacy_policy.html" className="hover:underline">
-                  Privacy Policy
-                </a>
-                <span className="mx-2">·</span>
-                <a href="/terms_of_service.html" className="hover:underline">
-                  Terms of Service
-                </a>
-                <span className="mx-2">·</span>
-                <a
-                  href="https://github.com/dushkin/My-Notes-and-Tasks"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline"
-                >
-                  GitHub
-                </a>
-              </p>
+  <a href="/privacy_policy.html" className="hover:underline">Privacy Policy</a>
+  <span className="mx-2">·</span>
+  <a href="/terms_of_service.html" className="hover:underline">Terms of Service</a>
+  <span className="mx-2">·</span>
+  <a href="https://github.com/dushkin/My-Notes-and-Tasks" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
+  <span className="mx-2">·</span>
+  <a href="mailto:support@notask.co" className="hover:underline">Support</a>
+</p>
             </div>
           </div>
         </footer>
