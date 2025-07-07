@@ -132,12 +132,10 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   );
 
   const handleEditorFocus = useCallback(() => {
-    console.log('[ContentEditor] Editor gained focus');
     editorHasFocusRef.current = true;
   }, []);
 
   const handleEditorBlur = useCallback(() => {
-    console.log('[ContentEditor] Editor lost focus');
     editorHasFocusRef.current = false;
     
     if (pendingContentRef.current && !isUpdatingContentRef.current) {

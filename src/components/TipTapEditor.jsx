@@ -224,14 +224,12 @@ const TipTapEditor = ({
     },
 
     onFocus: () => {
-      console.log('[TipTapEditor] Editor gained focus');
       if (onFocus) {
         onFocus();
       }
     },
 
     onBlur: () => {
-      console.log('[TipTapEditor] Editor lost focus');
       if (onBlur) {
         onBlur();
       }

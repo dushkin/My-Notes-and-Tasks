@@ -1751,7 +1751,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 </button>
                 {selectedItem ? (
                   <ContentEditor
-                    key={selectedItemId}
+                    key={`${selectedItemId}_${selectedItem.updatedAt}`}
                     item={selectedItem}
                     defaultFontFamily={settings.editorFontFamily}
                     onSaveItemData={handleSaveItemData}
@@ -1899,7 +1899,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     ) : selectedItem.type === "note" ||
                       selectedItem.type === "task" ? (
                       <ContentEditor
-                        key={selectedItemId}
+                        key={`${selectedItemId}_${selectedItem.updatedAt}`}
                         item={selectedItem}
                         defaultFontFamily={settings.editorFontFamily}
                         onSaveItemData={handleSaveItemData}

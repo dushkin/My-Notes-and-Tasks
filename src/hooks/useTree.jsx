@@ -26,7 +26,6 @@ const API_BASE_URL =
 // === FREE PLAN LIMITATION ===
 const FREE_PLAN_ITEM_LIMIT = 100;
 
-
 /** Checks if the user has active paid access (active or cancelled but until period end) */
 function hasActiveAccess(user) {
   if (!user) return false;
@@ -145,7 +144,7 @@ export const useTree = (currentUser) => {
   const fetchUserTree = useCallback(async () => {
     setIsFetchingTree(true);
     try {
-      const response = await authFetch(`/items`);
+      const response = await authFetch(`/items`, { cache: "no-store" });
       if (!response.ok) {
         const errorData = await response
           .json()
@@ -181,6 +180,28 @@ export const useTree = (currentUser) => {
       console.error("Failed to save expanded folders:", error);
     }
   }, [expandedFolders]);
+
+  // Cross-tab sync: reload tree when updated in other tabs
+  useEffect(() => {
+    const handleSync = () => {
+      console.log("Detected tree update in another tab, reloading…");
+      fetchUserTree();
+    };
+    let bc;
+    if (typeof BroadcastChannel !== "undefined") {
+      bc = new BroadcastChannel("notes-sync");
+      bc.onmessage = handleSync;
+    } else {
+      window.addEventListener("storage", (e) => {
+        if (e.key === "notesTreeSync") handleSync();
+      });
+    }
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener("storage", handleSync);
+    };
+  }, [fetchUserTree]);
+
   const selectItemById = useCallback((id) => setSelectedItemId(id), []);
 
   const replaceTree = useCallback(
@@ -348,30 +369,26 @@ export const useTree = (currentUser) => {
           body: JSON.stringify(updates),
         });
         const updatedItemFromServer = await response.json();
-        if (!response.ok)
+
+        if (!response.ok) {
           return {
             success: false,
             error: updatedItemFromServer.error || "Failed to update note.",
           };
+        }
 
-        const mapRecursive = (items, id, serverUpdates) =>
-          items.map((i) =>
-            i.id === id
-              ? { ...i, ...serverUpdates }
-              : Array.isArray(i.children)
-              ? { ...i, children: mapRecursive(i.children, id, serverUpdates) }
-              : i
-          );
-        const newTreeState = mapRecursive(tree, itemId, updatedItemFromServer);
-        setTreeWithUndo(newTreeState);
+        await fetchUserTree();
+
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("updateNoteContent API error:", error);
         return { success: false, error: "Network error updating note." };
       }
     },
-    [tree, setTreeWithUndo]
+    // Note that the dependencies for the hook have also changed.
+    [fetchUserTree]
   );
+
   const updateTask = useCallback(
     async (taskId, updates) => {
       if (updates.hasOwnProperty("completed")) {
@@ -826,7 +843,6 @@ export const useTree = (currentUser) => {
         : tree;
 
       if (clipboardMode === "copy") {
-
         let itemToInsertData = assignClientPropsForDuplicate(
           structuredClone(clipboardItem)
         );

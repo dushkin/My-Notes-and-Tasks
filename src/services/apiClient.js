@@ -1,5 +1,3 @@
-// src/services/apiClient.js
-// src/services/apiClient.js
 import { getAccessToken, getRefreshToken, storeTokens, clearTokens } from './authService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
@@ -151,6 +149,24 @@ const refreshTokenFlow = async () => {
   }
 };
 
+const broadcastTreeUpdate = (method, url) => {
+  // Broadcast tree updates to other tabs
+  try {
+    const methodLower = (method || 'get').toLowerCase();
+    if (['post', 'put', 'delete', 'patch'].includes(methodLower) && url.match(/^\/items/)) {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('notes-sync');
+        bc.postMessage({ type: 'TREE_UPDATED', timestamp: Date.now() });
+        bc.close();
+      } else {
+        localStorage.setItem('notesTreeSync', String(Date.now()));
+      }
+    }
+  } catch (e) { 
+    console.warn('Broadcast failed', e); 
+  }
+};
+
 export const authFetch = async (url, options = {}) => {
   let token = getAccessToken();
 
@@ -176,11 +192,11 @@ export const authFetch = async (url, options = {}) => {
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const finalOptions = {
-      credentials: 'include',
-      ...options,
-              headers,
-              signal: controller.signal,
-    };
+        credentials: 'include',
+        ...options,
+        headers,
+        signal: controller.signal,
+      };
 
       const response = await fetch(
         url.startsWith('http') ? url : `${API_BASE_URL}${url}`, 
@@ -188,6 +204,11 @@ export const authFetch = async (url, options = {}) => {
       );
 
       clearTimeout(timeoutId);
+
+      // Broadcast tree updates after successful request
+      if (response.ok) {
+        broadcastTreeUpdate(finalOptions.method, url);
+      }
 
       // Handle 401/403 authentication errors
       if (response.status === 401 || response.status === 403) {

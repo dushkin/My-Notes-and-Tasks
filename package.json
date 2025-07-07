@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.8.2",
-  "commitMessage": "Added Voluntary Cancellations & Refunds section to TOS document",
+  "version": "8.8.3",
+  "commitMessage": "Fixed opened tabs sync issue",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
