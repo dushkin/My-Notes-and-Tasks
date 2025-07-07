@@ -973,6 +973,7 @@ export const useTree = (currentUser) => {
     },
     [tree, selectedItemId]
   );
+
   const handleImport = useCallback(
     async (file, importTargetOption) => {
       return new Promise((resolveOuter) => {
@@ -991,10 +992,19 @@ export const useTree = (currentUser) => {
                 ? importedRawData
                 : [importedRawData];
             } else {
-              // Import under selected item logic would go here
-              processedTreeForServer = Array.isArray(importedRawData)
+              // Import under selected item
+              const itemsToImport = Array.isArray(importedRawData)
                 ? importedRawData
                 : [importedRawData];
+              let updatedTree = tree;
+              itemsToImport.forEach((item) => {
+                updatedTree = insertItemRecursive(
+                  updatedTree,
+                  selectedItemId,
+                  item
+                );
+              });
+              processedTreeForServer = updatedTree;
             }
 
             const response = await authFetch(`/items/tree`, {
@@ -1002,19 +1012,16 @@ export const useTree = (currentUser) => {
               body: JSON.stringify({ newTree: processedTreeForServer }),
             });
             const responseData = await response.json();
-
             if (!response.ok) {
               console.error("Server error saving imported tree:", responseData);
               resolveOuter({
                 success: false,
-                error:
-                  responseData.error ||
-                  "Failed to save imported tree to server.",
+                error: "Failed to save imported tree to server.",
               });
               return;
             }
 
-            // On successful import, refresh the tree
+            // Refresh tree on success
             await fetchUserTree();
             resolveOuter({
               success: true,
@@ -1035,8 +1042,9 @@ export const useTree = (currentUser) => {
         reader.readAsText(file);
       });
     },
-    [fetchUserTree]
+    [tree, selectedItemId]
   );
+
   const searchItems = useCallback(
     (query, opts) => {
       if (!query) return [];

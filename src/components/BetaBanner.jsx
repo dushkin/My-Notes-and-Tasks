@@ -13,11 +13,8 @@ export default function BetaBanner({ variant }) {
         const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
         const response = await fetch(`${API_BASE_URL}/auth/beta-status`);
         
-        console.log('Beta API Response status:', response.status); // ✅ Fixed - only log status
-        
         if (response.ok) {
           const data = await response.json();
-          console.log('Beta API Response data:', data); // ✅ Now data exists
           setBetaStatus(data);
         } else {
           console.warn('Beta API failed with status:', response.status);

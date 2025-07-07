@@ -18,7 +18,6 @@ export const storeTokens = (accessToken, refreshToken) => {
 
 export const getAccessToken = () => {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-  console.log('[DEBUG authService] Getting access token:', token ? 'EXISTS' : 'MISSING');
   return token;
 };
 
