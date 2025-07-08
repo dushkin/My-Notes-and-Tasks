@@ -18,6 +18,7 @@ export default function AddDialog({ isOpen, onClose, onAdd, selectedItem }) {
     <Modal isOpen={isOpen} onClose={onClose} title="Add Item" actions={actions}>
       <input
         type="text"
+        aria-label={selectedItem ? 'New Sub-item Name' : 'New Item Name'}
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder={selectedItem ? 'New Sub-item Name' : 'New Item Name'}

@@ -5,6 +5,7 @@ const defaultOptions = {
   wholeWord: false,
   useRegex: false,
 };
+
 export default function SearchPanel({
   searchItems,
   initialQuery = "",
@@ -16,32 +17,10 @@ export default function SearchPanel({
   const [results, setResults] = useState([]);
   const [preview, setPreview] = useState(null);
   const inputRef = useRef(null);
+
   useEffect(() => {
-    if (query) {
-      const hits = searchItems(query, opts);
-      setResults(hits);
-      setPreview(hits[0] || null);
-    } else {
-      setResults([]);
-      setPreview(null);
-    }
+    setResults(searchItems(query, opts));
   }, [query, opts, searchItems]);
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-  if (results.length === 0) {
-    return (
-      <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
-        <div className="p-4 text-sm text-zinc-400">No matches found.</div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700 shadow-lg">
@@ -50,6 +29,7 @@ export default function SearchPanel({
         <input
           autoFocus
           type="text"
+          aria-label="Search items"
           ref={inputRef}
           className="flex-1 px-2 py-1 rounded bg-zinc-800 focus:outline-none"
           placeholder="Search..."
@@ -74,15 +54,17 @@ export default function SearchPanel({
               setOpts({ ...opts, caseSensitive: e.target.checked })
             }
           />
-          <span>Case</span>
+          <span>Case-sensitive</span>
         </label>
         <label className="flex items-center space-x-1">
           <input
             type="checkbox"
             checked={opts.wholeWord}
-            onChange={(e) => setOpts({ ...opts, wholeWord: e.target.checked })}
+            onChange={(e) =>
+              setOpts({ ...opts, wholeWord: e.target.checked })
+            }
           />
-          <span>Whole</span>
+          <span>Whole word</span>
         </label>
         <label
           className="flex items-center space-x-1 cursor-not-allowed"
