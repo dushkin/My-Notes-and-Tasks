@@ -988,14 +988,74 @@ export const useTree = (currentUser) => {
             let processedTreeForServer;
 
             if (importTargetOption === "entire") {
-              processedTreeForServer = Array.isArray(importedRawData)
+              // For entire tree replacement, check for duplicates at root level
+              const importedItems = Array.isArray(importedRawData)
                 ? importedRawData
                 : [importedRawData];
+
+              // Check for duplicate names at root level
+              const rootItemNames = new Set();
+              for (const item of importedItems) {
+                if (!item || typeof item.label !== "string") continue;
+                if (rootItemNames.has(item.label)) {
+                  resolveOuter({
+                    success: false,
+                    error: `Duplicate item name "${item.label}" found in import data at root level.`,
+                  });
+                  return;
+                }
+                rootItemNames.add(item.label);
+              }
+
+              processedTreeForServer = importedItems;
             } else {
-              // Import under selected item
+              // Import under selected item - check for conflicts with existing siblings
               const itemsToImport = Array.isArray(importedRawData)
                 ? importedRawData
                 : [importedRawData];
+
+              // Get the target location's existing children
+              const targetParent = selectedItemId
+                ? findItemById(tree, selectedItemId)
+                : null;
+              const targetSiblings = targetParent
+                ? targetParent.children || []
+                : tree;
+
+              // Check each item to import for name conflicts
+              for (const itemToImport of itemsToImport) {
+                if (!itemToImport || typeof itemToImport.label !== "string")
+                  continue;
+
+                if (
+                  hasSiblingWithName(targetSiblings, itemToImport.label, null)
+                ) {
+                  const targetLocation = targetParent
+                    ? `folder "${targetParent.label}"`
+                    : "root level";
+                  resolveOuter({
+                    success: false,
+                    error: `Cannot import "${itemToImport.label}" - an item with this name already exists in ${targetLocation}.`,
+                  });
+                  return;
+                }
+              }
+
+              // Also check for duplicates within the import data itself
+              const importNameSet = new Set();
+              for (const item of itemsToImport) {
+                if (!item || typeof item.label !== "string") continue;
+                if (importNameSet.has(item.label)) {
+                  resolveOuter({
+                    success: false,
+                    error: `Duplicate item name "${item.label}" found in import data.`,
+                  });
+                  return;
+                }
+                importNameSet.add(item.label);
+              }
+
+              // If no conflicts, proceed with import
               let updatedTree = tree;
               itemsToImport.forEach((item) => {
                 updatedTree = insertItemRecursive(
@@ -1042,7 +1102,7 @@ export const useTree = (currentUser) => {
         reader.readAsText(file);
       });
     },
-    [tree, selectedItemId]
+    [tree, selectedItemId, fetchUserTree]
   );
 
   const searchItems = useCallback(
