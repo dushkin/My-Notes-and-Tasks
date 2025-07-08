@@ -253,9 +253,9 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
           <div className="hidden sm:flex justify-between items-center p-6 max-w-7xl mx-auto w-full">
             <div className="flex items-center space-x-3">
               <img src={logo} alt="Notes & Tasks Logo" className="w-12 h-12" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Notes & Tasks
-              </h1>
+              </h2>
             </div>
             <nav>
               {currentUser ? (

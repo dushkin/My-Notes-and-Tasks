@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "9.2.0",
-  "commitMessage": "WCAG 2.1 adaptations: Modal missing ARIA semantics",
+  "version": "9.3.0",
+  "commitMessage": "WCAG 2.1 adaptations: Multiple <h1> on a single page",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
