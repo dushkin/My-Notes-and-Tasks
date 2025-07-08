@@ -22,7 +22,7 @@ export default function AddDialog({ isOpen, onClose, onAdd, selectedItem }) {
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder={selectedItem ? 'New Sub-item Name' : 'New Item Name'}
-        className="w-full px-3 py-2 border rounded"
+        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       />
     </Modal>
   );

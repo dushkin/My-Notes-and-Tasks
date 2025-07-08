@@ -31,14 +31,14 @@ export default function SearchPanel({
           type="text"
           aria-label="Search items"
           ref={inputRef}
-          className="flex-1 px-2 py-1 rounded bg-zinc-800 focus:outline-none"
+          className="flex-1 px-2 py-1 rounded bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           placeholder="Search..."
           value={query ?? ""}
           onChange={(e) => setQuery(e.target.value)}
         />
         <button
           onClick={onClose}
-          className="px-2 py-1 rounded hover:bg-zinc-700"
+          className="px-2 py-1 rounded hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
           title="Close"
         >
           ✕
@@ -53,6 +53,7 @@ export default function SearchPanel({
             onChange={(e) =>
               setOpts({ ...opts, caseSensitive: e.target.checked })
             }
+            className="focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
           />
           <span>Case-sensitive</span>
         </label>
@@ -63,6 +64,7 @@ export default function SearchPanel({
             onChange={(e) =>
               setOpts({ ...opts, wholeWord: e.target.checked })
             }
+            className="focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
           />
           <span>Whole word</span>
         </label>
@@ -75,6 +77,7 @@ export default function SearchPanel({
             checked={opts.useRegex}
             onChange={(e) => setOpts({ ...opts, useRegex: e.target.checked })}
             disabled={true}
+            className="focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
           />
           <span className="opacity-50">RegEx</span>
         </label>
@@ -87,7 +90,9 @@ export default function SearchPanel({
             <div
               key={item.id}
               onClick={() => setPreview(item)}
-              className="p-2 cursor-pointer border-b border-zinc-800 hover:bg-zinc-800"
+              className="p-2 cursor-pointer border-b border-zinc-800 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+              tabIndex={0}
+              role="button"
             >
               <p className="text-sm font-medium">{item.label || item.title}</p>
             </div>
