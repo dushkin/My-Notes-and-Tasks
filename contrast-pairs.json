@@ -1,0 +1,37 @@
+[
+  {
+    "fgClass": "text-gray-900",
+    "bgClass": "bg-white",
+    "fg": "#111827",
+    "bg": "#ffffff",
+    "description": "Main headings on default background"
+  },
+  {
+    "fgClass": "text-gray-700",
+    "bgClass": "bg-white",
+    "fg": "#374151",
+    "bg": "#ffffff",
+    "description": "Body text on default background"
+  },
+  {
+    "fgClass": "text-zinc-100",
+    "bgClass": "bg-zinc-900",
+    "fg": "#f4f4f5",
+    "bg": "#18181b",
+    "description": "Light text on dark sidebar"
+  },
+  {
+    "fgClass": "text-white",
+    "bgClass": "bg-blue-600",
+    "fg": "#ffffff",
+    "bg": "#2563eb",
+    "description": "Button text on primary button"
+  },
+  {
+    "fgClass": "text-white",
+    "bgClass": "bg-gray-200",
+    "fg": "#ffffff",
+    "bg": "#e5e7eb",
+    "description": "Secondary button text on light background"
+  }
+]

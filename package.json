@@ -2,7 +2,7 @@
   "type": "module",
   "name": "my-notes-and-tasks-modern",
   "version": "9.3.0",
-  "commitMessage": "WCAG 2.1 adaptations: Multiple <h1> on a single page",
+  "commitMessage": "WCAG 2.1 adaptations: Added a colors contrast audit tester",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
-    "codegen": "playwright codegen http://localhost:5173"
+    "codegen": "playwright codegen http://localhost:5173",
+    "audit:contrast": "node contrast-audit.cjs"
   },
   "dependencies": {
     "@paddle/paddle-js": "^1.4.2",
@@ -70,6 +71,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.4.18",
     "tailwindcss": "^3.2.4",
+    "tinycolor2": "^1.6.0",
     "typescript": "^5.4.5",
     "vite": "^7.0.0"
   },
