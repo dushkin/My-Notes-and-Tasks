@@ -1683,7 +1683,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       </header>
 
       <>
-        <main
+        <main id="main-content"
           className={`flex-1 flex min-h-0`}
           style={{
             paddingTop: "calc(var(--beta-banner-height, 0px) + 3.5rem)", // 3.5rem = h-14

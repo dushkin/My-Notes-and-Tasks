@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "9.4.0",
-  "commitMessage": "WCAG 2.1 adaptations: Added a colors contrast audit tester",
+  "version": "9.5.0",
+  "commitMessage": "WCAG 2.1 adaptations: Added “Skip to main content” link",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
