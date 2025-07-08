@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "8.8.5",
-  "commitMessage": "Fixed import a duplicated item",
+  "version": "8.8.6",
+  "commitMessage": "Fixed pdf export",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

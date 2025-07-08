@@ -98,3 +98,5 @@ test-results/**/*.mp4
 !src/**/*.png
 !public/**/*.png
 !assets/**/*.png
+/cnrd.sh
+-backend/cnrd.sh

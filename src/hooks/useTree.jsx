@@ -13,7 +13,7 @@ import {
   getItemPath,
 } from "../utils/treeUtils";
 import { jsPDF } from "jspdf";
-import * as bidiNS from "unicode-bidirectional";
+import * as bidi from "unicode-bidirectional";
 import { notoSansHebrewBase64 } from "../fonts/NotoSansHebrewBase64";
 import { useSettings } from "../contexts/SettingsContext";
 import { itemMatches } from "../utils/searchUtils";
@@ -41,22 +41,18 @@ function hasActiveAccess(user) {
 
 function htmlToPlainTextWithNewlines(html) {
   if (!html) return "";
-  let text = html;
-  text = text.replace(
-    /<(div|p|h[1-6]|li|blockquote|pre|tr|hr)[^>]*>/gi,
-    "\n$&"
-  );
-  text = text.replace(/<br\s*\/?>/gi, "\n");
-  text = text.replace(/<[^>]+>/g, "");
   try {
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = text;
-    text = tempDiv.textContent || tempDiv.innerText || "";
+    const tempDiv1 = document.createElement("div");
+    tempDiv1.innerHTML = html;
+    const tempDiv2 = document.createElement("div");
+    tempDiv2.innerHTML = tempDiv1.textContent || tempDiv1.innerText;
+    return (tempDiv2.textContent || tempDiv2.innerText || "").trim();
   } catch (e) {
-    console.error("Error decoding HTML entities for PDF export:", e);
+    console.error("Error converting HTML to plain text:", e);
+    return html;
   }
-  return text.trim().replace(/(\r\n|\r|\n){2,}/g, "\n");
 }
+
 
 export const assignClientPropsForDuplicate = (item) => {
   const newItem = { ...item };
@@ -88,7 +84,6 @@ const countTotalItems = (nodes) => {
   return count;
 };
 
-// === MODIFIED: Hook now accepts currentUser to check for role ===
 export const useTree = (currentUser) => {
   const EXPANDED_KEY = `${LOCAL_STORAGE_KEY}_expanded`;
   const { settings } = useSettings();
@@ -181,7 +176,6 @@ export const useTree = (currentUser) => {
     }
   }, [expandedFolders]);
 
-  // Cross-tab sync: reload tree when updated in other tabs
   useEffect(() => {
     const handleSync = () => {
       console.log("Detected tree update in another tab, reloading…");
@@ -385,7 +379,6 @@ export const useTree = (currentUser) => {
         return { success: false, error: "Network error updating note." };
       }
     },
-    // Note that the dependencies for the hook have also changed.
     [fetchUserTree]
   );
 
@@ -563,7 +556,6 @@ export const useTree = (currentUser) => {
       if (!itemToDuplicate)
         return { success: false, error: "Item to duplicate not found." };
 
-      // === MODIFIED: Check for user role before applying limit ===
       if (currentUser?.role !== "admin") {
         const itemsToCreate = countTotalItems([itemToDuplicate]);
         if (currentItemCount + itemsToCreate > FREE_PLAN_ITEM_LIMIT) {
@@ -940,6 +932,7 @@ export const useTree = (currentUser) => {
       let dataToExport;
       let fileName;
       const currentSelectedItem = findItemById(tree, selectedItemId);
+
       if (target === "selected") {
         if (!currentSelectedItem) {
           alert("No item selected.");
@@ -951,6 +944,7 @@ export const useTree = (currentUser) => {
         dataToExport = tree;
         fileName = "tree-export";
       }
+
       if (format === "json") {
         try {
           const jsonStr = JSON.stringify(dataToExport, null, 2);
@@ -968,11 +962,155 @@ export const useTree = (currentUser) => {
           alert("Failed to export JSON.");
         }
       } else if (format === "pdf") {
-        alert("PDF export is not yet fully implemented.");
+        try {
+          exportToPDF(dataToExport, fileName);
+        } catch (error) {
+          console.error("PDF export failed:", error);
+          alert("Failed to export PDF: " + error.message);
+        }
       }
     },
     [tree, selectedItemId]
   );
+
+  const hasRTLCharacters = (text) => {
+    if (!text) return false;
+    const rtlChars =
+      /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+    return rtlChars.test(text);
+  };
+
+  const hasNonLatinCharacters = (text) => {
+    if (!text) return false;
+    const nonLatinChars =
+      /[^\u0000-\u024F\u1E00-\u1EFF\u2C60-\u2C7F\uA720-\uA7FF]/;
+    return nonLatinChars.test(text);
+  };
+
+  const processBidiText = (text) => {
+    if (!text) return "";
+    try {
+      if (bidi.default && typeof bidi.default.bidiReorderParagraph === 'function') {
+        return bidi.default.bidiReorderParagraph(text);
+      }
+      if (typeof bidi.bidiReorderParagraph === 'function') {
+         return bidi.bidiReorderParagraph(text);
+      }
+      return text;
+    } catch (error) {
+      console.warn("Bidirectional text processing failed:", error);
+      return text; // Fallback to original text
+    }
+  };
+
+  // MODIFIED: Final version using manual line drawing with block-height calculation.
+  const exportToPDF = (data, fileName) => {
+    const doc = new jsPDF();
+    const margin = 15;
+    let cursorY = margin;
+    const lineSpacing = 7;
+    const indentWidth = 8;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    try {
+      doc.addFileToVFS("NotoSansHebrew-Regular.ttf", notoSansHebrewBase64);
+      doc.addFont("NotoSansHebrew-Regular.ttf", "NotoSansHebrew", "normal");
+      doc.setFont("NotoSansHebrew");
+    } catch (e) {
+      console.error("Failed to load custom font for PDF:", e);
+      doc.setFont("helvetica");
+    }
+    
+    const renderNodeAndChildren = (item, ancestorsLastStatus) => {
+        if (!item) return;
+        
+        // 1. Calculate the height of the item's own content block first.
+        const indentLevel = ancestorsLastStatus.length;
+        const textX = margin + (indentLevel * indentWidth);
+        let labelLines = [];
+        if(item.label) {
+            const labelText = processBidiText(item.label);
+            labelLines = doc.splitTextToSize(labelText, pageWidth - textX - 10);
+        }
+
+        let contentLines = [];
+        if (item.content) {
+            const plainTextContent = htmlToPlainTextWithNewlines(item.content);
+            if (plainTextContent) {
+                const processedContent = processBidiText(plainTextContent);
+                const contentIndentX = textX + indentWidth;
+                contentLines = doc.splitTextToSize(processedContent, pageWidth - contentIndentX - margin);
+            }
+        }
+        
+        const localBlockHeight = (labelLines.length + contentLines.length) * lineSpacing;
+
+        // Check for page break before rendering anything.
+        if (cursorY + localBlockHeight > pageHeight - margin) {
+            doc.addPage();
+            cursorY = margin;
+        }
+        const startY = cursorY;
+        
+        // 2. Draw the tree lines for the current item.
+        doc.setDrawColor(180, 180, 180); // Set line color to a light gray
+        doc.setLineWidth(0.25);
+
+        if (indentLevel > 0) {
+            const parentIndentX = margin + ((indentLevel - 1) * indentWidth);
+            
+            // Draw horizontal connector
+            doc.line(parentIndentX, startY + (lineSpacing/2), textX, startY + (lineSpacing/2));
+
+            // Draw ancestor vertical "pass-through" lines
+            ancestorsLastStatus.slice(0, -1).forEach((isLast, i) => {
+                if (!isLast) {
+                    const x = margin + (i * indentWidth);
+                    // Draw a segment for the current item's height
+                    doc.line(x, startY, x, startY + localBlockHeight + lineSpacing);
+                }
+            });
+
+            const isCurrentLast = ancestorsLastStatus[ancestorsLastStatus.length - 1];
+            if (!isCurrentLast) {
+                // If this item isn't the last, its parent's vertical line must continue through it
+                doc.line(parentIndentX, startY, parentIndentX, startY + localBlockHeight + lineSpacing);
+            }
+        }
+
+        // 3. Render the text content.
+        const icon = item.type === 'folder' ? '📁' : item.type === 'note' ? '📝' : '☐';
+        const iconWidth = doc.getTextWidth(`${icon} `);
+        doc.text(icon, textX, startY + (lineSpacing/2), { baseline: 'middle' });
+        doc.text(labelLines, textX + iconWidth, startY + lineSpacing - 2);
+        cursorY += labelLines.length * lineSpacing;
+
+        if (contentLines.length > 0) {
+            const contentIndentX = textX + indentWidth;
+            doc.text(contentLines, contentIndentX, cursorY + lineSpacing -2);
+            cursorY += contentLines.length * lineSpacing;
+        }
+
+        cursorY += lineSpacing; // Padding after the item
+        
+        // 4. Recursively render children.
+        if (item.type === 'folder' && Array.isArray(item.children)) {
+            item.children.forEach((child, index) => {
+                const isLastChild = index === item.children.length - 1;
+                renderNodeAndChildren(child, [...ancestorsLastStatus, isLastChild]);
+            });
+        }
+    };
+    
+    const itemsToRender = Array.isArray(data) ? data : [data];
+    itemsToRender.forEach((item, index) => {
+        const isLast = index === itemsToRender.length - 1;
+        renderNodeAndChildren(item, [isLast]);
+    });
+    
+    doc.save(`${fileName}.pdf`);
+  };
 
   const handleImport = useCallback(
     async (file, importTargetOption) => {
@@ -988,12 +1126,10 @@ export const useTree = (currentUser) => {
             let processedTreeForServer;
 
             if (importTargetOption === "entire") {
-              // For entire tree replacement, check for duplicates at root level
               const importedItems = Array.isArray(importedRawData)
                 ? importedRawData
                 : [importedRawData];
 
-              // Check for duplicate names at root level
               const rootItemNames = new Set();
               for (const item of importedItems) {
                 if (!item || typeof item.label !== "string") continue;
@@ -1009,12 +1145,10 @@ export const useTree = (currentUser) => {
 
               processedTreeForServer = importedItems;
             } else {
-              // Import under selected item - check for conflicts with existing siblings
               const itemsToImport = Array.isArray(importedRawData)
                 ? importedRawData
                 : [importedRawData];
 
-              // Get the target location's existing children
               const targetParent = selectedItemId
                 ? findItemById(tree, selectedItemId)
                 : null;
@@ -1022,7 +1156,6 @@ export const useTree = (currentUser) => {
                 ? targetParent.children || []
                 : tree;
 
-              // Check each item to import for name conflicts
               for (const itemToImport of itemsToImport) {
                 if (!itemToImport || typeof itemToImport.label !== "string")
                   continue;
@@ -1041,7 +1174,6 @@ export const useTree = (currentUser) => {
                 }
               }
 
-              // Also check for duplicates within the import data itself
               const importNameSet = new Set();
               for (const item of itemsToImport) {
                 if (!item || typeof item.label !== "string") continue;
@@ -1055,7 +1187,6 @@ export const useTree = (currentUser) => {
                 importNameSet.add(item.label);
               }
 
-              // If no conflicts, proceed with import
               let updatedTree = tree;
               itemsToImport.forEach((item) => {
                 updatedTree = insertItemRecursive(
@@ -1081,7 +1212,6 @@ export const useTree = (currentUser) => {
               return;
             }
 
-            // Refresh tree on success
             await fetchUserTree();
             resolveOuter({
               success: true,
@@ -1128,7 +1258,7 @@ export const useTree = (currentUser) => {
     },
     [tree]
   );
-  // Make fetchUserTree available globally for debugging
+  
   window.fetchUserTree = fetchUserTree;
   return {
     fetchUserTree,
