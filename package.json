@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "9.5.1",
-  "commitMessage": "DisableMobile mode: 1. Disable rename item by touch text 2. Auto hide edit toolbar",
+  "version": "9.5.2",
+  "commitMessage": "Mobile mode: Auto hide edit toolbar - fix",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

@@ -1,4 +1,3 @@
-// src/components/ContentEditor.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TipTapEditor from "./TipTapEditor";
 import LoadingSpinner from "./LoadingSpinner";
@@ -80,13 +79,17 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= MOBILE_BREAKPOINT;
-      setIsMobile(mobile);
-      setShowToolbar(!mobile);
+      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    // This effect runs whenever `isMobile` changes.
+    // It resets the toolbar visibility to the default for the new mode.
+    setShowToolbar(!isMobile);
+  }, [isMobile]);
 
   useEffect(() => {
     if (item.id !== lastItemIdRef.current && !isUpdatingContentRef.current) {
@@ -178,10 +181,10 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
           </h2>
           <div className="flex items-center space-x-2">
             {isSaving && (
-              <LoadingSpinner 
-                size="small" 
-                variant="inline" 
-                text="Saving..." 
+              <LoadingSpinner
+                size="small"
+                variant="inline"
+                text="Saving..."
               />
             )}
             {!isSaving && lastSaved && (
