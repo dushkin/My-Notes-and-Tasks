@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "9.5.7",
-  "commitMessage": "Mobile mode: Auto hide edit toolbar - fix",
+  "version": "9.5.8",
+  "commitMessage": "Removed redundant Reload spinner",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
