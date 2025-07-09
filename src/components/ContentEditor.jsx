@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import TipTapEditor from "./TipTapEditor";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -36,12 +36,7 @@ function decodeHtml(str) {
   return doc.documentElement.textContent;
 }
 
-const ContentEditor = ({
-  item,
-  defaultFontFamily,
-  onSaveItemData,
-  renderToolbarToggle,
-}) => {
+const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToolbarToggle }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [isMobile, setIsMobile] = useState(
@@ -66,7 +61,7 @@ const ContentEditor = ({
   useEffect(() => {
     console.log("Item changed, item:", item?.id, "Current isMobile:", isMobile);
     if (item?.id) {
-      const decoded = item.content ? decodeHtml(item.content) : "";
+      const decoded = item.content ? decodeHtml(item.content) : currentEditorContentRef.current || "";
       setInitialEditorContent(decoded);
       currentEditorContentRef.current = decoded;
       pendingContentRef.current = null;
@@ -74,7 +69,7 @@ const ContentEditor = ({
       setLastSaved(null);
       if (isMobile) setShowToolbar(false);
     }
-  }, [item, isMobile]);
+  }, [item?.id, isMobile]);
 
   const [initialEditorContent, setInitialEditorContent] = useState("");
 
@@ -88,12 +83,14 @@ const ContentEditor = ({
       if (isUpdatingContentRef.current || !itemId) return;
       isUpdatingContentRef.current = true;
       setIsSaving(true);
+      console.log("[ContentEditor] Saving content for item", itemId);
       try {
         const updates = { content, direction };
         const result = await onSaveItemData(itemId, updates);
         if (result && !result.success) throw new Error(result.error || "Failed to save");
         pendingContentRef.current = null;
         setLastSaved(new Date());
+        console.log("[ContentEditor] Saved successfully at", new Date().toISOString());
       } catch (error) {
         console.error("[ContentEditor] Save failed for item", itemId, error);
       } finally {
@@ -192,6 +189,6 @@ const ContentEditor = ({
       {renderToolbarToggle && renderToolbarToggle(showToolbar, toggleToolbar)}
     </div>
   );
-};
+});
 
 export default ContentEditor;

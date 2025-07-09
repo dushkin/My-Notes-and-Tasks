@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -458,6 +464,67 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     cancelText: "Cancel",
   });
 
+  const findItemByIdFromTree = useCallback(
+    (id) => findItemByIdUtil(tree, id),
+    [tree]
+  );
+
+  const findParentAndSiblingsFromTree = useCallback(
+    (id) => findParentAndSiblingsUtil(tree, id),
+    [tree]
+  );
+
+  const showMessage = useCallback(
+    (message, type = "error", duration = 5000) => {
+      setUiMessage(message);
+      setUiMessageType(type);
+    },
+    []
+  );
+
+  const handleSaveItemData = useCallback(
+    async (itemId, dataToSave) => {
+      const item = findItemByIdFromTree(itemId);
+      if (!item) return;
+
+      let result;
+      const updates = { ...dataToSave };
+      if (item.type === "folder") {
+        delete updates.content;
+        delete updates.direction;
+      }
+
+      try {
+        if (item.type === "note") {
+          result = await updateNoteContent(itemId, updates);
+        } else if (item.type === "task") {
+          result = await updateTask(itemId, updates);
+        }
+
+        if (result && !result.success) {
+          showMessage(result.error || "Failed to save item.", "error");
+          throw new Error(result.error || "Failed to save item.");
+        }
+
+        return result;
+      } catch (error) {
+        showMessage(error.message || "Failed to save item.", "error");
+        throw error;
+      }
+    },
+    [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
+  );
+
+  // Memoize content editor props to prevent unnecessary re-renders
+  const contentEditorProps = useMemo(
+    () => ({
+      item: selectedItem,
+      defaultFontFamily: settings.editorFontFamily,
+      onSaveItemData: handleSaveItemData,
+    }),
+    [selectedItem, settings.editorFontFamily, handleSaveItemData]
+  );
+
   const hasActiveAccess = (user) => {
     if (!user) return false;
     if (user.subscriptionStatus === "active") return true;
@@ -484,13 +551,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       cancelText: options.cancelText || "Cancel",
     });
   }, []);
-  const showMessage = useCallback(
-    (message, type = "error", duration = 5000) => {
-      setUiMessage(message);
-      setUiMessageType(type);
-    },
-    []
-  );
+
   const handleActualLogout = useCallback(() => {
     clearTokens();
     setCurrentUser(null);
@@ -502,14 +563,17 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     setIsLoggingOut(false);
     window.location.href = "/";
   }, [resetTreeHistory, setCurrentUser]);
+
   useEffect(() => {
     initApiClient(handleActualLogout);
   }, [handleActualLogout]);
+
   useEffect(() => {
     if (fetchUserTree) {
       fetchUserTree();
     }
   }, [fetchUserTree]);
+
   const handleInitiateLogout = async () => {
     console.log("[Logout] Initiating logout…");
     setIsLoggingOut(true);
@@ -591,6 +655,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     currentUser,
     showMessage,
   ]);
+
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
@@ -631,7 +696,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     currentUser,
     showMessage,
   ]);
-  // All the handler functions (keeping them similar to original)
+
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -642,6 +707,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
+
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
@@ -653,14 +719,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       treeNav?.focus({ preventScroll: true });
     });
   }, [showMessage]);
-  const findItemByIdFromTree = useCallback(
-    (id) => findItemByIdUtil(tree, id),
-    [tree]
-  );
-  const findParentAndSiblingsFromTree = useCallback(
-    (id) => findParentAndSiblingsUtil(tree, id),
-    [tree]
-  );
+
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
@@ -704,6 +763,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     findItemByIdFromTree,
     showMessage,
   ]);
+
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -718,6 +778,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [showMessage, setContextMenu]
   );
+
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
@@ -802,6 +863,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     tree,
     findParentAndSiblingsFromTree,
   ]);
+
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       const result = await updateTask(id, {
@@ -816,38 +878,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [updateTask, showMessage]
   );
-  const handleSaveItemData = useCallback(
-    async (itemId, dataToSave) => {
-      const item = findItemByIdFromTree(itemId);
-      if (!item) return;
 
-      let result;
-      const updates = { ...dataToSave };
-      if (item.type === "folder") {
-        delete updates.content;
-        delete updates.direction;
-      }
-
-      try {
-        if (item.type === "note") {
-          result = await updateNoteContent(itemId, updates);
-        } else if (item.type === "task") {
-          result = await updateTask(itemId, updates);
-        }
-
-        if (result && !result.success) {
-          showMessage(result.error || "Failed to save item.", "error");
-          throw new Error(result.error || "Failed to save item.");
-        }
-
-        return result;
-      } catch (error) {
-        showMessage(error.message || "Failed to save item.", "error");
-        throw error;
-      }
-    },
-    [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
-  );
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
 
   const openExportDialog = useCallback(
@@ -859,6 +890,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [setContextMenu]
   );
+
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -868,6 +900,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [setContextMenu]
   );
+
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
@@ -901,6 +934,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
+
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
@@ -912,6 +946,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [pasteItem, showMessage]
   );
+
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
@@ -926,6 +961,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [deleteItem, showMessage, setContextMenu]
   );
+
   const handleDuplicate = useCallback(
     async (itemId) => {
       setIsDuplicating(true);
@@ -942,6 +978,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [duplicateItem, showMessage]
   );
+
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
       if (!item || !buttonElement) return;
@@ -962,6 +999,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [selectItemById, setContextMenu]
   );
+
   const handleNativeContextMenu = useCallback(
     (event, item) => {
       if (draggedId || inlineRenameId) {
@@ -989,6 +1027,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
+
   // Search functionality
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
@@ -1152,6 +1191,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     searchSheetOpen,
     tree,
   ]);
+
   // Keyboard shortcuts and event handlers
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -1171,6 +1211,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mobileMenuOpen]);
+
   useEffect(() => {
     const handler = (e) => {
       const activeElement = document.activeElement;
@@ -1241,6 +1282,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     inlineRenameId,
     setSearchSheetOpen,
   ]);
+
   useEffect(() => {
     if (!isMobile) return;
 
@@ -1265,12 +1307,14 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       window.removeEventListener("popstate", handlePopState);
     };
   }, [isMobile, mobileViewMode]);
+
   const handleAccountDisplayClick = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
   };
 
   const iconBaseClass = "w-4 h-4 mr-2";
+
   return (
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <BetaBanner />
@@ -1721,9 +1765,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
             <div className="flex-grow overflow-auto bg-white dark:bg-zinc-900 flex flex-col">
               {selectedItem ? (
                 <ContentEditor
-                  item={selectedItem}
-                  defaultFontFamily={settings.editorFontFamily}
-                  onSaveItemData={handleSaveItemData}
+                  {...contentEditorProps}
                   renderToolbarToggle={(showToolbar, toggleToolbar) => (
                     <div className="m-2 flex items-center justify-between">
                       <button
