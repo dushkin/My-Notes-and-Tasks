@@ -51,16 +51,61 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
 
-  // Mobile detection and toolbar toggle state
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
   );
   const [showToolbar, setShowToolbar] = useState(!isMobile);
 
+  const lastItemIdRef = useRef(item ? item.id : null);
+
+  // This effect defensively handles resizing. It will only update state
+  // if the mobile breakpoint is actually crossed, ignoring minor resize
+  // events that can happen on mobile clicks.
+  useEffect(() => {
+    const handleResize = () => {
+      const newIsMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+      // Only set state if the mobile status has actually changed.
+      if (newIsMobile !== isMobile) {
+        setIsMobile(newIsMobile);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isMobile]); // Dependency ensures we always have the latest isMobile value.
+
+  // This effect handles the logic for a new item selection.
+  useEffect(() => {
+    const newItemId = item ? item.id : null;
+    if (newItemId !== lastItemIdRef.current) {
+        if(item) {
+            const decoded = item.content ? decodeHtml(item.content) : "";
+            setInitialEditorContent(decoded);
+            currentEditorContentRef.current = decoded;
+            pendingContentRef.current = null;
+            setIsSaving(false);
+            setLastSaved(null);
+        }
+
+        // When a new item is selected on mobile, always hide the toolbar.
+        if (isMobile) {
+            setShowToolbar(false);
+        }
+        lastItemIdRef.current = newItemId;
+    }
+  }, [item, isMobile]);
+
+
+  // This effect resets the toolbar to its default state ONLY when crossing
+  // the mobile/desktop breakpoint.
+  useEffect(() => {
+    setShowToolbar(!isMobile);
+  }, [isMobile]);
+
   if (!item) {
     return (
-      <div className="p-4 text-red-500 dark:text-red-400">
-        Error: Item data is missing. Cannot display editor.
+      <div className="p-4 text-zinc-500 dark:text-zinc-400">
+        Select an item to view or edit its content.
       </div>
     );
   }
@@ -69,45 +114,12 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
     item.content ? decodeHtml(item.content) : ""
   );
 
-  const lastItemIdRef = useRef(item.id);
   const isUpdatingContentRef = useRef(false);
   const editorHasFocusRef = useRef(false);
   const pendingContentRef = useRef(null);
   const currentEditorContentRef = useRef(
     item.content ? decodeHtml(item.content) : ""
   );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  useEffect(() => {
-    // This effect runs whenever `isMobile` changes.
-    // It resets the toolbar visibility to the default for the new mode.
-    setShowToolbar(!isMobile);
-  }, [isMobile]);
-
-  useEffect(() => {
-    if (item.id !== lastItemIdRef.current && !isUpdatingContentRef.current) {
-      console.log('[ContentEditor] Item switched from', lastItemIdRef.current, 'to', item.id);
-      const decoded = item.content ? decodeHtml(item.content) : "";
-      setInitialEditorContent(decoded);
-      currentEditorContentRef.current = decoded;
-      lastItemIdRef.current = item.id;
-      pendingContentRef.current = null;
-      setIsSaving(false);
-      setLastSaved(null);
-
-      // When a new item is selected on mobile, always hide the toolbar by default.
-      if (isMobile) {
-        setShowToolbar(false);
-      }
-    }
-  }, [item.id, item.content, isMobile]); // Added isMobile to dependency array
 
   const saveContent = useCallback(async (itemId, content, direction = "ltr") => {
     if (isUpdatingContentRef.current) {
