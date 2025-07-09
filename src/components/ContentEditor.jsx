@@ -101,8 +101,13 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
       pendingContentRef.current = null;
       setIsSaving(false);
       setLastSaved(null);
+
+      // When a new item is selected on mobile, always hide the toolbar by default.
+      if (isMobile) {
+        setShowToolbar(false);
+      }
     }
-  }, [item.id, item.content]);
+  }, [item.id, item.content, isMobile]); // Added isMobile to dependency array
 
   const saveContent = useCallback(async (itemId, content, direction = "ltr") => {
     if (isUpdatingContentRef.current) {
