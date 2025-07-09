@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "9.5.0",
-  "commitMessage": "WCAG 2.1 adaptations: Added “Skip to main content” link",
+  "version": "9.5.1",
+  "commitMessage": "DisableMobile mode: 1. Disable rename item by touch text 2. Auto hide edit toolbar",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

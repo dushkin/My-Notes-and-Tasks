@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import TipTapEditor from "./TipTapEditor";
 import LoadingSpinner from "./LoadingSpinner";
 
+const MOBILE_BREAKPOINT = 768; // px threshold for mobile
+
 const formatTimestamp = (isoString) => {
   if (!isoString) return "N/A";
   try {
@@ -31,11 +33,11 @@ function debounce(func, delay) {
       func.apply(this, args);
     }, delay);
   };
-  
+
   debouncedFunction.cancel = function() {
     clearTimeout(timeoutId);
   };
-  
+
   return debouncedFunction;
 }
 
@@ -49,7 +51,13 @@ function decodeHtml(str) {
 const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
-  
+
+  // Mobile detection and toolbar toggle state
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
+  );
+  const [showToolbar, setShowToolbar] = useState(!isMobile);
+
   if (!item) {
     return (
       <div className="p-4 text-red-500 dark:text-red-400">
@@ -69,6 +77,16 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   const currentEditorContentRef = useRef(
     item.content ? decodeHtml(item.content) : ""
   );
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= MOBILE_BREAKPOINT;
+      setIsMobile(mobile);
+      setShowToolbar(!mobile);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     if (item.id !== lastItemIdRef.current && !isUpdatingContentRef.current) {
@@ -92,7 +110,7 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
     console.log('[ContentEditor] Saving content for item', itemId);
     isUpdatingContentRef.current = true;
     setIsSaving(true);
-    
+
     try {
       const updates = { content, direction };
       await onSaveItemData(itemId, updates);
@@ -122,10 +140,10 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
         itemId: item.id,
         contentLength: newHtml?.length
       });
-      
+
       currentEditorContentRef.current = newHtml;
       pendingContentRef.current = { content: newHtml, direction: newDirection };
-      
+
       debouncedSave(item.id, newHtml, newDirection);
     },
     [item.id, debouncedSave]
@@ -137,15 +155,19 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
 
   const handleEditorBlur = useCallback(() => {
     editorHasFocusRef.current = false;
-    
+
     if (pendingContentRef.current && !isUpdatingContentRef.current) {
       console.log('[ContentEditor] Pending content detected on blur, saving immediately');
       const { content, direction } = pendingContentRef.current;
-      
+
       debouncedSave.cancel();
       saveContent(item.id, content, direction);
     }
   }, [item.id, saveContent, debouncedSave]);
+
+  const toggleToolbar = () => {
+    setShowToolbar(prev => !prev);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -171,25 +193,33 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
         </div>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 space-y-0.5">
           <p
-            title={
-              item.createdAt && !isNaN(new Date(item.createdAt).getTime())
-                ? new Date(item.createdAt).toISOString()
-                : "Invalid or missing date"
-            }
+            title={item.createdAt && !isNaN(new Date(item.createdAt).getTime())
+              ? new Date(item.createdAt).toISOString()
+              : "Invalid or missing date"}
           >
             Created: {formatTimestamp(item.createdAt)}
           </p>
           <p
-            title={
-              item.updatedAt && !isNaN(new Date(item.updatedAt).getTime())
-                ? new Date(item.updatedAt).toISOString()
-                : "Invalid or missing date"
-            }
+            title={item.updatedAt && !isNaN(new Date(item.updatedAt).getTime())
+              ? new Date(item.updatedAt).toISOString()
+              : "Invalid or missing date"}
           >
             Last Modified: {formatTimestamp(item.updatedAt)}
           </p>
         </div>
       </div>
+
+      {/* Toolbar toggle on mobile */}
+      {isMobile && (
+        <div className="px-4 pb-2">
+          <button
+            className="toolbar-toggle-button px-3 py-1 border rounded"
+            onClick={toggleToolbar}
+          >
+            {showToolbar ? "Hide Tools" : "Show Tools"}
+          </button>
+        </div>
+      )}
 
       <TipTapEditor
         key={`editor-${item.id}`}
@@ -199,6 +229,7 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
         onFocus={handleEditorFocus}
         onBlur={handleEditorBlur}
         defaultFontFamily={defaultFontFamily}
+        showToolbar={showToolbar}
       />
     </div>
   );

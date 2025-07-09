@@ -34,6 +34,20 @@ const Tree = ({
   const [lastClickTime, setLastClickTime] = useState(0);
   const [lastClickedItem, setLastClickedItem] = useState(null);
 
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" && 
+    ("ontouchstart" in window || navigator.maxTouchPoints > 0)
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile("ontouchstart" in window || navigator.maxTouchPoints > 0);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const refocusTree = useCallback(() => {
     requestAnimationFrame(() => {
       navRef.current?.focus({ preventScroll: true });
@@ -263,7 +277,6 @@ const Tree = ({
       if (e.detail > 1) return; // Ignore multiple clicks (handled by double-click)
 
       const currentTime = Date.now();
-      const isMobile = "ontouchstart" in window || navigator.maxTouchPoints > 0;
       const isBeingDragged = item.id === draggedId;
       const isRenaming = item.id === inlineRenameId;
 
@@ -304,12 +317,11 @@ const Tree = ({
       lastClickedItem,
       draggedId,
       inlineRenameId,
+      isMobile,
     ]
   );
 
   const handleDoubleClick = useCallback((e, item) => {
-    const isMobile = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
     if (isMobile) {
       // Mobile: No double-click behavior
       return;
@@ -321,7 +333,7 @@ const Tree = ({
       e.stopPropagation();
       onRename(item);
     }
-  }, [onRename]);
+  }, [onRename, isMobile]);
 
   const renderItems = useCallback(
     (nodes, depth = 0) => (
@@ -427,9 +439,6 @@ const Tree = ({
                       }`}
                       aria-hidden="true"
                       onDoubleClick={(e) => {
-                        const isMobile =
-                          "ontouchstart" in window ||
-                          navigator.maxTouchPoints > 0;
                         if (!isMobile) {
                           e.preventDefault();
                           e.stopPropagation();
@@ -485,13 +494,6 @@ const Tree = ({
                         onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         onFocus={(e) => {
-                          const isMobile =
-                            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                              navigator.userAgent
-                            ) ||
-                            "ontouchstart" in window ||
-                            navigator.maxTouchPoints > 0;
-
                           if (!e.target.dataset.hasSelected) {
                             if (isMobile) {
                               e.target.dataset.hasSelected = "true";
@@ -527,50 +529,6 @@ const Tree = ({
                     </>
                   ) : (
                     <span
-                      onTouchStart={(e) => {
-                        // Clear any existing timeout
-                        if (longPressTimeoutRef.current) {
-                          clearTimeout(longPressTimeoutRef.current);
-                        }
-                        
-                        // Store initial touch position to detect movement
-                        const touch = e.touches[0];
-                        const initialX = touch.clientX;
-                        const initialY = touch.clientY;
-                        
-                        // Set up long press detection (800ms)
-                        longPressTimeoutRef.current = setTimeout(() => {
-                          onRename(item);
-                        }, 800);
-                        
-                        // Store initial position for movement detection
-                        e.target.dataset.initialX = initialX;
-                        e.target.dataset.initialY = initialY;
-                      }}
-                      onTouchEnd={(e) => {
-                        // Always clear the timeout on touch end
-                        if (longPressTimeoutRef.current) {
-                          clearTimeout(longPressTimeoutRef.current);
-                          longPressTimeoutRef.current = null;
-                        }
-                      }}
-                      onTouchMove={(e) => {
-                        // Clear timeout if user moves finger significantly
-                        if (longPressTimeoutRef.current) {
-                          const touch = e.touches[0];
-                          const initialX = parseFloat(e.target.dataset.initialX || 0);
-                          const initialY = parseFloat(e.target.dataset.initialY || 0);
-                          
-                          const deltaX = Math.abs(touch.clientX - initialX);
-                          const deltaY = Math.abs(touch.clientY - initialY);
-                          
-                          // Cancel long press if moved more than 10px
-                          if (deltaX > 10 || deltaY > 10) {
-                            clearTimeout(longPressTimeoutRef.current);
-                            longPressTimeoutRef.current = null;
-                          }
-                        }
-                      }}
                       className={`${
                         item.type === "task" && item.completed
                           ? "line-through text-zinc-500 dark:text-zinc-400"
@@ -636,6 +594,7 @@ const Tree = ({
       localRenameError,
       handleItemClick,
       handleDoubleClick,
+      isMobile,
     ]
   );
 
