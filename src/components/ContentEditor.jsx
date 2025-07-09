@@ -2,15 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import TipTapEditor from "./TipTapEditor";
 import LoadingSpinner from "./LoadingSpinner";
 
-const MOBILE_BREAKPOINT = 768; // px threshold for mobile
+const MOBILE_BREAKPOINT = 768;
 
 const formatTimestamp = (isoString) => {
   if (!isoString) return "N/A";
   try {
     const date = new Date(isoString);
-    if (isNaN(date.getTime())) {
-      return "Invalid Date";
-    }
+    if (isNaN(date.getTime())) return "Invalid Date";
     return date.toLocaleString("he-IL", {
       day: "2-digit",
       month: "2-digit",
@@ -26,147 +24,101 @@ const formatTimestamp = (isoString) => {
 
 function debounce(func, delay) {
   let timeoutId;
-  const debouncedFunction = function (...args) {
+  return function (...args) {
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-      func.apply(this, args);
-    }, delay);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
   };
-
-  debouncedFunction.cancel = function() {
-    clearTimeout(timeoutId);
-  };
-
-  return debouncedFunction;
 }
 
-// helper to turn HTML-entities back into tags
 function decodeHtml(str) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(str, "text/html");
   return doc.documentElement.textContent;
 }
 
-const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
+const ContentEditor = ({
+  item,
+  defaultFontFamily,
+  onSaveItemData,
+  renderToolbarToggle,
+}) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
-
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
   );
-  const [showToolbar, setShowToolbar] = useState(false); // Always start with toolbar hidden
+  const [showToolbar, setShowToolbar] = useState(false);
 
-  const lastItemIdRef = useRef(item ? item.id : null);
-
-  // This effect defensively handles resizing. It will only update state
-  // if the mobile breakpoint is actually crossed, ignoring minor resize
-  // events that can happen on mobile clicks.
   useEffect(() => {
+    console.log("Initial isMobile:", isMobile);
     const handleResize = () => {
       const newIsMobile = window.innerWidth <= MOBILE_BREAKPOINT;
-      // Only set state if the mobile status has actually changed.
       if (newIsMobile !== isMobile) {
         setIsMobile(newIsMobile);
-        // When switching to mobile, hide toolbar. When switching to desktop, show it.
         setShowToolbar(!newIsMobile);
+        console.log("Mobile state changed to:", newIsMobile, "ShowToolbar set to:", !newIsMobile);
       }
     };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [isMobile]); // Dependency ensures we always have the latest isMobile value.
+  }, [isMobile]);
 
-  // Initialize toolbar state based on mobile status
   useEffect(() => {
-    setShowToolbar(!isMobile);
-  }, []); // Only run once on mount
-
-  // This effect handles the logic for a new item selection.
-  useEffect(() => {
-    const newItemId = item ? item.id : null;
-    if (newItemId !== lastItemIdRef.current) {
-        if(item) {
-            const decoded = item.content ? decodeHtml(item.content) : "";
-            setInitialEditorContent(decoded);
-            currentEditorContentRef.current = decoded;
-            pendingContentRef.current = null;
-            setIsSaving(false);
-            setLastSaved(null);
-        }
-
-        // When a new item is selected on mobile, always hide the toolbar.
-        if (isMobile) {
-            setShowToolbar(false);
-        }
-        lastItemIdRef.current = newItemId;
+    console.log("Item changed, item:", item?.id, "Current isMobile:", isMobile);
+    if (item?.id) {
+      const decoded = item.content ? decodeHtml(item.content) : "";
+      setInitialEditorContent(decoded);
+      currentEditorContentRef.current = decoded;
+      pendingContentRef.current = null;
+      setIsSaving(false);
+      setLastSaved(null);
+      if (isMobile) setShowToolbar(false);
     }
   }, [item, isMobile]);
 
-  if (!item) {
-    return (
-      <div className="p-4 text-zinc-500 dark:text-zinc-400">
-        Select an item to view or edit its content.
-      </div>
-    );
-  }
-
-  const [initialEditorContent, setInitialEditorContent] = useState(
-    item.content ? decodeHtml(item.content) : ""
-  );
+  const [initialEditorContent, setInitialEditorContent] = useState("");
 
   const isUpdatingContentRef = useRef(false);
   const editorHasFocusRef = useRef(false);
   const pendingContentRef = useRef(null);
-  const currentEditorContentRef = useRef(
-    item.content ? decodeHtml(item.content) : ""
+  const currentEditorContentRef = useRef("");
+
+  const saveContent = useCallback(
+    async (itemId, content, direction = "ltr") => {
+      if (isUpdatingContentRef.current || !itemId) return;
+      isUpdatingContentRef.current = true;
+      setIsSaving(true);
+      try {
+        const updates = { content, direction };
+        const result = await onSaveItemData(itemId, updates);
+        if (result && !result.success) throw new Error(result.error || "Failed to save");
+        pendingContentRef.current = null;
+        setLastSaved(new Date());
+      } catch (error) {
+        console.error("[ContentEditor] Save failed for item", itemId, error);
+      } finally {
+        setTimeout(() => {
+          isUpdatingContentRef.current = false;
+          setIsSaving(false);
+        }, 100);
+      }
+    },
+    [onSaveItemData]
   );
 
-  const saveContent = useCallback(async (itemId, content, direction = "ltr") => {
-    if (isUpdatingContentRef.current) {
-      console.log('[ContentEditor] Save already in progress, skipping');
-      return;
-    }
-
-    console.log('[ContentEditor] Saving content for item', itemId);
-    isUpdatingContentRef.current = true;
-    setIsSaving(true);
-
-    try {
-      const updates = { content, direction };
-      await onSaveItemData(itemId, updates);
-      console.log('[ContentEditor] Save successful for item', itemId);
-      pendingContentRef.current = null;
-      setLastSaved(new Date());
-    } catch (error) {
-      console.error('[ContentEditor] Save failed for item', itemId, error);
-    } finally {
-      setTimeout(() => {
-        isUpdatingContentRef.current = false;
-        setIsSaving(false);
-      }, 100);
-    }
-  }, [onSaveItemData]);
-
   const debouncedSave = useCallback(
-    debounce((itemId, content, direction) => {
-      saveContent(itemId, content, direction);
-    }, 1500),
+    debounce((itemId, content, direction) => saveContent(itemId, content, direction), 1500),
     [saveContent]
   );
 
   const handleEditorUpdates = useCallback(
     (newHtml, newDirection) => {
-      console.log('[ContentEditor] Editor content updated', {
-        itemId: item.id,
-        contentLength: newHtml?.length
-      });
-
+      console.log("[ContentEditor] Editor content updated", { itemId: item?.id, contentLength: newHtml?.length });
       currentEditorContentRef.current = newHtml;
       pendingContentRef.current = { content: newHtml, direction: newDirection };
-
-      debouncedSave(item.id, newHtml, newDirection);
+      debouncedSave(item?.id, newHtml, newDirection);
     },
-    [item.id, debouncedSave]
+    [item?.id, debouncedSave]
   );
 
   const handleEditorFocus = useCallback(() => {
@@ -175,35 +127,41 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
 
   const handleEditorBlur = useCallback(() => {
     editorHasFocusRef.current = false;
-
-    if (pendingContentRef.current && !isUpdatingContentRef.current) {
-      console.log('[ContentEditor] Pending content detected on blur, saving immediately');
+    if (pendingContentRef.current && !isUpdatingContentRef.current && item?.id) {
       const { content, direction } = pendingContentRef.current;
-
       debouncedSave.cancel();
       saveContent(item.id, content, direction);
     }
-  }, [item.id, saveContent, debouncedSave]);
+  }, [item?.id, saveContent, debouncedSave]);
 
-  const toggleToolbar = () => {
-    setShowToolbar(prev => !prev);
-  };
+  const toggleToolbar = useCallback(() => {
+    if (isMobile) {
+      setShowToolbar((prev) => {
+        const newState = !prev;
+        console.log("Toggling toolbar on mobile, new state:", newState);
+        return newState;
+      });
+    }
+  }, [isMobile]);
+
+  const finalShowToolbar = isMobile ? showToolbar : true;
+  console.log(
+    "Rendering with isMobile:", isMobile, "showToolbar:", showToolbar, "finalShowToolbar prop to TipTapEditor:", finalShowToolbar
+  );
+  console.log("Passing to TipTapEditor:", {
+    showToolbar: finalShowToolbar,
+    key: `editor-${item?.id}`,
+  });
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 pt-4 flex-shrink-0">
         <div className="flex items-start justify-between mb-1">
           <h2 className="text-xl font-semibold break-words text-zinc-800 dark:text-zinc-100 flex-1 mr-4">
-            {item.label}
+            {item?.label || "Unnamed Item"}
           </h2>
           <div className="flex items-center space-x-2">
-            {isSaving && (
-              <LoadingSpinner
-                size="small"
-                variant="inline"
-                text="Saving..."
-              />
-            )}
+            {isSaving && <LoadingSpinner size="small" variant="inline" text="Saving..." />}
             {!isSaving && lastSaved && (
               <span className="text-xs text-green-600 dark:text-green-400">
                 Saved {formatTimestamp(lastSaved.toISOString())}
@@ -212,45 +170,26 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
           </div>
         </div>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 space-y-0.5">
-          <p
-            title={item.createdAt && !isNaN(new Date(item.createdAt).getTime())
-              ? new Date(item.createdAt).toISOString()
-              : "Invalid or missing date"}
-          >
-            Created: {formatTimestamp(item.createdAt)}
+          <p title={item?.createdAt ? new Date(item.createdAt).toISOString() : "Invalid or missing date"}>
+            Created: {formatTimestamp(item?.createdAt)}
           </p>
-          <p
-            title={item.updatedAt && !isNaN(new Date(item.updatedAt).getTime())
-              ? new Date(item.updatedAt).toISOString()
-              : "Invalid or missing date"}
-          >
-            Last Modified: {formatTimestamp(item.updatedAt)}
+          <p title={item?.updatedAt ? new Date(item.updatedAt).toISOString() : "Invalid or missing date"}>
+            Last Modified: {formatTimestamp(item?.updatedAt)}
           </p>
         </div>
       </div>
 
-      {/* Toolbar toggle on mobile */}
-      {isMobile && (
-        <div className="px-4 pb-2">
-          <button
-            className="toolbar-toggle-button px-3 py-1 border rounded"
-            onClick={toggleToolbar}
-          >
-            {showToolbar ? "Hide Tools" : "Show Tools"}
-          </button>
-        </div>
-      )}
-
       <TipTapEditor
-        key={`editor-${item.id}`}
+        key={`editor-${item?.id}`}
         content={initialEditorContent}
-        initialDirection={item.direction || "ltr"}
+        initialDirection={item?.direction || "ltr"}
         onUpdate={handleEditorUpdates}
         onFocus={handleEditorFocus}
         onBlur={handleEditorBlur}
         defaultFontFamily={defaultFontFamily}
-        showToolbar={showToolbar}
+        showToolbar={finalShowToolbar}
       />
+      {renderToolbarToggle && renderToolbarToggle(showToolbar, toggleToolbar)}
     </div>
   );
 };

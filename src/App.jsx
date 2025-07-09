@@ -1294,10 +1294,8 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           top: "var(--beta-banner-height, 0px)",
         }}
       >
-        {/* Mobile Layout - Compact header with hamburger menu */}
         <div className="md:hidden mobile-menu-container h-full">
           <div className="flex justify-between items-center px-4 py-2 h-full">
-            {/* Left: Logo and Title */}
             <div className="flex items-center flex-1 min-w-0">
               <img
                 src={logo}
@@ -1308,10 +1306,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                 Notes & Tasks
               </h1>
             </div>
-
-            {/* Right: User info and hamburger menu */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* User Account - Compact */}
               {currentUser && currentUser.email && (
                 <div className="relative" ref={accountMenuRef}>
                   <LoadingButton
@@ -1336,7 +1331,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                       </div>
                       <LoadingButton
                         onMouseDown={() => {
-                          console.log('[UI] Logout button clicked');
+                          console.log("[UI] Logout button clicked");
                           handleInitiateLogout();
                         }}
                         isLoading={isLoggingOut}
@@ -1351,8 +1346,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   )}
                 </div>
               )}
-
-              {/* Hamburger Menu Button */}
               <LoadingButton
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md"
@@ -1368,8 +1361,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
               </LoadingButton>
             </div>
           </div>
-
-          {/* Mobile Menu Dropdown */}
           {mobileMenuOpen && (
             <div
               role="menu"
@@ -1377,7 +1368,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
               className="border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg"
             >
               <div className="px-4 py-3 space-y-2">
-                {/* Action Buttons Row 1 */}
                 <div className="grid grid-cols-2 gap-2">
                   <LoadingButton
                     onClick={() => {
@@ -1396,7 +1386,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <Undo className="w-4 h-4" />
                     <span className="text-sm font-medium">Undo</span>
                   </LoadingButton>
-
                   <LoadingButton
                     onClick={() => {
                       redoTreeChange();
@@ -1415,8 +1404,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <span className="text-sm font-medium">Redo</span>
                   </LoadingButton>
                 </div>
-
-                {/* Action Buttons Row 2 */}
                 <div className="grid grid-cols-2 gap-2">
                   <LoadingButton
                     onClick={() => {
@@ -1434,7 +1421,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <SearchIcon className="w-4 h-4" />
                     <span className="text-sm font-medium">Search</span>
                   </LoadingButton>
-
                   <LoadingButton
                     onClick={() => {
                       setSettingsDialogOpen(true);
@@ -1448,8 +1434,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <span className="text-sm font-medium">Settings</span>
                   </LoadingButton>
                 </div>
-
-                {/* Menu Items */}
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 space-y-1">
                   <button
                     role="menuitem"
@@ -1462,7 +1446,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <Plus className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                     Add Root Folder
                   </button>
-
                   <button
                     role="menuitem"
                     onClick={() => {
@@ -1474,7 +1457,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <Download className="w-4 h-4 text-teal-500 dark:text-teal-400" />
                     Export Full Tree...
                   </button>
-
                   <button
                     role="menuitem"
                     onClick={() => {
@@ -1486,7 +1468,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <Upload className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
                     Import Full Tree...
                   </button>
-
                   <button
                     role="menuitem"
                     onClick={() => {
@@ -1503,8 +1484,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
             </div>
           )}
         </div>
-
-        {/* Desktop Layout - Original horizontal layout */}
         <div className="hidden md:block h-full">
           <div className="container mx-auto px-2 sm:px-4 flex justify-between items-center h-full">
             <div className="flex items-center">
@@ -1533,7 +1512,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-40 py-1">
                       <LoadingButton
                         onClick={() => {
-                          console.log('[UI] Logout button clicked');
+                          console.log("[UI] Logout button clicked");
                           handleInitiateLogout();
                           setAccountMenuOpen(false);
                         }}
@@ -1682,43 +1661,112 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         </div>
       </header>
 
-      <>
-        <main id="main-content"
-          className={`flex-1 flex min-h-0`}
-          style={{
-            paddingTop: "calc(var(--beta-banner-height, 0px) + 3.5rem)", // 3.5rem = h-14
-          }}
-        >
-          {isMobile ? (
-            mobileViewMode === "tree" ? (
-              <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
+      <main
+        id="main-content"
+        className={`flex-1 flex min-h-0`}
+        style={{
+          paddingTop: "calc(var(--beta-banner-height, 0px) + 3.5rem)",
+        }}
+      >
+        {isMobile ? (
+          mobileViewMode === "tree" ? (
+            <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
+              <Tree
+                items={tree || []}
+                selectedItemId={selectedItemId}
+                onSelect={(id) => {
+                  selectItemById(id);
+                  if (!inlineRenameId) {
+                    const selectedItem =
+                      tree?.find((item) => item.id === id) ||
+                      tree?.flatMap(function findInTree(item) {
+                        if (item.id === id) return [item];
+                        if (item.children)
+                          return item.children.flatMap(findInTree);
+                        return [];
+                      })[0];
+                    if (selectedItem && selectedItem.type !== "folder") {
+                      setMobileViewMode("content");
+                      window.history.pushState(
+                        { viewMode: "content", itemId: id },
+                        "",
+                        window.location.href
+                      );
+                    }
+                  }
+                }}
+                inlineRenameId={inlineRenameId}
+                inlineRenameValue={inlineRenameValue}
+                setInlineRenameValue={setInlineRenameValue}
+                onAttemptRename={handleAttemptRename}
+                cancelInlineRename={cancelInlineRename}
+                expandedFolders={expandedFolders}
+                onToggleExpand={toggleFolderExpand}
+                onToggleTask={handleToggleTask}
+                draggedId={draggedId}
+                onDragStart={(e, id) => {
+                  if (inlineRenameId) e.preventDefault();
+                  else setDraggedId(id);
+                }}
+                onDrop={(targetId) => handleDrop(targetId, draggedId)}
+                onDragEnd={handleDragEnd}
+                onNativeContextMenu={handleNativeContextMenu}
+                onShowItemMenu={handleShowItemMenu}
+                onRename={startInlineRename}
+                uiError={uiMessage}
+                setUiError={(msg) => showMessage(msg, "error")}
+              />
+            </div>
+          ) : (
+            <div className="flex-grow overflow-auto bg-white dark:bg-zinc-900 flex flex-col">
+              {selectedItem ? (
+                <ContentEditor
+                  item={selectedItem}
+                  defaultFontFamily={settings.editorFontFamily}
+                  onSaveItemData={handleSaveItemData}
+                  renderToolbarToggle={(showToolbar, toggleToolbar) => (
+                    <div className="m-2 flex items-center justify-between">
+                      <button
+                        onClick={() => setMobileViewMode("tree")}
+                        className="px-3 py-2 bg-blue-500 text-white rounded-md"
+                      >
+                        ← Back to Tree
+                      </button>
+                      <button
+                        className="toolbar-toggle-button px-3 py-1 border rounded"
+                        onClick={toggleToolbar}
+                      >
+                        {showToolbar ? "Hide Tools" : "Show Tools"}
+                      </button>
+                    </div>
+                  )}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
+                  Select or create an item to view or edit its content.
+                </div>
+              )}
+            </div>
+          )
+        ) : (
+          <PanelGroup direction="horizontal" className="flex-1">
+            <Panel
+              id="tree-panel"
+              order={0}
+              defaultSize={30}
+              minSize={20}
+              maxSize={60}
+              className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-800/30 border-r border-zinc-200 dark:border-zinc-700/50"
+            >
+              <div
+                className="flex-grow overflow-auto"
+                id="tree-navigation-area"
+                tabIndex={-1}
+              >
                 <Tree
                   items={tree || []}
                   selectedItemId={selectedItemId}
-                  onSelect={(id) => {
-                    selectItemById(id);
-                    if (!inlineRenameId) {
-                      const selectedItem =
-                        tree?.find((item) => item.id === id) ||
-                        tree?.flatMap(function findInTree(item) {
-                          if (item.id === id) return [item];
-                          if (item.children)
-                            return item.children.flatMap(findInTree);
-                          return [];
-                        })[0];
-
-                      // Only switch to content view for notes and tasks, not folders
-                      if (selectedItem && selectedItem.type !== "folder") {
-                        setMobileViewMode("content");
-                        // Push state for back button handling
-                        window.history.pushState(
-                          { viewMode: "content", itemId: id },
-                          "",
-                          window.location.href
-                        );
-                      }
-                    }
-                  }}
+                  onSelect={selectItemById}
                   inlineRenameId={inlineRenameId}
                   inlineRenameValue={inlineRenameValue}
                   setInlineRenameValue={setInlineRenameValue}
@@ -1729,8 +1777,20 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   onToggleTask={handleToggleTask}
                   draggedId={draggedId}
                   onDragStart={(e, id) => {
-                    if (inlineRenameId) e.preventDefault();
-                    else setDraggedId(id);
+                    if (inlineRenameId) {
+                      e.preventDefault();
+                      return;
+                    }
+                    try {
+                      if (e.dataTransfer) {
+                        e.dataTransfer.setData("text/plain", id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }
+                      setDraggedId(id);
+                    } catch (err) {
+                      console.error("Drag error:", err);
+                      showMessage("Drag operation failed.", "error");
+                    }
                   }}
                   onDrop={(targetId) => handleDrop(targetId, draggedId)}
                   onDragEnd={handleDragEnd}
@@ -1741,231 +1801,159 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   setUiError={(msg) => showMessage(msg, "error")}
                 />
               </div>
-            ) : (
-              <div className="flex-grow overflow-auto bg-white dark:bg-zinc-900 flex flex-col">
-                <button
-                  onClick={() => setMobileViewMode("tree")}
-                  className="m-2 px-3 py-2 bg-blue-500 text-white rounded-md self-start"
-                >
-                  ← Back to Tree
-                </button>
+              <div className="flex-shrink-0 p-3 border-t border-zinc-200 dark:border-zinc-700/50 bg-zinc-50 dark:bg-zinc-800/30">
+                {currentUser?.role === "admin" ||
+                hasActiveAccess(currentUser) ? (
+                  <div className="text-center p-2">
+                    <div className="flex items-center justify-center gap-2 font-semibold text-sm text-purple-600 dark:text-purple-400">
+                      <Gem className="w-4 h-4" />
+                      <span>
+                        {currentUser.role === "admin"
+                          ? "Admin Account"
+                          : "Pro Plan"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      {currentUser.role === "admin"
+                        ? "No limitations apply."
+                        : "You have unlimited items."}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
+                        Free Plan
+                      </span>
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {currentItemCount} / 100 items
+                      </span>
+                    </div>
+                    <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(currentItemCount, 100)}%`,
+                        }}
+                      ></div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        window.open("/#pricing", "_blank");
+                      }}
+                      className="mt-3 w-full flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                    >
+                      <Gem className="w-4 h-4" />
+                      Upgrade to Pro
+                    </button>
+                  </>
+                )}
+              </div>
+            </Panel>
+            <PanelResizeHandle className="w-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-500 data-[resize-handle-active=true]:bg-blue-600 transition-colors cursor-col-resize z-20 flex-shrink-0" />
+            <Panel
+              id="content-panel"
+              order={1}
+              defaultSize={70}
+              minSize={30}
+              className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-900"
+            >
+              <div className="flex-grow overflow-auto h-full">
                 {selectedItem ? (
-                  <ContentEditor
-                    key={`${selectedItemId}_${selectedItem.updatedAt}`}
-                    item={selectedItem}
-                    defaultFontFamily={settings.editorFontFamily}
-                    onSaveItemData={handleSaveItemData}
-                  />
+                  selectedItem.type === "folder" ? (
+                    <div className="p-3 sm:p-4">
+                      <h2 className="text-lg sm:text-xl font-semibold mb-3 text-zinc-800 dark:text-zinc-100 break-words">
+                        {selectedItem.label}
+                      </h2>
+                      <FolderContents
+                        folder={selectedItem}
+                        onSelect={selectItemById}
+                        handleDragStart={(e, id) => {
+                          if (inlineRenameId) e.preventDefault();
+                          else setDraggedId(id);
+                        }}
+                        handleDragEnter={(e, id) => {}}
+                        handleDragOver={(e) => e.preventDefault()}
+                        handleDragLeave={(e) => {}}
+                        handleDrop={(e, targetItemId) => {
+                          if (draggedId && targetItemId === selectedItem.id) {
+                            handleDrop(targetItemId, draggedId);
+                          }
+                        }}
+                        handleDragEnd={handleDragEnd}
+                        draggedId={draggedId}
+                        onToggleExpand={toggleFolderExpand}
+                        expandedItems={expandedFolders}
+                        onShowItemMenu={handleShowItemMenu}
+                      />
+                    </div>
+                  ) : selectedItem.type === "note" ||
+                    selectedItem.type === "task" ? (
+                    <ContentEditor
+                      key={`${selectedItemId}_${selectedItem.updatedAt}`}
+                      item={selectedItem}
+                      defaultFontFamily={settings.editorFontFamily}
+                      onSaveItemData={handleSaveItemData}
+                    />
+                  ) : null
                 ) : (
                   <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
                     Select or create an item to view or edit its content.
                   </div>
                 )}
               </div>
-            )
-          ) : (
-            <PanelGroup direction="horizontal" className="flex-1">
-              <Panel
-                id="tree-panel"
-                order={0}
-                defaultSize={30}
-                minSize={20}
-                maxSize={60}
-                className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-800/30 border-r border-zinc-200 dark:border-zinc-700/50"
-              >
-                <div
-                  className="flex-grow overflow-auto"
-                  id="tree-navigation-area"
-                  tabIndex={-1}
-                >
-                  <Tree
-                    items={tree || []}
-                    selectedItemId={selectedItemId}
-                    onSelect={selectItemById}
-                    inlineRenameId={inlineRenameId}
-                    inlineRenameValue={inlineRenameValue}
-                    setInlineRenameValue={setInlineRenameValue}
-                    onAttemptRename={handleAttemptRename}
-                    cancelInlineRename={cancelInlineRename}
-                    expandedFolders={expandedFolders}
-                    onToggleExpand={toggleFolderExpand}
-                    onToggleTask={handleToggleTask}
-                    draggedId={draggedId}
-                    onDragStart={(e, id) => {
-                      if (inlineRenameId) {
-                        e.preventDefault();
-                        return;
-                      }
-                      try {
-                        if (e.dataTransfer) {
-                          e.dataTransfer.setData("text/plain", id);
-                          e.dataTransfer.effectAllowed = "move";
-                        }
-                        setDraggedId(id);
-                      } catch (err) {
-                        console.error("Drag error:", err);
-                        showMessage("Drag operation failed.", "error");
-                      }
-                    }}
-                    onDrop={(targetId) => handleDrop(targetId, draggedId)}
-                    onDragEnd={handleDragEnd}
-                    onNativeContextMenu={handleNativeContextMenu}
-                    onShowItemMenu={handleShowItemMenu}
-                    onRename={startInlineRename}
-                    uiError={uiMessage}
-                    setUiError={(msg) => showMessage(msg, "error")}
-                  />
-                </div>
+            </Panel>
+          </PanelGroup>
+        )}
+      </main>
 
-                <div className="flex-shrink-0 p-3 border-t border-zinc-200 dark:border-zinc-700/50 bg-zinc-50 dark:bg-zinc-800/30">
-                  {currentUser?.role === "admin" || hasActiveAccess(currentUser) ? (
-                    <div className="text-center p-2">
-                      <div className="flex items-center justify-center gap-2 font-semibold text-sm text-purple-600 dark:text-purple-400">
-                        <Gem className="w-4 h-4" />
-                        <span>{currentUser.role === 'admin' ? 'Admin Account' : 'Pro Plan'}</span>
-                      </div>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                        {currentUser.role === 'admin' ? 'No limitations apply.' : 'You have unlimited items.'}
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
-                          Free Plan
-                        </span>
-                        <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                          {currentItemCount} / 100 items
-                        </span>
-                      </div>
-                      <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all"
-                          style={{
-                            width: `${Math.min(currentItemCount, 100)}%`,
-                          }}
-                        ></div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          window.open("/#pricing", "_blank");
-                        }}
-                        className="mt-3 w-full flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-                      >
-                        <Gem className="w-4 h-4" />
-                        Upgrade to Pro
-                      </button>
-                    </>
-                  )}
-                </div>
-              </Panel>
-              <PanelResizeHandle className="w-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-500 data-[resize-handle-active=true]:bg-blue-600 transition-colors cursor-col-resize z-20 flex-shrink-0" />
-              <Panel
-                id="content-panel"
-                order={1}
-                defaultSize={70}
-                minSize={30}
-                className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-900"
-              >
-                <div className="flex-grow overflow-auto h-full">
-                  {selectedItem ? (
-                    selectedItem.type === "folder" ? (
-                      <div className="p-3 sm:p-4">
-                        <h2 className="text-lg sm:text-xl font-semibold mb-3 text-zinc-800 dark:text-zinc-100 break-words">
-                          {selectedItem.label}
-                        </h2>
-                        <FolderContents
-                          folder={selectedItem}
-                          onSelect={selectItemById}
-                          handleDragStart={(e, id) => {
-                            if (inlineRenameId) e.preventDefault();
-                            else setDraggedId(id);
-                          }}
-                          handleDragEnter={(e, id) => {}}
-                          handleDragOver={(e) => e.preventDefault()}
-                          handleDragLeave={(e) => {}}
-                          handleDrop={(e, targetItemId) => {
-                            if (draggedId && targetItemId === selectedItem.id) {
-                              handleDrop(targetItemId, draggedId);
-                            }
-                          }}
-                          handleDragEnd={handleDragEnd}
-                          draggedId={draggedId}
-                          onToggleExpand={toggleFolderExpand}
-                          expandedItems={expandedFolders}
-                          onShowItemMenu={handleShowItemMenu}
-                        />
-                      </div>
-                    ) : selectedItem.type === "note" ||
-                      selectedItem.type === "task" ? (
-                      <ContentEditor
-                        key={`${selectedItemId}_${selectedItem.updatedAt}`}
-                        item={selectedItem}
-                        defaultFontFamily={settings.editorFontFamily}
-                        onSaveItemData={handleSaveItemData}
-                      />
-                    ) : null
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
-                      Select or create an item to view or edit its content.
-                    </div>
-                  )}
-                </div>
-              </Panel>
-            </PanelGroup>
-          )}
-        </main>
-
-        <Sheet
-          isOpen={searchSheetOpen}
-          onClose={() => setSearchSheetOpen(false)}
-          snapPoints={[0.85, 0.6, 0.3]}
-          initialSnap={1}
-          className="z-40"
+      <Sheet
+        isOpen={searchSheetOpen}
+        onClose={() => setSearchSheetOpen(false)}
+        snapPoints={[0.85, 0.6, 0.3]}
+        initialSnap={1}
+        className="z-40"
+      >
+        <Sheet.Container
+          data-item-id="search-sheet-container"
+          className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl"
         >
-          <Sheet.Container
-            data-item-id="search-sheet-container"
-            className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl"
-          >
-            <Sheet.Header>
-              <div className="flex justify-center py-2.5 cursor-grab">
-                <div className="w-10 h-1.5 bg-zinc-300 dark:bg-zinc-600 rounded-full"></div>
-              </div>
-            </Sheet.Header>
-            <Sheet.Content className="!pb-0">
-              <div className="overflow-y-auto h-full">
-                <SearchResultsPane
-                  headerHeightClass={APP_HEADER_HEIGHT_CLASS}
-                  query={searchQuery}
-                  onQueryChange={setSearchQuery}
-                  results={searchResults}
-                  onSelectResult={(item) => {
-                    if (item.originalId) {
-                      expandFolderPath(item.originalId);
-                      selectItemById(item.originalId);
-                      setSearchSheetOpen(false);
-                      setTimeout(() => {
-                        document
-                          .querySelector(
-                            `li[data-item-id="${item.originalId}"]`
-                          )
-                          ?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
-                          });
-                      }, 100);
-                    }
-                  }}
-                  onClose={() => setSearchSheetOpen(false)}
-                  opts={searchOptions}
-                  setOpts={setSearchOptions}
-                />
-              </div>
-            </Sheet.Content>
-          </Sheet.Container>
-          <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} />
-        </Sheet>
-      </>
+          <Sheet.Header>
+            <div className="flex justify-center py-2.5 cursor-grab">
+              <div className="w-10 h-1.5 bg-zinc-300 dark:bg-zinc-600 rounded-full"></div>
+            </div>
+          </Sheet.Header>
+          <Sheet.Content className="!pb-0">
+            <div className="overflow-y-auto h-full">
+              <SearchResultsPane
+                headerHeightClass={APP_HEADER_HEIGHT_CLASS}
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                results={searchResults}
+                onSelectResult={(item) => {
+                  if (item.originalId) {
+                    expandFolderPath(item.originalId);
+                    selectItemById(item.originalId);
+                    setSearchSheetOpen(false);
+                    setTimeout(() => {
+                      document
+                        .querySelector(`li[data-item-id="${item.originalId}"]`)
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                    }, 100);
+                  }
+                }}
+                onClose={() => setSearchSheetOpen(false)}
+                opts={searchOptions}
+                setOpts={setSearchOptions}
+              />
+            </div>
+          </Sheet.Content>
+        </Sheet.Container>
+        <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} />
+      </Sheet>
 
       {contextMenu.visible && (
         <ContextMenu
