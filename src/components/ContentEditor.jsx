@@ -54,7 +54,7 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
   );
-  const [showToolbar, setShowToolbar] = useState(!isMobile);
+  const [showToolbar, setShowToolbar] = useState(false); // Always start with toolbar hidden
 
   const lastItemIdRef = useRef(item ? item.id : null);
 
@@ -67,12 +67,19 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
       // Only set state if the mobile status has actually changed.
       if (newIsMobile !== isMobile) {
         setIsMobile(newIsMobile);
+        // When switching to mobile, hide toolbar. When switching to desktop, show it.
+        setShowToolbar(!newIsMobile);
       }
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [isMobile]); // Dependency ensures we always have the latest isMobile value.
+
+  // Initialize toolbar state based on mobile status
+  useEffect(() => {
+    setShowToolbar(!isMobile);
+  }, []); // Only run once on mount
 
   // This effect handles the logic for a new item selection.
   useEffect(() => {
@@ -94,13 +101,6 @@ const ContentEditor = ({ item, onSaveItemData, defaultFontFamily }) => {
         lastItemIdRef.current = newItemId;
     }
   }, [item, isMobile]);
-
-
-  // This effect resets the toolbar to its default state ONLY when crossing
-  // the mobile/desktop breakpoint.
-  useEffect(() => {
-    setShowToolbar(!isMobile);
-  }, [isMobile]);
 
   if (!item) {
     return (
