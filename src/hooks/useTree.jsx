@@ -20,6 +20,15 @@ import { itemMatches } from "../utils/searchUtils";
 import { useUndoRedo } from "./useUndoRedo";
 import { authFetch } from "../services/apiClient";
 
+// Unique tab/session identifier
+const TAB_ID =
+  sessionStorage.getItem("tab_id") ||
+  (() => {
+    const id = Math.random().toString(36).substr(2, 9);
+    sessionStorage.setItem("tab_id", id);
+    return id;
+  })();
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
@@ -52,7 +61,6 @@ function htmlToPlainTextWithNewlines(html) {
     return html;
   }
 }
-
 
 export const assignClientPropsForDuplicate = (item) => {
   const newItem = { ...item };
@@ -136,30 +144,50 @@ export const useTree = (currentUser) => {
 
   const currentItemCount = useMemo(() => countTotalItems(tree), [tree]);
 
-  const fetchUserTree = useCallback(async () => {
-    setIsFetchingTree(true);
-    try {
-      const response = await authFetch(`/items`, { cache: "no-store" });
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to parse error response" }));
-        console.error(response.status, errorData);
-        resetTreeHistory([]);
-        return;
+  const fetchUserTree = useCallback(
+    async (preserveHistory = false) => {
+      setIsFetchingTree(true);
+      try {
+        const response = await authFetch(`/items`, { cache: "no-store" });
+        if (!response.ok) {
+          const errorData = await response
+            .json()
+            .catch(() => ({ message: "Failed to parse error response" }));
+          console.error(response.status, errorData);
+          if (preserveHistory) {
+            setTreeWithUndo([]);
+          } else {
+            resetTreeHistory([]);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (data && Array.isArray(data.notesTree)) {
+          if (preserveHistory) {
+            setTreeWithUndo(data.notesTree);
+          } else {
+            resetTreeHistory(data.notesTree);
+          }
+        } else {
+          if (preserveHistory) {
+            setTreeWithUndo([]);
+          } else {
+            resetTreeHistory([]);
+          }
+        }
+      } catch (error) {
+        if (preserveHistory) {
+          setTreeWithUndo([]);
+        } else {
+          resetTreeHistory([]);
+        }
+      } finally {
+        setIsFetchingTree(false);
       }
-      const data = await response.json();
-      if (data && Array.isArray(data.notesTree)) {
-        resetTreeHistory(data.notesTree);
-      } else {
-        resetTreeHistory([]);
-      }
-    } catch (error) {
-      resetTreeHistory([]);
-    } finally {
-      setIsFetchingTree(false);
-    }
-  }, [resetTreeHistory]);
+    },
+    [resetTreeHistory, setTreeWithUndo]
+  );
+
   useEffect(() => {
     try {
       if (Array.isArray(tree))
@@ -176,25 +204,65 @@ export const useTree = (currentUser) => {
     }
   }, [expandedFolders]);
 
+  const broadcastSync = useCallback(() => {
+    if (typeof BroadcastChannel !== "undefined") {
+      const bc = new BroadcastChannel("notes-sync");
+      bc.postMessage({ type: "tree-updated", tabId: TAB_ID });
+      bc.close();
+    } else {
+      localStorage.setItem("notesTreeSync", Date.now().toString());
+      localStorage.removeItem("notesTreeSync");
+    }
+  }, []);
+
+  // MODIFIED & CORRECTED SYNC LOGIC
   useEffect(() => {
-    const handleSync = () => {
+    // New, more specific handler for BroadcastChannel
+    const handleSync = (event) => {
+      // First, check if the message is specifically for a tree update.
+      if (event?.data?.type !== "tree-updated") {
+        // Ignore other messages (like logout signals).
+        return;
+      }
+
+      // Then, check if it came from the same tab.
+      if (event?.data?.tabId === TAB_ID) {
+        return; // Ignore own messages.
+      }
+
+      // Only if it's a tree update from another tab, reload the tree.
       console.log("Detected tree update in another tab, reloading…");
       fetchUserTree();
     };
-    let bc;
-    if (typeof BroadcastChannel !== "undefined") {
-      bc = new BroadcastChannel("notes-sync");
-      bc.onmessage = handleSync;
-    } else {
-      window.addEventListener("storage", (e) => {
-        if (e.key === "notesTreeSync") handleSync();
-      });
-    }
-    return () => {
-      if (bc) bc.close();
-      window.removeEventListener("storage", handleSync);
+
+    // Handler for the localStorage fallback
+    const handleStorageSync = (e) => {
+      // The key must match the one used in `broadcastSync`
+      if (e.key === "notesTreeSync") {
+        console.log("Detected tree update via storage, reloading…");
+        fetchUserTree();
+      }
     };
+
+    // --- Setup and Cleanup Logic ---
+    if (typeof BroadcastChannel !== "undefined") {
+      const bc = new BroadcastChannel("notes-sync");
+      bc.onmessage = handleSync;
+
+      // Cleanup function for BroadcastChannel
+      return () => {
+        bc.close();
+      };
+    } else {
+      window.addEventListener("storage", handleStorageSync);
+
+      // Cleanup function for the storage event listener
+      return () => {
+        window.removeEventListener("storage", handleStorageSync);
+      };
+    }
   }, [fetchUserTree]);
+
 
   const selectItemById = useCallback((id) => setSelectedItemId(id), []);
 
@@ -990,11 +1058,14 @@ export const useTree = (currentUser) => {
   const processBidiText = (text) => {
     if (!text) return "";
     try {
-      if (bidi.default && typeof bidi.default.bidiReorderParagraph === 'function') {
+      if (
+        bidi.default &&
+        typeof bidi.default.bidiReorderParagraph === "function"
+      ) {
         return bidi.default.bidiReorderParagraph(text);
       }
-      if (typeof bidi.bidiReorderParagraph === 'function') {
-         return bidi.bidiReorderParagraph(text);
+      if (typeof bidi.bidiReorderParagraph === "function") {
+        return bidi.bidiReorderParagraph(text);
       }
       return text;
     } catch (error) {
@@ -1021,94 +1092,110 @@ export const useTree = (currentUser) => {
       console.error("Failed to load custom font for PDF:", e);
       doc.setFont("helvetica");
     }
-    
+
     const renderNodeAndChildren = (item, ancestorsLastStatus) => {
-        if (!item) return;
-        
-        // 1. Calculate the height of the item's own content block first.
-        const indentLevel = ancestorsLastStatus.length;
-        const textX = margin + (indentLevel * indentWidth);
-        let labelLines = [];
-        if(item.label) {
-            const labelText = processBidiText(item.label);
-            labelLines = doc.splitTextToSize(labelText, pageWidth - textX - 10);
+      if (!item) return;
+
+      // 1. Calculate the height of the item's own content block first.
+      const indentLevel = ancestorsLastStatus.length;
+      const textX = margin + indentLevel * indentWidth;
+      let labelLines = [];
+      if (item.label) {
+        const labelText = processBidiText(item.label);
+        labelLines = doc.splitTextToSize(labelText, pageWidth - textX - 10);
+      }
+
+      let contentLines = [];
+      if (item.content) {
+        const plainTextContent = htmlToPlainTextWithNewlines(item.content);
+        if (plainTextContent) {
+          const processedContent = processBidiText(plainTextContent);
+          const contentIndentX = textX + indentWidth;
+          contentLines = doc.splitTextToSize(
+            processedContent,
+            pageWidth - contentIndentX - margin
+          );
         }
+      }
 
-        let contentLines = [];
-        if (item.content) {
-            const plainTextContent = htmlToPlainTextWithNewlines(item.content);
-            if (plainTextContent) {
-                const processedContent = processBidiText(plainTextContent);
-                const contentIndentX = textX + indentWidth;
-                contentLines = doc.splitTextToSize(processedContent, pageWidth - contentIndentX - margin);
-            }
+      const localBlockHeight =
+        (labelLines.length + contentLines.length) * lineSpacing;
+
+      // Check for page break before rendering anything.
+      if (cursorY + localBlockHeight > pageHeight - margin) {
+        doc.addPage();
+        cursorY = margin;
+      }
+      const startY = cursorY;
+
+      // 2. Draw the tree lines for the current item.
+      doc.setDrawColor(180, 180, 180); // Set line color to a light gray
+      doc.setLineWidth(0.25);
+
+      if (indentLevel > 0) {
+        const parentIndentX = margin + (indentLevel - 1) * indentWidth;
+
+        // Draw horizontal connector
+        doc.line(
+          parentIndentX,
+          startY + lineSpacing / 2,
+          textX,
+          startY + lineSpacing / 2
+        );
+
+        // Draw ancestor vertical "pass-through" lines
+        ancestorsLastStatus.slice(0, -1).forEach((isLast, i) => {
+          if (!isLast) {
+            const x = margin + i * indentWidth;
+            // Draw a segment for the current item's height
+            doc.line(x, startY, x, startY + localBlockHeight + lineSpacing);
+          }
+        });
+
+        const isCurrentLast =
+          ancestorsLastStatus[ancestorsLastStatus.length - 1];
+        if (!isCurrentLast) {
+          // If this item isn't the last, its parent's vertical line must continue through it
+          doc.line(
+            parentIndentX,
+            startY,
+            parentIndentX,
+            startY + localBlockHeight + lineSpacing
+          );
         }
-        
-        const localBlockHeight = (labelLines.length + contentLines.length) * lineSpacing;
+      }
 
-        // Check for page break before rendering anything.
-        if (cursorY + localBlockHeight > pageHeight - margin) {
-            doc.addPage();
-            cursorY = margin;
-        }
-        const startY = cursorY;
-        
-        // 2. Draw the tree lines for the current item.
-        doc.setDrawColor(180, 180, 180); // Set line color to a light gray
-        doc.setLineWidth(0.25);
+      // 3. Render the text content.
+      const icon =
+        item.type === "folder" ? "📁" : item.type === "note" ? "📝" : "☐";
+      const iconWidth = doc.getTextWidth(`${icon} `);
+      doc.text(icon, textX, startY + lineSpacing / 2, { baseline: "middle" });
+      doc.text(labelLines, textX + iconWidth, startY + lineSpacing - 2);
+      cursorY += labelLines.length * lineSpacing;
 
-        if (indentLevel > 0) {
-            const parentIndentX = margin + ((indentLevel - 1) * indentWidth);
-            
-            // Draw horizontal connector
-            doc.line(parentIndentX, startY + (lineSpacing/2), textX, startY + (lineSpacing/2));
+      if (contentLines.length > 0) {
+        const contentIndentX = textX + indentWidth;
+        doc.text(contentLines, contentIndentX, cursorY + lineSpacing - 2);
+        cursorY += contentLines.length * lineSpacing;
+      }
 
-            // Draw ancestor vertical "pass-through" lines
-            ancestorsLastStatus.slice(0, -1).forEach((isLast, i) => {
-                if (!isLast) {
-                    const x = margin + (i * indentWidth);
-                    // Draw a segment for the current item's height
-                    doc.line(x, startY, x, startY + localBlockHeight + lineSpacing);
-                }
-            });
+      cursorY += lineSpacing; // Padding after the item
 
-            const isCurrentLast = ancestorsLastStatus[ancestorsLastStatus.length - 1];
-            if (!isCurrentLast) {
-                // If this item isn't the last, its parent's vertical line must continue through it
-                doc.line(parentIndentX, startY, parentIndentX, startY + localBlockHeight + lineSpacing);
-            }
-        }
-
-        // 3. Render the text content.
-        const icon = item.type === 'folder' ? '📁' : item.type === 'note' ? '📝' : '☐';
-        const iconWidth = doc.getTextWidth(`${icon} `);
-        doc.text(icon, textX, startY + (lineSpacing/2), { baseline: 'middle' });
-        doc.text(labelLines, textX + iconWidth, startY + lineSpacing - 2);
-        cursorY += labelLines.length * lineSpacing;
-
-        if (contentLines.length > 0) {
-            const contentIndentX = textX + indentWidth;
-            doc.text(contentLines, contentIndentX, cursorY + lineSpacing -2);
-            cursorY += contentLines.length * lineSpacing;
-        }
-
-        cursorY += lineSpacing; // Padding after the item
-        
-        // 4. Recursively render children.
-        if (item.type === 'folder' && Array.isArray(item.children)) {
-            item.children.forEach((child, index) => {
-                const isLastChild = index === item.children.length - 1;
-                renderNodeAndChildren(child, [...ancestorsLastStatus, isLastChild]);
-            });
-        }
+      // 4. Recursively render children.
+      if (item.type === "folder" && Array.isArray(item.children)) {
+        item.children.forEach((child, index) => {
+          const isLastChild = index === item.children.length - 1;
+          renderNodeAndChildren(child, [...ancestorsLastStatus, isLastChild]);
+        });
+      }
     };
-    
+
     const itemsToRender = Array.isArray(data) ? data : [data];
     itemsToRender.forEach((item, index) => {
-        const isLast = index === itemsToRender.length - 1;
-        renderNodeAndChildren(item, [isLast]);
+      const isLast = index === itemsToRender.length - 1;
+      renderNodeAndChildren(item, [isLast]);
     });
-    
+
     doc.save(`${fileName}.pdf`);
   };
 
@@ -1258,7 +1345,7 @@ export const useTree = (currentUser) => {
     },
     [tree]
   );
-  
+
   window.fetchUserTree = fetchUserTree;
   return {
     fetchUserTree,
