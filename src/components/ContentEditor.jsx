@@ -110,7 +110,6 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
 
   const handleEditorUpdates = useCallback(
     (newHtml, newDirection) => {
-      console.log("[ContentEditor] Editor content updated", { itemId: item?.id, contentLength: newHtml?.length });
       currentEditorContentRef.current = newHtml;
       pendingContentRef.current = { content: newHtml, direction: newDirection };
       debouncedSave(item?.id, newHtml, newDirection);

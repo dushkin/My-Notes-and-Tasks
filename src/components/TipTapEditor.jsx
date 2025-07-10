@@ -90,12 +90,10 @@ const uploadImageToServer = async (file) => {
   const formData = new FormData();
   formData.append("image", file);
   try {
-    console.log("[TipTap] Uploading image:", file.name, file.size, "bytes");
     const response = await authFetch(`/images/upload`, {
       method: "POST",
       body: formData,
     });
-    console.log("[TipTap] Upload response status:", response.status);
 
     if (!response.ok) {
       const errorData = await response
@@ -108,7 +106,6 @@ const uploadImageToServer = async (file) => {
     }
 
     const data = await response.json();
-    console.log("[TipTap] Upload successful:", data);
     return data.url || null;
   } catch (error) {
     console.error("Image upload error:", error);
@@ -126,8 +123,6 @@ const TipTapEditor = ({
   defaultFontFamily,
   showToolbar, // Ensure this prop is included
 }) => {
-  console.log("[TipTapEditor] Received props:", { showToolbar }); // Log the received prop
-
   const [editorDir, setEditorDir] = useState(initialDirection || "ltr");
   const contentSetRef = useRef(false);
   const isInitializedRef = useRef(false);
@@ -218,10 +213,6 @@ const TipTapEditor = ({
     onUpdate: ({ editor: currentEditor }) => {
       if (onUpdate && isInitializedRef.current) {
         const newContent = currentEditor.getHTML();
-        console.log("[TipTapEditor] Content updated via onUpdate:", {
-          contentLength: newContent?.length,
-          direction: editorDir,
-        });
         onUpdate(newContent, editorDir);
       }
     },
@@ -256,7 +247,6 @@ const TipTapEditor = ({
       },
 
       handlePaste: (view, event, slice) => {
-        console.log("[TipTapEditor] handlePaste triggered");
         const items = event.clipboardData?.items;
 
         if (items) {
@@ -267,7 +257,6 @@ const TipTapEditor = ({
               clipboardItem.kind === "file"
             ) {
               event.preventDefault();
-              console.log("[TipTapEditor] Image paste detected");
               const file = clipboardItem.getAsFile();
               if (file) {
                 handleImageUpload(file, view);
@@ -279,13 +268,6 @@ const TipTapEditor = ({
 
         const text = event.clipboardData?.getData("text/plain");
         const html = event.clipboardData?.getData("text/html");
-
-        console.log("[TipTapEditor] Text paste detected:", {
-          hasText: !!text,
-          hasHTML: !!html,
-          textLength: text?.length,
-          htmlLength: html?.length,
-        });
 
         const commonMarkdownPatterns =
           /^(?:#+\s|\*\s|-\s|>\s|```|$$ .* $$$$ .* $$|`[^`]+`|\d+\.\s)/m;
@@ -301,7 +283,6 @@ const TipTapEditor = ({
 
         if (text && commonMarkdownPatterns.test(text)) {
           try {
-            console.log("[TipTapEditor] Converting markdown to HTML");
             const renderer = new marked.Renderer();
             renderer.image = () => "";
             const markdownHtml = marked.parse(text.trim(), { renderer });
@@ -332,7 +313,6 @@ const TipTapEditor = ({
           const file = event.dataTransfer.files[0];
           if (file.type.startsWith("image/")) {
             event.preventDefault();
-            console.log("[TipTapEditor] Image drop detected");
             await handleImageUpload(file, view, event);
             return true;
           }
@@ -411,12 +391,6 @@ const TipTapEditor = ({
 
   useEffect(() => {
     if (editor && !contentSetRef.current) {
-      console.log("[TipTapEditor] Setting initial content", {
-        contentLength: content?.length,
-        content:
-          content?.substring(0, 100) + (content?.length > 100 ? "..." : ""),
-      });
-
       if (content !== editor.getHTML()) {
         editor.commands.setContent(content || "", false);
       }
@@ -425,7 +399,6 @@ const TipTapEditor = ({
 
       setTimeout(() => {
         isInitializedRef.current = true;
-        console.log("[TipTapEditor] Editor fully initialized");
       }, 100);
     }
   }, [content, editor]);
@@ -442,7 +415,6 @@ const TipTapEditor = ({
   }, [initialDirection, editor]);
 
   useEffect(() => {
-    console.log("[TipTapEditor] Content prop changed, resetting flags");
     contentSetRef.current = false;
     isInitializedRef.current = false;
   }, [content]);

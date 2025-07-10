@@ -1325,7 +1325,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         onClose={() => setUiMessage("")}
       />
 
-
       <header
         className={`fixed left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}
         style={{

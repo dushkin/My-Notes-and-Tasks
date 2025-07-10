@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import CancelAccount from './CancelAccount';
 import { X, Search, RotateCcw, AlertTriangle } from "lucide-react";
 import {
   useSettings,
@@ -31,6 +32,7 @@ function valueLabel(setting, currentSettings) {
 }
 
 export default function SettingsDialog({ isOpen, onClose }) {
+  const [showCancel, setShowCancel] = React.useState(false);
   const containerRef = useRef(null);
   const searchInputRef = useRef(null);
   useFocusTrap(containerRef, isOpen);

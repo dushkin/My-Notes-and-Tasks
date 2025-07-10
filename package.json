@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "9.5.8",
-  "commitMessage": "Removed redundant Reload spinner",
+  "version": "9.6.0",
+  "commitMessage": "Completed cancel account flow",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
