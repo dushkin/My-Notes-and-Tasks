@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "10.0.0",
-  "commitMessage": "Marketing: Applying Google Tags Manager.",
+  "version": "10.0.1",
+  "commitMessage": "Marketing: Added Google verification file googlexxxxxxxx.html to root\\public folder - never remove it!",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
