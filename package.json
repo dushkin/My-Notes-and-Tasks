@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "9.6.0",
-  "commitMessage": "Completed cancel account flow",
+  "version": "10.0.0",
+  "commitMessage": "Marketing: Applying Google Tags Manager.",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
