@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef, memo } from "react";
+import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import TipTapEditor from "./TipTapEditor";
 import LoadingSpinner from "./LoadingSpinner";
 
 const MOBILE_BREAKPOINT = 768;
-
 const formatTimestamp = (isoString) => {
   if (!isoString) return "N/A";
   try {
@@ -21,7 +20,6 @@ const formatTimestamp = (isoString) => {
     return "Error";
   }
 };
-
 function debounce(func, delay) {
   let timeoutId;
   return function (...args) {
@@ -36,6 +34,25 @@ function decodeHtml(str) {
   return doc.documentElement.textContent;
 }
 
+const isPredominantlyRTL = (text) => {
+  if (!text) return false;
+  // This regex covers Hebrew and Arabic character ranges.
+  const rtlRegex = /[\u0590-\u05FF\u0600-\u06FF]/g;
+  const rtlMatches = text.match(rtlRegex);
+
+  if (!rtlMatches) {
+    return false;
+  }
+
+  // Calculate percentage based on non-whitespace characters
+  const textWithoutSpaces = text.replace(/\s/g, "");
+  if (textWithoutSpaces.length === 0) {
+    return false;
+  }
+
+  return (rtlMatches.length / textWithoutSpaces.length) > 0.75;
+};
+
 const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToolbarToggle }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
@@ -43,6 +60,8 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
     typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
   );
   const [showToolbar, setShowToolbar] = useState(false);
+
+  const titleIsRTL = useMemo(() => isPredominantlyRTL(item?.label), [item?.label]);
 
   useEffect(() => {
     console.log("Initial isMobile:", isMobile);
@@ -70,7 +89,6 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
       if (isMobile) setShowToolbar(false);
     }
   }, [item?.id, isMobile]);
-
   const [initialEditorContent, setInitialEditorContent] = useState("");
 
   const isUpdatingContentRef = useRef(false);
@@ -102,12 +120,10 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
     },
     [onSaveItemData]
   );
-
   const debouncedSave = useCallback(
     debounce((itemId, content, direction) => saveContent(itemId, content, direction), 1500),
     [saveContent]
   );
-
   const handleEditorUpdates = useCallback(
     (newHtml, newDirection) => {
       currentEditorContentRef.current = newHtml;
@@ -116,11 +132,9 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
     },
     [item?.id, debouncedSave]
   );
-
   const handleEditorFocus = useCallback(() => {
     editorHasFocusRef.current = true;
   }, []);
-
   const handleEditorBlur = useCallback(() => {
     editorHasFocusRef.current = false;
     if (pendingContentRef.current && !isUpdatingContentRef.current && item?.id) {
@@ -129,7 +143,6 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
       saveContent(item.id, content, direction);
     }
   }, [item?.id, saveContent, debouncedSave]);
-
   const toggleToolbar = useCallback(() => {
     if (isMobile) {
       setShowToolbar((prev) => {
@@ -139,7 +152,6 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
       });
     }
   }, [isMobile]);
-
   const finalShowToolbar = isMobile ? showToolbar : true;
   console.log(
     "Rendering with isMobile:", isMobile, "showToolbar:", showToolbar, "finalShowToolbar prop to TipTapEditor:", finalShowToolbar
@@ -148,12 +160,16 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
     showToolbar: finalShowToolbar,
     key: `editor-${item?.id}`,
   });
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 pt-4 flex-shrink-0">
         <div className="flex items-start justify-between mb-1">
-          <h2 className="text-xl font-semibold break-words text-zinc-800 dark:text-zinc-100 flex-1 mr-4">
+          <h2
+            className={`text-xl font-semibold break-words text-zinc-800 dark:text-zinc-100 flex-1 mr-4 ${
+              titleIsRTL ? "text-right" : ""
+            }`}
+            dir={titleIsRTL ? "rtl" : "ltr"}
+          >
             {item?.label || "Unnamed Item"}
           </h2>
           <div className="flex items-center space-x-2">
