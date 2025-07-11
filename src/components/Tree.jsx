@@ -29,24 +29,56 @@ const Tree = ({
 }) => {
   const navRef = useRef(null);
   const longPressTimeoutRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" &&
+      ("ontouchstart" in window || navigator.maxTouchPoints > 0)
+  );
   const [dragOverId, setDragOverId] = useState(null);
   const [localRenameError, setLocalRenameError] = useState("");
   const [lastClickTime, setLastClickTime] = useState(0);
   const [lastClickedItem, setLastClickedItem] = useState(null);
 
-  // Mobile detection
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" && 
-    ("ontouchstart" in window || navigator.maxTouchPoints > 0)
-  );
-
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile("ontouchstart" in window || navigator.maxTouchPoints > 0);
+      setIsMobile(
+        "ontouchstart" in window || navigator.maxTouchPoints > 0
+      );
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Render empty-tree placeholder or items
+  const renderContent = () => {
+    if (!items || items.length === 0) {
+      const message = `${isMobile ? "Long press" : "Right click"} here to add your first tree folder!`;
+      return (
+        <div
+          className="h-full flex items-center justify-center text-zinc-500 dark:text-zinc-400 italic p-4"
+          onContextMenu={(e) => {
+            e.preventDefault();
+            onSelect(null);
+            onNativeContextMenu(e, null);
+          }}
+          onTouchStart={(e) => {
+            longPressTimeoutRef.current = setTimeout(() => {
+              e.preventDefault();
+              onSelect(null);
+              onShowItemMenu(e, null, [
+                { key: "add", label: "Add root folder" },
+                { key: "import", label: "Import" }
+              ]);
+            }, 300);
+          }}
+          onTouchEnd={() => clearTimeout(longPressTimeoutRef.current)}
+          onTouchMove={() => clearTimeout(longPressTimeoutRef.current)}
+        >
+          {message}
+        </div>
+      );
+    }
+    return renderItems(items);
+  };
 
   const refocusTree = useCallback(() => {
     requestAnimationFrame(() => {
@@ -607,7 +639,7 @@ const Tree = ({
       onContextMenu={handleNavContextMenu}
       aria-label="Notes and Tasks Tree"
     >
-      {renderItems(items)}
+      {renderContent()}
     </nav>
   );
 };
