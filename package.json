@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "10.1.0",
-  "commitMessage": "Added a visual instruction for new users",
+  "version": "10.1.1",
+  "commitMessage": "Updated landing page text",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

@@ -22,8 +22,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
 
     const initializePaddle = () => {
       try {
-
-        console.log('[DEBUG] ENV', {
+        console.log("[DEBUG] ENV", {
           token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN,
           seller: import.meta.env.VITE_PADDLE_SELLER_ID,
         });
@@ -310,10 +309,11 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                     transition={{ delay: 0.2, duration: 0.6 }}
                     className="text-xl text-gray-600 leading-relaxed"
                   >
-                    A powerful, intuitive platform that transforms how you
-                    capture ideas, build knowledge bases, manage tasks, and stay
-                    productive. Everything you need to turn thoughts into
-                    action.
+                    A powerful, folders tree based, intuitive platform that
+                    transforms how you capture ideas, build knowledge bases,
+                    manage tasks, and stay productive.
+                    <br />
+                    Everything you need to turn thoughts into action.
                   </motion.p>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -684,14 +684,27 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                 productivity enthusiasts.
               </p>
               <p className="mt-2 text-sm">
-  <a href="/privacy_policy.html" className="hover:underline">Privacy Policy</a>
-  <span className="mx-2">·</span>
-  <a href="/terms_of_service.html" className="hover:underline">Terms of Service</a>
-  <span className="mx-2">·</span>
-  <a href="https://github.com/dushkin/My-Notes-and-Tasks" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
-  <span className="mx-2">·</span>
-  <a href="mailto:support@notask.co" className="hover:underline">Support</a>
-</p>
+                <a href="/privacy_policy.html" className="hover:underline">
+                  Privacy Policy
+                </a>
+                <span className="mx-2">·</span>
+                <a href="/terms_of_service.html" className="hover:underline">
+                  Terms of Service
+                </a>
+                <span className="mx-2">·</span>
+                <a
+                  href="https://github.com/dushkin/My-Notes-and-Tasks"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  GitHub
+                </a>
+                <span className="mx-2">·</span>
+                <a href="mailto:support@notask.co" className="hover:underline">
+                  Support
+                </a>
+              </p>
             </div>
           </div>
         </footer>
