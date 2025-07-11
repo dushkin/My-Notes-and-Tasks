@@ -1,4 +1,3 @@
-// src/hooks/useTree.jsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { LOCAL_STORAGE_KEY } from "../utils/constants";
 import {
@@ -28,13 +27,11 @@ const TAB_ID =
     sessionStorage.setItem("tab_id", id);
     return id;
   })();
-
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 // === FREE PLAN LIMITATION ===
 const FREE_PLAN_ITEM_LIMIT = 100;
-
 /** Checks if the user has active paid access (active or cancelled but until period end) */
 function hasActiveAccess(user) {
   if (!user) return false;
@@ -141,7 +138,6 @@ export const useTree = (currentUser) => {
     () => findItemById(tree, selectedItemId),
     [tree, selectedItemId]
   );
-
   const currentItemCount = useMemo(() => countTotalItems(tree), [tree]);
 
   const fetchUserTree = useCallback(
@@ -161,6 +157,7 @@ export const useTree = (currentUser) => {
           }
           return;
         }
+        
         const data = await response.json();
         if (data && Array.isArray(data.notesTree)) {
           if (preserveHistory) {
@@ -187,7 +184,6 @@ export const useTree = (currentUser) => {
     },
     [resetTreeHistory, setTreeWithUndo]
   );
-
   useEffect(() => {
     try {
       if (Array.isArray(tree))
@@ -203,7 +199,6 @@ export const useTree = (currentUser) => {
       console.error("Failed to save expanded folders:", error);
     }
   }, [expandedFolders]);
-
   const broadcastSync = useCallback(() => {
     if (typeof BroadcastChannel !== "undefined") {
       const bc = new BroadcastChannel("notes-sync");
@@ -214,7 +209,6 @@ export const useTree = (currentUser) => {
       localStorage.removeItem("notesTreeSync");
     }
   }, []);
-
   // MODIFIED & CORRECTED SYNC LOGIC
   useEffect(() => {
     // New, more specific handler for BroadcastChannel
@@ -255,7 +249,6 @@ export const useTree = (currentUser) => {
       };
     } else {
       window.addEventListener("storage", handleStorageSync);
-
       // Cleanup function for the storage event listener
       return () => {
         window.removeEventListener("storage", handleStorageSync);
@@ -265,7 +258,6 @@ export const useTree = (currentUser) => {
 
 
   const selectItemById = useCallback((id) => setSelectedItemId(id), []);
-
   const replaceTree = useCallback(
     (newTreeData) => {
       if (Array.isArray(newTreeData)) {
@@ -279,7 +271,6 @@ export const useTree = (currentUser) => {
     },
     [resetTreeHistory]
   );
-
   const expandFolderPath = useCallback(
     (itemIdToExpand) => {
       if (!itemIdToExpand) return;
@@ -449,7 +440,6 @@ export const useTree = (currentUser) => {
     },
     [fetchUserTree]
   );
-
   const updateTask = useCallback(
     async (taskId, updates) => {
       if (updates.hasOwnProperty("completed")) {
@@ -516,6 +506,31 @@ export const useTree = (currentUser) => {
     },
     [tree, setTreeWithUndo]
   );
+
+  const setTaskReminder = useCallback(
+    async (taskId, reminderData) => {
+      try {
+        const response = await authFetch(`/items/${taskId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ reminder: reminderData }),
+        });
+        const updatedItemFromServer = await response.json();
+        if (!response.ok) {
+          return {
+            success: false,
+            error: updatedItemFromServer.error || "Failed to set reminder.",
+          };
+        }
+        await fetchUserTree();
+        return { success: true, item: updatedItemFromServer };
+      } catch (error) {
+        console.error("setTaskReminder API error:", error);
+        return { success: false, error: "Network error setting reminder." };
+      }
+    },
+    [fetchUserTree]
+  );
+
   const updateItemOptimistically = (item, targetId, updates) => {
     if (item.id === targetId) {
       return { ...item, ...updates };
@@ -658,7 +673,6 @@ export const useTree = (currentUser) => {
           label: itemData.label,
           type: itemData.type,
         };
-
         if (itemData.type === "note" || itemData.type === "task") {
           payload.content = itemData.content || "";
           payload.direction = itemData.direction || "ltr";
@@ -742,7 +756,6 @@ export const useTree = (currentUser) => {
       currentUser,
     ]
   );
-
   const handleDrop = useCallback(
     async (targetFolderId, droppedItemId) => {
       const currentDraggedId = droppedItemId || draggedId;
@@ -799,7 +812,8 @@ export const useTree = (currentUser) => {
         };
       }
 
-      const newIndex = targetChildren.length; // Simple append
+      const newIndex = targetChildren.length;
+      // Simple append
 
       try {
         const response = await authFetch(`/items/${currentDraggedId}/move`, {
@@ -814,7 +828,6 @@ export const useTree = (currentUser) => {
         }
 
         await fetchUserTree();
-
         if (targetFolderId) {
           expandFolderPath(targetFolderId);
         }
@@ -825,7 +838,8 @@ export const useTree = (currentUser) => {
         await fetchUserTree();
         return {
           success: false,
-          error: err.message || "A network error occurred during the move.",
+          error: err.message ||
+            "A network error occurred during the move.",
         };
       }
     },
@@ -869,7 +883,6 @@ export const useTree = (currentUser) => {
     },
     [tree]
   );
-
   const pasteItem = useCallback(
     async (targetFolderId) => {
       if (!clipboardItem)
@@ -972,10 +985,12 @@ export const useTree = (currentUser) => {
           return { success: true, item: data.data.movedItem };
         } catch (err) {
           console.error("Move (pasteItem) API error:", err);
-          await fetchUserTree(); // Resync state on failure
+          await fetchUserTree();
+          // Resync state on failure
           return {
             success: false,
-            error: err.message || "A network error occurred during the move.",
+            error: err.message ||
+              "A network error occurred during the move.",
           };
         }
       }
@@ -994,7 +1009,6 @@ export const useTree = (currentUser) => {
       currentUser,
     ]
   );
-
   const handleExport = useCallback(
     (target, format) => {
       let dataToExport;
@@ -1040,21 +1054,18 @@ export const useTree = (currentUser) => {
     },
     [tree, selectedItemId]
   );
-
   const hasRTLCharacters = (text) => {
     if (!text) return false;
     const rtlChars =
       /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
     return rtlChars.test(text);
   };
-
   const hasNonLatinCharacters = (text) => {
     if (!text) return false;
     const nonLatinChars =
       /[^\u0000-\u024F\u1E00-\u1EFF\u2C60-\u2C7F\uA720-\uA7FF]/;
     return nonLatinChars.test(text);
   };
-
   const processBidiText = (text) => {
     if (!text) return "";
     try {
@@ -1073,7 +1084,6 @@ export const useTree = (currentUser) => {
       return text; // Fallback to original text
     }
   };
-
   // MODIFIED: Final version using manual line drawing with block-height calculation.
   const exportToPDF = (data, fileName) => {
     const doc = new jsPDF();
@@ -1083,7 +1093,6 @@ export const useTree = (currentUser) => {
     const indentWidth = 8;
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
-
     try {
       doc.addFileToVFS("NotoSansHebrew-Regular.ttf", notoSansHebrewBase64);
       doc.addFont("NotoSansHebrew-Regular.ttf", "NotoSansHebrew", "normal");
@@ -1095,7 +1104,6 @@ export const useTree = (currentUser) => {
 
     const renderNodeAndChildren = (item, ancestorsLastStatus) => {
       if (!item) return;
-
       // 1. Calculate the height of the item's own content block first.
       const indentLevel = ancestorsLastStatus.length;
       const textX = margin + indentLevel * indentWidth;
@@ -1120,21 +1128,18 @@ export const useTree = (currentUser) => {
 
       const localBlockHeight =
         (labelLines.length + contentLines.length) * lineSpacing;
-
       // Check for page break before rendering anything.
       if (cursorY + localBlockHeight > pageHeight - margin) {
         doc.addPage();
         cursorY = margin;
       }
       const startY = cursorY;
-
       // 2. Draw the tree lines for the current item.
-      doc.setDrawColor(180, 180, 180); // Set line color to a light gray
+      doc.setDrawColor(180, 180, 180);
+      // Set line color to a light gray
       doc.setLineWidth(0.25);
-
       if (indentLevel > 0) {
         const parentIndentX = margin + (indentLevel - 1) * indentWidth;
-
         // Draw horizontal connector
         doc.line(
           parentIndentX,
@@ -1142,7 +1147,6 @@ export const useTree = (currentUser) => {
           textX,
           startY + lineSpacing / 2
         );
-
         // Draw ancestor vertical "pass-through" lines
         ancestorsLastStatus.slice(0, -1).forEach((isLast, i) => {
           if (!isLast) {
@@ -1172,7 +1176,6 @@ export const useTree = (currentUser) => {
       doc.text(icon, textX, startY + lineSpacing / 2, { baseline: "middle" });
       doc.text(labelLines, textX + iconWidth, startY + lineSpacing - 2);
       cursorY += labelLines.length * lineSpacing;
-
       if (contentLines.length > 0) {
         const contentIndentX = textX + indentWidth;
         doc.text(contentLines, contentIndentX, cursorY + lineSpacing - 2);
@@ -1195,7 +1198,6 @@ export const useTree = (currentUser) => {
       const isLast = index === itemsToRender.length - 1;
       renderNodeAndChildren(item, [isLast]);
     });
-
     doc.save(`${fileName}.pdf`);
   };
 
@@ -1235,18 +1237,15 @@ export const useTree = (currentUser) => {
               const itemsToImport = Array.isArray(importedRawData)
                 ? importedRawData
                 : [importedRawData];
-
               const targetParent = selectedItemId
                 ? findItemById(tree, selectedItemId)
                 : null;
               const targetSiblings = targetParent
                 ? targetParent.children || []
                 : tree;
-
               for (const itemToImport of itemsToImport) {
                 if (!itemToImport || typeof itemToImport.label !== "string")
                   continue;
-
                 if (
                   hasSiblingWithName(targetSiblings, itemToImport.label, null)
                 ) {
@@ -1321,7 +1320,6 @@ export const useTree = (currentUser) => {
     },
     [tree, selectedItemId, fetchUserTree]
   );
-
   const searchItems = useCallback(
     (query, opts) => {
       if (!query) return [];
@@ -1345,7 +1343,6 @@ export const useTree = (currentUser) => {
     },
     [tree]
   );
-
   window.fetchUserTree = fetchUserTree;
   return {
     fetchUserTree,
@@ -1364,6 +1361,7 @@ export const useTree = (currentUser) => {
     toggleFolderExpand,
     updateNoteContent,
     updateTask,
+    setTaskReminder,
     addItem,
     renameItem,
     deleteItem,

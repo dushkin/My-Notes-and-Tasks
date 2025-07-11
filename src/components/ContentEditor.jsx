@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import TipTapEditor from "./TipTapEditor";
 import LoadingSpinner from "./LoadingSpinner";
+import { Bell } from "lucide-react";
 
 const MOBILE_BREAKPOINT = 768;
 const formatTimestamp = (isoString) => {
@@ -53,7 +54,7 @@ const isPredominantlyRTL = (text) => {
   return (rtlMatches.length / textWithoutSpaces.length) > 0.75;
 };
 
-const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToolbarToggle }) => {
+const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToolbarToggle, onOpenReminderDialog }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [isMobile, setIsMobile] = useState(
@@ -188,6 +189,24 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
           <p title={item?.updatedAt ? new Date(item.updatedAt).toISOString() : "Invalid or missing date"}>
             Last Modified: {formatTimestamp(item?.updatedAt)}
           </p>
+          {item?.type === 'task' && (
+            <div className="pt-1">
+              {item.reminder?.isActive && item.reminder.dueAt ? (
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <Bell className="w-3.5 h-3.5" />
+                    <span className="font-medium">
+                        Reminds on {formatTimestamp(item.reminder.dueAt)}
+                    </span>
+                    <button onClick={() => onOpenReminderDialog(item)} className="text-xs underline hover:text-blue-700 dark:hover:text-blue-300">(edit)</button>
+                </div>
+              ) : (
+                <button onClick={() => onOpenReminderDialog(item)} className="flex items-center gap-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>Set Reminder</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

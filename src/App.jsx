@@ -22,6 +22,7 @@ import ExportDialog from "./components/ExportDialog";
 import ImportDialog from "./components/ImportDialog";
 import SettingsDialog from "./components/SettingsDialog";
 import ConfirmDialog from "./components/ConfirmDialog";
+import ReminderDialog from "./components/ReminderDialog";
 import LoadingSpinner from "./components/LoadingSpinner";
 import LoadingButton from "./components/LoadingButton";
 import LandingPage from "./components/LandingPage";
@@ -64,7 +65,6 @@ import {
 import { initApiClient, authFetch } from "./services/apiClient";
 import EditorPage from "./pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
-
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
   const year = now.getFullYear();
@@ -104,7 +104,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
-
   if (!message) {
     return null;
   }
@@ -161,7 +160,6 @@ const App = () => {
     </Router>
   );
 };
-
 // Landing Page Route Component
 const LandingPageRoute = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -188,7 +186,6 @@ const LandingPageRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -231,7 +228,6 @@ const LoginRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -244,7 +240,6 @@ const LoginRoute = () => {
     setCurrentUser(userData);
     window.location.href = "/app";
   };
-
   return (
     <>
       <BetaBanner variant="auth" />
@@ -282,7 +277,6 @@ const RegisterRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -294,7 +288,6 @@ const RegisterRoute = () => {
   const handleRegisterSuccess = () => {
     window.location.href = "/login";
   };
-
   return (
     <>
       <BetaBanner variant="auth" />
@@ -336,7 +329,6 @@ const ProtectedAppRoute = () => {
 
     checkAuth();
   }, []);
-
   if (!isAuthCheckComplete || !currentUser) {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
@@ -393,6 +385,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     getItemPath,
     updateNoteContent,
     updateTask,
+    setTaskReminder,
     renameItem,
     deleteItem,
     draggedId,
@@ -443,6 +436,10 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     isOpen: false,
     context: null,
   });
+  const [reminderDialogState, setReminderDialogState] = useState({
+    isOpen: false,
+    task: null,
+  });
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const topMenuRef = useRef(null);
@@ -463,17 +460,14 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     confirmText: "Confirm",
     cancelText: "Cancel",
   });
-
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
   );
-
   const findParentAndSiblingsFromTree = useCallback(
     (id) => findParentAndSiblingsUtil(tree, id),
     [tree]
   );
-
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
       setUiMessage(message);
@@ -481,7 +475,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     []
   );
-
   const handleSaveItemData = useCallback(
     async (itemId, dataToSave) => {
       const item = findItemByIdFromTree(itemId);
@@ -515,16 +508,28 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
   );
 
-  // Memoize content editor props to prevent unnecessary re-renders
+  const handleOpenReminderDialog = useCallback((task) => {
+    setReminderDialogState({ isOpen: true, task: task });
+  }, []);
+
+  const handleSaveReminder = useCallback(async (taskId, reminderData) => {
+    const result = await setTaskReminder(taskId, reminderData);
+    if (result.success) {
+        showMessage("Reminder saved successfully.", "success");
+    } else {
+        showMessage(result.error || "Failed to save reminder.", "error");
+    }
+  }, [setTaskReminder, showMessage]);
+
   const contentEditorProps = useMemo(
     () => ({
       item: selectedItem,
       defaultFontFamily: settings.editorFontFamily,
       onSaveItemData: handleSaveItemData,
+      onOpenReminderDialog: handleOpenReminderDialog,
     }),
-    [selectedItem, settings.editorFontFamily, handleSaveItemData]
+    [selectedItem, settings.editorFontFamily, handleSaveItemData, handleOpenReminderDialog]
   );
-
   const hasActiveAccess = (user) => {
     if (!user) return false;
     if (user.subscriptionStatus === "active") return true;
@@ -551,7 +556,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       cancelText: options.cancelText || "Cancel",
     });
   }, []);
-
   const handleActualLogout = useCallback(() => {
     clearTokens();
     setCurrentUser(null);
@@ -563,17 +567,14 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     setIsLoggingOut(false);
     window.location.href = "/";
   }, [resetTreeHistory, setCurrentUser]);
-
   useEffect(() => {
     initApiClient(handleActualLogout);
   }, [handleActualLogout]);
-
   useEffect(() => {
     if (fetchUserTree) {
       fetchUserTree();
     }
   }, [fetchUserTree]);
-
   const handleInitiateLogout = async () => {
     console.log("[Logout] Initiating logout…");
     setIsLoggingOut(true);
@@ -655,7 +656,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     currentUser,
     showMessage,
   ]);
-
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
@@ -696,7 +696,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     currentUser,
     showMessage,
   ]);
-
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -707,7 +706,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
-
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
@@ -719,7 +717,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       treeNav?.focus({ preventScroll: true });
     });
   }, [showMessage]);
-
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
@@ -763,7 +760,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     findItemByIdFromTree,
     showMessage,
   ]);
-
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -778,7 +774,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [showMessage, setContextMenu]
   );
-
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
@@ -863,7 +858,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     tree,
     findParentAndSiblingsFromTree,
   ]);
-
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       const result = await updateTask(id, {
@@ -878,7 +872,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [updateTask, showMessage]
   );
-
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
 
   const openExportDialog = useCallback(
@@ -890,7 +883,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [setContextMenu]
   );
-
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -900,7 +892,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [setContextMenu]
   );
-
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
@@ -934,7 +925,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
-
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
@@ -946,7 +936,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [pasteItem, showMessage]
   );
-
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
@@ -961,7 +950,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [deleteItem, showMessage, setContextMenu]
   );
-
   const handleDuplicate = useCallback(
     async (itemId) => {
       setIsDuplicating(true);
@@ -978,7 +966,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [duplicateItem, showMessage]
   );
-
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
       if (!item || !buttonElement) return;
@@ -999,7 +986,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [selectItemById, setContextMenu]
   );
-
   const handleNativeContextMenu = useCallback(
     (event, item) => {
       if (draggedId || inlineRenameId) {
@@ -1027,7 +1013,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
-
   // Search functionality
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
@@ -1191,7 +1176,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     searchSheetOpen,
     tree,
   ]);
-
   // Keyboard shortcuts and event handlers
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -1211,7 +1195,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mobileMenuOpen]);
-
   useEffect(() => {
     const handler = (e) => {
       const activeElement = document.activeElement;
@@ -1282,7 +1265,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     inlineRenameId,
     setSearchSheetOpen,
   ]);
-
   useEffect(() => {
     if (!isMobile) return;
 
@@ -1307,14 +1289,12 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       window.removeEventListener("popstate", handlePopState);
     };
   }, [isMobile, mobileViewMode]);
-
   const handleAccountDisplayClick = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
   };
 
   const iconBaseClass = "w-4 h-4 mr-2";
-
   return (
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <BetaBanner />
@@ -1926,9 +1906,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     selectedItem.type === "task" ? (
                     <ContentEditor
                       key={`${selectedItemId}_${selectedItem.updatedAt}`}
-                      item={selectedItem}
-                      defaultFontFamily={settings.editorFontFamily}
-                      onSaveItemData={handleSaveItemData}
+                      {...contentEditorProps}
                     />
                   ) : null
                 ) : (
@@ -2106,6 +2084,13 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           showMessage("", "success");
         }}
         onImport={handleFileImport}
+      />
+
+      <ReminderDialog
+        isOpen={reminderDialogState.isOpen}
+        onClose={() => setReminderDialogState({ isOpen: false, task: null })}
+        onSave={handleSaveReminder}
+        task={reminderDialogState.task}
       />
 
       <SettingsDialog
