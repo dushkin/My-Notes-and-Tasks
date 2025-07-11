@@ -1,11 +1,21 @@
 // src/pages/EditorPage.jsx
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ContentEditor from "../components/ContentEditor";
 
 export default function EditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Track the current item title via callback from ContentEditor
+  const [title, setTitle] = useState("");
+
+  // Detect RTL-heavy titles (more than 75% RTL characters)
+  const isRtl = useMemo(() => {
+    const total = title.length;
+    const rtlChars = (title.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length;
+    return total > 0 && rtlChars / total > 0.75;
+  }, [title]);
 
   return (
     <div className="flex flex-col h-full">
@@ -16,6 +26,7 @@ export default function EditorPage() {
         >
           ← Back to Tree
         </button>
+        {/* Render toolbar toggle and capture title changes */}
         <ContentEditor
           itemId={id}
           renderToolbarToggle={(showToolbar, toggleToolbar) => (
@@ -26,9 +37,22 @@ export default function EditorPage() {
               {showToolbar ? "Hide Tools" : "Show Tools"}
             </button>
           )}
+          onTitleChange={setTitle}
         />
       </div>
-      <ContentEditor itemId={id} /> {/* Render the editor content */}
+
+      {/* Title display with RTL detection */}
+      {title && (
+        <h1
+          dir={isRtl ? "rtl" : "ltr"}
+          className={`text-2xl font-bold ${isRtl ? "text-right" : "text-left"}`}
+        >
+          {title}
+        </h1>
+      )}
+
+      {/* Main editor content */}
+      <ContentEditor itemId={id} />
     </div>
   );
 }
