@@ -194,7 +194,7 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
       <TipTapEditor
         key={`editor-${item?.id}`}
         content={initialEditorContent}
-        initialDirection={item?.direction || "ltr"}
+        initialDirection={item?.direction || (titleIsRTL ? "rtl" : "ltr")}
         onUpdate={handleEditorUpdates}
         onFocus={handleEditorFocus}
         onBlur={handleEditorBlur}
