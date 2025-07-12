@@ -113,9 +113,13 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
         }
         
         if (Notification.permission === "granted") {
+          const snoozeValue = relativeValue;
+          const snoozeUnit = relativeUnit;
+
           if (settings.showCloseButtonOnNotification && navigator.serviceWorker?.controller) {
             navigator.serviceWorker.ready.then((registration) => {
               registration.showNotification("My Notes & Tasks", {
+              data: { taskId: task.id, snoozeValue, snoozeUnit },
                 body: `Reminder: ${task.label}`,
                 tag: task.id,
                 requireInteraction: true,
@@ -127,6 +131,7 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
             });
           } else {
             new Notification("My Notes & Tasks", {
+              data: { taskId: task.id, snoozeValue, snoozeUnit },
               body: `Reminder: ${task.label}`,
               tag: task.id,
             });
