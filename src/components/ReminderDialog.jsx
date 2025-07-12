@@ -103,6 +103,13 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
       setTimeout(() => {
         toast(`🔔 Reminder: ${task.label}`, { duration: 8000 });
         if (Notification.permission === "granted") {
+          try {
+          const audio = new Audio("/sounds/default-tone.mp3");
+          audio.play().catch(err => console.warn("Failed to play sound:", err));
+        } catch (err) {
+          console.error("Audio error:", err);
+        }
+
           new Notification("My Notes & Tasks", {
             body: `Reminder: ${task.label}`,
             tag: task.id,
