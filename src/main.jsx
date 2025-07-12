@@ -12,10 +12,7 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     const { action, taskId } = event.data || {};
     if (action === "vi") {
-      fetch(`/api/tasks/${taskId}/complete`, { method: "PATCH" })
-        .then(() => {
-          window.dispatchEvent(new CustomEvent('task-completed', { detail: { taskId } }));
-        });
+      fetch(`/api/tasks/${taskId}/complete`, { method: "PATCH" });
     } else if (action === "snooze") {
       setTimeout(() => {
         new Notification("Reminder Snoozed", {
