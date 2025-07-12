@@ -1,3 +1,18 @@
+self.addEventListener("push", function(event) {
+  if (!event.data) {
+    console.error("Push event but no data");
+    return;
+  }
+
+  const data = event.data.json();
+  const title = data.title || "My Notes & Tasks";
+  const options = data.options || {};
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
 self.addEventListener("notificationclick", function(event) {
   event.notification.close();
   event.preventDefault();
@@ -13,7 +28,8 @@ self.addEventListener("notificationclick", function(event) {
         }
       });
     });
-  } else if (event.action === "snooze" && snoozeValue && snoozeUnit) {
+  } else 
+if (event.action === "snooze" && snoozeValue && snoozeUnit) {
     let timeout = 600000;
     const value = parseInt(snoozeValue, 10);
     const units = {
@@ -27,11 +43,12 @@ self.addEventListener("notificationclick", function(event) {
 
     setTimeout(() => {
       registration.showNotification("My Notes & Tasks", {
-        body: "Reminder: " + taskId,
+   
+     body: "Reminder: " + taskId,
         tag: taskId,
         data: { taskId, snoozeValue, snoozeUnit }
       });
-    }, timeout);
+}, timeout);
   } else {
     event.waitUntil(
       self.clients.matchAll().then(clients => {
@@ -40,5 +57,5 @@ self.addEventListener("notificationclick", function(event) {
         }
       })
     );
-  }
+}
 });
