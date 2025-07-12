@@ -1,11 +1,12 @@
-// src/components/ReminderDialog.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { X, Bell, Calendar, Clock, Repeat } from "lucide-react";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import LoadingButton from "./LoadingButton";
 import { toast } from "react-hot-toast";
+import { useSettings } from "../contexts/SettingsContext";
 
 const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
+  const { settings } = useSettings();
   const [reminderType, setReminderType] = useState("datetime");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -102,18 +103,28 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
     if (msUntil > 0) {
       setTimeout(() => {
         toast(`🔔 Reminder: ${task.label}`, { duration: 8000 });
+        
         if (Notification.permission === "granted") {
-          try {
-          const audio = new Audio("/sounds/default-tone.mp3");
-          audio.play().catch(err => console.warn("Failed to play sound:", err));
-        } catch (err) {
-          console.error("Audio error:", err);
-        }
-
-          new Notification("My Notes & Tasks", {
-            body: `Reminder: ${task.label}`,
-            tag: task.id,
-          });
+          if (settings.showCloseButtonOnNotification && navigator.serviceWorker?.controller) {
+            navigator.serviceWorker.ready.then((registration) => {
+              registration.showNotification("My Notes & Tasks", {
+                body: `Reminder: ${task.label}`,
+                tag: task.id,
+                requireInteraction: true,
+                actions: [
+                  {
+                    action: "vi",
+                    title: "✅"
+                  }
+                ]
+              });
+            });
+          } else {
+            new Notification("My Notes & Tasks", {
+              body: `Reminder: ${task.label}`,
+              tag: task.id,
+            });
+          }
         }
       }, msUntil);
     }

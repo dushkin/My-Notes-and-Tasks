@@ -1,4 +1,3 @@
-// src/contexts/SettingsContext.jsx
 import React, {
   createContext,
   useContext,
@@ -48,6 +47,7 @@ export const defaultSettings = {
   reminderSoundEnabled: true,
   reminderVibrationEnabled: true,
   reminderSoundUrl: '/sounds/default-tone.mp3',
+  showCloseButtonOnNotification: false,
 };
 const SettingsContext = createContext();
 

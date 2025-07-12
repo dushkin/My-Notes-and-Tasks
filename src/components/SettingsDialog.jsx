@@ -53,8 +53,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
     }
   };
 
-  const { settings, updateSetting, resetSettings, resetApplicationData } =
-    useSettings();
+  const { settings, updateSetting, resetSettings, resetApplicationData } = useSettings();
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -224,6 +223,22 @@ export default function SettingsDialog({ isOpen, onClose }) {
                 checked={!!settings.reminderVibrationEnabled}
                 onChange={(e) =>
                   updateSetting("reminderVibrationEnabled", e.target.checked)
+                }
+                className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+              />
+            ),
+          },
+          {
+            id: "showCloseButtonOnNotification",
+            label: "Show Close Button on Notifications",
+            desc: "Display a close button (✅) on reminder notifications for easy dismissal.",
+            control: (
+              <input
+                id="showCloseButtonOnNotification"
+                type="checkbox"
+                checked={!!settings.showCloseButtonOnNotification}
+                onChange={(e) =>
+                  updateSetting("showCloseButtonOnNotification", e.target.checked)
                 }
                 className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
               />
