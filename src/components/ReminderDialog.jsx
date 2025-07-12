@@ -125,16 +125,27 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
             const options = settings.showCloseButtonOnNotification ? {
               ...baseNotification,
               requireInteraction: true,
-              actions: [
-                { action: "vi", title: "✅" },
-                { action: "snooze", title: "Snooze 10 min" }
-              ]
+              ...(settings.showCloseButtonOnNotification ? {
+                actions: [
+                  { action: "vi", title: "✅" },
+                  { action: "snooze", title: "Snooze 10 min" }
+                ],
+                requireInteraction: true
+              } : {})
             } : {
               ...baseNotification,
               requireInteraction: false
             };
             navigator.serviceWorker.ready.then((registration) => {
-              registration.showNotification("My Notes & Tasks", options);
+              try {
+  registration.showNotification("My Notes & Tasks", options);
+} catch (err) {
+  console.error("Primary notification failed, retrying without actions:", err);
+  registration.showNotification("My Notes & Tasks", {
+    ...baseNotification,
+    requireInteraction: false
+  });
+}
             });
           }
 
@@ -144,10 +155,13 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
                 body: `Reminder: ${task.label}`,
                 tag: task.id,
                 requireInteraction: true,
+                ...(settings.showCloseButtonOnNotification ? {
                 actions: [
-                { action: "vi", title: "✅" },
-                { action: "snooze", title: "Snooze 10 min" }
-              ]
+                  { action: "vi", title: "✅" },
+                  { action: "snooze", title: "Snooze 10 min" }
+                ],
+                requireInteraction: true
+              } : {})
               });
             });
           } else {
