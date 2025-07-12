@@ -14,7 +14,7 @@ export default function EditorPage() {
   const isRtl = useMemo(() => {
     const total = title.length;
     const rtlChars = (title.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length;
-    return total > 0 && rtlChars / total > 0.75;
+    return total > 0 && rtlChars / total > 0.6;
   }, [title]);
 
   return (

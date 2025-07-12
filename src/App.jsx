@@ -66,6 +66,8 @@ import { initApiClient, authFetch } from "./services/apiClient";
 import EditorPage from "./pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
 import { Toaster } from "react-hot-toast";
+import { subscribeUserToPush } from "./utils/pushNotifications"; // Import the new utility
+
 
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
@@ -158,7 +160,6 @@ const App = () => {
       Notification.requestPermission();
     }
   }, []);
-
   return (
     <>
       <Router>
@@ -344,6 +345,8 @@ const ProtectedAppRoute = () => {
             if (data.valid && data.user) {
               setCurrentUser(data.user);
               setIsAuthCheckComplete(true);
+              // Subscribe user to push notifications after successful auth
+              subscribeUserToPush();
               return;
             }
           }
@@ -572,54 +575,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         showMessage(result.error || "Failed to save reminder.", "error"); // Keep error as is
     }
   }, [setTaskReminder, showMessage]);
-
-  useEffect(() => {
-    const engineInterval = setInterval(() => {
-        if (!tree || tree.length === 0 || Notification.permission !== "granted") {
-            return;
-        }
-
-        const now = new Date();
-        const findDueTasks = (nodes) => {
-            nodes.forEach(item => {
-                if (item.type === 'task' && item.reminder?.isActive && item.reminder.dueAt) {
-                    const dueAt = new Date(item.reminder.dueAt);
-                    const key = `${item.id}_${item.reminder.dueAt}`;
-
-                    if (dueAt <= now && !sentNotifications.has(key)) {
-                        new Notification(item.label, {
-                            body: "This task is now due.",
-                            icon: "/favicon-48x48.png"
-                        });
-                        
-                        setSentNotifications(prev => new Set(prev).add(key));
-                        
-                        if (item.reminder.repeat?.frequency) {
-                            const nextDue = new Date(dueAt);
-                            const { frequency } = item.reminder.repeat;
-                            if (frequency === 'daily') nextDue.setDate(nextDue.getDate() + 1);
-                            if (frequency === 'weekly') nextDue.setDate(nextDue.getDate() + 7);
-                            if (frequency === 'monthly') nextDue.setMonth(nextDue.getMonth() + 1);
-                            if (frequency === 'yearly') nextDue.setFullYear(nextDue.getFullYear() + 1);
-                            
-                            const newReminderData = { ...item.reminder, dueAt: nextDue.toISOString() };
-                            setTaskReminder(item.id, newReminderData);
-                        } else {
-                            const newReminderData = { ...item.reminder, isActive: false };
-                            setTaskReminder(item.id, newReminderData);
-                        }
-                    }
-                }
-                if (item.children) {
-                    findDueTasks(item.children);
-                }
-            });
-        };
-        findDueTasks(tree);
-    }, 5000); // Check every 5 seconds
-
-    return () => clearInterval(engineInterval);
-  }, [tree, sentNotifications, setTaskReminder]);
 
   const contentEditorProps = useMemo(
     () => ({

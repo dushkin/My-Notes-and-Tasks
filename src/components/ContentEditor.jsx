@@ -51,7 +51,7 @@ const isPredominantlyRTL = (text) => {
     return false;
   }
 
-  return (rtlMatches.length / textWithoutSpaces.length) > 0.75;
+  return (rtlMatches.length / textWithoutSpaces.length) > 0.6;
 };
 
 const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToolbarToggle, onOpenReminderDialog }) => {

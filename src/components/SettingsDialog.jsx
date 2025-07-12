@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import CancelAccount from './CancelAccount';
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import CancelAccount from "./CancelAccount";
 import { X, Search, RotateCcw, AlertTriangle } from "lucide-react";
 import {
   useSettings,
@@ -53,7 +53,8 @@ export default function SettingsDialog({ isOpen, onClose }) {
     }
   };
 
-  const { settings, updateSetting, resetSettings, resetApplicationData } = useSettings();
+  const { settings, updateSetting, resetSettings, resetApplicationData } =
+    useSettings();
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -95,7 +96,9 @@ export default function SettingsDialog({ isOpen, onClose }) {
       });
       if (response.ok) {
         setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-        alert("A confirmation email has been sent. Please check your inbox to permanently delete your account.");
+        alert(
+          "A confirmation email has been sent. Please check your inbox to permanently delete your account."
+        );
       } else {
         const error = await response.json();
         alert(`Error: ${error.message}`);
@@ -105,213 +108,254 @@ export default function SettingsDialog({ isOpen, onClose }) {
       alert("An error occurred while requesting account deletion.");
     }
   };
-  
+
   const allSettingsDescriptors = useMemo(
     () => [
-        {
-          id: "theme",
-          label: "Theme",
-          desc: "Select the application color scheme.",
-          options: themeOptions,
-          control: (
-            <select
-              id="theme"
-              data-item-id="setting-theme-select"
-              value={settings.theme}
-              onChange={(e) => updateSetting("theme", e.target.value)}
-              className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
-            >
-              {themeOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          ),
-        },
-        {
-          id: "autoExpandNewFolders",
-          label: "Auto-Expand New Folders",
-          desc: "Automatically expand parent folders when adding a new item.",
-          control: (
-            <input
-              id="autoExpandNewFolders"
-              type="checkbox"
-              data-item-id="setting-autoexpand-checkbox"
-              checked={!!settings.autoExpandNewFolders}
-              onChange={(e) =>
-                updateSetting("autoExpandNewFolders", e.target.checked)
-              }
-              className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
-            />
-          ),
-        },
-        {
-          id: "editorFontFamily",
-          label: "Default Editor Font",
-          desc: "Default font family for the note/task editor.",
-          options: editorFontFamilyOptions,
-          control: (
-            <select
-              id="editorFontFamily"
-              data-item-id="setting-fontfamily-select"
-              value={settings.editorFontFamily}
-              onChange={(e) => updateSetting("editorFontFamily", e.target.value)}
-              className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
-            >
-              {editorFontFamilyOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          ),
-        },
-        {
-          id: "editorFontSize",
-          label: "Default Editor Font Size",
-          desc: "Default font size for the note/task editor.",
-          options: editorFontSizeOptions,
-          control: (
-            <select
-              id="editorFontSize"
-              data-item-id="setting-fontsize-select"
-              value={settings.editorFontSize}
-              onChange={(e) => updateSetting("editorFontSize", e.target.value)}
-              className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
-            >
-              {editorFontSizeOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          ),
-        },
-        {
-          id: "defaultExportFormat",
-          label: "Default Export Format",
-          desc: "Pre-selected format when exporting items or the tree.",
-          control: (
-            <div className="flex space-x-3">
-              {exportFormatOptions.map((o) => (
-                <label
-                  key={o.value}
-                  className="flex items-center space-x-1 cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    name="defaultExportFormat"
-                    data-item-id={`setting-exportformat-${o.value}`}
-                    value={o.value}
-                    checked={settings.defaultExportFormat === o.value}
-                    onChange={(e) =>
-                      updateSetting("defaultExportFormat", e.target.value)
-                    }
-                    className="form-radio text-blue-600 cursor-pointer"
-                  />
-                  <span>{o.label}</span>
-                </label>
-              ))}
-            </div>
-          ),
-        },
-        {
-          id: "autoExportGroup",
-          type: "group",
-          label: "Automatic Backup (Auto Export)",
-          desc: "Configure periodic automatic export of the entire tree. Exports trigger standard browser downloads.",
-          settings: [
-            {
-              id: "autoExportEnabled",
-              label: "Enable Auto Export",
-              desc: "Toggle automatic background tree exports.",
-              control: (
+      {
+        id: "theme",
+        label: "Theme",
+        desc: "Select the application color scheme.",
+        options: themeOptions,
+        control: (
+          <select
+            id="theme"
+            data-item-id="setting-theme-select"
+            value={settings.theme}
+            onChange={(e) => updateSetting("theme", e.target.value)}
+            className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
+          >
+            {themeOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ),
+      },
+      {
+        id: "autoExpandNewFolders",
+        label: "Auto-Expand New Folders",
+        desc: "Automatically expand parent folders when adding a new item.",
+        control: (
+          <input
+            id="autoExpandNewFolders"
+            type="checkbox"
+            data-item-id="setting-autoexpand-checkbox"
+            checked={!!settings.autoExpandNewFolders}
+            onChange={(e) =>
+              updateSetting("autoExpandNewFolders", e.target.checked)
+            }
+            className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+          />
+        ),
+      },
+      {
+        id: "editorFontFamily",
+        label: "Default Editor Font",
+        desc: "Default font family for the note/task editor.",
+        options: editorFontFamilyOptions,
+        control: (
+          <select
+            id="editorFontFamily"
+            data-item-id="setting-fontfamily-select"
+            value={settings.editorFontFamily}
+            onChange={(e) => updateSetting("editorFontFamily", e.target.value)}
+            className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
+          >
+            {editorFontFamilyOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ),
+      },
+      {
+        id: "editorFontSize",
+        label: "Default Editor Font Size",
+        desc: "Default font size for the note/task editor.",
+        options: editorFontSizeOptions,
+        control: (
+          <select
+            id="editorFontSize"
+            data-item-id="setting-fontsize-select"
+            value={settings.editorFontSize}
+            onChange={(e) => updateSetting("editorFontSize", e.target.value)}
+            className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 min-w-[150px]"
+          >
+            {editorFontSizeOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ),
+      },
+      {
+        id: "notificationsGroup",
+        type: "group",
+        label: "Reminder Notifications",
+        desc: "Customize how you are notified about reminders.",
+        settings: [
+          {
+            id: "reminderSoundEnabled",
+            label: "Enable Reminder Sound",
+            desc: "Play a sound when a reminder notification appears.",
+            control: (
+              <input
+                id="reminderSoundEnabled"
+                type="checkbox"
+                checked={!!settings.reminderSoundEnabled}
+                onChange={(e) =>
+                  updateSetting("reminderSoundEnabled", e.target.checked)
+                }
+                className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+              />
+            ),
+          },
+          {
+            id: "reminderVibrationEnabled",
+            label: "Enable Reminder Vibration",
+            desc: "Vibrate your device for reminder notifications (mobile only).",
+            control: (
+              <input
+                id="reminderVibrationEnabled"
+                type="checkbox"
+                checked={!!settings.reminderVibrationEnabled}
+                onChange={(e) =>
+                  updateSetting("reminderVibrationEnabled", e.target.checked)
+                }
+                className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+              />
+            ),
+          },
+        ],
+      },
+      {
+        id: "defaultExportFormat",
+        label: "Default Export Format",
+        desc: "Pre-selected format when exporting items or the tree.",
+        control: (
+          <div className="flex space-x-3">
+            {exportFormatOptions.map((o) => (
+              <label
+                key={o.value}
+                className="flex items-center space-x-1 cursor-pointer"
+              >
                 <input
-                  id="autoExportEnabled"
-                  type="checkbox"
-                  data-item-id="setting-autoexportenabled-checkbox"
-                  checked={!!settings.autoExportEnabled}
+                  type="radio"
+                  name="defaultExportFormat"
+                  data-item-id={`setting-exportformat-${o.value}`}
+                  value={o.value}
+                  checked={settings.defaultExportFormat === o.value}
                   onChange={(e) =>
-                    updateSetting("autoExportEnabled", e.target.checked)
+                    updateSetting("defaultExportFormat", e.target.value)
                   }
-                  className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+                  className="form-radio text-blue-600 cursor-pointer"
                 />
-              ),
-            },
-            {
-              id: "autoExportIntervalMinutes",
-              label: "Export Interval",
-              desc: "In minutes (minimum 5).",
-              control: (
-                <input
-                  id="autoExportIntervalMinutes"
-                  type="number"
-                  data-item-id="setting-autoexportinterval-input"
-                  value={settings.autoExportIntervalMinutes || 30}
-                  onChange={(e) =>
-                    updateSetting(
-                      "autoExportIntervalMinutes",
-                      Math.max(5, parseInt(e.target.value, 10) || 5)
-                    )
-                  }
-                  className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 w-24 text-center"
-                  min="5"
-                  step="1"
-                />
-              ),
-            },
-          ],
-        },
-        {
-          id: "resetSettings",
-          label: "Reset Settings",
-          desc: "Reset all settings to their default values.",
-          control: (
-            <button
-              type="button"
-              data-item-id="setting-resetsettings-button"
-              onClick={() => {
-                showConfirm({
-                  title: "Reset Settings",
-                  message: "Reset all settings to default values?",
-                  variant: "warning",
-                  confirmText: "Reset",
-                  onConfirm: () => {
-                    resetSettings();
-                    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-                  },
-                });
-              }}
-              className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 flex items-center"
-            >
-              <RotateCcw className="w-4 h-4 mr-1" /> Reset
-            </button>
-          ),
-        },
-        {
-          id: "cancelAccount",
-          label: "Delete Account",
-          desc: "Permanently delete your account and all data. A confirmation email will be sent.",
-          control: (
-            <button
-              type="button"
-              onClick={() =>
-                showConfirm({
-                  title: "Permanently Delete Account?",
-                  message: "This action is immediate and irreversible. All your data will be permanently deleted. Are you absolutely sure?",
-                  variant: "danger",
-                  confirmText: "Send Deletion Email",
-                  onConfirm: requestAccountDeletion,
-                })
-              }
-              className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
-              data-item-id="setting-cancelaccount-button"
-            >
-              <AlertTriangle className="w-4 h-4 mr-1" /> Delete Account
-            </button>
-          ),
-        }
+                <span>{o.label}</span>
+              </label>
+            ))}
+          </div>
+        ),
+      },
+      {
+        id: "autoExportGroup",
+        type: "group",
+        label: "Automatic Backup (Auto Export)",
+        desc: "Configure periodic automatic export of the entire tree. Exports trigger standard browser downloads.",
+        settings: [
+          {
+            id: "autoExportEnabled",
+            label: "Enable Auto Export",
+            desc: "Toggle automatic background tree exports.",
+            control: (
+              <input
+                id="autoExportEnabled"
+                type="checkbox"
+                data-item-id="setting-autoexportenabled-checkbox"
+                checked={!!settings.autoExportEnabled}
+                onChange={(e) =>
+                  updateSetting("autoExportEnabled", e.target.checked)
+                }
+                className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+              />
+            ),
+          },
+          {
+            id: "autoExportIntervalMinutes",
+            label: "Export Interval",
+            desc: "In minutes (minimum 5).",
+            control: (
+              <input
+                id="autoExportIntervalMinutes"
+                type="number"
+                data-item-id="setting-autoexportinterval-input"
+                value={settings.autoExportIntervalMinutes || 30}
+                onChange={(e) =>
+                  updateSetting(
+                    "autoExportIntervalMinutes",
+                    Math.max(5, parseInt(e.target.value, 10) || 5)
+                  )
+                }
+                className="p-1 border rounded bg-white dark:bg-zinc-700 dark:border-zinc-600 w-24 text-center"
+                min="5"
+                step="1"
+              />
+            ),
+          },
+        ],
+      },
+      {
+        id: "resetSettings",
+        label: "Reset Settings",
+        desc: "Reset all settings to their default values.",
+        control: (
+          <button
+            type="button"
+            data-item-id="setting-resetsettings-button"
+            onClick={() => {
+              showConfirm({
+                title: "Reset Settings",
+                message: "Reset all settings to default values?",
+                variant: "warning",
+                confirmText: "Reset",
+                onConfirm: () => {
+                  resetSettings();
+                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                },
+              });
+            }}
+            className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 flex items-center"
+          >
+            <RotateCcw className="w-4 h-4 mr-1" /> Reset
+          </button>
+        ),
+      },
+      {
+        id: "cancelAccount",
+        label: "Delete Account",
+        desc: "Permanently delete your account and all data. A confirmation email will be sent.",
+        control: (
+          <button
+            type="button"
+            onClick={() =>
+              showConfirm({
+                title: "Permanently Delete Account?",
+                message:
+                  "This action is immediate and irreversible. All your data will be permanently deleted. Are you absolutely sure?",
+                variant: "danger",
+                confirmText: "Send Deletion Email",
+                onConfirm: requestAccountDeletion,
+              })
+            }
+            className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
+            data-item-id="setting-cancelaccount-button"
+          >
+            <AlertTriangle className="w-4 h-4 mr-1" /> Delete Account
+          </button>
+        ),
+      },
     ],
     [settings, updateSetting, resetSettings, resetApplicationData, showConfirm]
   );
@@ -504,7 +548,9 @@ export default function SettingsDialog({ isOpen, onClose }) {
         cancelText={confirmDialog.cancelText}
         variant={confirmDialog.variant}
         onConfirm={confirmDialog.onConfirm}
-        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onCancel={() =>
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+        }
       />
     </>
   );

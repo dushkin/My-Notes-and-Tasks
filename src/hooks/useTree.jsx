@@ -506,7 +506,6 @@ export const useTree = (currentUser) => {
     },
     [tree, setTreeWithUndo]
   );
-
   const setTaskReminder = useCallback(
     async (taskId, reminderData) => {
       try {
@@ -530,7 +529,6 @@ export const useTree = (currentUser) => {
     },
     [fetchUserTree]
   );
-
   const updateItemOptimistically = (item, targetId, updates) => {
     if (item.id === targetId) {
       return { ...item, ...updates };
@@ -838,8 +836,7 @@ export const useTree = (currentUser) => {
         await fetchUserTree();
         return {
           success: false,
-          error: err.message ||
-            "A network error occurred during the move.",
+          error: err.message || "A network error occurred during the move.",
         };
       }
     },
@@ -955,7 +952,8 @@ export const useTree = (currentUser) => {
         if (hasSiblingWithName(targetSiblings, itemToMove.label, null)) {
           return {
             success: false,
-            error: `An item named "${itemToMove.label}" already exists in the target folder. Cut operation cancelled.`,
+            error: `An item named "${itemToMove.label}" already exists in the target folder.
+Cut operation cancelled.`,
           };
         }
 
@@ -989,8 +987,7 @@ export const useTree = (currentUser) => {
           // Resync state on failure
           return {
             success: false,
-            error: err.message ||
-              "A network error occurred during the move.",
+            error: err.message || "A network error occurred during the move.",
           };
         }
       }

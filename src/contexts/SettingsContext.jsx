@@ -6,15 +6,13 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
+import { authFetch } from '../services/apiClient';
 
 // Make sure these arrays are populated with your actual options
 export const themeOptions = [
   { value: "system", label: "System Default" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
-];
-export const sortOrderOptions = [
-  /* Placeholder if you use it elsewhere */
 ];
 export const exportFormatOptions = [
   { value: "json", label: "JSON" },
@@ -34,7 +32,6 @@ export const editorFontSizeOptions = [
   { value: "4", label: "Larger" },
   { value: "5", label: "Largest" },
 ];
-
 export const defaultSettings = {
   theme: "system",
   autoExpandNewFolders: true,
@@ -47,9 +44,11 @@ export const defaultSettings = {
   defaultExportFormat: "json",
   autoExportEnabled: false,
   autoExportIntervalMinutes: 30,
-  // autoExportDirectory: '', // Removed this line
+  // New Notification Settings
+  reminderSoundEnabled: true,
+  reminderVibrationEnabled: true,
+  reminderSoundUrl: '/sounds/default-tone.mp3',
 };
-
 const SettingsContext = createContext();
 
 export const useSettings = () => {
@@ -79,9 +78,7 @@ export const SettingsProvider = ({ children }) => {
     try {
       const storedSettings = localStorage.getItem("appSettings");
       const initialSettings = storedSettings ? JSON.parse(storedSettings) : {};
-      // Ensure all default keys are present, even if not in storedSettings
       const mergedSettings = { ...defaultSettings, ...initialSettings };
-      // Remove autoExportDirectory explicitly if it exists from older versions
       delete mergedSettings.autoExportDirectory;
       return mergedSettings;
     } catch (error) {
@@ -91,10 +88,8 @@ export const SettingsProvider = ({ children }) => {
       return fallbackSettings;
     }
   });
-
   useEffect(() => {
     try {
-      // Create a copy of settings to save, excluding autoExportDirectory if it somehow crept in
       const settingsToSave = { ...settings };
       delete settingsToSave.autoExportDirectory;
 
@@ -112,29 +107,39 @@ export const SettingsProvider = ({ children }) => {
     }
   }, [settings]);
 
-  const updateSetting = useCallback((key, value) => {
-    setSettings((prevSettings) => {
-      const newSettings = {
-        ...prevSettings,
-        [key]: value,
-      };
-      // Ensure autoExportDirectory is not part of the settings state if key is not it
-      if (key !== "autoExportDirectory") {
-        delete newSettings.autoExportDirectory;
-      } else if (key === "autoExportDirectory" && value === undefined) {
-        // If explicitly trying to remove it
-        delete newSettings.autoExportDirectory;
-      }
-      return newSettings;
-    });
+  const updateSetting = useCallback(async (key, value) => {
+    // Optimistically update local state
+    setSettings((prevSettings) => ({
+      ...prevSettings,
+      [key]: value,
+    }));
+    
+    // Persist the change to the backend
+    try {
+      await authFetch('/user/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ [key]: value }),
+      });
+    } catch (error) {
+      console.error(`Failed to save setting '${key}' to the server:`, error);
+      // Optional: implement logic to revert the optimistic update or show a toast message
+    }
   }, []);
 
   const resetSettings = useCallback(() => {
     const newDefaultSettings = { ...defaultSettings };
     delete newDefaultSettings.autoExportDirectory;
     setSettings(newDefaultSettings);
+    // Persist the reset to the backend
+    try {
+        authFetch('/user/settings', {
+            method: 'PATCH',
+            body: JSON.stringify(newDefaultSettings),
+        });
+    } catch(error) {
+        console.error('Failed to reset settings on the server:', error);
+    }
   }, []);
-
   const resetApplicationData = useCallback(() => {
     console.warn(
       "resetApplicationData called - ensure LOCAL_STORAGE_KEY for tree data is also cleared here."
@@ -144,7 +149,6 @@ export const SettingsProvider = ({ children }) => {
       "Application settings have been reset. Full data reset requires additional implementation for tree data."
     );
   }, [resetSettings]);
-
   return (
     <SettingsContext.Provider
       value={{
