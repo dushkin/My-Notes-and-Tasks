@@ -138,7 +138,15 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
             };
             navigator.serviceWorker.ready.then((registration) => {
               try {
+  try {
   registration.showNotification("My Notes & Tasks", options);
+} catch (err) {
+  console.error("Fallback: Showing notification without actions due to error", err);
+  registration.showNotification("My Notes & Tasks", {
+    ...baseNotification,
+    requireInteraction: false
+  });
+}
 } catch (err) {
   console.error("Primary notification failed, retrying without actions:", err);
   registration.showNotification("My Notes & Tasks", {

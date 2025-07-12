@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "11.2.6",
+  "version": "11.2.7",
   "commitMessage": "Reminders improvments",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
