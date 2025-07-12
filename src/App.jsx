@@ -65,6 +65,8 @@ import {
 import { initApiClient, authFetch } from "./services/apiClient";
 import EditorPage from "./pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
+import { Toaster } from "react-hot-toast";
+
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
   const year = now.getFullYear();
@@ -83,7 +85,7 @@ function htmlToPlainTextWithNewlines(html) {
     /<(div|p|h[1-6]|li|blockquote|pre|tr|hr)[^>]*>/gi,
     "\n$&"
   );
-  text = text.replace(/<br\s*\/?>/gi, "\n");
+  text = text.replace(/<br\s*\/?>>/gi, "\n");
   text = text.replace(/<[^>]+>/g, "");
   try {
     const tempDiv = document.createElement("div");
@@ -108,24 +110,28 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
     return null;
   }
 
-  const baseClasses =
-    "fixed right-3 left-3 md:left-auto md:max-w-lg z-[100] px-4 py-3 rounded-lg shadow-xl flex justify-between items-center text-sm transition-all duration-300 ease-in-out";
+  const baseClasses = // Request 1: Larger toaster
+    "fixed right-3 left-3 md:left-auto md:max-w-lg z-[100] px-6 py-4 rounded-xl shadow-xl flex justify-between items-center text-base transition-all duration-300 ease-in-out";
   const typeClasses =
     type === "success"
       ? "bg-green-100 dark:bg-green-800/80 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-200"
       : type === "info"
       ? "bg-sky-100 dark:bg-sky-800/80 border border-sky-400 dark:border-sky-600 text-sky-700 dark:text-sky-200"
+      : type === "reminder" // Request 2: Prominent reminder notification color
+      ? "bg-blue-100 dark:bg-blue-800/80 border border-blue-400 dark:border-blue-600 text-blue-700 dark:text-blue-200"
       : "bg-red-100 dark:bg-red-800/80 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200";
   const iconColor =
     type === "success"
       ? "text-green-500 hover:text-green-700 dark:text-green-300 dark:hover:text-green-100"
       : type === "info"
       ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
+      : type === "reminder" // Request 2: Prominent reminder icon color
+      ? "text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
   return (
     <div
       data-item-id="error-display-message"
-      className={`${baseClasses} ${typeClasses}`}
+      className={`${baseClasses} ${typeClasses} `}
       style={{
         top: "calc(var(--beta-banner-height, 0px) + 0.75rem)", // 0.75rem = 12px spacing from banner
       }}
@@ -145,21 +151,44 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
   );
 };
 
-// Main App Component that handles routing
+// Main App Component that handles routing and global notification permission
 const App = () => {
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPageRoute />} />
-        <Route path="/login" element={<LoginRoute />} />
-        <Route path="/register" element={<RegisterRoute />} />
-        <Route path="/app/*" element={<ProtectedAppRoute />} />
-        <Route path="/deletion-status" element={<DeletionStatusPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPageRoute />} />
+          <Route path="/login" element={<LoginRoute />} />
+          <Route path="/register" element={<RegisterRoute />} />
+          <Route path="/app/*" element={<ProtectedAppRoute />} />
+          <Route path="/deletion-status" element={<DeletionStatusPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+      {/* Request 1: Larger Toaster for react-hot-toast, just in case it's used by a hook */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            padding: "16px",
+            fontSize: "1rem", // Tailwind's `text-base`
+            borderRadius: "0.75rem", // Tailwind's `rounded-xl`
+          },
+          containerStyle: {
+            top: "calc(var(--beta-banner-height, 0px) + 12px)",
+          },
+        }}
+      />
+    </>
   );
 };
+
 // Landing Page Route Component
 const LandingPageRoute = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -440,6 +469,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     isOpen: false,
     task: null,
   });
+  const [sentNotifications, setSentNotifications] = useState(new Set());
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const topMenuRef = useRef(null);
@@ -475,6 +505,22 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     []
   );
+
+  const requestNotificationPermission = async () => {
+    if (!("Notification" in window)) {
+        showMessage("This browser does not support desktop notification.", "error");
+        return false;
+    }
+    if (Notification.permission === "granted") {
+        return true;
+    }
+    if (Notification.permission !== "denied") {
+        const permission = await Notification.requestPermission();
+        return permission === "granted";
+    }
+    return false;
+  };
+
   const handleSaveItemData = useCallback(
     async (itemId, dataToSave) => {
       const item = findItemByIdFromTree(itemId);
@@ -513,13 +559,67 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
   }, []);
 
   const handleSaveReminder = useCallback(async (taskId, reminderData) => {
+    const hasPermission = await requestNotificationPermission();
+    if(!hasPermission) {
+        showMessage("Notification permission is required to set reminders.", "error");
+        return;
+    }
+
     const result = await setTaskReminder(taskId, reminderData);
     if (result.success) {
-        showMessage("Reminder saved successfully.", "success");
+        showMessage("Reminder saved successfully.", "reminder"); // Request 2: Use new reminder type
     } else {
-        showMessage(result.error || "Failed to save reminder.", "error");
+        showMessage(result.error || "Failed to save reminder.", "error"); // Keep error as is
     }
   }, [setTaskReminder, showMessage]);
+
+  useEffect(() => {
+    const engineInterval = setInterval(() => {
+        if (!tree || tree.length === 0 || Notification.permission !== "granted") {
+            return;
+        }
+
+        const now = new Date();
+        const findDueTasks = (nodes) => {
+            nodes.forEach(item => {
+                if (item.type === 'task' && item.reminder?.isActive && item.reminder.dueAt) {
+                    const dueAt = new Date(item.reminder.dueAt);
+                    const key = `${item.id}_${item.reminder.dueAt}`;
+
+                    if (dueAt <= now && !sentNotifications.has(key)) {
+                        new Notification(item.label, {
+                            body: "This task is now due.",
+                            icon: "/favicon-48x48.png"
+                        });
+                        
+                        setSentNotifications(prev => new Set(prev).add(key));
+                        
+                        if (item.reminder.repeat?.frequency) {
+                            const nextDue = new Date(dueAt);
+                            const { frequency } = item.reminder.repeat;
+                            if (frequency === 'daily') nextDue.setDate(nextDue.getDate() + 1);
+                            if (frequency === 'weekly') nextDue.setDate(nextDue.getDate() + 7);
+                            if (frequency === 'monthly') nextDue.setMonth(nextDue.getMonth() + 1);
+                            if (frequency === 'yearly') nextDue.setFullYear(nextDue.getFullYear() + 1);
+                            
+                            const newReminderData = { ...item.reminder, dueAt: nextDue.toISOString() };
+                            setTaskReminder(item.id, newReminderData);
+                        } else {
+                            const newReminderData = { ...item.reminder, isActive: false };
+                            setTaskReminder(item.id, newReminderData);
+                        }
+                    }
+                }
+                if (item.children) {
+                    findDueTasks(item.children);
+                }
+            });
+        };
+        findDueTasks(tree);
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(engineInterval);
+  }, [tree, sentNotifications, setTaskReminder]);
 
   const contentEditorProps = useMemo(
     () => ({

@@ -200,7 +200,7 @@ const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToo
                     <button onClick={() => onOpenReminderDialog(item)} className="text-xs underline hover:text-blue-700 dark:hover:text-blue-300">(edit)</button>
                 </div>
               ) : (
-                <button onClick={() => onOpenReminderDialog(item)} className="flex items-center gap-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">
+                <button onClick={() => onOpenReminderDialog(item)} className="flex items-center gap-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
                     <Bell className="w-3.5 h-3.5" />
                     <span>Set Reminder</span>
                 </button>
