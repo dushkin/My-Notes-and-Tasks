@@ -103,6 +103,14 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
     if (msUntil > 0) {
       setTimeout(() => {
         toast(`🔔 Reminder: ${task.label}`, { duration: 8000 });
+        if (settings.reminderSoundEnabled) {
+          try {
+            const audio = new Audio(settings.reminderSoundUrl);
+            audio.play().catch(err => console.warn("Audio error:", err));
+          } catch (err) {
+            console.error("Sound playback failed:", err);
+          }
+        }
         
         if (Notification.permission === "granted") {
           if (settings.showCloseButtonOnNotification && navigator.serviceWorker?.controller) {
@@ -112,11 +120,9 @@ const ReminderDialog = ({ isOpen, onClose, onSave, task }) => {
                 tag: task.id,
                 requireInteraction: true,
                 actions: [
-                  {
-                    action: "vi",
-                    title: "✅"
-                  }
-                ]
+                { action: "vi", title: "✅" },
+                { action: "snooze", title: "Snooze 10 min" }
+              ]
               });
             });
           } else {
