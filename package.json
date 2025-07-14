@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "10.2.1",
-  "commitMessage": "For an item title of more than 75% RTL characters, auto align it's content too",
+  "version": "11.3.0",
+  "commitMessage": "Adjusted tag after reverting",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
