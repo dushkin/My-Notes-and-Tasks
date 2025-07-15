@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "11.3.0",
-  "commitMessage": "Adjusted tag after reverting",
+  "version": "12.0.0",
+  "commitMessage": "Reminders support - Phase 1",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -39,6 +39,7 @@
     "mongoose": "^8.16.1",
     "prismjs": "^1.30.0",
     "react": "^18.2.0",
+    "react-datepicker": "^8.4.0",
     "react-dom": "^18.2.0",
     "react-modal-sheet": "^4.4.0",
     "react-resizable-panels": "^2.1.9",

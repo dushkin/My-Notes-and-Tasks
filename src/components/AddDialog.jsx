@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import LoadingButton from "./LoadingButton";
+import ReminderSetter from "./ReminderSetter";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const AddDialog = ({
@@ -8,13 +9,14 @@ const AddDialog = ({
   newItemLabel,
   onLabelChange,
   onAdd,
+  onAddWithReminder,
   onCancel,
   errorMessage,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef(null);
   const dialogRef = useRef(null);
-
+  const [reminderTime, setReminderTime] = useState(null); // State for reminder time
   useFocusTrap(dialogRef, isOpen);
 
   // Close & reset when the user hits Escape
@@ -29,17 +31,15 @@ const AddDialog = ({
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, onCancel]);
 
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await onAdd();
+      if (reminderTime) {
+        await onAddWithReminder(reminderTime); // Call new handler if reminder is set
+      } else {
+        await onAdd();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +55,7 @@ const AddDialog = ({
         ref={dialogRef}
         className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-96"
       >
-        <h2 className="text-lg font-bold mb-4">Add {newItemType}</h2>
+        <h2 className="text-xl font-bold mb-4">Add {newItemType}</h2>
         <form onSubmit={handleSubmit}>
           <input
             ref={inputRef}
@@ -78,6 +78,8 @@ const AddDialog = ({
               {errorMessage}
             </p>
           )}
+          {/* Reminder Setter Component */}
+          <ReminderSetter onSetReminder={setReminderTime} />
           <div className="mt-4 flex justify-end space-x-2">
             <button
               type="button"

@@ -190,8 +190,13 @@ export const useTree = (currentUser) => {
 
   useEffect(() => {
     try {
-      if (Array.isArray(tree))
+      if (Array.isArray(tree)) {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tree));
+        // Cache tree data for reminder monitor
+        localStorage.setItem('cached_tree_data', JSON.stringify(tree));
+        // Also make it available globally for reminder monitor
+        window.treeData = tree;
+      }
     } catch (error) {
       console.error("Failed to save tree to localStorage:", error);
     }

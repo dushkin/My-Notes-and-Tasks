@@ -100,3 +100,4 @@ test-results/**/*.mp4
 !assets/**/*.png
 /cnrd.sh
 -backend/cnrd.sh
+.early.coverage

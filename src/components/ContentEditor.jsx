@@ -1,209 +1,179 @@
-import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  memo,
+  useMemo,
+} from "react";
 import TipTapEditor from "./TipTapEditor";
 import LoadingSpinner from "./LoadingSpinner";
+import { formatRemainingTime } from "../utils/reminderUtils";
+import SetReminderDialog from "./SetReminderDialog"; // Import the dialog
+import { setReminder, getReminder } from "../utils/reminderUtils"; // Import utilities
 
 const MOBILE_BREAKPOINT = 768;
 const formatTimestamp = (isoString) => {
-  if (!isoString) return "N/A";
-  try {
-    const date = new Date(isoString);
-    if (isNaN(date.getTime())) return "Invalid Date";
-    return date.toLocaleString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch (e) {
-    console.error("Error formatting timestamp:", e);
-    return "Error";
-  }
+  const date = new Date(isoString);
+  return new Intl.DateTimeFormat("default", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: true,
+  }).format(date);
 };
-function debounce(func, delay) {
-  let timeoutId;
-  return function (...args) {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func.apply(this, args), delay);
-  };
-}
 
-function decodeHtml(str) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(str, "text/html");
-  return doc.documentElement.textContent;
-}
-
-const isPredominantlyRTL = (text) => {
+const isRTLText = (text) => {
   if (!text) return false;
-  // This regex covers Hebrew and Arabic character ranges.
-  const rtlRegex = /[\u0590-\u05FF\u0600-\u06FF]/g;
-  const rtlMatches = text.match(rtlRegex);
-
-  if (!rtlMatches) {
-    return false;
-  }
-
-  // Calculate percentage based on non-whitespace characters
+  const rtlChars =
+    /[\u0590-\u083F]|[\u08A0-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/;
+  const rtlMatches = text.match(rtlChars) || [];
   const textWithoutSpaces = text.replace(/\s/g, "");
-  if (textWithoutSpaces.length === 0) {
-    return false;
-  }
-
-  return (rtlMatches.length / textWithoutSpaces.length) > 0.75;
+  return rtlMatches.length / textWithoutSpaces.length > 0.75;
 };
 
-const ContentEditor = memo(({ item, defaultFontFamily, onSaveItemData, renderToolbarToggle }) => {
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState(null);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
-  );
-  const [showToolbar, setShowToolbar] = useState(false);
+const ContentEditor = memo(
+  ({
+    item,
+    defaultFontFamily,
+    onSaveItemData,
+    renderToolbarToggle,
+    reminder,
+  }) => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [lastSaved, setLastSaved] = useState(null);
+    const [isMobile, setIsMobile] = useState(
+      window.innerWidth < MOBILE_BREAKPOINT
+    );
+    const [showToolbar, setShowToolbar] = useState(false); // State for toolbar visibility
+    const [dir, setDir] = useState("ltr"); // RTL/LTR state
+    const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false); // State for dialog visibility
 
-  const titleIsRTL = useMemo(() => isPredominantlyRTL(item?.label), [item?.label]);
+    // Assuming item.id is available for reminder key
+    const currentReminder = getReminder(item.id);
 
-  useEffect(() => {
-    console.log("Initial isMobile:", isMobile);
-    const handleResize = () => {
-      const newIsMobile = window.innerWidth <= MOBILE_BREAKPOINT;
-      if (newIsMobile !== isMobile) {
-        setIsMobile(newIsMobile);
-        setShowToolbar(!newIsMobile);
-        console.log("Mobile state changed to:", newIsMobile, "ShowToolbar set to:", !newIsMobile);
-      }
+    const handleSetReminder = (id, timestamp, repeatOptions) => {
+      setReminder(id, timestamp, repeatOptions);
+      // Optionally update local state or trigger re-render
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [isMobile]);
 
-  useEffect(() => {
-    console.log("Item changed, item:", item?.id, "Current isMobile:", isMobile);
-    if (item?.id) {
-      const decoded = item.content ? decodeHtml(item.content) : currentEditorContentRef.current || "";
-      setInitialEditorContent(decoded);
-      currentEditorContentRef.current = decoded;
-      pendingContentRef.current = null;
-      setIsSaving(false);
-      setLastSaved(null);
-      if (isMobile) setShowToolbar(false);
-    }
-  }, [item?.id, isMobile]);
-  const [initialEditorContent, setInitialEditorContent] = useState("");
+    const resizeListener = useCallback(() => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    }, []);
 
-  const isUpdatingContentRef = useRef(false);
-  const editorHasFocusRef = useRef(false);
-  const pendingContentRef = useRef(null);
-  const currentEditorContentRef = useRef("");
+    useEffect(() => {
+      window.addEventListener("resize", resizeListener);
+      return () => window.removeEventListener("resize", resizeListener);
+    }, [resizeListener]);
 
-  const saveContent = useCallback(
-    async (itemId, content, direction = "ltr") => {
-      if (isUpdatingContentRef.current || !itemId) return;
-      isUpdatingContentRef.current = true;
-      setIsSaving(true);
-      console.log("[ContentEditor] Saving content for item", itemId);
-      try {
-        const updates = { content, direction };
-        const result = await onSaveItemData(itemId, updates);
-        if (result && !result.success) throw new Error(result.error || "Failed to save");
-        pendingContentRef.current = null;
-        setLastSaved(new Date());
-        console.log("[ContentEditor] Saved successfully at", new Date().toISOString());
-      } catch (error) {
-        console.error("[ContentEditor] Save failed for item", itemId, error);
-      } finally {
-        setTimeout(() => {
-          isUpdatingContentRef.current = false;
-          setIsSaving(false);
-        }, 100);
-      }
-    },
-    [onSaveItemData]
-  );
-  const debouncedSave = useCallback(
-    debounce((itemId, content, direction) => saveContent(itemId, content, direction), 1500),
-    [saveContent]
-  );
-  const handleEditorUpdates = useCallback(
-    (newHtml, newDirection) => {
-      currentEditorContentRef.current = newHtml;
-      pendingContentRef.current = { content: newHtml, direction: newDirection };
-      debouncedSave(item?.id, newHtml, newDirection);
-    },
-    [item?.id, debouncedSave]
-  );
-  const handleEditorFocus = useCallback(() => {
-    editorHasFocusRef.current = true;
-  }, []);
-  const handleEditorBlur = useCallback(() => {
-    editorHasFocusRef.current = false;
-    if (pendingContentRef.current && !isUpdatingContentRef.current && item?.id) {
-      const { content, direction } = pendingContentRef.current;
-      debouncedSave.cancel();
-      saveContent(item.id, content, direction);
+    useEffect(() => {
+      // Trigger save on unmount
+      return () => {
+        // Save logic if needed
+      };
+    }, []);
+
+    // Toggle toolbar
+    const toggleToolbar = () => setShowToolbar((prev) => !prev);
+
+    const finalShowToolbar = !isMobile || showToolbar;
+
+    // Set direction based on content
+    const updateDir = (content) => {
+      setDir(isRTLText(content) ? "rtl" : "ltr");
+    };
+
+    if (!item) {
+      return (
+        <p className="text-zinc-500 dark:text-zinc-400 italic p-3">
+          No item selected.
+        </p>
+      );
     }
-  }, [item?.id, saveContent, debouncedSave]);
-  const toggleToolbar = useCallback(() => {
-    if (isMobile) {
-      setShowToolbar((prev) => {
-        const newState = !prev;
-        console.log("Toggling toolbar on mobile, new state:", newState);
-        return newState;
-      });
-    }
-  }, [isMobile]);
-  const finalShowToolbar = isMobile ? showToolbar : true;
-  console.log(
-    "Rendering with isMobile:", isMobile, "showToolbar:", showToolbar, "finalShowToolbar prop to TipTapEditor:", finalShowToolbar
-  );
-  console.log("Passing to TipTapEditor:", {
-    showToolbar: finalShowToolbar,
-    key: `editor-${item?.id}`,
-  });
-  return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="px-4 pt-4 flex-shrink-0">
-        <div className="flex items-start justify-between mb-1">
-          <h2
-            className={`text-xl font-semibold break-words text-zinc-800 dark:text-zinc-100 flex-1 mr-4 ${
-              titleIsRTL ? "text-right" : ""
-            }`}
-            dir={titleIsRTL ? "rtl" : "ltr"}
-          >
-            {item?.label || "Unnamed Item"}
-          </h2>
-          <div className="flex items-center space-x-2">
-            {isSaving && <LoadingSpinner size="small" variant="inline" text="Saving..." />}
-            {!isSaving && lastSaved && (
-              <span className="text-xs text-green-600 dark:text-green-400">
-                Saved {formatTimestamp(lastSaved.toISOString())}
-              </span>
-            )}
+
+    return (
+      <div className="h-full flex flex-col">
+        {/* Metadata Section */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <span><span className="text-blue-600 dark:text-blue-400">Created</span> {formatTimestamp(item.createdAt)}</span>
+            <span><span className="text-orange-600 dark:text-orange-400">Last Modified</span> {formatTimestamp(item.updatedAt)}</span>
+            {/* New green link with bell icon */}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsReminderDialogOpen(true);
+              }}
+              className="text-green-500 hover:underline flex items-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-1"
+              >
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>{" "}
+              {/* Inline SVG for bell icon */}
+              Set Reminder
+              {currentReminder && (
+                <span className="ml-2 text-green-600 dark:text-green-400 text-xs">
+                  ({formatRemainingTime(currentReminder.timestamp)})
+                </span>
+              )}
+            </a>
           </div>
+          {isSaving && <LoadingSpinner size="small" />}
+          {lastSaved && (
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              Saved {formatTimestamp(lastSaved.toISOString())}
+            </span>
+          )}
+          {reminder && (
+            <span className="text-xs text-green-600 dark:text-green-400">
+              Reminder: {formatRemainingTime(reminder.timestamp)}
+            </span>
+          )}
         </div>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 space-y-0.5">
-          <p title={item?.createdAt ? new Date(item.createdAt).toISOString() : "Invalid or missing date"}>
-            Created: {formatTimestamp(item?.createdAt)}
-          </p>
-          <p title={item?.updatedAt ? new Date(item.updatedAt).toISOString() : "Invalid or missing date"}>
-            Last Modified: {formatTimestamp(item?.updatedAt)}
-          </p>
+          {/* Additional content */}
         </div>
+        {/* TipTapEditor */}
+        <TipTapEditor
+          key={`editor-${item.id}`}
+          content={item.content || ""}
+          onUpdate={(content) => {
+            updateDir(content);
+            onSaveItemData(item.id, content);
+          }}
+          dir={dir}
+          defaultFontFamily={defaultFontFamily}
+          showToolbar={finalShowToolbar}
+        />
+        {/* Toolbar Toggle for Mobile */}
+        {isMobile &&
+          renderToolbarToggle &&
+          renderToolbarToggle(toggleToolbar, showToolbar)}
+        {/* Reminder Dialog */}
+        <SetReminderDialog
+          isOpen={isReminderDialogOpen}
+          onClose={() => setIsReminderDialogOpen(false)}
+          onSetReminder={handleSetReminder}
+          item={item}
+        />
       </div>
-
-      <TipTapEditor
-        key={`editor-${item?.id}`}
-        content={initialEditorContent}
-        initialDirection={item?.direction || (titleIsRTL ? "rtl" : "ltr")}
-        onUpdate={handleEditorUpdates}
-        onFocus={handleEditorFocus}
-        onBlur={handleEditorBlur}
-        defaultFontFamily={defaultFontFamily}
-        showToolbar={finalShowToolbar}
-      />
-      {renderToolbarToggle && renderToolbarToggle(showToolbar, toggleToolbar)}
-    </div>
-  );
-});
+    );
+  }
+);
 
 export default ContentEditor;

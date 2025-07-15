@@ -33,6 +33,12 @@ import {
   findItemById as findItemByIdUtil,
   findParentAndSiblings as findParentAndSiblingsUtil,
 } from "./utils/treeUtils";
+import {
+  registerServiceWorker,
+  requestNotificationPermission,
+  subscribePush,
+} from "./utils/reminderUtils";
+import reminderMonitor from "./utils/reminderMonitor";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Search as SearchIcon,
@@ -574,6 +580,49 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     }
   }, [fetchUserTree]);
 
+  // Initialize push notifications and reminder monitoring
+  useEffect(() => {
+    const initializePushNotifications = async () => {
+      try {
+        // Register service worker
+        const registration = await registerServiceWorker();
+        if (!registration) {
+          console.warn("Service worker registration failed");
+          return;
+        }
+
+        // Request notification permission
+        const permission = await requestNotificationPermission();
+        if (permission === "granted") {
+          console.log("Notification permission granted");
+          // Subscribe to push notifications
+          const subscription = await subscribePush(registration);
+          if (subscription) {
+            console.log("Push subscription successful");
+          }
+        } else {
+          console.warn("Notification permission denied");
+        }
+      } catch (error) {
+        console.error("Failed to initialize push notifications:", error);
+      }
+    };
+
+    // Only initialize if user is logged in
+    if (currentUser) {
+      initializePushNotifications();
+      // Start reminder monitoring
+      reminderMonitor.start();
+    }
+
+    // Cleanup function to stop monitoring when user logs out
+    return () => {
+      if (!currentUser) {
+        reminderMonitor.stop();
+      }
+    };
+  }, [currentUser]);
+
   const handleInitiateLogout = async () => {
     console.log("[Logout] Initiating logout…");
     setIsLoggingOut(true);
@@ -825,6 +874,98 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         "success",
         3000
       );
+      if (result.item?.id) {
+        selectItemById(result.item.id);
+        if (result.item.type === "folder" && settings.autoExpandNewFolders) {
+          expandFolderPath(result.item.id);
+        }
+        if (parentId && settings.autoExpandNewFolders) {
+          expandFolderPath(parentId);
+        }
+      }
+    } else {
+      const isNetworkOrServerError =
+        result.error &&
+        (result.error.includes("Network error") ||
+          result.error.includes("network error") ||
+          result.error.includes("Failed to add item") ||
+          result.error.includes("Server error") ||
+          result.error.includes("500") ||
+          result.error.includes("timeout") ||
+          result.error.includes("fetch"));
+      if (isNetworkOrServerError) {
+        showMessage(result.error, "error");
+        setAddDialogErrorMessage("");
+      } else {
+        setAddDialogErrorMessage(result.error || "Add operation failed.");
+      }
+    }
+  }, [
+    newItemLabel,
+    newItemType,
+    parentItemForAdd,
+    addItem,
+    showMessage,
+    selectItemById,
+    settings.autoExpandNewFolders,
+    expandFolderPath,
+    tree,
+    findParentAndSiblingsFromTree,
+  ]);
+
+  const handleAddWithReminder = useCallback(async (reminderTime, repeatOptions = null) => {
+    const trimmedLabel = newItemLabel.trim();
+    if (!trimmedLabel) {
+      setAddDialogErrorMessage("Name cannot be empty.");
+      return;
+    }
+
+    const parentId = parentItemForAdd?.id ?? null;
+    const { siblings: targetSiblings } = findParentAndSiblingsFromTree(
+      parentId ? parentItemForAdd.id : null
+    );
+
+    if (
+      (targetSiblings || tree).some(
+        (sibling) => sibling.label.toLowerCase() === trimmedLabel.toLowerCase()
+      )
+    ) {
+      setAddDialogErrorMessage(
+        `An item named "${trimmedLabel}" already exists here.`
+      );
+      return;
+    }
+
+    const newItemData = {
+      type: newItemType,
+      label: trimmedLabel,
+      content:
+        newItemType === "note" || newItemType === "task" ? "" : undefined,
+      completed: newItemType === "task" ? false : undefined,
+      direction:
+        newItemType === "note" || newItemType === "task" ? "ltr" : undefined,
+    };
+
+    setAddDialogErrorMessage("");
+    const result = await addItem(newItemData, parentId);
+
+    if (result.success) {
+      // Set reminder for the newly created item
+      if (reminderTime && result.item?.id) {
+        const { setReminder } = await import("./utils/reminderUtils");
+        setReminder(result.item.id, reminderTime, repeatOptions);
+        showMessage(
+          `${newItemType.charAt(0).toUpperCase() + newItemType.slice(1)} added with reminder.`,
+          "success",
+          3000
+        );
+      }
+
+      setAddDialogOpen(false);
+      setNewItemLabel("");
+      setParentItemForAdd(null);
+      setAddDialogErrorMessage("");
+      
       if (result.item?.id) {
         selectItemById(result.item.id);
         if (result.item.type === "folder" && settings.autoExpandNewFolders) {
@@ -2076,6 +2217,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           if (addDialogOpen) setAddDialogErrorMessage("");
         }}
         onAdd={handleAdd}
+        onAddWithReminder={handleAddWithReminder}
         onCancel={() => {
           setAddDialogOpen(false);
           setAddDialogErrorMessage("");

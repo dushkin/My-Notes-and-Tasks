@@ -1,5 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { sortItems } from "../utils/treeUtils";
+import { formatRemainingTime } from "../utils/reminderUtils";
+import SetReminderDialog from "./SetReminderDialog";
+import { setReminder } from "../utils/reminderUtils";
+import ContextMenu from "./ContextMenu"; // Ensure ContextMenu is imported if used here
 import { MoreVertical } from "lucide-react";
 
 const FolderContents = ({
@@ -16,7 +20,21 @@ const FolderContents = ({
   onToggleExpand,
   expandedItems,
   onShowItemMenu,
+  reminders,
 }) => {
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const handleSetReminder = (item) => {
+    setSelectedItem(item);
+    setIsReminderDialogOpen(true);
+  };
+
+  const handleConfirmReminder = (id, timestamp, repeatOptions) => {
+    setReminder(id, timestamp, repeatOptions);
+    setIsReminderDialogOpen(false);
+  };
+
   const hasChildren =
     folder && Array.isArray(folder.children) && folder.children.length > 0;
   if (!hasChildren) {
@@ -32,6 +50,7 @@ const FolderContents = ({
       <ul className="space-y-1 sm:space-y-2">
         {sortItems(folder.children).map((child) => {
           const isBeingDragged = child.id === draggedId;
+          const reminder = reminders[child.id]; // Get reminder for this item
           const isDragOverTarget =
             child.id === dragOverItemId && child.type === "folder";
 
@@ -122,6 +141,11 @@ const FolderContents = ({
                 }`}
               >
                 {child.label}
+                {reminder && (
+                  <span className="ml-2 text-green-600 dark:text-green-400 text-xs">
+                    ({formatRemainingTime(reminder.timestamp)})
+                  </span>
+                )}
               </span>
               {/* Type Indicator */}
               <span className="ml-2 text-zinc-500 text-xs sm:text-sm z-10 flex-shrink-0">
@@ -146,6 +170,15 @@ const FolderContents = ({
           );
         })}
       </ul>
+      {/* Reminder Dialog */}
+      <SetReminderDialog
+        isOpen={isReminderDialogOpen}
+        onClose={() => setIsReminderDialogOpen(false)}
+        onSetReminder={handleConfirmReminder}
+        item={selectedItem}
+      />
+      {/* ContextMenu would be rendered here or in onShowItemMenu, passing onSetReminder */}
+      {/* Example: <ContextMenu ... onSetReminder={handleSetReminder} /> */}
     </div>
   );
 };
