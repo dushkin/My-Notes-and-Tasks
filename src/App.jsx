@@ -162,7 +162,9 @@ const App = () => {
         try {
           const data = JSON.parse(event.newValue);
           if (data?.id) {
-            document.querySelector(`[data-id='${data.id}'] input[type='checkbox']`)?.click();
+            document
+              .querySelector(`[data-id='${data.id}'] input[type='checkbox']`)
+              ?.click();
           }
         } catch (e) {
           console.warn("Invalid taskChecked value", event.newValue);
@@ -1154,7 +1156,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
             3000
           );
         } else {
-           showMessage(
+          showMessage(
             `${
               newItemType.charAt(0).toUpperCase() + newItemType.slice(1)
             } added.`,
@@ -2047,13 +2049,12 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                     if (!inlineRenameId) {
                       const selectedItem =
                         tree?.find((item) => item.id === id) ||
-                        tree
-                          ?.flatMap(function findInTree(item) {
-                            if (item.id === id) return [item];
-                            if (item.children)
-                              return item.children.flatMap(findInTree);
-                            return [];
-                          })[0];
+                        tree?.flatMap(function findInTree(item) {
+                          if (item.id === id) return [item];
+                          if (item.children)
+                            return item.children.flatMap(findInTree);
+                          return [];
+                        })[0];
                       if (selectedItem && selectedItem.type !== "folder") {
                         setMobileViewMode("content");
                         window.history.pushState(
@@ -2227,8 +2228,8 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
 
       <SnoozeDialog
         isOpen={snoozeDialogOpen}
-        onConfirm={handleSnoozeConfirm}
-        onCancel={handleSnoozeCancel}
+        onSnooze={handleSnoozeConfirm}
+        onClose={handleSnoozeCancel}
         itemTitle={snoozeDialogData?.itemTitle}
       />
 
