@@ -7,36 +7,36 @@ const AddDialog = ({
   isOpen,
   newItemType,
   newItemLabel,
-  onLabelChange,
+  setNewItemLabel,
   onAdd,
   onAddWithReminder,
-  onCancel,
+  onClose,
   errorMessage,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef(null);
   const dialogRef = useRef(null);
-  const [reminderTime, setReminderTime] = useState(null); // State for reminder time
+  const [reminderTime, setReminderTime] = useState(null);
+  const [repeatOptions, setRepeatOptions] = useState(null);
   useFocusTrap(dialogRef, isOpen);
 
-  // Close & reset when the user hits Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e) => {
       if (e.key === "Escape") {
-        onCancel();
+        onClose();
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isOpen, onCancel]);
+  }, [isOpen, onClose]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       if (reminderTime) {
-        await onAddWithReminder(reminderTime); // Call new handler if reminder is set
+        await onAddWithReminder(reminderTime, repeatOptions);
       } else {
         await onAdd();
       }
@@ -45,8 +45,9 @@ const AddDialog = ({
     }
   };
 
-  const handleReminderChange = (time) => {
+  const handleReminderChange = (time, repeat) => {
     setReminderTime(time);
+    setRepeatOptions(repeat);
   };
 
   if (!isOpen) {
@@ -65,8 +66,8 @@ const AddDialog = ({
             ref={inputRef}
             type="text"
             value={newItemLabel ?? ""}
-            onChange={onLabelChange}
-            className={`border p-2 rounded w-full mb-2 text-gray-900 dark:text-gray ${
+            onChange={(e) => setNewItemLabel(e.target.value)}
+            className={`border p-2 rounded w-full mb-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-zinc-700 ${
               errorMessage
                 ? "border-red-500"
                 : "border-gray-300 dark:border-gray-600"
@@ -82,14 +83,15 @@ const AddDialog = ({
               {errorMessage}
             </p>
           )}
-          {/* Reminder Setter Component - Only show for tasks */}
+          
           {newItemType === 'task' && (
             <ReminderSetter onSetReminder={handleReminderChange} />
           )}
+
           <div className="mt-4 flex justify-end space-x-2">
             <button
               type="button"
-              onClick={onCancel}
+              onClick={onClose}
               className="px-4 py-2 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
               disabled={isLoading}
             >

@@ -1,6 +1,7 @@
 // src/components/SearchResultsPane.jsx
 import React from "react";
 import { CaseSensitive, WholeWord, Regex, XCircle } from "lucide-react";
+
 function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -86,27 +87,35 @@ const HighlightedPathLabel = ({ pathString, itemLabel, highlightDetails }) => {
 };
 
 export default function SearchResultsPane({
-  query,
-  onQueryChange,
-  results,
-  onSelectResult,
+  searchQuery,
+  setSearchQuery,
+  searchResults,
+  onSelect,
+  searchOptions,
+  setSearchOptions,
+  searchInputRef,
   onClose,
-  opts,
-  setOpts,
-  headerHeightClass,
 }) {
   const isRegexEnabledCurrently = false;
+
+  const opts = searchOptions || {
+    caseSensitive: false,
+    wholeWord: false,
+    useRegex: false,
+  };
+
   return (
     <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
       <div
-        className={`flex items-center space-x-2 p-2 sm:p-3 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0 ${headerHeightClass}`} // Adjusted padding
+        className="flex items-center space-x-2 p-2 sm:p-3 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0"
       >
         <input
           id="global-search-input"
-          className="flex-1 px-3 sm:px-2 py-2 sm:py-1 rounded bg-white dark:bg-zinc-800 focus:outline-none text-zinc-900 dark:text-zinc-100 text-base md:text-sm" // Adjusted padding and font
+          ref={searchInputRef}
+          className="flex-1 px-3 sm:px-2 py-2 sm:py-1 rounded bg-white dark:bg-zinc-800 focus:outline-none text-zinc-900 dark:text-zinc-100 text-base md:text-sm"
           placeholder="Search..."
-          value={query || ""}
-          onChange={(e) => onQueryChange(e.target.value)}
+          value={searchQuery || ""}
+          onChange={(e) => setSearchQuery(e.target.value)}
           autoFocus
         />
         <div className="flex items-center space-x-1">
@@ -140,8 +149,8 @@ export default function SearchResultsPane({
                   : label
               }
               onClick={() => {
-                if (!disabled) {
-                  setOpts((prevOpts) => ({
+                if (!disabled && setSearchOptions) {
+                  setSearchOptions((prevOpts) => ({
                     ...prevOpts,
                     [key]: !prevOpts[key],
                   }));
@@ -149,7 +158,6 @@ export default function SearchResultsPane({
               }}
               disabled={disabled}
               className={`p-1.5 sm:p-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                // Adjusted padding
                 disabled
                   ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
                   : opts[key]
@@ -157,14 +165,13 @@ export default function SearchResultsPane({
                   : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
               }`}
             >
-              <Icon className="w-5 h-5 sm:w-4 sm:h-4" />{" "}
-              {/* Adjusted icon size */}
+              <Icon className="w-5 h-5 sm:w-4 sm:h-4" />
             </button>
           ))}
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded" // Adjusted padding
+          className="p-1.5 sm:p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded"
           title="Close Search"
         >
           <XCircle className="w-5 h-5" />
@@ -172,19 +179,19 @@ export default function SearchResultsPane({
       </div>
 
       <div className="flex-1 overflow-auto">
-        {results.length === 0 ? (
+        {searchResults.length === 0 ? (
           <p className="p-4 text-sm text-zinc-500 dark:text-zinc-400">
             No matches.
           </p>
         ) : (
-          results.map(
+          searchResults.map(
             (
-              item // item is a processed search result entry
+              item
             ) => (
               <div
                 key={item.id}
-                onClick={() => onSelectResult(item)}
-                className="p-3 sm:p-2 border-b border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700" // Increased base padding
+                onClick={() => onSelect(item.originalId)}
+                className="p-3 sm:p-2 border-b border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700"
               >
                 {item.path && (
                   <p
@@ -213,12 +220,12 @@ export default function SearchResultsPane({
                 )}
 
                 <p
-                  className="text-base md:text-sm text-zinc-800 dark:text-zinc-200 max-w-full truncate" // Adjusted font size
+                  className="text-base md:text-sm text-zinc-800 dark:text-zinc-200 max-w-full truncate"
                   title={item.displaySnippetText}
                 >
                   <HighlightMultiple
                     text={item.displaySnippetText}
-                    query={query}
+                    query={searchQuery}
                     opts={opts}
                   />
                 </p>

@@ -20,22 +20,16 @@ const ContextMenu = ({
   isEmptyArea,
   clipboardItem,
   // Actions
-  onAddRootFolder,
-  onAddFolder,
-  onAddNote,
-  onAddTask,
+  onAdd,
   onRename,
   onDelete,
   onCopy,
   onCut,
   onPaste,
   onDuplicate,
-  onSetReminder, // New prop for setting reminder
-  // Modified Import/Export handlers accepting context
-  onExportItem,
-  onImportItem,
-  onExportTree,
-  onImportTree,
+  onSetReminder,
+  onExport,
+  onImport,
   onClose,
 }) => {
   const contextMenuRef = useRef(null);
@@ -123,7 +117,7 @@ const ContextMenu = ({
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => {
-              onAddRootFolder();
+              onAdd("folder", null);
               onClose();
             }}
           >
@@ -141,7 +135,7 @@ const ContextMenu = ({
               role="menuitem"
               className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
               onClick={() => {
-                onPaste();
+                onPaste(null);
                 onClose();
               }}
               title="Paste item at root"
@@ -152,40 +146,6 @@ const ContextMenu = ({
               Paste
             </button>
           )}
-          {canPaste && (
-            <hr
-              className="my-1 border-zinc-200 dark:border-zinc-700"
-              role="separator"
-            />
-          )}
-          <button
-            role="menuitem"
-            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
-            onClick={() => {
-              onExportTree();
-              onClose();
-            }}
-            title="Export the entire tree"
-          >
-            <Download
-              className={`${iconBaseClass} text-teal-500 dark:text-teal-400`}
-            />{" "}
-            Export Full Tree...
-          </button>
-          <button
-            role="menuitem"
-            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
-            onClick={() => {
-              onImportTree();
-              onClose();
-            }}
-            title="Import items into the tree"
-          >
-            <Upload
-              className={`${iconBaseClass} text-cyan-500 dark:text-cyan-400`}
-            />{" "}
-            Import Full Tree...
-          </button>
         </>
       )}
 
@@ -198,7 +158,7 @@ const ContextMenu = ({
                 role="menuitem"
                 className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
                 onClick={() => {
-                  onAddFolder();
+                  onAdd("folder", item);
                   onClose();
                 }}
               >
@@ -211,7 +171,7 @@ const ContextMenu = ({
                 role="menuitem"
                 className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
                 onClick={() => {
-                  onAddNote();
+                  onAdd("note", item);
                   onClose();
                 }}
               >
@@ -224,7 +184,7 @@ const ContextMenu = ({
                 role="menuitem"
                 className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
                 onClick={() => {
-                  onAddTask();
+                  onAdd("task", item);
                   onClose();
                 }}
               >
@@ -244,7 +204,7 @@ const ContextMenu = ({
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => {
-              onCut();
+              onCut(item.id);
               onClose();
             }}
           >
@@ -257,7 +217,7 @@ const ContextMenu = ({
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => {
-              onCopy();
+              onCopy(item.id);
               onClose();
             }}
           >
@@ -270,7 +230,7 @@ const ContextMenu = ({
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => {
-              onDuplicate();
+              onDuplicate(item.id);
               onClose();
             }}
           >
@@ -284,7 +244,7 @@ const ContextMenu = ({
               role="menuitem"
               className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
               onClick={() => {
-                onPaste();
+                onPaste(item.id);
                 onClose();
               }}
               title={`Paste item into ${item.label}`}
@@ -300,7 +260,6 @@ const ContextMenu = ({
             role="separator"
           />
 
-          {/* FIX: Conditionally render based on item type and completion status */}
           {item.type === "task" && !item.completed && (
             <button
               role="menuitem"
@@ -309,7 +268,9 @@ const ContextMenu = ({
                 if (typeof onSetReminder === "function") {
                   onSetReminder(item);
                 } else {
-                  console.warn("onSetReminder prop is missing or not a function");
+                  console.warn(
+                    "onSetReminder prop is missing or not a function"
+                  );
                 }
                 onClose();
               }}
@@ -325,7 +286,7 @@ const ContextMenu = ({
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
             onClick={() => {
-              onRename();
+              onRename(item);
               onClose();
             }}
           >
@@ -338,7 +299,7 @@ const ContextMenu = ({
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40`}
             onClick={() => {
-              onDelete();
+              onDelete(item);
               onClose();
             }}
           >

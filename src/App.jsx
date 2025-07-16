@@ -73,6 +73,7 @@ import {
 import { initApiClient, authFetch } from "./services/apiClient";
 import EditorPage from "./pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
+
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
   const year = now.getFullYear();
@@ -155,6 +156,23 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
 
 // Main App Component that handles routing
 const App = () => {
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (event.key === "taskChecked" && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue);
+          if (data?.id) {
+            document.querySelector(`[data-id='${data.id}'] input[type='checkbox']`)?.click();
+          }
+        } catch (e) {
+          console.warn("Invalid taskChecked value", event.newValue);
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   return (
     <Router>
       <Routes>
@@ -168,6 +186,7 @@ const App = () => {
     </Router>
   );
 };
+
 // Landing Page Route Component
 const LandingPageRoute = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -1134,6 +1153,14 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
             "success",
             3000
           );
+        } else {
+           showMessage(
+            `${
+              newItemType.charAt(0).toUpperCase() + newItemType.slice(1)
+            } added.`,
+            "success",
+            3000
+          );
         }
 
         setAddDialogOpen(false);
@@ -1268,9 +1295,10 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
           showMessage("Item deleted.", "success", 3000);
         }
       }
+      setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
       setContextMenu((m) => ({ ...m, visible: false }));
     },
-    [deleteItem, showMessage, setContextMenu]
+    [deleteItem, showMessage, setContextMenu, setConfirmDialog]
   );
   const handleDuplicate = useCallback(
     async (itemId) => {
@@ -2008,102 +2036,34 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         }}
       >
         {isMobile ? (
-          mobileViewMode === "tree" ? (
-            <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
-              <Tree
-                items={tree || []}
-                selectedItemId={selectedItemId}
-                onSelect={(id) => {
-                  selectItemById(id);
-                  if (!inlineRenameId) {
-                    const selectedItem =
-                      tree?.find((item) => item.id === id) ||
-                      tree?.flatMap(function findInTree(item) {
-                        if (item.id === id) return [item];
-                        if (item.children)
-                          return item.children.flatMap(findInTree);
-                        return [];
-                      })[0];
-                    if (selectedItem && selectedItem.type !== "folder") {
-                      setMobileViewMode("content");
-                      window.history.pushState(
-                        { viewMode: "content", itemId: id },
-                        "",
-                        window.location.href
-                      );
-                    }
-                  }
-                }}
-                inlineRenameId={inlineRenameId}
-                inlineRenameValue={inlineRenameValue}
-                setInlineRenameValue={setInlineRenameValue}
-                onAttemptRename={handleAttemptRename}
-                cancelInlineRename={cancelInlineRename}
-                expandedFolders={expandedFolders}
-                onToggleExpand={toggleFolderExpand}
-                onToggleTask={handleToggleTask}
-                draggedId={draggedId}
-                onDragStart={(e, id) => {
-                  if (inlineRenameId) e.preventDefault();
-                  else setDraggedId(id);
-                }}
-                onDrop={(targetId) => handleDrop(targetId, draggedId)}
-                onDragEnd={handleDragEnd}
-                onNativeContextMenu={handleNativeContextMenu}
-                onShowItemMenu={handleShowItemMenu}
-                onRename={startInlineRename}
-                uiError={uiMessage}
-                setUiError={(msg) => showMessage(msg, "error")}
-              />
-            </div>
-          ) : (
-            <div className="flex-grow overflow-auto bg-white dark:bg-zinc-900 flex flex-col">
-              {selectedItem ? (
-                <ContentEditor
-                  {...contentEditorProps}
-                  renderToolbarToggle={(showToolbar, toggleToolbar) => (
-                    <div className="m-2 flex items-center justify-between">
-                      <button
-                        onClick={() => setMobileViewMode("tree")}
-                        className="px-3 py-2 bg-blue-500 text-white rounded-md"
-                      >
-                        ← Back to Tree
-                      </button>
-                      <button
-                        className="toolbar-toggle-button px-3 py-1 border rounded"
-                        onClick={toggleToolbar}
-                      >
-                        {showToolbar ? "Hide Tools" : "Show Tools"}
-                      </button>
-                    </div>
-                  )}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
-                  Select or create an item to view or edit its content.
-                </div>
-              )}
-            </div>
-          )
-        ) : (
-          <PanelGroup direction="horizontal" className="flex-1">
-            <Panel
-              id="tree-panel"
-              order={0}
-              defaultSize={30}
-              minSize={20}
-              maxSize={60}
-              className="flex flex-col !overflow-hidden bg-zinc-50 dark:bg-zinc-800/30 border-r border-zinc-200 dark:border-zinc-700/50"
-            >
-              <div
-                className="flex-grow overflow-auto"
-                id="tree-navigation-area"
-                tabIndex={-1}
-              >
+          <>
+            {mobileViewMode === "tree" ? (
+              <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
                 <Tree
                   items={tree || []}
                   selectedItemId={selectedItemId}
-                  onSelect={selectItemById}
+                  onSelect={(id) => {
+                    selectItemById(id);
+                    if (!inlineRenameId) {
+                      const selectedItem =
+                        tree?.find((item) => item.id === id) ||
+                        tree
+                          ?.flatMap(function findInTree(item) {
+                            if (item.id === id) return [item];
+                            if (item.children)
+                              return item.children.flatMap(findInTree);
+                            return [];
+                          })[0];
+                      if (selectedItem && selectedItem.type !== "folder") {
+                        setMobileViewMode("content");
+                        window.history.pushState(
+                          { viewMode: "content", itemId: id },
+                          "",
+                          window.location.href
+                        );
+                      }
+                    }
+                  }}
                   inlineRenameId={inlineRenameId}
                   inlineRenameValue={inlineRenameValue}
                   setInlineRenameValue={setInlineRenameValue}
@@ -2114,20 +2074,8 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   onToggleTask={handleToggleTask}
                   draggedId={draggedId}
                   onDragStart={(e, id) => {
-                    if (inlineRenameId) {
-                      e.preventDefault();
-                      return;
-                    }
-                    try {
-                      if (e.dataTransfer) {
-                        e.dataTransfer.setData("text/plain", id);
-                        e.dataTransfer.effectAllowed = "move";
-                      }
-                      setDraggedId(id);
-                    } catch (err) {
-                      console.error("Drag error:", err);
-                      showMessage("Drag operation failed.", "error");
-                    }
+                    if (inlineRenameId) e.preventDefault();
+                    else setDraggedId(id);
                   }}
                   onDrop={(targetId) => handleDrop(targetId, draggedId)}
                   onDragEnd={handleDragEnd}
@@ -2138,252 +2086,115 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   setUiError={(msg) => showMessage(msg, "error")}
                 />
               </div>
-              <div className="flex-shrink-0 p-3 border-t border-zinc-200 dark:border-zinc-700/50 bg-zinc-50 dark:bg-zinc-800/30">
-                {currentUser?.role === "admin" ||
-                hasActiveAccess(currentUser) ? (
-                  <div className="text-center p-2">
-                    <div className="flex items-center justify-center gap-2 font-semibold text-sm text-purple-600 dark:text-purple-400">
-                      <Gem className="w-4 h-4" />
-                      <span>
-                        {currentUser.role === "admin"
-                          ? "Admin Account"
-                          : "Pro Plan"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                      {currentUser.role === "admin"
-                        ? "No limitations apply."
-                        : "You have unlimited items."}
-                    </p>
-                  </div>
+            ) : (
+              <div className="flex-grow flex flex-col">
+                {selectedItem ? (
+                  <ContentEditor {...contentEditorProps} />
                 ) : (
-                  <>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
-                        Free Plan
-                      </span>
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {currentItemCount} / 100 items
-                      </span>
-                    </div>
-                    <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(currentItemCount, 100)}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        window.open("/#pricing", "_blank");
-                      }}
-                      className="mt-3 w-full flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-                    >
-                      <Gem className="w-4 h-4" />
-                      Upgrade to Pro
-                    </button>
-                  </>
+                  <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
+                    Select an item to view its content.
+                  </div>
                 )}
               </div>
+            )}
+          </>
+        ) : (
+          <PanelGroup direction="horizontal">
+            <Panel id="tree-panel" order={0} defaultSize={30} minSize={20}>
+              <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800 h-full">
+                <Tree
+                  items={tree || []}
+                  selectedItemId={selectedItemId}
+                  onSelect={(id) => {
+                    selectItemById(id);
+                  }}
+                  inlineRenameId={inlineRenameId}
+                  inlineRenameValue={inlineRenameValue}
+                  setInlineRenameValue={setInlineRenameValue}
+                  onAttemptRename={handleAttemptRename}
+                  cancelInlineRename={cancelInlineRename}
+                  expandedFolders={expandedFolders}
+                  onToggleExpand={toggleFolderExpand}
+                  onToggleTask={handleToggleTask}
+                  draggedId={draggedId}
+                  onDragStart={(e, id) => {
+                    if (inlineRenameId) e.preventDefault();
+                    else setDraggedId(id);
+                  }}
+                  onDrop={(targetId) => handleDrop(targetId, draggedId)}
+                  onDragEnd={handleDragEnd}
+                  onNativeContextMenu={handleNativeContextMenu}
+                  onShowItemMenu={handleShowItemMenu}
+                  onRename={startInlineRename}
+                  uiError={uiMessage}
+                  setUiError={(msg) => showMessage(msg, "error")}
+                />
+              </div>
             </Panel>
-            <PanelResizeHandle className="w-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-500 data-[resize-handle-active=true]:bg-blue-600 transition-colors cursor-col-resize z-20 flex-shrink-0" />
+            <PanelResizeHandle className="w-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors" />
             <Panel
               id="content-panel"
               order={1}
               defaultSize={70}
-              minSize={30}
-              className="flex flex-col !overflow-hidden bg-white dark:bg-zinc-900"
+              minSize={40}
+              className="flex flex-col"
             >
-              <div className="flex-grow overflow-auto h-full">
-                {selectedItem ? (
-                  selectedItem.type === "folder" ? (
-                    <div className="p-3 sm:p-4">
-                      <h2 className="text-lg sm:text-xl font-semibold mb-3 text-zinc-800 dark:text-zinc-100 break-words">
-                        {selectedItem.label}
-                      </h2>
-                      <FolderContents
-                        folder={selectedItem}
-                        onSelect={selectItemById}
-                        handleDragStart={(e, id) => {
-                          if (inlineRenameId) e.preventDefault();
-                          else setDraggedId(id);
-                        }}
-                        handleDragEnter={(e, id) => {}}
-                        handleDragOver={(e) => e.preventDefault()}
-                        handleDragLeave={(e) => {}}
-                        handleDrop={(e, targetItemId) => {
-                          if (draggedId && targetItemId === selectedItem.id) {
-                            handleDrop(targetItemId, draggedId);
-                          }
-                        }}
-                        handleDragEnd={handleDragEnd}
-                        draggedId={draggedId}
-                        onToggleExpand={toggleFolderExpand}
-                        expandedItems={expandedFolders}
-                        onShowItemMenu={handleShowItemMenu}
-                        reminders={reminders}
-                      />
-                    </div>
-                  ) : selectedItem.type === "note" ||
-                    selectedItem.type === "task" ? (
-                    <ContentEditor
-                      key={`${selectedItemId}_${selectedItem.updatedAt}`}
-                      {...contentEditorProps}
-                    />
-                  ) : null
-                ) : (
-                  <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
-                    Select or create an item to view or edit its content.
-                  </div>
-                )}
-              </div>
+              {selectedItem ? (
+                <ContentEditor {...contentEditorProps} />
+              ) : (
+                <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
+                  Select or create an item to view or edit its content.
+                </div>
+              )}
             </Panel>
           </PanelGroup>
         )}
       </main>
 
-      <Sheet
-        isOpen={searchSheetOpen}
-        onClose={() => setSearchSheetOpen(false)}
-        snapPoints={[0.85, 0.6, 0.3]}
-        initialSnap={1}
-        className="z-40"
-      >
-        <Sheet.Container
-          data-item-id="search-sheet-container"
-          className="!bg-zinc-50 dark:!bg-zinc-900 !rounded-t-xl"
-        >
-          <Sheet.Header>
-            <div className="flex justify-center py-2.5 cursor-grab">
-              <div className="w-10 h-1.5 bg-zinc-300 dark:bg-zinc-600 rounded-full"></div>
-            </div>
-          </Sheet.Header>
-          <Sheet.Content className="!pb-0">
-            <div className="overflow-y-auto h-full">
-              <SearchResultsPane
-                headerHeightClass={APP_HEADER_HEIGHT_CLASS}
-                query={searchQuery}
-                onQueryChange={setSearchQuery}
-                results={searchResults}
-                onSelectResult={(item) => {
-                  if (item.originalId) {
-                    expandFolderPath(item.originalId);
-                    selectItemById(item.originalId);
-                    setSearchSheetOpen(false);
-                    setTimeout(() => {
-                      document
-                        .querySelector(`li[data-item-id="${item.originalId}"]`)
-                        ?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "center",
-                        });
-                    }, 100);
-                  }
-                }}
-                onClose={() => setSearchSheetOpen(false)}
-                opts={searchOptions}
-                setOpts={setSearchOptions}
-              />
-            </div>
-          </Sheet.Content>
-        </Sheet.Container>
-        <Sheet.Backdrop onTap={() => setSearchSheetOpen(false)} />
-      </Sheet>
-
-      {contextMenu.visible && (
-        <ContextMenu
-          visible={contextMenu.visible}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          item={contextMenu.item}
-          isEmptyArea={contextMenu.isEmptyArea}
-          clipboardItem={clipboardItem}
-          onAddRootFolder={() => openAddDialog("folder", null)}
-          onAddFolder={() =>
-            contextMenu.item && openAddDialog("folder", contextMenu.item)
-          }
-          onAddNote={() =>
-            contextMenu.item && openAddDialog("note", contextMenu.item)
-          }
-          onAddTask={() =>
-            contextMenu.item && openAddDialog("task", contextMenu.item)
-          }
-          onRename={() =>
-            contextMenu.item && startInlineRename(contextMenu.item)
-          }
-          onDelete={() => {
-            if (contextMenu.item) {
-              showConfirm({
-                title: "Delete Item",
-                message: `Delete "${contextMenu.item.label}"?\nThis cannot be undone.`,
-                variant: "danger",
-                confirmText: "Delete",
-                onConfirm: () => {
-                  handleDeleteConfirm(contextMenu.item.id);
-                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-                },
-                onCancel: () => {
-                  setContextMenu((m) => ({ ...m, visible: false }));
-                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-                },
-              });
-            } else {
-              setContextMenu((m) => ({ ...m, visible: false }));
-            }
-          }}
-          onDuplicate={async () => {
-            if (contextMenu.item) {
-              await handleDuplicate(contextMenu.item.id);
-            }
-          }}
-          onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
-          onCopy={() => {
-            if (contextMenu.item) {
-              copyItem(contextMenu.item.id);
-              showMessage("Item copied.", "success", 2000);
-            }
-          }}
-          onCut={() => {
-            if (contextMenu.item) {
-              cutItem(contextMenu.item.id);
-              showMessage("Item cut.", "success", 2000);
-            }
-          }}
-          onPaste={async () => {
-            const tid = contextMenu.isEmptyArea
-              ? null
-              : contextMenu.item?.type === "folder"
-              ? contextMenu.item.id
-              : findParentAndSiblingsFromTree(contextMenu.item?.id)?.parent
-                  ?.id ?? null;
-            await handlePasteWrapper(tid);
-          }}
-          onExportItem={() => openExportDialog("item")}
-          onImportItem={() => openImportDialog("item")}
-          onExportTree={() => openExportDialog("tree")}
-          onImportTree={() => openImportDialog("tree")}
-        />
-      )}
+      <ContextMenu
+        {...contextMenu}
+        onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
+        onAdd={openAddDialog}
+        onRename={startInlineRename}
+        onDelete={(item) =>
+          showConfirm({
+            title: `Delete ${
+              item.type.charAt(0).toUpperCase() + item.type.slice(1)
+            }`,
+            message: `Are you sure you want to delete "${item.label}"? This cannot be undone.`,
+            onConfirm: () => handleDeleteConfirm(item.id),
+            variant: "danger",
+            confirmText: "Delete",
+          })
+        }
+        onCopy={copyItem}
+        onCut={cutItem}
+        onPaste={handlePasteWrapper}
+        onDuplicate={handleDuplicate}
+        isDuplicating={isDuplicating}
+        clipboardItem={clipboardItem}
+        onExport={openExportDialog}
+        onImport={openImportDialog}
+        isMobile={isMobile}
+        currentItemCount={currentItemCount}
+        maxItems={currentUser?.maxItems || 1000}
+        hasActiveAccess={hasActiveAccess(currentUser)}
+      />
 
       <AddDialog
         isOpen={addDialogOpen}
+        onClose={() => {
+          setAddDialogOpen(false);
+          setNewItemLabel("");
+          setParentItemForAdd(null);
+          setAddDialogErrorMessage("");
+        }}
         newItemType={newItemType}
         newItemLabel={newItemLabel}
-        errorMessage={addDialogErrorMessage}
-        onLabelChange={(e) => {
-          const val = e.target.value ?? "";
-          setNewItemLabel(val);
-          if (addDialogOpen) setAddDialogErrorMessage("");
-        }}
+        setNewItemLabel={setNewItemLabel}
         onAdd={handleAdd}
         onAddWithReminder={handleAddWithReminder}
-        onCancel={() => {
-          setAddDialogOpen(false);
-          setAddDialogErrorMessage("");
-          showMessage("", "error");
-          setNewItemLabel("");
-        }}
+        errorMessage={addDialogErrorMessage}
       />
 
       <AboutDialog
@@ -2393,62 +2204,136 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
 
       <ExportDialog
         isOpen={exportDialogState.isOpen}
-        context={exportDialogState.context}
-        defaultFormat={settings.defaultExportFormat}
         onClose={() => setExportDialogState({ isOpen: false, context: null })}
         onExport={handleExport}
+        context={exportDialogState.context}
+        defaultFormat={settings.defaultExportFormat}
       />
 
       <ImportDialog
         isOpen={importDialogState.isOpen}
+        onClose={() => setImportDialogState({ isOpen: false, context: null })}
         context={importDialogState.context}
-        selectedItem={selectedItem}
-        onClose={() => {
-          setImportDialogState({ isOpen: false, context: null });
-          showMessage("", "success");
-        }}
         onImport={handleFileImport}
+        selectedItem={selectedItem}
       />
 
       <SettingsDialog
         isOpen={settingsDialogOpen}
         onClose={() => setSettingsDialogOpen(false)}
+        autoExportIntervalRef={autoExportIntervalRef}
+        performAutoExport={performAutoExportRef.current}
+      />
+
+      <SnoozeDialog
+        isOpen={snoozeDialogOpen}
+        onConfirm={handleSnoozeConfirm}
+        onCancel={handleSnoozeCancel}
+        itemTitle={snoozeDialogData?.itemTitle}
       />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}
         message={confirmDialog.message}
-        confirmText={confirmDialog.confirmText}
-        cancelText={confirmDialog.cancelText}
-        variant={confirmDialog.variant}
         onConfirm={confirmDialog.onConfirm}
         onCancel={confirmDialog.onCancel}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
       />
 
-      {isDuplicating && (
-        <LoadingSpinner variant="overlay" text="Duplicating item..." />
+      {isMobile ? (
+        <Sheet
+          isOpen={searchSheetOpen}
+          onClose={() => setSearchSheetOpen(false)}
+          snapPoints={[0.95, 0.5, 0]}
+          initialSnap={0}
+          detent="full-height"
+        >
+          <Sheet.Container>
+            <Sheet.Header>
+              <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
+                <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
+                  Search
+                </h2>
+                <LoadingButton
+                  onClick={() => setSearchSheetOpen(false)}
+                  className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+                  variant="secondary"
+                  size="small"
+                >
+                  <X className="w-5 h-5" />
+                </LoadingButton>
+              </div>
+            </Sheet.Header>
+            <Sheet.Content>
+              <SearchResultsPane
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                searchOptions={searchOptions}
+                setSearchOptions={setSearchOptions}
+                searchResults={searchResults}
+                onSelect={(id) => {
+                  selectItemById(id);
+                  setSearchSheetOpen(false);
+                  setMobileViewMode("content");
+                  window.history.pushState(
+                    { viewMode: "content", itemId: id },
+                    "",
+                    window.location.href
+                  );
+                }}
+                searchInputRef={searchInputRef}
+                onClose={() => setSearchSheetOpen(false)}
+              />
+            </Sheet.Content>
+          </Sheet.Container>
+          <Sheet.Backdrop />
+        </Sheet>
+      ) : (
+        <div
+          className={`fixed inset-0 z-30 transition-transform duration-300 ease-in-out ${
+            searchSheetOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="w-full max-w-md h-full bg-white dark:bg-zinc-800 shadow-xl border-r border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
+              <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
+                Search
+              </h2>
+              <LoadingButton
+                onClick={() => setSearchSheetOpen(false)}
+                className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+                variant="secondary"
+                size="small"
+              >
+                <X className="w-5 h-5" />
+              </LoadingButton>
+            </div>
+            <SearchResultsPane
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              searchOptions={searchOptions}
+              setSearchOptions={setSearchOptions}
+              searchResults={searchResults}
+              onSelect={(id) => {
+                selectItemById(id);
+                setSearchSheetOpen(false);
+              }}
+              searchInputRef={searchInputRef}
+              onClose={() => setSearchSheetOpen(false)}
+            />
+          </div>
+        </div>
       )}
 
-      {/* Snooze Dialog */}
-      <SnoozeDialog
-        isOpen={snoozeDialogOpen}
-        onClose={handleSnoozeCancel}
-        onSnooze={handleSnoozeConfirm}
-        itemTitle={snoozeDialogData?.itemTitle}
-      />
-
-      {/* Feedback Notifications */}
-      {feedbackNotifications.map((notification, index) => (
+      {feedbackNotifications.map((notification) => (
         <FeedbackNotification
           key={notification.id}
           message={notification.message}
           type={notification.type}
-          duration={5000}
           onClose={() => removeFeedbackNotification(notification.id)}
-          style={{
-            top: `${1 + index * 5}rem`, // Stack notifications with 5rem spacing
-          }}
         />
       ))}
     </div>

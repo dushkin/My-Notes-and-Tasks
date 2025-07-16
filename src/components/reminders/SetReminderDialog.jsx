@@ -34,14 +34,14 @@ const SetReminderDialog = ({ isOpen, onClose, onSetReminder, item }) => {
   };
 
   const actions = [
+    { label: "Cancel", onClick: onClose, variant: "secondary"},
     {
       label: "Set Reminder",
       onClick: handleConfirm,
       variant: "primary",
       autoFocus: true,
-      className: "ml-5",
-    },
-    { label: "Cancel", onClick: onClose, variant: "secondary" },
+      className: "ml-5"
+    }
   ];
 
   return (
