@@ -9,7 +9,8 @@ import React, {
 import TipTapEditor from "./TipTapEditor";
 import LoadingSpinner from "./LoadingSpinner";
 import { formatRemainingTime } from "../utils/reminderUtils";
-import SetReminderDialog from "./SetReminderDialog"; // Import the dialog
+import { useLiveCountdown } from "../hooks/useLiveCountdown";
+import SetReminderDialog from "./reminders/SetReminderDialog"; // Import the dialog
 import { setReminder, getReminder } from "../utils/reminderUtils"; // Import utilities
 
 const MOBILE_BREAKPOINT = 768;
@@ -51,8 +52,8 @@ const ContentEditor = memo(
     const [dir, setDir] = useState("ltr"); // RTL/LTR state
     const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false); // State for dialog visibility
 
-    // Assuming item.id is available for reminder key
-    const currentReminder = getReminder(item.id);
+    // FIX: Use the reminder prop for the live countdown
+    const liveCountdown = useLiveCountdown(reminder?.timestamp);
 
     const handleSetReminder = (id, timestamp, repeatOptions) => {
       setReminder(id, timestamp, repeatOptions);
@@ -100,48 +101,44 @@ const ContentEditor = memo(
           <div className="flex items-center space-x-2 text-xs text-zinc-500 dark:text-zinc-400">
             <span><span className="text-blue-600 dark:text-blue-400">Created</span> {formatTimestamp(item.createdAt)}</span>
             <span><span className="text-orange-600 dark:text-orange-400">Last Modified</span> {formatTimestamp(item.updatedAt)}</span>
-            {/* New green link with bell icon */}
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setIsReminderDialogOpen(true);
-              }}
-              className="text-green-500 hover:underline flex items-center"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-1"
+            {item.type === 'task' && !item.completed && (
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsReminderDialogOpen(true);
+                }}
+                className="text-green-500 hover:underline flex items-center"
               >
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>{" "}
-              {/* Inline SVG for bell icon */}
-              Set Reminder
-              {currentReminder && (
-                <span className="ml-2 text-green-600 dark:text-green-400 text-xs">
-                  ({formatRemainingTime(currentReminder.timestamp)})
-                </span>
-              )}
-            </a>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1"
+                >
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>{" "}
+                {/* FIX: Check for reminder existence before showing text */}
+                {reminder ? "Reminder" : "Set Reminder"}
+                {reminder && (
+                  <span className="ml-2 text-green-600 dark:text-green-400 text-xs">
+                    ({liveCountdown || formatRemainingTime(reminder.timestamp)})
+                  </span>
+                )}
+              </a>
+            )}
           </div>
           {isSaving && <LoadingSpinner size="small" />}
           {lastSaved && (
             <span className="text-xs text-zinc-500 dark:text-zinc-400">
               Saved {formatTimestamp(lastSaved.toISOString())}
-            </span>
-          )}
-          {reminder && (
-            <span className="text-xs text-green-600 dark:text-green-400">
-              Reminder: {formatRemainingTime(reminder.timestamp)}
             </span>
           )}
         </div>

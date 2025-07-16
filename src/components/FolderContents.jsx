@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { sortItems } from "../utils/treeUtils";
 import { formatRemainingTime } from "../utils/reminderUtils";
-import SetReminderDialog from "./SetReminderDialog";
+import { useLiveCountdowns } from "../hooks/useLiveCountdown";
+import SetReminderDialog from "./reminders/SetReminderDialog";
 import { setReminder } from "../utils/reminderUtils";
 import ContextMenu from "./ContextMenu"; // Ensure ContextMenu is imported if used here
 import { MoreVertical } from "lucide-react";
@@ -20,10 +21,13 @@ const FolderContents = ({
   onToggleExpand,
   expandedItems,
   onShowItemMenu,
-  reminders,
+  reminders = {},
 }) => {
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  
+  // Use live countdown hook for real-time updates
+  const liveCountdowns = useLiveCountdowns(reminders || {});
 
   const handleSetReminder = (item) => {
     setSelectedItem(item);
@@ -50,7 +54,7 @@ const FolderContents = ({
       <ul className="space-y-1 sm:space-y-2">
         {sortItems(folder.children).map((child) => {
           const isBeingDragged = child.id === draggedId;
-          const reminder = reminders[child.id]; // Get reminder for this item
+          const reminder = reminders && reminders[child.id] ? reminders[child.id] : null; // Get reminder for this item
           const isDragOverTarget =
             child.id === dragOverItemId && child.type === "folder";
 
@@ -143,7 +147,7 @@ const FolderContents = ({
                 {child.label}
                 {reminder && (
                   <span className="ml-2 text-green-600 dark:text-green-400 text-xs">
-                    ({formatRemainingTime(reminder.timestamp)})
+                    ({liveCountdowns[child.id] || formatRemainingTime(reminder.timestamp)})
                   </span>
                 )}
               </span>

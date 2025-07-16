@@ -300,23 +300,27 @@ const ContextMenu = ({
             role="separator"
           />
 
-          <button
-            role="menuitem"
-            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
-            onClick={() => {
-              if (typeof onSetReminder === "function") {
-                onSetReminder(item);
-              } else {
-                console.warn("onSetReminder prop is missing or not a function");
-              }
-              onClose();
-            }}
-          >
-            <Bell
-              className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
-            />{" "}
-            Set Reminder
-          </button>
+          {/* FIX: Conditionally render based on item type and completion status */}
+          {item.type === "task" && !item.completed && (
+            <button
+              role="menuitem"
+              className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+              onClick={() => {
+                if (typeof onSetReminder === "function") {
+                  onSetReminder(item);
+                } else {
+                  console.warn("onSetReminder prop is missing or not a function");
+                }
+                onClose();
+              }}
+            >
+              <Bell
+                className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
+              />{" "}
+              Set Reminder
+            </button>
+          )}
+
           <button
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}

@@ -37,8 +37,11 @@ import {
   registerServiceWorker,
   requestNotificationPermission,
   subscribePush,
+  getReminders,
 } from "./utils/reminderUtils";
-import reminderMonitor from "./utils/reminderMonitor";
+import reminderMonitor from "./components/reminders/reminderMonitor.js";
+import SnoozeDialog from "./components/reminders/SnoozeDialog";
+import FeedbackNotification from "./components/FeedbackNotification";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Search as SearchIcon,
@@ -70,7 +73,6 @@ import {
 import { initApiClient, authFetch } from "./services/apiClient";
 import EditorPage from "./pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
-
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
   const year = now.getFullYear();
@@ -110,7 +112,6 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
-
   if (!message) {
     return null;
   }
@@ -167,7 +168,6 @@ const App = () => {
     </Router>
   );
 };
-
 // Landing Page Route Component
 const LandingPageRoute = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -194,7 +194,6 @@ const LandingPageRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -237,7 +236,6 @@ const LoginRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -250,7 +248,6 @@ const LoginRoute = () => {
     setCurrentUser(userData);
     window.location.href = "/app";
   };
-
   return (
     <>
       <BetaBanner variant="auth" />
@@ -288,7 +285,6 @@ const RegisterRoute = () => {
 
     checkAuth();
   }, []);
-
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -300,7 +296,6 @@ const RegisterRoute = () => {
   const handleRegisterSuccess = () => {
     window.location.href = "/login";
   };
-
   return (
     <>
       <BetaBanner variant="auth" />
@@ -342,7 +337,6 @@ const ProtectedAppRoute = () => {
 
     checkAuth();
   }, []);
-
   if (!isAuthCheckComplete || !currentUser) {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
@@ -455,6 +449,13 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
 
+  // Interactive notification states
+  const [snoozeDialogOpen, setSnoozeDialogOpen] = useState(false);
+  const [snoozeDialogData, setSnoozeDialogData] = useState(null);
+  const [feedbackNotifications, setFeedbackNotifications] = useState([]);
+
+  // Reminders state
+  const [reminders, setReminders] = useState({});
   // Loading states
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -469,17 +470,14 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     confirmText: "Confirm",
     cancelText: "Cancel",
   });
-
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
   );
-
   const findParentAndSiblingsFromTree = useCallback(
     (id) => findParentAndSiblingsUtil(tree, id),
     [tree]
   );
-
   const showMessage = useCallback(
     (message, type = "error", duration = 5000) => {
       setUiMessage(message);
@@ -487,7 +485,9 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     []
   );
-
+  const handleUiMessageClose = useCallback(() => {
+    setUiMessage("");
+  }, []);
   const handleSaveItemData = useCallback(
     async (itemId, dataToSave) => {
       const item = findItemByIdFromTree(itemId);
@@ -520,17 +520,22 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [updateNoteContent, updateTask, findItemByIdFromTree, showMessage]
   );
-
   // Memoize content editor props to prevent unnecessary re-renders
   const contentEditorProps = useMemo(
     () => ({
       item: selectedItem,
       defaultFontFamily: settings.editorFontFamily,
       onSaveItemData: handleSaveItemData,
+      reminder: reminders[selectedItemId],
     }),
-    [selectedItem, settings.editorFontFamily, handleSaveItemData]
+    [
+      selectedItem,
+      settings.editorFontFamily,
+      handleSaveItemData,
+      reminders,
+      selectedItemId,
+    ]
   );
-
   const hasActiveAccess = (user) => {
     if (!user) return false;
     if (user.subscriptionStatus === "active") return true;
@@ -557,7 +562,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       cancelText: options.cancelText || "Cancel",
     });
   }, []);
-
   const handleActualLogout = useCallback(() => {
     clearTokens();
     setCurrentUser(null);
@@ -569,33 +573,57 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     setIsLoggingOut(false);
     window.location.href = "/";
   }, [resetTreeHistory, setCurrentUser]);
-
   useEffect(() => {
     initApiClient(handleActualLogout);
   }, [handleActualLogout]);
-
   useEffect(() => {
     if (fetchUserTree) {
       fetchUserTree();
     }
   }, [fetchUserTree]);
+  // Load reminders from localStorage and set up live updates
+  useEffect(() => {
+    const loadReminders = () => {
+      try {
+        setReminders(getReminders());
+      } catch (error) {
+        console.error("Failed to load reminders:", error);
+        setReminders({});
+      }
+    };
 
+    const handleRemindersUpdate = (event) => {
+      setReminders(event.detail || getReminders());
+    };
+
+    if (currentUser) {
+      loadReminders();
+      // Listen for immediate updates
+      window.addEventListener("remindersUpdated", handleRemindersUpdate);
+      // Also poll as a fallback
+      const reminderRefreshInterval = setInterval(loadReminders, 5000);
+
+      return () => {
+        window.removeEventListener("remindersUpdated", handleRemindersUpdate);
+        clearInterval(reminderRefreshInterval);
+      };
+    } else {
+      setReminders({});
+    }
+  }, [currentUser]);
   // Initialize push notifications and reminder monitoring
   useEffect(() => {
     const initializePushNotifications = async () => {
       try {
-        // Register service worker
         const registration = await registerServiceWorker();
         if (!registration) {
           console.warn("Service worker registration failed");
           return;
         }
 
-        // Request notification permission
         const permission = await requestNotificationPermission();
         if (permission === "granted") {
           console.log("Notification permission granted");
-          // Subscribe to push notifications
           const subscription = await subscribePush(registration);
           if (subscription) {
             console.log("Push subscription successful");
@@ -608,14 +636,11 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       }
     };
 
-    // Only initialize if user is logged in
     if (currentUser) {
       initializePushNotifications();
-      // Start reminder monitoring
       reminderMonitor.start();
     }
 
-    // Cleanup function to stop monitoring when user logs out
     return () => {
       if (!currentUser) {
         reminderMonitor.stop();
@@ -623,6 +648,151 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     };
   }, [currentUser]);
 
+  // Set up event listeners for reminder monitor events
+  useEffect(() => {
+    const handleShowSnoozeDialog = (event) => {
+      const { itemId, reminderId, originalData, onSnooze } = event.detail;
+      const itemTitle = findItemByIdFromTree(itemId)?.label || "Untitled";
+
+      setSnoozeDialogData({
+        itemId,
+        reminderId,
+        itemTitle,
+        originalData,
+        onSnooze,
+      });
+      setSnoozeDialogOpen(true);
+    };
+
+    const handleShowFeedback = (event) => {
+      const { message, type } = event.detail;
+      const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      setFeedbackNotifications((prev) => {
+        const isDuplicate = prev.some(
+          (notif) =>
+            notif.message === message &&
+            notif.type === type &&
+            Date.now() - notif.timestamp < 1000
+        );
+
+        if (isDuplicate) {
+          return prev;
+        }
+
+        return [
+          ...prev,
+          {
+            id,
+            message,
+            type,
+            timestamp: Date.now(),
+          },
+        ];
+      });
+    };
+
+    const handleReminderMarkedDone = async (event) => {
+      const { itemId } = event.detail;
+      const itemTitle = findItemByIdFromTree(itemId)?.label || "Item";
+
+      try {
+        const result = await updateTask(itemId, { completed: true });
+        if (result && result.success) {
+          const successMessage = `✅ "${itemTitle}" marked as done!`;
+          const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+          setFeedbackNotifications((prev) => {
+            const isDuplicate = prev.some(
+              (notif) =>
+                notif.message === successMessage &&
+                notif.type === "success" &&
+                Date.now() - notif.timestamp < 2000
+            );
+
+            if (isDuplicate) {
+              return prev;
+            }
+
+            return [
+              ...prev,
+              {
+                id,
+                message: successMessage,
+                type: "success",
+                timestamp: Date.now(),
+              },
+            ];
+          });
+        } else {
+          showMessage(`Failed to mark "${itemTitle}" as done.`, "error", 3000);
+        }
+      } catch (error) {
+        showMessage(`Error marking "${itemTitle}" as done.`, "error", 3000);
+      }
+    };
+
+    const handleReminderDismissed = (event) => {
+      const { itemId } = event.detail;
+      console.log("Reminder dismissed for item:", itemId);
+    };
+
+    const handleFocusItem = (event) => {
+      const { itemId } = event.detail;
+      if (itemId) {
+        expandFolderPath(itemId);
+        selectItemById(itemId);
+        setTimeout(() => {
+          const element = document.querySelector(
+            `li[data-item-id="${itemId}"]`
+          );
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 100);
+      }
+    };
+
+    window.addEventListener("showSnoozeDialog", handleShowSnoozeDialog);
+    window.addEventListener("showFeedback", handleShowFeedback);
+    window.addEventListener("reminderMarkedDone", handleReminderMarkedDone);
+    window.addEventListener("reminderDismissed", handleReminderDismissed);
+    window.addEventListener("focusItem", handleFocusItem);
+    return () => {
+      window.removeEventListener("showSnoozeDialog", handleShowSnoozeDialog);
+      window.removeEventListener("showFeedback", handleShowFeedback);
+      window.removeEventListener(
+        "reminderMarkedDone",
+        handleReminderMarkedDone
+      );
+      window.removeEventListener("reminderDismissed", handleReminderDismissed);
+      window.removeEventListener("focusItem", handleFocusItem);
+    };
+  }, [findItemByIdFromTree, expandFolderPath, selectItemById, showMessage]);
+  const handleSnoozeConfirm = useCallback(
+    (duration, unit) => {
+      if (snoozeDialogData && snoozeDialogData.onSnooze) {
+        snoozeDialogData.onSnooze(duration, unit);
+      } else if (snoozeDialogData) {
+        reminderMonitor.applySnooze(
+          snoozeDialogData.itemId,
+          duration,
+          unit,
+          snoozeDialogData.originalData
+        );
+      }
+      setSnoozeDialogOpen(false);
+      setSnoozeDialogData(null);
+    },
+    [snoozeDialogData]
+  );
+  const handleSnoozeCancel = useCallback(() => {
+    setSnoozeDialogOpen(false);
+    setSnoozeDialogData(null);
+  }, []);
+  const removeFeedbackNotification = useCallback((id) => {
+    setFeedbackNotifications((prev) => prev.filter((notif) => notif.id !== id));
+  }, []);
   const handleInitiateLogout = async () => {
     console.log("[Logout] Initiating logout…");
     setIsLoggingOut(true);
@@ -656,10 +826,8 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     handleActualLogout();
   };
 
-  // Auto export functionality
   const autoExportIntervalRef = useRef(null);
   const performAutoExportRef = useRef(null);
-
   useEffect(() => {
     performAutoExportRef.current = () => {
       if (!settings.autoExportEnabled || !currentUser) return;
@@ -704,7 +872,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     currentUser,
     showMessage,
   ]);
-
   useEffect(() => {
     if (autoExportIntervalRef.current) {
       clearInterval(autoExportIntervalRef.current);
@@ -745,7 +912,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     currentUser,
     showMessage,
   ]);
-
   const startInlineRename = useCallback(
     (item) => {
       if (!item || draggedId === item.id || inlineRenameId) return;
@@ -756,7 +922,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, showMessage, setContextMenu]
   );
-
   const cancelInlineRename = useCallback(() => {
     setInlineRenameId(null);
     setInlineRenameValue("");
@@ -768,7 +933,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       treeNav?.focus({ preventScroll: true });
     });
   }, [showMessage]);
-
   const handleAttemptRename = useCallback(async () => {
     if (!inlineRenameId) return;
     const newLabel = inlineRenameValue.trim();
@@ -812,7 +976,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     findItemByIdFromTree,
     showMessage,
   ]);
-
   const openAddDialog = useCallback(
     (type, parent) => {
       setNewItemType(type);
@@ -827,7 +990,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [showMessage, setContextMenu]
   );
-
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
@@ -912,99 +1074,112 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     tree,
     findParentAndSiblingsFromTree,
   ]);
+  const handleAddWithReminder = useCallback(
+    async (reminderData, repeatOptions = null) => {
+      const trimmedLabel = newItemLabel.trim();
+      if (!trimmedLabel) {
+        setAddDialogErrorMessage("Name cannot be empty.");
+        return;
+      }
 
-  const handleAddWithReminder = useCallback(async (reminderTime, repeatOptions = null) => {
-    const trimmedLabel = newItemLabel.trim();
-    if (!trimmedLabel) {
-      setAddDialogErrorMessage("Name cannot be empty.");
-      return;
-    }
-
-    const parentId = parentItemForAdd?.id ?? null;
-    const { siblings: targetSiblings } = findParentAndSiblingsFromTree(
-      parentId ? parentItemForAdd.id : null
-    );
-
-    if (
-      (targetSiblings || tree).some(
-        (sibling) => sibling.label.toLowerCase() === trimmedLabel.toLowerCase()
-      )
-    ) {
-      setAddDialogErrorMessage(
-        `An item named "${trimmedLabel}" already exists here.`
+      const parentId = parentItemForAdd?.id ?? null;
+      const { siblings: targetSiblings } = findParentAndSiblingsFromTree(
+        parentId ? parentItemForAdd.id : null
       );
-      return;
-    }
 
-    const newItemData = {
-      type: newItemType,
-      label: trimmedLabel,
-      content:
-        newItemType === "note" || newItemType === "task" ? "" : undefined,
-      completed: newItemType === "task" ? false : undefined,
-      direction:
-        newItemType === "note" || newItemType === "task" ? "ltr" : undefined,
-    };
-
-    setAddDialogErrorMessage("");
-    const result = await addItem(newItemData, parentId);
-
-    if (result.success) {
-      // Set reminder for the newly created item
-      if (reminderTime && result.item?.id) {
-        const { setReminder } = await import("./utils/reminderUtils");
-        setReminder(result.item.id, reminderTime, repeatOptions);
-        showMessage(
-          `${newItemType.charAt(0).toUpperCase() + newItemType.slice(1)} added with reminder.`,
-          "success",
-          3000
+      if (
+        (targetSiblings || tree).some(
+          (sibling) =>
+            sibling.label.toLowerCase() === trimmedLabel.toLowerCase()
+        )
+      ) {
+        setAddDialogErrorMessage(
+          `An item named "${trimmedLabel}" already exists here.`
         );
+        return;
       }
 
-      setAddDialogOpen(false);
-      setNewItemLabel("");
-      setParentItemForAdd(null);
+      const newItemData = {
+        type: newItemType,
+        label: trimmedLabel,
+        content:
+          newItemType === "note" || newItemType === "task" ? "" : undefined,
+        completed: newItemType === "task" ? false : undefined,
+        direction:
+          newItemType === "note" || newItemType === "task" ? "ltr" : undefined,
+      };
       setAddDialogErrorMessage("");
-      
-      if (result.item?.id) {
-        selectItemById(result.item.id);
-        if (result.item.type === "folder" && settings.autoExpandNewFolders) {
-          expandFolderPath(result.item.id);
+      const result = await addItem(newItemData, parentId);
+      if (result.success) {
+        let finalReminderTime = null;
+        if (
+          typeof reminderData === "string" &&
+          reminderData.startsWith("relative:")
+        ) {
+          const offset = parseInt(reminderData.split(":")[1], 10);
+          if (!isNaN(offset)) {
+            finalReminderTime = Date.now() + offset;
+          }
+        } else if (typeof reminderData === "number") {
+          finalReminderTime = reminderData;
         }
-        if (parentId && settings.autoExpandNewFolders) {
-          expandFolderPath(parentId);
-        }
-      }
-    } else {
-      const isNetworkOrServerError =
-        result.error &&
-        (result.error.includes("Network error") ||
-          result.error.includes("network error") ||
-          result.error.includes("Failed to add item") ||
-          result.error.includes("Server error") ||
-          result.error.includes("500") ||
-          result.error.includes("timeout") ||
-          result.error.includes("fetch"));
-      if (isNetworkOrServerError) {
-        showMessage(result.error, "error");
-        setAddDialogErrorMessage("");
-      } else {
-        setAddDialogErrorMessage(result.error || "Add operation failed.");
-      }
-    }
-  }, [
-    newItemLabel,
-    newItemType,
-    parentItemForAdd,
-    addItem,
-    showMessage,
-    selectItemById,
-    settings.autoExpandNewFolders,
-    expandFolderPath,
-    tree,
-    findParentAndSiblingsFromTree,
-  ]);
 
+        if (finalReminderTime && result.item?.id) {
+          const { setReminder } = await import("./utils/reminderUtils");
+          setReminder(result.item.id, finalReminderTime, repeatOptions);
+          showMessage(
+            `${
+              newItemType.charAt(0).toUpperCase() + newItemType.slice(1)
+            } added with reminder.`,
+            "success",
+            3000
+          );
+        }
+
+        setAddDialogOpen(false);
+        setNewItemLabel("");
+        setParentItemForAdd(null);
+        setAddDialogErrorMessage("");
+        if (result.item?.id) {
+          selectItemById(result.item.id);
+          if (result.item.type === "folder" && settings.autoExpandNewFolders) {
+            expandFolderPath(result.item.id);
+          }
+          if (parentId && settings.autoExpandNewFolders) {
+            expandFolderPath(parentId);
+          }
+        }
+      } else {
+        const isNetworkOrServerError =
+          result.error &&
+          (result.error.includes("Network error") ||
+            result.error.includes("network error") ||
+            result.error.includes("Failed to add item") ||
+            result.error.includes("Server error") ||
+            result.error.includes("500") ||
+            result.error.includes("timeout") ||
+            result.error.includes("fetch"));
+        if (isNetworkOrServerError) {
+          showMessage(result.error, "error");
+          setAddDialogErrorMessage("");
+        } else {
+          setAddDialogErrorMessage(result.error || "Add operation failed.");
+        }
+      }
+    },
+    [
+      newItemLabel,
+      newItemType,
+      parentItemForAdd,
+      addItem,
+      showMessage,
+      selectItemById,
+      settings.autoExpandNewFolders,
+      expandFolderPath,
+      tree,
+      findParentAndSiblingsFromTree,
+    ]
+  );
   const handleToggleTask = useCallback(
     async (id, currentCompletedStatus) => {
       const result = await updateTask(id, {
@@ -1019,7 +1194,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [updateTask, showMessage]
   );
-
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
 
   const openExportDialog = useCallback(
@@ -1031,7 +1205,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [setContextMenu]
   );
-
   const openImportDialog = useCallback(
     (context) => {
       setImportDialogState({ isOpen: true, context });
@@ -1041,7 +1214,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [setContextMenu]
   );
-
   const handleFileImport = useCallback(
     async (file, importTargetOption) => {
       showMessage("", "error");
@@ -1075,7 +1247,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [handleImportFromHook, setImportDialogState, showMessage]
   );
-
   const handlePasteWrapper = useCallback(
     async (targetId) => {
       const result = await pasteItem(targetId);
@@ -1087,7 +1258,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [pasteItem, showMessage]
   );
-
   const handleDeleteConfirm = useCallback(
     async (itemIdToDelete) => {
       if (itemIdToDelete) {
@@ -1102,7 +1272,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [deleteItem, showMessage, setContextMenu]
   );
-
   const handleDuplicate = useCallback(
     async (itemId) => {
       setIsDuplicating(true);
@@ -1119,7 +1288,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [duplicateItem, showMessage]
   );
-
   const handleShowItemMenu = useCallback(
     (item, buttonElement) => {
       if (!item || !buttonElement) return;
@@ -1140,7 +1308,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [selectItemById, setContextMenu]
   );
-
   const handleNativeContextMenu = useCallback(
     (event, item) => {
       if (draggedId || inlineRenameId) {
@@ -1168,7 +1335,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     [draggedId, inlineRenameId, selectItemById, setContextMenu]
   );
-
   // Search functionality
   useEffect(() => {
     if (searchQuery && searchSheetOpen) {
@@ -1332,7 +1498,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     searchSheetOpen,
     tree,
   ]);
-
   // Keyboard shortcuts and event handlers
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -1352,7 +1517,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mobileMenuOpen]);
-
   useEffect(() => {
     const handler = (e) => {
       const activeElement = document.activeElement;
@@ -1423,7 +1587,6 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     inlineRenameId,
     setSearchSheetOpen,
   ]);
-
   useEffect(() => {
     if (!isMobile) return;
 
@@ -1448,14 +1611,12 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       window.removeEventListener("popstate", handlePopState);
     };
   }, [isMobile, mobileViewMode]);
-
   const handleAccountDisplayClick = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
   };
 
   const iconBaseClass = "w-4 h-4 mr-2";
-
   return (
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <BetaBanner />
@@ -1463,7 +1624,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       <ErrorDisplay
         message={uiMessage}
         type={uiMessageType}
-        onClose={() => setUiMessage("")}
+        onClose={handleUiMessageClose}
       />
 
       <header
@@ -2061,15 +2222,14 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                         onToggleExpand={toggleFolderExpand}
                         expandedItems={expandedFolders}
                         onShowItemMenu={handleShowItemMenu}
+                        reminders={reminders}
                       />
                     </div>
                   ) : selectedItem.type === "note" ||
                     selectedItem.type === "task" ? (
                     <ContentEditor
                       key={`${selectedItemId}_${selectedItem.updatedAt}`}
-                      item={selectedItem}
-                      defaultFontFamily={settings.editorFontFamily}
-                      onSaveItemData={handleSaveItemData}
+                      {...contentEditorProps}
                     />
                   ) : null
                 ) : (
@@ -2269,6 +2429,28 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
       {isDuplicating && (
         <LoadingSpinner variant="overlay" text="Duplicating item..." />
       )}
+
+      {/* Snooze Dialog */}
+      <SnoozeDialog
+        isOpen={snoozeDialogOpen}
+        onClose={handleSnoozeCancel}
+        onSnooze={handleSnoozeConfirm}
+        itemTitle={snoozeDialogData?.itemTitle}
+      />
+
+      {/* Feedback Notifications */}
+      {feedbackNotifications.map((notification, index) => (
+        <FeedbackNotification
+          key={notification.id}
+          message={notification.message}
+          type={notification.type}
+          duration={5000}
+          onClose={() => removeFeedbackNotification(notification.id)}
+          style={{
+            top: `${1 + index * 5}rem`, // Stack notifications with 5rem spacing
+          }}
+        />
+      ))}
     </div>
   );
 };

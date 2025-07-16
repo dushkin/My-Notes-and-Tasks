@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import LoadingButton from "./LoadingButton";
-import ReminderSetter from "./ReminderSetter";
+import ReminderSetter from "./reminders/ReminderSetter";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const AddDialog = ({
@@ -45,6 +45,10 @@ const AddDialog = ({
     }
   };
 
+  const handleReminderChange = (time) => {
+    setReminderTime(time);
+  };
+
   if (!isOpen) {
     return null;
   }
@@ -78,8 +82,10 @@ const AddDialog = ({
               {errorMessage}
             </p>
           )}
-          {/* Reminder Setter Component */}
-          <ReminderSetter onSetReminder={setReminderTime} />
+          {/* Reminder Setter Component - Only show for tasks */}
+          {newItemType === 'task' && (
+            <ReminderSetter onSetReminder={handleReminderChange} />
+          )}
           <div className="mt-4 flex justify-end space-x-2">
             <button
               type="button"
