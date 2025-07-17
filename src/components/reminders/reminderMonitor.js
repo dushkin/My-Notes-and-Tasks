@@ -416,4 +416,20 @@ class ReminderMonitor {
 }
 
 const reminderMonitor = new ReminderMonitor();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    const { type, itemId } = event.data || {};
+    if (type === 'SNOOZE_REMINDER') {
+      console.log('Received snooze for item:', itemId);
+      const newTime = Date.now() + 5 * 60 * 1000;
+      setReminder(itemId, newTime);
+    } else if (type === 'MARK_DONE') {
+      console.log('Received done for item:', itemId);
+      window.dispatchEvent(new CustomEvent('markTaskDoneExternally', { detail: { itemId } }));
+    }
+  });
+}
+
+
 export default reminderMonitor;
