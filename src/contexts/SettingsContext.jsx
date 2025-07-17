@@ -36,7 +36,8 @@ export const editorFontSizeOptions = [
 ];
 
 export const defaultSettings = {
-  theme: "system",
+  reminderSoundEnabled: true,
+  reminderVibrationEnabled: true,  theme: "system",
   autoExpandNewFolders: true,
   editorFontFamily:
     editorFontFamilyOptions.length > 0

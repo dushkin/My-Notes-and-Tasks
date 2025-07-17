@@ -166,7 +166,9 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
             onChange = {
               (date) => setSpecificDateTime(date)
             }
-            showTimeSelect dateFormat = "Pp"
+            showTimeSelect
+        showTimeSelectMinutes
+        timeIntervals={1} dateFormat = "Pp"
             className = "w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-md text-gray-900 dark:text-gray-100 bg-white dark:bg-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholderText = "Select date and time" /
             >

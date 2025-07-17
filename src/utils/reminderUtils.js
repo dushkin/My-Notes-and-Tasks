@@ -249,6 +249,9 @@ export const showNotification = (title, body, data = {}) => {
       const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`; // Unique tag
       console.log('Service worker found, attempting to show notification with tag:', uniqueTag);
       registration.showNotification(title, {
+        requireInteraction: data?.reminderDoneButtonEnabled ?? false,
+        silent: !(data?.reminderSoundEnabled ?? true),
+        vibrate: (data?.reminderVibrationEnabled ?? true) ? [200, 100, 200] : undefined,
         body,
         icon: "/favicon-32x32.png",
         badge: "/favicon-32x32.png",

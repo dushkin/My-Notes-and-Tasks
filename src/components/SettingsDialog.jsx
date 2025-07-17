@@ -264,6 +264,48 @@ export default function SettingsDialog({ isOpen, onClose }) {
           ],
         },
         {
+          id: "reminders",
+          type: "group",
+          label: "Reminders",
+          desc: "Configure reminder notification settings.",
+          settings: [
+            {
+              id: "reminderSoundEnabled",
+              label: "Play Ringtone",
+              desc: "Play a sound when reminders are triggered.",
+              control: (
+                <input
+                  id="reminderSoundEnabled"
+                  type="checkbox"
+                  data-item-id="setting-remindersound-checkbox"
+                  checked={!!settings.reminderSoundEnabled}
+                  onChange={(e) =>
+                    updateSetting("reminderSoundEnabled", e.target.checked)
+                  }
+                  className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+                />
+              ),
+            },
+            {
+              id: "reminderVibrationEnabled",
+              label: "Vibrate",
+              desc: "Vibrate device when reminders are triggered (if supported).",
+              control: (
+                <input
+                  id="reminderVibrationEnabled"
+                  type="checkbox"
+                  data-item-id="setting-remindervibration-checkbox"
+                  checked={!!settings.reminderVibrationEnabled}
+                  onChange={(e) =>
+                    updateSetting("reminderVibrationEnabled", e.target.checked)
+                  }
+                  className="form-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
+                />
+              ),
+            },
+                      ],
+        },
+        {
           id: "resetSettings",
           label: "Reset Settings",
           desc: "Reset all settings to their default values.",
