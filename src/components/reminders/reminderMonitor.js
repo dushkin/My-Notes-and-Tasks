@@ -2,12 +2,17 @@ import { showNotification, getReminders, clearReminder, setReminder } from '../.
 
 class ReminderMonitor {
   constructor() {
+
     this.intervalId = null;
     this.checkInterval = 500;
     this.serviceWorkerMessageHandler = null;
     this.snoozeDialogCallback = null;
     this.lastFeedback = null;
     this.processedReminders = new Set();
+  }
+
+  setSettingsContext(settings) {
+    this.currentSettings = settings;
   }
 
   start() {
@@ -43,7 +48,7 @@ class ReminderMonitor {
       }
 
       if (reminder.timestamp <= now) {
-        this.triggerReminder(reminder);
+        this.triggerReminder(reminder, this.currentSettings);
         this.processedReminders.add(reminderKey);
 
         if (reminder.repeatOptions) {
@@ -55,7 +60,7 @@ class ReminderMonitor {
     });
   }
 
-  triggerReminder(reminder) {
+  triggerReminder(reminder, settings) {
     console.log('Triggering reminder:', reminder);
     const itemTitle = this.findItemTitle(reminder.itemId);
     const title = '⏰ Reminder';

@@ -406,6 +406,10 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     }
   }, [isSearchOpen]);
   const { settings } = useSettings();
+  useEffect(() => {
+    reminderMonitor.setSettingsContext(settings);
+  }, [settings]);
+
   const {
     tree,
     selectedItem,
