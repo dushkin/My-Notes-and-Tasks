@@ -41,7 +41,12 @@ const SnoozeDialog = ({ isOpen, onClose, onSnooze, itemTitle }) => {
   
   // Dynamically define the buttons in the footer
   const actions = [
-    { label: "Cancel", onClick: onClose, variant: "secondary" },
+    { 
+      label: "Cancel", 
+      onClick: onClose, 
+      variant: "secondary", 
+      className: "px-4 py-2" 
+    },
   ];
   if (showCustom) {
     actions.push({
@@ -49,7 +54,7 @@ const SnoozeDialog = ({ isOpen, onClose, onSnooze, itemTitle }) => {
       onClick: handleCustomConfirm,
       variant: "primary",
       autoFocus: true,
-      className: "ml-3",
+      className: "ml-3 px-4 py-2",
     });
   }
 

@@ -150,6 +150,7 @@ class ReminderMonitor {
 
   handleFocusItem(itemId) {
     console.log('Focusing on item:', itemId);
+    window.focus(); // Bring the application window to the foreground
     window.dispatchEvent(new CustomEvent('focusItem', {
       detail: {
         itemId
