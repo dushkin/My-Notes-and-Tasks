@@ -132,6 +132,7 @@ class ReminderMonitor {
 
   handleReminderSnooze(itemId, reminderId, originalData) {
     console.log('Handling reminder snooze:', itemId);
+    this.handleFocusItem(itemId);
     this.showSnoozeDialog(itemId, reminderId, originalData);
   }
 

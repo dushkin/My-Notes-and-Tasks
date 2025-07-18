@@ -30,7 +30,7 @@ const SnoozeDialog = ({ isOpen, onClose, onSnooze, itemTitle }) => {
     if (isNaN(value) || value <= 0) {
       const input = dialogRef.current?.querySelector("#snooze-value");
       if (input) {
-        input.focus();
+        input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' });
         input.select();
       }
       return;
@@ -74,7 +74,7 @@ const SnoozeDialog = ({ isOpen, onClose, onSnooze, itemTitle }) => {
             <label htmlFor="snooze-value" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
               Snooze for
             </label>
-            <div className="flex space-x-2">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
               <input
                 id="snooze-value"
                 type="number"

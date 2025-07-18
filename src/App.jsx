@@ -41,6 +41,7 @@ import {
 } from "./utils/reminderUtils";
 import reminderMonitor from "./components/reminders/reminderMonitor.js";
 import SnoozeDialog from "./components/reminders/SnoozeDialog";
+import SetReminderDialog from "./components/reminders/SetReminderDialog.jsx"; // Import SetReminderDialog
 import FeedbackNotification from "./components/FeedbackNotification";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
@@ -484,8 +485,11 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
   const [snoozeDialogData, setSnoozeDialogData] = useState(null);
   const [feedbackNotifications, setFeedbackNotifications] = useState([]);
 
-  // Reminders state
+  // Reminder states
   const [reminders, setReminders] = useState({});
+  const [isSetReminderDialogOpen, setIsSetReminderDialogOpen] = useState(false);
+  const [itemForReminder, setItemForReminder] = useState(null);
+
   // Loading states
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -515,6 +519,41 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     },
     []
   );
+
+  // Reminder Dialog handlers
+  const handleOpenSetReminderDialog = useCallback(
+    (item) => {
+      if (item) {
+        setItemForReminder(item);
+        setIsSetReminderDialogOpen(true);
+        setContextMenu((m) => ({ ...m, visible: false }));
+      }
+    },
+    [setContextMenu]
+  );
+
+  const handleConfirmSetReminder = useCallback(
+    async (itemId, timestamp, repeatOptions) => {
+      if (!itemId || !timestamp) {
+        setIsSetReminderDialogOpen(false);
+        return;
+      }
+      try {
+        const { setReminder } = await import("./utils/reminderUtils");
+        await setReminder(itemId, timestamp, repeatOptions);
+        const itemLabel = itemForReminder?.label || "item";
+        showMessage(`Reminder set for "${itemLabel}".`, "success", 3000);
+      } catch (error) {
+        console.error("Failed to set reminder:", error);
+        showMessage("Failed to set reminder.", "error");
+      } finally {
+        setIsSetReminderDialogOpen(false);
+        setItemForReminder(null);
+      }
+    },
+    [itemForReminder, showMessage]
+  );
+
   const handleUiMessageClose = useCallback(() => {
     setUiMessage("");
   }, []);
@@ -2222,6 +2261,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         onCut={cutItem}
         onPaste={handlePasteWrapper}
         onDuplicate={handleDuplicate}
+        onSetReminder={handleOpenSetReminderDialog}
         isDuplicating={isDuplicating}
         clipboardItem={clipboardItem}
         onExport={openExportDialog}
@@ -2281,6 +2321,16 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
         onSnooze={handleSnoozeConfirm}
         onClose={handleSnoozeCancel}
         itemTitle={snoozeDialogData?.itemTitle}
+      />
+
+      <SetReminderDialog
+        isOpen={isSetReminderDialogOpen}
+        onClose={() => {
+          setIsSetReminderDialogOpen(false);
+          setItemForReminder(null);
+        }}
+        onSetReminder={handleConfirmSetReminder}
+        item={itemForReminder}
       />
 
       <ConfirmDialog
