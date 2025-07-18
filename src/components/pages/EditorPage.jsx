@@ -1,7 +1,7 @@
 // src/pages/EditorPage.jsx
 import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import ContentEditor from "../components/ContentEditor";
+import ContentEditor from "../../components/rpane/ContentEditor";
 
 export default function EditorPage() {
   const { id } = useParams();

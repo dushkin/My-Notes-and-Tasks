@@ -1,6 +1,6 @@
 // SetReminderDialog.jsx
 import React, { useState, useRef, useEffect } from "react";
-import Modal from "../Modal";
+import Modal from "../dialogs/Modal";
 import ReminderSetter from "./ReminderSetter";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 

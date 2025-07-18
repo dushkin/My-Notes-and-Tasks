@@ -4,7 +4,7 @@ import { DOMParser } from "prosemirror-model";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
-import ResizableImageNodeView from "./ResizableImageNodeView";
+import ResizableImageNodeView from "../ResizableImageNodeView";
 import TextStyle from "@tiptap/extension-text-style";
 import { Extension } from "@tiptap/core";
 import FontFamily from "@tiptap/extension-font-family";
@@ -29,7 +29,7 @@ import {
   Image as ImageIconLucide,
 } from "lucide-react";
 import { marked } from "marked";
-import { authFetch } from "../services/apiClient";
+import { authFetch } from "../../services/apiClient";
 
 const FONT_FAMILIES = [
   "Arial",

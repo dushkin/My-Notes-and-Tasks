@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { sortItems } from "../utils/treeUtils";
-import { formatRemainingTime } from "../utils/reminderUtils";
-import { useLiveCountdowns } from "../hooks/useLiveCountdown";
-import SetReminderDialog from "./reminders/SetReminderDialog";
-import { setReminder } from "../utils/reminderUtils";
-import ContextMenu from "./ContextMenu"; // Ensure ContextMenu is imported if used here
+import { sortItems } from "../../utils/treeUtils";
+import { formatRemainingTime } from "../../utils/reminderUtils";
+import { useLiveCountdowns } from "../../hooks/useLiveCountdown";
+import SetReminderDialog from "../reminders/SetReminderDialog";
+import { setReminder } from "../../utils/reminderUtils";
+import ContextMenu from "../tree/ContextMenu"; // Ensure ContextMenu is imported if used here
 import { MoreVertical } from "lucide-react";
 
 const FolderContents = ({
@@ -22,6 +22,19 @@ const FolderContents = ({
   expandedItems,
   onShowItemMenu,
   reminders = {},
+  // Add these props if they're being passed from parent
+  contextMenu,
+  clipboardItem,
+  handleAdd,
+  handleRename,
+  handleDelete,
+  handleCopy,
+  handleCut,
+  handlePaste,
+  handleDuplicate,
+  handleExport,
+  handleImport,
+  handleCloseContextMenu,
 }) => {
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -181,8 +194,28 @@ const FolderContents = ({
         onSetReminder={handleConfirmReminder}
         item={selectedItem}
       />
-      {/* ContextMenu would be rendered here or in onShowItemMenu, passing onSetReminder */}
-      {/* Example: <ContextMenu ... onSetReminder={handleSetReminder} /> */}
+      {/* ContextMenu - Only render if contextMenu is defined */}
+      {contextMenu && (
+        <ContextMenu
+          visible={contextMenu.visible}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          item={contextMenu.item}
+          isEmptyArea={contextMenu.isEmptyArea}
+          clipboardItem={clipboardItem}
+          onAdd={handleAdd}
+          onRename={handleRename}
+          onDelete={handleDelete}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          onDuplicate={handleDuplicate}
+          onExport={handleExport}
+          onImport={handleImport}
+          onClose={handleCloseContextMenu}
+          onSetReminder={handleSetReminder}
+        />
+      )}
     </div>
   );
 };

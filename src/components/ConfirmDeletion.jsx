@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, Loader } from 'lucide-react';
-import BetaBanner from './BetaBanner';
+import BetaBanner from "./BetaBanner";
 export default function ConfirmDeletion() {
   const { token } = useParams();
   const navigate = useNavigate();

@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.2.4",
-  "commitMessage": "Fixed reminder bug",
+  "version": "12.3.0",
+  "commitMessage": "Mainly reorganized components files",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

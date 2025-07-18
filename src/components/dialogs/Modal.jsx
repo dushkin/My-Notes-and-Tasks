@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
-import LoadingButton from './LoadingButton';
+import LoadingButton from "../ui/LoadingButton";
 
 const Modal = ({ isOpen, onClose, title, children, actions, dialogRef }) => {
   if (!isOpen) return null;

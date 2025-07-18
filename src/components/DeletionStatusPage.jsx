@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
-import BetaBanner from './BetaBanner';
+import BetaBanner from "./BetaBanner";
 
 export default function DeletionStatusPage() {
   const [searchParams] = useSearchParams();

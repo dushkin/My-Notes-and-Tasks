@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { matchText } from "../utils/searchUtils";
+import { matchText } from "../../utils/searchUtils";
 const defaultOptions = {
   caseSensitive: false,
   wholeWord: false,

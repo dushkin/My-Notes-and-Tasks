@@ -1,6 +1,6 @@
 // src/components/Tree.jsx
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { sortItems, isSelfOrDescendant } from "../utils/treeUtils";
+import { sortItems, isSelfOrDescendant } from "../../utils/treeUtils";
 import { MoreVertical } from "lucide-react";
 
 const INDENT_SIZE = 16;

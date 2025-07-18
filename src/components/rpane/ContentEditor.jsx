@@ -7,11 +7,11 @@ import React, {
   useMemo,
 } from "react";
 import TipTapEditor from "./TipTapEditor";
-import LoadingSpinner from "./LoadingSpinner";
-import { formatRemainingTime } from "../utils/reminderUtils";
-import { useLiveCountdown } from "../hooks/useLiveCountdown";
-import SetReminderDialog from "./reminders/SetReminderDialog"; // Import the dialog
-import { setReminder, getReminder } from "../utils/reminderUtils"; // Import utilities
+import LoadingSpinner from "../ui/LoadingSpinner";
+import { formatRemainingTime } from "../../utils/reminderUtils";
+import { useLiveCountdown } from "../../hooks/useLiveCountdown";
+import SetReminderDialog from "../reminders/SetReminderDialog"; // Import the dialog
+import { setReminder, getReminder } from "../../utils/reminderUtils"; // Import utilities
 
 const MOBILE_BREAKPOINT = 768;
 const formatTimestamp = (isoString) => {

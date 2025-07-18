@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import Modal from "../Modal";
+import Modal from "../dialogs/Modal";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 const SnoozeDialog = ({ isOpen, onClose, onSnooze, itemTitle }) => {

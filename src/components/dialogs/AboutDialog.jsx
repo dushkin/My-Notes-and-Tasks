@@ -1,25 +1,84 @@
-import React from 'react';
-import Modal from '../Modal';
-import packageJson from '../../../package.json';
-import logo from '../../assets/logo_dual_32x32.png';
+import React, { useEffect, useRef } from "react";
+import packageJson from "../../../package.json";
+import logo from "../../assets/logo_dual_32x32.png";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
-export default function AboutDialog({ isOpen, onClose }) {
+const AboutDialog = ({ isOpen, onClose }) => {
+  const appName = "Notes & Tasks App";
+  const appVersion = packageJson.version;
+  const appLicense = packageJson.license;
+  const currentYear = new Date().getFullYear();
+
+  const dialogRef = useRef(null);
+  useFocusTrap(dialogRef, isOpen);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) {
+    return null;
+  }
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="About Notes & Tasks App"
-      actions={[{ label: 'Close', onClick: onClose, variant: 'primary' }]}
-    >
-      <div className="flex items-center space-x-4">
-        <img src={logo} alt="App Logo" className="w-8 h-8" />
-        <div>
-          <p><strong>Version:</strong> {packageJson.version}</p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            A simple, lightweight note-taking and task management application.
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div
+        ref={dialogRef}
+        className="bg-white dark:bg-zinc-800 p-6 rounded shadow-lg w-96 text-center"
+      >
+        <img
+          src={logo}
+          alt="Application Logo"
+          className="mx-auto mb-4 h-12 w-12"
+        />
+        <h2 className="text-xl font-bold mb-4">About {appName}</h2>
+        <div className="space-y-2 mb-6 text-zinc-800 dark:text-zinc-200">
+          <p>
+            {appName} © {currentYear}
           </p>
+          <p>Version: {appVersion}</p>
+          <p>License: {appLicense}</p>
         </div>
+        <div className="mt-4 text-sm text-center text-gray-500">
+          <a
+            href="/terms_of_service.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-gray-700"
+          >
+            Terms of Service
+          </a>
+          {" • "}
+          <a
+            href="/privacy_policy.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-gray-700"
+          >
+            Privacy Policy
+          </a>
+        </div>
+        <br/>
+        <button
+          onClick={onClose}
+          className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          autoFocus
+        >
+          Close
+        </button>
       </div>
-    </Modal>
-);
-}
+    </div>
+  );
+};
+
+export default AboutDialog;

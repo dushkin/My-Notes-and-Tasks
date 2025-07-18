@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import CancelAccount from './CancelAccount';
+import CancelAccount from '../CancelAccount';
 import { X, Search, RotateCcw, AlertTriangle } from "lucide-react";
 import {
   useSettings,
@@ -8,11 +8,11 @@ import {
   exportFormatOptions,
   editorFontFamilyOptions,
   editorFontSizeOptions,
-} from "../contexts/SettingsContext";
+} from "../../contexts/SettingsContext";
 import ConfirmDialog from "./ConfirmDialog";
-import logo from "../assets/logo_dual_32x32.png";
-import { useFocusTrap } from "../hooks/useFocusTrap";
-import { authFetch } from "../services/apiClient";
+import logo from "../../assets/logo_dual_32x32.png";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { authFetch } from "../../services/apiClient";
 
 function valueLabel(setting, currentSettings) {
   const v = currentSettings[setting.id];

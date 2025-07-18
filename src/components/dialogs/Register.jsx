@@ -1,7 +1,7 @@
 // src/components/Register.jsx
 import React, { useState, useEffect } from "react";
 import ConfirmDialog from "./ConfirmDialog";
-import LoadingButton from "./LoadingButton";
+import LoadingButton from "../ui/LoadingButton";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";

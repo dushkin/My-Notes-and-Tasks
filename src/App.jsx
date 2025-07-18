@@ -12,18 +12,18 @@ import {
   Navigate,
 } from "react-router-dom";
 import BetaBanner from "./components/BetaBanner";
-import Tree from "./components/Tree";
-import FolderContents from "./components/FolderContents";
-import ContentEditor from "./components/ContentEditor";
-import ContextMenu from "./components/ContextMenu";
-import AddDialog from "./components/AddDialog";
-import AboutDialog from "./components/AboutDialog";
-import ExportDialog from "./components/ExportDialog";
-import ImportDialog from "./components/ImportDialog";
-import SettingsDialog from "./components/SettingsDialog";
-import ConfirmDialog from "./components/ConfirmDialog";
-import LoadingSpinner from "./components/LoadingSpinner";
-import LoadingButton from "./components/LoadingButton";
+import Tree from "./components/tree/Tree";
+import FolderContents from "./components/rpane/FolderContents";
+import ContentEditor from "./components/rpane/ContentEditor";
+import ContextMenu from "./components/tree/ContextMenu.jsx";
+import AddDialog from "./components/dialogs/AddDialog.jsx";
+import AboutDialog from "./components/dialogs/AboutDialog.jsx";
+import ExportDialog from "./components/dialogs/ExportDialog.jsx";
+import ImportDialog from "./components/dialogs/ImportDialog.jsx";
+import SettingsDialog from "./components/dialogs/SettingsDialog.jsx";
+import ConfirmDialog from "./components/dialogs/ConfirmDialog.jsx";
+import LoadingSpinner from "./components/ui/LoadingSpinner.jsx";
+import LoadingButton from "./components/ui/LoadingButton.jsx";
 import LandingPage from "./components/LandingPage";
 import DeletionStatusPage from "./components/DeletionStatusPage";
 import { useTree } from "./hooks/useTree.jsx";
@@ -60,18 +60,18 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import SearchResultsPane from "./components/SearchResultsPane";
+import SearchResultsPane from "./components/search/SearchResultsPane.jsx";
 import { matchText } from "./utils/searchUtils";
 import { Sheet } from "react-modal-sheet";
-import Login from "./components/Login";
-import Register from "./components/Register";
+import Login from "./components/dialogs/Login";
+import Register from "./components/dialogs/Register";
 import {
   getAccessToken,
   getRefreshToken,
   clearTokens,
 } from "./services/authService";
 import { initApiClient, authFetch } from "./services/apiClient";
-import EditorPage from "./pages/EditorPage.jsx";
+import EditorPage from "./components/pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
 
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
@@ -378,10 +378,10 @@ const ProtectedAppRoute = () => {
 
 // Main App Component (the actual notes app)
 
-    const dragOverItemId = null;
+const dragOverItemId = null;
 const handleDragEnter = () => {};
-  const handleDragOver = () => {};
-  const handleDragLeave = () => {};
+const handleDragOver = () => {};
+const handleDragLeave = () => {};
 const MainApp = ({ currentUser, setCurrentUser }) => {
   const isMobile = useIsMobile();
   const [mobileViewMode, setMobileViewMode] = useState("tree");
@@ -2056,14 +2056,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
                   onSelect={(id) => {
                     selectItemById(id);
                     if (!inlineRenameId) {
-                      const selectedItem =
-                        tree?.find((item) => item.id === id) ||
-                        tree?.flatMap(function findInTree(item) {
-                          if (item.id === id) return [item];
-                          if (item.children)
-                            return item.children.flatMap(findInTree);
-                          return [];
-                        })[0];
+                      const selectedItem = findItemByIdFromTree(id);
                       if (selectedItem && selectedItem.type !== "folder") {
                         setMobileViewMode("content");
                         window.history.pushState(
@@ -2099,34 +2092,36 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
             ) : (
               <div className="flex-grow flex flex-col">
                 {selectedItem ? (
-  selectedItem.type === "folder" ? (
-    <FolderContents
-      folder={selectedItem}
-      onSelect={(id) => selectItemById(id)}
-      handleDragStart={(e, id) => {
-        if (inlineRenameId) e.preventDefault();
-        else setDraggedId(id);
-      }}
-      handleDragEnter={handleDragEnter}
-      handleDragOver={handleDragOver}
-      handleDragLeave={handleDragLeave}
-      handleDrop={(targetId) => handleDrop(targetId, draggedId)}
-      handleDragEnd={handleDragEnd}
-      draggedId={draggedId}
-      dragOverItemId={dragOverItemId}
-      onToggleExpand={toggleFolderExpand}
-      expandedItems={expandedFolders}
-      onShowItemMenu={handleShowItemMenu}
-      reminders={reminders}
-    />
-  ) : (
-    <ContentEditor {...contentEditorProps} />
-  )
-) : (
-  <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-    Select an item to view or edit
-  </div>
-)}
+                  selectedItem.type === "folder" ? (
+                    <FolderContents
+                      folder={selectedItem}
+                      onSelect={(id) => selectItemById(id)}
+                      handleDragStart={(e, id) => {
+                        if (inlineRenameId) e.preventDefault();
+                        else setDraggedId(id);
+                      }}
+                      handleDragEnter={handleDragEnter}
+                      handleDragOver={handleDragOver}
+                      handleDragLeave={handleDragLeave}
+                      handleDrop={(targetId) => handleDrop(targetId, draggedId)}
+                      handleDragEnd={handleDragEnd}
+                      draggedId={draggedId}
+                      dragOverItemId={dragOverItemId}
+                      onToggleExpand={toggleFolderExpand}
+                      expandedItems={expandedFolders}
+                      onShowItemMenu={handleShowItemMenu}
+                      reminders={reminders}
+                      contextMenu={contextMenu}
+                      clipboardItem={clipboardItem}
+                    />
+                  ) : (
+                    <ContentEditor {...contentEditorProps} />
+                  )
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
+                    Select an item to view or edit
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -2172,34 +2167,36 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
               className="flex flex-col"
             >
               {selectedItem ? (
-  selectedItem.type === "folder" ? (
-    <FolderContents
-      folder={selectedItem}
-      onSelect={(id) => selectItemById(id)}
-      handleDragStart={(e, id) => {
-        if (inlineRenameId) e.preventDefault();
-        else setDraggedId(id);
-      }}
-      handleDragEnter={handleDragEnter}
-      handleDragOver={handleDragOver}
-      handleDragLeave={handleDragLeave}
-      handleDrop={(targetId) => handleDrop(targetId, draggedId)}
-      handleDragEnd={handleDragEnd}
-      draggedId={draggedId}
-      dragOverItemId={dragOverItemId}
-      onToggleExpand={toggleFolderExpand}
-      expandedItems={expandedFolders}
-      onShowItemMenu={handleShowItemMenu}
-      reminders={reminders}
-    />
-  ) : (
-    <ContentEditor {...contentEditorProps} />
-  )
-) : (
-  <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-    Select an item to view or edit
-  </div>
-)}
+                selectedItem.type === "folder" ? (
+                  <FolderContents
+                    folder={selectedItem}
+                    onSelect={(id) => selectItemById(id)}
+                    handleDragStart={(e, id) => {
+                      if (inlineRenameId) e.preventDefault();
+                      else setDraggedId(id);
+                    }}
+                    handleDragEnter={handleDragEnter}
+                    handleDragOver={handleDragOver}
+                    handleDragLeave={handleDragLeave}
+                    handleDrop={(targetId) => handleDrop(targetId, draggedId)}
+                    handleDragEnd={handleDragEnd}
+                    draggedId={draggedId}
+                    dragOverItemId={dragOverItemId}
+                    onToggleExpand={toggleFolderExpand}
+                    expandedItems={expandedFolders}
+                    onShowItemMenu={handleShowItemMenu}
+                    reminders={reminders}
+                    contextMenu={contextMenu}
+                    clipboardItem={clipboardItem}
+                  />
+                ) : (
+                  <ContentEditor {...contentEditorProps} />
+                )
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
+                  Select an item to view or edit
+                </div>
+              )}
             </Panel>
           </PanelGroup>
         )}
