@@ -377,6 +377,11 @@ const ProtectedAppRoute = () => {
 };
 
 // Main App Component (the actual notes app)
+
+    const dragOverItemId = null;
+const handleDragEnter = () => {};
+  const handleDragOver = () => {};
+  const handleDragLeave = () => {};
 const MainApp = ({ currentUser, setCurrentUser }) => {
   const isMobile = useIsMobile();
   const [mobileViewMode, setMobileViewMode] = useState("tree");
@@ -2090,12 +2095,34 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
             ) : (
               <div className="flex-grow flex flex-col">
                 {selectedItem ? (
-                  <ContentEditor {...contentEditorProps} />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
-                    Select an item to view its content.
-                  </div>
-                )}
+  selectedItem.type === "folder" ? (
+    <FolderContents
+      folder={selectedItem}
+      onSelect={(id) => selectItemById(id)}
+      handleDragStart={(e, id) => {
+        if (inlineRenameId) e.preventDefault();
+        else setDraggedId(id);
+      }}
+      handleDragEnter={handleDragEnter}
+      handleDragOver={handleDragOver}
+      handleDragLeave={handleDragLeave}
+      handleDrop={(targetId) => handleDrop(targetId, draggedId)}
+      handleDragEnd={handleDragEnd}
+      draggedId={draggedId}
+      dragOverItemId={dragOverItemId}
+      onToggleExpand={toggleFolderExpand}
+      expandedItems={expandedFolders}
+      onShowItemMenu={handleShowItemMenu}
+      reminders={reminders}
+    />
+  ) : (
+    <ContentEditor {...contentEditorProps} />
+  )
+) : (
+  <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
+    Select an item to view or edit
+  </div>
+)}
               </div>
             )}
           </>
@@ -2141,12 +2168,34 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
               className="flex flex-col"
             >
               {selectedItem ? (
-                <ContentEditor {...contentEditorProps} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-4 text-center">
-                  Select or create an item to view or edit its content.
-                </div>
-              )}
+  selectedItem.type === "folder" ? (
+    <FolderContents
+      folder={selectedItem}
+      onSelect={(id) => selectItemById(id)}
+      handleDragStart={(e, id) => {
+        if (inlineRenameId) e.preventDefault();
+        else setDraggedId(id);
+      }}
+      handleDragEnter={handleDragEnter}
+      handleDragOver={handleDragOver}
+      handleDragLeave={handleDragLeave}
+      handleDrop={(targetId) => handleDrop(targetId, draggedId)}
+      handleDragEnd={handleDragEnd}
+      draggedId={draggedId}
+      dragOverItemId={dragOverItemId}
+      onToggleExpand={toggleFolderExpand}
+      expandedItems={expandedFolders}
+      onShowItemMenu={handleShowItemMenu}
+      reminders={reminders}
+    />
+  ) : (
+    <ContentEditor {...contentEditorProps} />
+  )
+) : (
+  <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
+    Select an item to view or edit
+  </div>
+)}
             </Panel>
           </PanelGroup>
         )}
