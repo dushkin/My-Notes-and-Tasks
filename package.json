@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.3.1",
+  "version": "12.3.2",
   "commitMessage": "Fixed set reminder menu item",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
