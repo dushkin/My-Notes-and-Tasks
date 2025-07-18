@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.2.2",
-  "commitMessage": "Fixed Folder Contents bug",
+  "version": "12.2.3",
+  "commitMessage": "Completed vibration on mobile feature",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

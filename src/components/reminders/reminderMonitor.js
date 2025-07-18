@@ -61,6 +61,8 @@ class ReminderMonitor {
     const title = '⏰ Reminder';
     const body = `Don't forget: ${itemTitle || 'Untitled'}`;
     const notificationData = {
+      reminderVibrationEnabled: settings.reminderVibrateEnabled,
+      reminderSoundEnabled: settings.reminderSoundEnabled,
       itemId: reminder.itemId,
       reminderId: `${reminder.itemId}-${reminder.timestamp}`,
       itemTitle: itemTitle || 'Untitled',
