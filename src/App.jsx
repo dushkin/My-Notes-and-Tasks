@@ -26,7 +26,7 @@ import LoadingSpinner from "./components/ui/LoadingSpinner.jsx";
 import LoadingButton from "./components/ui/LoadingButton.jsx";
 import LandingPage from "./components/LandingPage";
 import DeletionStatusPage from "./components/DeletionStatusPage";
-import subscribeToPushNotifications from "./utils/pushSubscriptionUtil";
+import { subscribeToPushNotifications } from "./utils/pushSubscriptionUtil";
 import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
 import { useIsMobile } from "./hooks/useIsMobile";
