@@ -26,6 +26,7 @@ import LoadingSpinner from "./components/ui/LoadingSpinner.jsx";
 import LoadingButton from "./components/ui/LoadingButton.jsx";
 import LandingPage from "./components/LandingPage";
 import DeletionStatusPage from "./components/DeletionStatusPage";
+import subscribeToPushNotifications from "./utils/pushSubscriptionUtil";
 import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -109,6 +110,12 @@ const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose }) => {
   useEffect(() => {
+  useEffect(() => {
+    if (isAuthenticated && currentUser?.token) {
+      subscribeToPushNotifications(currentUser.token);
+    }
+  }, [isAuthenticated, currentUser]);
+
     if (message) {
       const timer = setTimeout(() => onClose(), 5000);
       return () => clearTimeout(timer);

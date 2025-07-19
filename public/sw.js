@@ -1,5 +1,28 @@
 // sw.js
 self.addEventListener('push', function (event) {
+  const data = event.data ? event.data.json() : {};
+  console.log('Push event received:', data);
+
+  const title = data.title || "Reminder";
+  const options = {
+    body: data.body || "You have a task reminder.",
+    data: data.data || {},
+    icon: "/icons/icon-192.png",
+    badge: "/icons/badge-72.png",
+    actions: [
+      { action: "done", title: "✅ Done" },
+      { action: "snooze", title: "Snooze" }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+// Keep all other logic as in the original sw.js
+// sw.js
+self.addEventListener('push', function (event) {
   console.log('Push event received:', event.data?.json());
   // Not currently used, as showNotification calls registration.showNotification directly
   event.waitUntil(Promise.resolve());

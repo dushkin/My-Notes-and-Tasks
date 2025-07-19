@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.3.6",
-  "commitMessage": "Fixed vibration on mobile",
+  "version": "12.4.0",
+  "commitMessage": "Support cross devices reminders",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
