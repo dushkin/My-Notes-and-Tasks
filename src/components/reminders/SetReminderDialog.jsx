@@ -7,12 +7,18 @@ import { useFocusTrap } from "../../hooks/useFocusTrap";
 const SetReminderDialog = ({ isOpen, onClose, onSetReminder, item }) => {
   const [reminderTime, setReminderTime] = useState(null);
   const [repeatOptions, setRepeatOptions] = useState(null);
+  const [error, setError] = useState("");
+  const [isValidReminder, setIsValidReminder] = useState(false);
   const dialogRef = useRef(null);
   useFocusTrap(dialogRef, isOpen);
 
   const handleReminderSet = (time, repeat) => {
     setReminderTime(time);
     setRepeatOptions(repeat);
+    setError(""); // Clear any previous errors
+    
+    // Check if reminder is valid (not null means valid)
+    setIsValidReminder(time !== null);
   };
 
   const handleConfirm = () => {
@@ -20,27 +26,43 @@ const SetReminderDialog = ({ isOpen, onClose, onSetReminder, item }) => {
 
     if (typeof reminderTime === 'string' && reminderTime.startsWith('relative:')) {
       const offset = parseInt(reminderTime.split(':')[1], 10);
-      if (!isNaN(offset)) {
+      if (!isNaN(offset) && offset > 0) { // Prevent negative wait time
         finalReminderTime = Date.now() + offset;
+      } else {
+        // Handle invalid or negative offset - could show error message
+        console.warn('Invalid or negative reminder time offset');
+        return;
       }
-    } else if (typeof reminderTime === 'number') {
+    } else if (typeof reminderTime === 'number' && reminderTime > Date.now()) { // Ensure future time
       finalReminderTime = reminderTime;
+    } else if (typeof reminderTime === 'number') {
+      console.warn('Reminder time cannot be in the past');
+      return;
     }
 
     if (finalReminderTime) {
+      setError("");
       onSetReminder(item.id, finalReminderTime, repeatOptions);
+      onClose();
+    } else {
+      setError("Please set a valid reminder time.");
     }
-    onClose();
   };
 
   const actions = [
-    { label: "Cancel", onClick: onClose, variant: "secondary"},
+    { 
+      label: "Cancel", 
+      onClick: onClose, 
+      variant: "secondary",
+      className: "min-w-24" // Ensure consistent minimum width
+    },
     {
       label: "Set Reminder",
       onClick: handleConfirm,
       variant: "primary",
       autoFocus: true,
-      className: "ml-5"
+      disabled: !isValidReminder, // Disable button when reminder is invalid
+      className: `min-w-24 ml-3 ${!isValidReminder ? 'opacity-50 cursor-not-allowed' : ''}`
     }
   ];
 
