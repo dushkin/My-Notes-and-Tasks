@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.3.3",
-  "commitMessage": "Fixed set reminder dialog",
+  "version": "12.3.4",
+  "commitMessage": "Fixed reminder dialog buttons ui",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

@@ -54,7 +54,7 @@ const SetReminderDialog = ({ isOpen, onClose, onSetReminder, item }) => {
       label: "Cancel", 
       onClick: onClose, 
       variant: "secondary",
-      className: "min-w-24" // Ensure consistent minimum width
+      className: "flex-1 mx-1" // Equal width, consistent spacing
     },
     {
       label: "Set Reminder",
@@ -62,7 +62,7 @@ const SetReminderDialog = ({ isOpen, onClose, onSetReminder, item }) => {
       variant: "primary",
       autoFocus: true,
       disabled: !isValidReminder, // Disable button when reminder is invalid
-      className: `min-w-24 ml-3 ${!isValidReminder ? 'opacity-50 cursor-not-allowed' : ''}`
+      className: `flex-1 mx-1 ${!isValidReminder ? 'opacity-50 cursor-not-allowed' : ''}`
     }
   ];
 
