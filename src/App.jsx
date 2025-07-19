@@ -108,19 +108,20 @@ function htmlToPlainTextWithNewlines(html) {
 
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
-const ErrorDisplay = ({ message, type = "error", onClose }) => {
+const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
   useEffect(() => {
-  useEffect(() => {
-    if (isAuthenticated && currentUser?.token) {
+    if (currentUser?.token) {
       subscribeToPushNotifications(currentUser.token);
     }
-  }, [isAuthenticated, currentUser]);
+  }, [currentUser]);
 
+  useEffect(() => {
     if (message) {
       const timer = setTimeout(() => onClose(), 5000);
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
+
   if (!message) {
     return null;
   }
@@ -139,12 +140,13 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
       : type === "info"
       ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
+
   return (
     <div
       data-item-id="error-display-message"
       className={`${baseClasses} ${typeClasses}`}
       style={{
-        top: "calc(var(--beta-banner-height, 0px) + 0.75rem)", // 0.75rem = 12px spacing from banner
+        top: "calc(var(--beta-banner-height, 0px) + 0.75rem)",
       }}
       role="alert"
     >
@@ -161,6 +163,7 @@ const ErrorDisplay = ({ message, type = "error", onClose }) => {
     </div>
   );
 };
+
 
 // Main App Component that handles routing
 const App = () => {
@@ -1708,6 +1711,7 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
 
       <ErrorDisplay
         message={uiMessage}
+        currentUser={currentUser}
         type={uiMessageType}
         onClose={handleUiMessageClose}
       />

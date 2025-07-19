@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.4.2",
-  "commitMessage": "isAuthenticated defined",
+  "version": "12.4.3",
+  "commitMessage": "bug fix",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
