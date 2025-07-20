@@ -1,9 +1,9 @@
 import React, {
   useState,
-  useEffect,
   useRef,
   useCallback,
   useMemo,
+  useEffect,
 } from "react";
 import {
   BrowserRouter as Router,
@@ -12,7 +12,11 @@ import {
   Navigate,
 } from "react-router-dom";
 import BetaBanner from "./components/BetaBanner";
-import { initSocket, getSocket, disconnectSocket } from "./services/socketClient";
+import {
+  initSocket,
+  getSocket,
+  disconnectSocket,
+} from "./services/socketClient";
 import Tree from "./components/tree/Tree";
 import FolderContents from "./components/rpane/FolderContents";
 import ContentEditor from "./components/rpane/ContentEditor";
@@ -146,9 +150,7 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
     <div
       data-item-id="error-display-message"
       className={`${baseClasses} ${typeClasses}`}
-      style={{
-        top: "calc(var(--beta-banner-height, 0px) + 0.75rem)",
-      }}
+      style={{ top: "calc(var(--beta-banner-height, 0px) + 0.75rem)" }}
       role="alert"
     >
       <span>{message}</span>
@@ -443,9 +445,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   } = useTree(currentUser);
 
   useEffect(() => {
-
     console.log("Attempting to init socket with token:", authToken);
-    
+
     if (!currentUser?._id || !authToken) return;
 
     const socket = initSocket(authToken);
@@ -458,10 +459,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     const handleReminderTriggered = ({ itemId }) => {
       const evt = new CustomEvent("remindersUpdated");
       window.dispatchEvent(evt);
-    };
-
-    const handleItemCreated = (item) => {
-      setTreeWithUndo((prev) => insertItemRecursive(prev, item.parentId, item));
     };
 
     const handleItemUpdated = (data) => {
@@ -484,10 +481,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       });
     };
 
-    const handleItemDeleted = ({ itemId }) => {
-      setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
-    };
-
     const handleItemMoved = ({ itemId, newParentId }) => {
       setTreeWithUndo((prev) => {
         const item = findItemById(prev, itemId);
@@ -502,18 +495,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     };
 
     socket.on("reminderTriggered", handleReminderTriggered);
-    socket.on("itemCreated", handleItemCreated);
-    socket.on("itemUpdated", handleItemUpdated);
-    socket.on("itemDeleted", handleItemDeleted);
-    socket.on("itemMoved", handleItemMoved);
     socket.on("treeReplaced", handleTreeReplaced);
 
     return () => {
       socket.off("reminderTriggered", handleReminderTriggered);
-      socket.off("itemCreated", handleItemCreated);
-      socket.off("itemUpdated", handleItemUpdated);
-      socket.off("itemDeleted", handleItemDeleted);
-      socket.off("itemMoved", handleItemMoved);
       socket.off("treeReplaced", handleTreeReplaced);
       disconnectSocket();
     };
@@ -792,28 +777,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         setReminders({});
       }
     };
-
-
-  useEffect(() => {
-    const socket = initSocket(authToken);
-    if (!socket) return;
-
-    socket.on("itemUpdated", handleItemUpdated);
-    socket.on("itemDeleted", handleItemDeleted);
-    socket.on("itemMoved", handleItemMoved);
-    socket.on("treeReplaced", handleTreeReplaced);
-    socket.on("reminderTriggered", handleReminderTriggered);
-
-    return () => {
-      socket.off("itemUpdated", handleItemUpdated);
-      socket.off("itemDeleted", handleItemDeleted);
-      socket.off("itemMoved", handleItemMoved);
-      socket.off("treeReplaced", handleTreeReplaced);
-      socket.off("reminderTriggered", handleReminderTriggered);
-      disconnectSocket();
-    };
-  }, [authToken]);
-
 
     const handleRemindersUpdate = (event) => {
       setReminders(event.detail || getReminders());
