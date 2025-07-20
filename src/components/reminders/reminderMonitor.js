@@ -1,5 +1,7 @@
 import { showNotification, getReminders, clearReminder, setReminder } from '../../utils/reminderUtils';
 
+import { getSocket } from '../../services/socketClient';
+
 class ReminderMonitor {
   constructor() {
 
@@ -22,6 +24,7 @@ class ReminderMonitor {
 
     console.log('Starting reminder monitor...');
     this.intervalId = setInterval(() => {
+      this.registerSocketListeners();
       this.checkReminders();
     }, this.checkInterval);
     this.setupServiceWorkerListener();
@@ -394,6 +397,18 @@ class ReminderMonitor {
       }
     }
     return null;
+  }
+
+  
+  registerSocketListeners() {
+    const socket = getSocket();
+    if (!socket || this._socketInitialized) return;
+    this._socketInitialized = true;
+
+    socket.on("reminder:trigger", (reminder) => {
+      console.log("🔔 Received socket trigger:", reminder);
+      this.triggerReminder(reminder, this.currentSettings || {});
+    });
   }
 
   scheduleNextRepeat(reminder) {

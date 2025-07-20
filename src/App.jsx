@@ -73,8 +73,11 @@ import {
   clearTokens,
 } from "./services/authService";
 import { initApiClient, authFetch } from "./services/apiClient";
+import { initSocket } from "./services/socketClient";
 import EditorPage from "./components/pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
+
+initSocket()
 
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();

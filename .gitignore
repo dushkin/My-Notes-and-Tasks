@@ -101,3 +101,5 @@ test-results/**/*.mp4
 /cnrd.sh
 -backend/cnrd.sh
 .early.coverage
+
+*.zip

@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.4.3",
-  "commitMessage": "bug fix",
+  "version": "12.5.0",
+  "commitMessage": "Support multi device notifications sync",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -44,6 +44,7 @@
     "react-modal-sheet": "^4.4.0",
     "react-resizable-panels": "^2.1.9",
     "react-router-dom": "^7.6.2",
+    "socket.io-client": "^4.8.1",
     "unicode-bidirectional": "^2.0.5",
     "uuid": "^11.1.0"
   },
