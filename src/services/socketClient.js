@@ -14,13 +14,26 @@ export function initSocket(token) {
   }
 
   const serverUrl = import.meta.env.VITE_SOCKET_SERVER || "http://localhost:5001";
-  
+
   socket = io(serverUrl, {
     auth: { token },
   });
 
   socket.on("connect", () => {
     console.log("✅ WebSocket connected:", socket.id);
+  });
+
+  // ✨ Error handler to catch connection failures
+  socket.on("connect_error", (err) => {
+    console.error("WebSocket connection error:", err.message);
+
+    // This is where you would handle authentication failures
+    if (err.message === "Invalid token" || err.message === "No token") {
+      // For example, you could disconnect the socket to prevent retries
+      // and then redirect the user to the login page.
+      disconnectSocket();
+      // window.location.href = '/login'; 
+    }
   });
 
   socket.on("disconnect", () => {

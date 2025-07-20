@@ -1391,3 +1391,32 @@ export const useTree = (currentUser) => {
     currentItemCount,
   };
 };
+
+  function updateTask(itemId, updates) {
+    setTreeData((prev) =>
+      updateNodeRecursive(prev, itemId, (node) => ({
+        ...node,
+        ...updates,
+      }))
+    );
+  }
+
+
+  function updateReminder(itemId, reminder) {
+    setTreeData((prev) =>
+      updateNodeRecursive(prev, itemId, (node) => ({
+        ...node,
+        reminder,
+      }))
+    );
+  }
+
+
+  function updateItemContent(itemId, content) {
+    setTreeData((prev) =>
+      updateNodeRecursive(prev, itemId, (node) => ({
+        ...node,
+        content,
+      }))
+    );
+  }

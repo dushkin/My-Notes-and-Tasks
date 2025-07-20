@@ -12,7 +12,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import BetaBanner from "./components/BetaBanner";
-import { initSocket, disconnectSocket } from "./services/socketClient";
+import { initSocket, getSocket, disconnectSocket } from "./services/socketClient";
 import Tree from "./components/tree/Tree";
 import FolderContents from "./components/rpane/FolderContents";
 import ContentEditor from "./components/rpane/ContentEditor";
@@ -443,6 +443,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   } = useTree(currentUser);
 
   useEffect(() => {
+
+    console.log("Attempting to init socket with token:", authToken);
+    
     if (!currentUser?._id || !authToken) return;
 
     const socket = initSocket(authToken);
@@ -462,14 +465,17 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     };
 
     const handleItemUpdated = (data) => {
-      setTreeWithUndo(prev => {
+      setTreeWithUndo((prev) => {
         const updateItemInTree = (nodes, updatedItem) => {
-          return nodes.map(node => {
+          return nodes.map((node) => {
             if (node.id === updatedItem.id) {
               return { ...node, ...updatedItem };
             }
             if (node.children) {
-              return { ...node, children: updateItemInTree(node.children, updatedItem) };
+              return {
+                ...node,
+                children: updateItemInTree(node.children, updatedItem),
+              };
             }
             return node;
           });
@@ -511,7 +517,40 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       socket.off("treeReplaced", handleTreeReplaced);
       disconnectSocket();
     };
-  }, [currentUser?._id, authToken, setTreeWithUndo, insertItemRecursive, deleteItemRecursive, findItemById]);
+  }, [
+    currentUser?._id,
+    authToken,
+    setTreeWithUndo,
+    insertItemRecursive,
+    deleteItemRecursive,
+    findItemById,
+  ]);
+
+  useEffect(() => {
+    const liveSocket = getSocket();
+    if (!liveSocket) return;
+
+    liveSocket.on("taskUpdated", ({ itemId, data }) => {
+      updateTask(itemId, data);
+    });
+
+    liveSocket.on("reminderUpdated", ({ itemId, reminder }) => {
+      setReminders((prev) => ({
+        ...prev,
+        [itemId]: reminder,
+      }));
+    });
+
+    liveSocket.on("itemContentUpdated", ({ itemId, content }) => {
+      updateNoteContent(itemId, { content });
+    });
+
+    return () => {
+      liveSocket.off("taskUpdated");
+      liveSocket.off("reminderUpdated");
+      liveSocket.off("itemContentUpdated");
+    };
+  }, [updateTask, updateNoteContent]);
 
   const isMobile = useIsMobile();
   const [mobileViewMode, setMobileViewMode] = useState("tree");
