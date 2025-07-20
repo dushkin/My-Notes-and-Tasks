@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { connectLiveUpdates } from './utils/websocketClient';
+import { connectLiveUpdates } from "./utils/websocketClient";
 import {
   BrowserRouter as Router,
   Routes,
@@ -78,7 +78,7 @@ import { initSocket } from "./services/socketClient";
 import EditorPage from "./components/pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
 
-initSocket()
+initSocket();
 
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
@@ -113,14 +113,16 @@ function htmlToPlainTextWithNewlines(html) {
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
-  
-useEffect(() => {
-  if (!currentUser?.id) return;
-  connectLiveUpdates(currentUser.id, (itemId, updates) => {
-    setTreeWithUndo((prev) => applyTreeUpdate(prev, itemId, updates));
-  });
-}, [currentUser?.id]);
-useEffect(() => {
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const socket = connectLiveUpdates(currentUser.id);
+    socket.on("itemUpdated", (data) => {
+      setTreeWithUndo((prev) =>
+        applyTreeUpdate(prev, data.itemId, data.updates)
+      );
+    });
+  }, [currentUser?.id]);
+  useEffect(() => {
     if (currentUser?.token) {
       subscribeToPushNotifications(currentUser.token);
     }
@@ -174,7 +176,6 @@ useEffect(() => {
     </div>
   );
 };
-
 
 // Main App Component that handles routing
 const App = () => {
@@ -419,7 +420,9 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     });
 
     socket.on("itemUpdated", (item) => {
-      setTree((prev) => renameItemRecursive(prev, item._id, item.label, item.content));
+      setTree((prev) =>
+        renameItemRecursive(prev, item._id, item.label, item.content)
+      );
     });
 
     socket.on("itemDeleted", ({ itemId }) => {
