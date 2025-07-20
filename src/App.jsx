@@ -456,12 +456,20 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       return;
     }
 
+    // Existing handler for reminder triggers
     const handleReminderTriggered = ({ itemId }) => {
       const evt = new CustomEvent("remindersUpdated");
       window.dispatchEvent(evt);
     };
 
+    // Existing handler for replacing the entire tree (e.g., after import)
+    const handleTreeReplaced = (newTree) => {
+      setTreeWithUndo(() => newTree, true);
+    };
+    
+    // Handler for when an item's data (like content or label) is updated
     const handleItemUpdated = (data) => {
+      console.log("Socket event: itemUpdated", data);
       setTreeWithUndo((prev) => {
         const updateItemInTree = (nodes, updatedItem) => {
           return nodes.map((node) => {
@@ -481,25 +489,48 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       });
     };
 
+    // Handler for when an item is moved to a new parent
     const handleItemMoved = ({ itemId, newParentId }) => {
+      console.log("Socket event: itemMoved", { itemId, newParentId });
       setTreeWithUndo((prev) => {
         const item = findItemById(prev, itemId);
         if (!item) return prev;
-        const treeWithout = deleteItemRecursive(prev, itemId);
-        return insertItemRecursive(treeWithout, newParentId, item);
+        const treeWithoutItem = deleteItemRecursive(prev, itemId);
+        return insertItemRecursive(treeWithoutItem, newParentId, item);
       });
     };
 
-    const handleTreeReplaced = (newTree) => {
-      setTreeWithUndo(() => newTree, true);
+    // Handler for when an item is deleted
+    const handleItemDeleted = ({ itemId }) => {
+        console.log("Socket event: itemDeleted", { itemId });
+        setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
     };
 
+    // Handler for when a new item is created elsewhere
+    const handleItemCreated = (newItem) => {
+        console.warn("Socket event: itemCreated. Refetching tree for consistency.", newItem);
+        // See explanation below for why we refetch here.
+        fetchUserTree(true); 
+    };
+
+
+    // Register all event listeners
     socket.on("reminderTriggered", handleReminderTriggered);
     socket.on("treeReplaced", handleTreeReplaced);
+    socket.on("itemUpdated", handleItemUpdated);
+    socket.on("itemMoved", handleItemMoved);
+    socket.on("itemDeleted", handleItemDeleted);
+    socket.on("itemCreated", handleItemCreated);
+
 
     return () => {
+      // Unregister all event listeners on cleanup
       socket.off("reminderTriggered", handleReminderTriggered);
       socket.off("treeReplaced", handleTreeReplaced);
+      socket.off("itemUpdated", handleItemUpdated);
+      socket.off("itemMoved", handleItemMoved);
+      socket.off("itemDeleted", handleItemDeleted);
+      socket.off("itemCreated", handleItemCreated);
       disconnectSocket();
     };
   }, [
@@ -509,6 +540,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     insertItemRecursive,
     deleteItemRecursive,
     findItemById,
+    fetchUserTree,
   ]);
 
   useEffect(() => {
