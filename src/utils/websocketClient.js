@@ -2,7 +2,7 @@ import { io } from "socket.io-client";
 
 export function connectLiveUpdates(userId) {
   const socket = io(import.meta.env.VITE_SOCKET_SERVER || "http://localhost:5001", {
-    auth: { userId }
+    auth: { userId: currentUser?._id || currentUser?.id }auth: { userId }
   });
 
   socket.on("connect", () => {
