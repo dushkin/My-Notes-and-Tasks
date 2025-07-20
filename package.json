@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.5.0",
-  "commitMessage": "Support multi device notifications sync",
+  "version": "12.5.1",
+  "commitMessage": "Multi device notifications sync - fixes",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

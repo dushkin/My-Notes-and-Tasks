@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { connectLiveUpdates } from './utils/websocketClient';
 import {
   BrowserRouter as Router,
   Routes,
@@ -112,7 +113,14 @@ function htmlToPlainTextWithNewlines(html) {
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
-  useEffect(() => {
+  
+useEffect(() => {
+  if (!currentUser?.id) return;
+  connectLiveUpdates(currentUser.id, (itemId, updates) => {
+    setTreeWithUndo((prev) => applyTreeUpdate(prev, itemId, updates));
+  });
+}, [currentUser?.id]);
+useEffect(() => {
     if (currentUser?.token) {
       subscribeToPushNotifications(currentUser.token);
     }
@@ -397,6 +405,42 @@ const handleDragEnter = () => {};
 const handleDragOver = () => {};
 const handleDragLeave = () => {};
 const MainApp = ({ currentUser, setCurrentUser }) => {
+  useEffect(() => {
+    if (!currentUser?._id) return;
+    const socket = connectLiveUpdates(currentUser._id);
+
+    socket.on("reminderTriggered", ({ itemId }) => {
+      const evt = new CustomEvent("remindersUpdated");
+      window.dispatchEvent(evt);
+    });
+
+    socket.on("itemCreated", (item) => {
+      setTree((prev) => insertItemRecursive(prev, item.parentId, item));
+    });
+
+    socket.on("itemUpdated", (item) => {
+      setTree((prev) => renameItemRecursive(prev, item._id, item.label, item.content));
+    });
+
+    socket.on("itemDeleted", ({ itemId }) => {
+      setTree((prev) => deleteItemRecursive(prev, itemId));
+    });
+
+    socket.on("itemMoved", ({ itemId, newParentId }) => {
+      setTree((prev) => {
+        const item = findItemById(prev, itemId);
+        const treeWithout = deleteItemRecursive(prev, itemId);
+        return insertItemRecursive(treeWithout, newParentId, item);
+      });
+    });
+
+    socket.on("treeReplaced", (newTree) => {
+      setTree(newTree);
+    });
+
+    return () => socket.disconnect();
+  }, [currentUser?._id]);
+
   const isMobile = useIsMobile();
   const [mobileViewMode, setMobileViewMode] = useState("tree");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
