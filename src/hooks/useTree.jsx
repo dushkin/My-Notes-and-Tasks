@@ -193,7 +193,7 @@ export const useTree = (currentUser) => {
       if (Array.isArray(tree)) {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tree));
         // Cache tree data for reminder monitor
-        localStorage.setItem('cached_tree_data', JSON.stringify(tree));
+        localStorage.setItem("cached_tree_data", JSON.stringify(tree));
         // Also make it available globally for reminder monitor
         window.treeData = tree;
       }
@@ -267,7 +267,6 @@ export const useTree = (currentUser) => {
       };
     }
   }, [fetchUserTree]);
-
 
   const selectItemById = useCallback((id) => setSelectedItemId(id), []);
 
@@ -610,10 +609,15 @@ export const useTree = (currentUser) => {
         const newTreeState = deleteItemRecursive(tree, idToDelete);
         setTreeWithUndo(newTreeState);
         if (selectedItemId === idToDelete) setSelectedItemId(null);
-        setExpandedFolders((prev) => {
-          const next = { ...prev };
-          if (prev.hasOwnProperty(idToDelete)) delete next[idToDelete];
-          return next;
+        setExpandedFolders((prevExpanded) => {
+          // First, check if the key we want to delete actually exists.
+          if (!prevExpanded.hasOwnProperty(idToDelete)) {
+            return prevExpanded; // If not, return the original state to prevent a re-render.
+          }
+          // If the key exists, create a new object, delete the key, and return the new state.
+          const nextExpanded = { ...prevExpanded };
+          delete nextExpanded[idToDelete];
+          return nextExpanded;
         });
         return { success: true };
       } catch (error) {

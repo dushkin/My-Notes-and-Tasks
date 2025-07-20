@@ -13,8 +13,18 @@ export const useUndoRedo = (initialPresent) => {
     const canUndo = history.past.length > 0;
     const canRedo = history.future.length > 0;
 
-    const setPresentState = useCallback((newPresent) => {
+    const setPresentState = useCallback((newState) => {
         setHistory(h => {
+            // Check if the newState is a function (like a functional update)
+            const finalNewState = typeof newState === 'function' 
+                ? newState(h.present) // If so, execute it with the current state
+                : newState;             // Otherwise, use the value directly
+
+            // Optimization: Don't create a new history entry if the state hasn't changed
+            if (finalNewState === h.present) {
+                return h;
+            }
+
             const newPast = [...h.past, h.present];
             // Limit history size
             if (newPast.length > MAX_HISTORY_SIZE) {
@@ -22,7 +32,7 @@ export const useUndoRedo = (initialPresent) => {
             }
             return {
                 past: newPast,
-                present: newPresent,
+                present: finalNewState, // Use the correctly computed new state
                 future: [], // Clear future on new action
             };
         });
