@@ -43,7 +43,7 @@ import {
 } from "./utils/reminderUtils";
 import reminderMonitor from "./components/reminders/reminderMonitor.js";
 import SnoozeDialog from "./components/reminders/SnoozeDialog";
-import SetReminderDialog from "./components/reminders/SetReminderDialog.jsx"; // Import SetReminderDialog
+import SetReminderDialog from "./components/reminders/SetReminderDialog.jsx";
 import FeedbackNotification from "./components/FeedbackNotification";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
@@ -113,15 +113,6 @@ function htmlToPlainTextWithNewlines(html) {
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    const socket = connectLiveUpdates(currentUser.id);
-    socket.on("itemUpdated", (data) => {
-      setTreeWithUndo((prev) =>
-        applyTreeUpdate(prev, data.itemId, data.updates)
-      );
-    });
-  }, [currentUser?.id]);
   useEffect(() => {
     if (currentUser?.token) {
       subscribeToPushNotifications(currentUser.token);
@@ -408,40 +399,62 @@ const handleDragLeave = () => {};
 const MainApp = ({ currentUser, setCurrentUser }) => {
   useEffect(() => {
     if (!currentUser?._id) return;
-    const socket = connectLiveUpdates(currentUser._id);
 
-    socket.on("reminderTriggered", ({ itemId }) => {
+    const token = getAccessToken();
+    const socket = connectLiveUpdates(token);
+
+    if (!socket) {
+      console.warn("🧨 Socket not created. Aborting listeners setup.");
+      return;
+    }
+
+    const handleReminderTriggered = ({ itemId }) => {
       const evt = new CustomEvent("remindersUpdated");
       window.dispatchEvent(evt);
-    });
+    };
 
-    socket.on("itemCreated", (item) => {
+    const handleItemCreated = (item) => {
       setTree((prev) => insertItemRecursive(prev, item.parentId, item));
-    });
+    };
 
-    socket.on("itemUpdated", (item) => {
+    const handleItemUpdated = (item) => {
       setTree((prev) =>
         renameItemRecursive(prev, item._id, item.label, item.content)
       );
-    });
+    };
 
-    socket.on("itemDeleted", ({ itemId }) => {
+    const handleItemDeleted = ({ itemId }) => {
       setTree((prev) => deleteItemRecursive(prev, itemId));
-    });
+    };
 
-    socket.on("itemMoved", ({ itemId, newParentId }) => {
+    const handleItemMoved = ({ itemId, newParentId }) => {
       setTree((prev) => {
         const item = findItemById(prev, itemId);
         const treeWithout = deleteItemRecursive(prev, itemId);
         return insertItemRecursive(treeWithout, newParentId, item);
       });
-    });
+    };
 
-    socket.on("treeReplaced", (newTree) => {
+    const handleTreeReplaced = (newTree) => {
       setTree(newTree);
-    });
+    };
 
-    return () => socket.disconnect();
+    socket.on("reminderTriggered", handleReminderTriggered);
+    socket.on("itemCreated", handleItemCreated);
+    socket.on("itemUpdated", handleItemUpdated);
+    socket.on("itemDeleted", handleItemDeleted);
+    socket.on("itemMoved", handleItemMoved);
+    socket.on("treeReplaced", handleTreeReplaced);
+
+    return () => {
+      socket.off("reminderTriggered", handleReminderTriggered);
+      socket.off("itemCreated", handleItemCreated);
+      socket.off("itemUpdated", handleItemUpdated);
+      socket.off("itemDeleted", handleItemDeleted);
+      socket.off("itemMoved", handleItemMoved);
+      socket.off("treeReplaced", handleTreeReplaced);
+      socket.disconnect();
+    };
   }, [currentUser?._id]);
 
   const isMobile = useIsMobile();
