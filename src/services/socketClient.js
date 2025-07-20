@@ -1,23 +1,49 @@
-
 import { io } from "socket.io-client";
 
 let socket;
 
-export function initSocket() {
-  const baseUrl = window.location.origin.replace(/^http/, "ws");
-  socket = io(baseUrl, {
-    auth: {
-      token: localStorage.getItem("accessToken"),
-    },
+/**
+ * Initializes and returns a single socket instance.
+ * Does not create a new socket if one already exists.
+ * @param {string} token - The user's JWT for authentication.
+ * @returns {Socket} The socket instance.
+ */
+export function initSocket(token) {
+  if (socket) {
+    return socket;
+  }
+
+  const serverUrl = import.meta.env.VITE_SOCKET_SERVER || "http://localhost:5001";
+  
+  socket = io(serverUrl, {
+    auth: { token },
   });
+
   socket.on("connect", () => {
-    console.log("Connected to WebSocket server");
+    console.log("✅ WebSocket connected:", socket.id);
   });
+
   socket.on("disconnect", () => {
-    console.log("Disconnected from WebSocket server");
+    console.log("🔌 WebSocket disconnected");
   });
+
+  return socket;
 }
 
+/**
+ * Returns the active socket instance.
+ * @returns {Socket|undefined} The socket instance or undefined if not initialized.
+ */
 export function getSocket() {
   return socket;
+}
+
+/**
+ * Disconnects and cleans up the socket instance.
+ */
+export function disconnectSocket() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 }

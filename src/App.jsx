@@ -5,7 +5,6 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { connectLiveUpdates } from "./utils/websocketClient";
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,6 +12,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import BetaBanner from "./components/BetaBanner";
+import { initSocket, disconnectSocket } from "./services/socketClient";
 import Tree from "./components/tree/Tree";
 import FolderContents from "./components/rpane/FolderContents";
 import ContentEditor from "./components/rpane/ContentEditor";
@@ -74,11 +74,8 @@ import {
   clearTokens,
 } from "./services/authService";
 import { initApiClient, authFetch } from "./services/apiClient";
-import { initSocket } from "./services/socketClient";
 import EditorPage from "./components/pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
-
-initSocket();
 
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
@@ -345,18 +342,21 @@ const RegisterRoute = () => {
 // Protected App Route Component
 const ProtectedAppRoute = () => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = getAccessToken();
-      if (token) {
+      const initialToken = getAccessToken();
+      if (initialToken) {
         try {
           const response = await authFetch("/auth/verify-token");
           if (response.ok) {
             const data = await response.json();
             if (data.valid && data.user) {
+              const finalToken = getAccessToken();
               setCurrentUser(data.user);
+              setAuthToken(finalToken);
               setIsAuthCheckComplete(true);
               return;
             }
@@ -365,13 +365,13 @@ const ProtectedAppRoute = () => {
           console.log("Auth check failed:", error);
         }
       }
-      // If no valid token, redirect to landing page
       clearTokens();
       window.location.href = "/";
     };
 
     checkAuth();
   }, []);
+
   if (!isAuthCheckComplete || !currentUser) {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
@@ -381,7 +381,11 @@ const ProtectedAppRoute = () => {
       <Route
         index
         element={
-          <MainApp currentUser={currentUser} setCurrentUser={setCurrentUser} />
+          <MainApp
+            currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            authToken={authToken}
+          />
         }
       />
       <Route path="item/:id" element={<EditorPage />} />
@@ -391,101 +395,15 @@ const ProtectedAppRoute = () => {
 };
 
 // Main App Component (the actual notes app)
-
 const dragOverItemId = null;
 const handleDragEnter = () => {};
 const handleDragOver = () => {};
 const handleDragLeave = () => {};
-const MainApp = ({ currentUser, setCurrentUser }) => {
-  useEffect(() => {
-    if (!currentUser?._id) return;
 
-    const token = getAccessToken();
-    const socket = connectLiveUpdates(token);
-
-    if (!socket) {
-      console.warn("🧨 Socket not created. Aborting listeners setup.");
-      return;
-    }
-
-    const handleReminderTriggered = ({ itemId }) => {
-      const evt = new CustomEvent("remindersUpdated");
-      window.dispatchEvent(evt);
-    };
-
-    const handleItemCreated = (item) => {
-      setTree((prev) => insertItemRecursive(prev, item.parentId, item));
-    };
-
-    const handleItemUpdated = (item) => {
-      setTree((prev) =>
-        renameItemRecursive(prev, item._id, item.label, item.content)
-      );
-    };
-
-    const handleItemDeleted = ({ itemId }) => {
-      setTree((prev) => deleteItemRecursive(prev, itemId));
-    };
-
-    const handleItemMoved = ({ itemId, newParentId }) => {
-      setTree((prev) => {
-        const item = findItemById(prev, itemId);
-        const treeWithout = deleteItemRecursive(prev, itemId);
-        return insertItemRecursive(treeWithout, newParentId, item);
-      });
-    };
-
-    const handleTreeReplaced = (newTree) => {
-      setTree(newTree);
-    };
-
-    socket.on("reminderTriggered", handleReminderTriggered);
-    socket.on("itemCreated", handleItemCreated);
-    socket.on("itemUpdated", handleItemUpdated);
-    socket.on("itemDeleted", handleItemDeleted);
-    socket.on("itemMoved", handleItemMoved);
-    socket.on("treeReplaced", handleTreeReplaced);
-
-    return () => {
-      socket.off("reminderTriggered", handleReminderTriggered);
-      socket.off("itemCreated", handleItemCreated);
-      socket.off("itemUpdated", handleItemUpdated);
-      socket.off("itemDeleted", handleItemDeleted);
-      socket.off("itemMoved", handleItemMoved);
-      socket.off("treeReplaced", handleTreeReplaced);
-      socket.disconnect();
-    };
-  }, [currentUser?._id]);
-
-  const isMobile = useIsMobile();
-  const [mobileViewMode, setMobileViewMode] = useState("tree");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const searchInputRef = useRef(null);
-  useEffect(() => {
-    if (isSearchOpen) {
-      const observer = new MutationObserver(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus({ preventScroll: true });
-          observer.disconnect();
-        }
-      });
-
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-      });
-
-      return () => observer.disconnect();
-    }
-  }, [isSearchOpen]);
-  const { settings } = useSettings();
-  useEffect(() => {
-    reminderMonitor.setSettingsContext(settings);
-  }, [settings]);
-
+const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   const {
     tree,
+    setTreeWithUndo,
     selectedItem,
     selectedItemId,
     selectItemById,
@@ -519,7 +437,109 @@ const MainApp = ({ currentUser, setCurrentUser }) => {
     fetchUserTree,
     isFetchingTree,
     currentItemCount,
+    insertItemRecursive,
+    deleteItemRecursive,
+    findItemById,
   } = useTree(currentUser);
+
+  useEffect(() => {
+    if (!currentUser?._id || !authToken) return;
+
+    const socket = initSocket(authToken);
+
+    if (!socket) {
+      console.warn("🧨 Socket not created. Aborting listeners setup.");
+      return;
+    }
+
+    const handleReminderTriggered = ({ itemId }) => {
+      const evt = new CustomEvent("remindersUpdated");
+      window.dispatchEvent(evt);
+    };
+
+    const handleItemCreated = (item) => {
+      setTreeWithUndo((prev) => insertItemRecursive(prev, item.parentId, item));
+    };
+
+    const handleItemUpdated = (data) => {
+      setTreeWithUndo(prev => {
+        const updateItemInTree = (nodes, updatedItem) => {
+          return nodes.map(node => {
+            if (node.id === updatedItem.id) {
+              return { ...node, ...updatedItem };
+            }
+            if (node.children) {
+              return { ...node, children: updateItemInTree(node.children, updatedItem) };
+            }
+            return node;
+          });
+        };
+        return updateItemInTree(prev, data);
+      });
+    };
+
+    const handleItemDeleted = ({ itemId }) => {
+      setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
+    };
+
+    const handleItemMoved = ({ itemId, newParentId }) => {
+      setTreeWithUndo((prev) => {
+        const item = findItemById(prev, itemId);
+        if (!item) return prev;
+        const treeWithout = deleteItemRecursive(prev, itemId);
+        return insertItemRecursive(treeWithout, newParentId, item);
+      });
+    };
+
+    const handleTreeReplaced = (newTree) => {
+      setTreeWithUndo(() => newTree, true);
+    };
+
+    socket.on("reminderTriggered", handleReminderTriggered);
+    socket.on("itemCreated", handleItemCreated);
+    socket.on("itemUpdated", handleItemUpdated);
+    socket.on("itemDeleted", handleItemDeleted);
+    socket.on("itemMoved", handleItemMoved);
+    socket.on("treeReplaced", handleTreeReplaced);
+
+    return () => {
+      socket.off("reminderTriggered", handleReminderTriggered);
+      socket.off("itemCreated", handleItemCreated);
+      socket.off("itemUpdated", handleItemUpdated);
+      socket.off("itemDeleted", handleItemDeleted);
+      socket.off("itemMoved", handleItemMoved);
+      socket.off("treeReplaced", handleTreeReplaced);
+      disconnectSocket();
+    };
+  }, [currentUser?._id, authToken, setTreeWithUndo, insertItemRecursive, deleteItemRecursive, findItemById]);
+
+  const isMobile = useIsMobile();
+  const [mobileViewMode, setMobileViewMode] = useState("tree");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const searchInputRef = useRef(null);
+  useEffect(() => {
+    if (isSearchOpen) {
+      const observer = new MutationObserver(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus({ preventScroll: true });
+          observer.disconnect();
+        }
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+
+      return () => observer.disconnect();
+    }
+  }, [isSearchOpen]);
+  const { settings } = useSettings();
+  useEffect(() => {
+    reminderMonitor.setSettingsContext(settings);
+  }, [settings]);
+
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
 
