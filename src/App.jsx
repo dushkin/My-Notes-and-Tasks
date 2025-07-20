@@ -793,6 +793,28 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       }
     };
 
+
+  useEffect(() => {
+    const socket = initSocket(authToken);
+    if (!socket) return;
+
+    socket.on("itemUpdated", handleItemUpdated);
+    socket.on("itemDeleted", handleItemDeleted);
+    socket.on("itemMoved", handleItemMoved);
+    socket.on("treeReplaced", handleTreeReplaced);
+    socket.on("reminderTriggered", handleReminderTriggered);
+
+    return () => {
+      socket.off("itemUpdated", handleItemUpdated);
+      socket.off("itemDeleted", handleItemDeleted);
+      socket.off("itemMoved", handleItemMoved);
+      socket.off("treeReplaced", handleTreeReplaced);
+      socket.off("reminderTriggered", handleReminderTriggered);
+      disconnectSocket();
+    };
+  }, [authToken]);
+
+
     const handleRemindersUpdate = (event) => {
       setReminders(event.detail || getReminders());
     };
