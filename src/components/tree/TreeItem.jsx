@@ -4,6 +4,13 @@ const MOBILE_BREAKPOINT = 768; // px threshold for mobile
 
 const TreeItem = ({
   label,
+  onRename = () => {},
+  onSelect = () => {},
+  onContextMenu = () => {},
+  children,
+  ...props
+}) => {
+  label,
   onRename,
   onSelect,
   onContextMenu,
@@ -25,7 +32,7 @@ const TreeItem = ({
   const handleLabelClick = () => {
     // On mobile, disable in-place rename via label click
     if (!isMobile) {
-      onRename();
+      onRename?.();
     }
     // otherwise ignore click
   };
