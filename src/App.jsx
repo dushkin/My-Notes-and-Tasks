@@ -37,8 +37,10 @@ import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
 import { useIsMobile } from "./hooks/useIsMobile";
 import {
-  findItemById as findItemByIdUtil,
-  findParentAndSiblings as findParentAndSiblingsUtil,
+  findItemById,
+  findParentAndSiblings,
+  insertItemRecursive,
+  deleteItemRecursive,
 } from "./utils/treeUtils";
 import {
   registerServiceWorker,
@@ -433,8 +435,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     fetchUserTree,
     isFetchingTree,
     currentItemCount,
-    insertItemRecursive,
-    deleteItemRecursive,
     findItemById,
   } = useTree(currentUser);
 
@@ -484,8 +484,22 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     const handleItemMoved = ({ itemId, newParentId }) => {
       console.log("Socket event: itemMoved", { itemId, newParentId });
       setTreeWithUndo((prev) => {
-        const item = findItemById(prev, itemId);
+        // Create a local findItemById function that works with the prev parameter
+        const findItemInTree = (nodes, id) => {
+          for (const node of nodes) {
+            if (node.id === id) return node;
+            if (node.children) {
+              const found = findItemInTree(node.children, id);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+
+        const item = findItemInTree(prev, itemId);
         if (!item) return prev;
+
+        // Use the functions from the dependency array
         const treeWithoutItem = deleteItemRecursive(prev, itemId);
         return insertItemRecursive(treeWithoutItem, newParentId, item);
       });
@@ -504,8 +518,21 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     const handleItemCreated = ({ newItem, parentId }) => {
       console.log("Socket event: itemCreated", { newItem, parentId });
       setTreeWithUndo((prev) => {
-        if (findItemById(prev, newItem.id)) {
-          return prev;
+        // Create a local findItemById function that works with the prev parameter
+        const findItemInTree = (nodes, id) => {
+          for (const node of nodes) {
+            if (node.id === id) return node;
+            if (node.children) {
+              const found = findItemInTree(node.children, id);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+
+        const existingItem = findItemInTree(prev, newItem.id);
+        if (existingItem) {
+          return prev; // Item already exists, don't add it again
         }
         return insertItemRecursive(prev, parentId, newItem);
       });
@@ -533,8 +560,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     setTreeWithUndo,
     fetchUserTree,
     resetTreeHistory,
-    selectedItemId, // Dependency needed for the fix in handleItemDeleted
-    selectItemById, // Dependency needed for the fix in handleItemDeleted
+    selectedItemId,
+    selectItemById,
+    insertItemRecursive, // Add this dependency
+    deleteItemRecursive, // Add this dependency
   ]);
 
   useEffect(() => {
@@ -646,11 +675,11 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     cancelText: "Cancel",
   });
   const findItemByIdFromTree = useCallback(
-    (id) => findItemByIdUtil(tree, id),
+    (id) => findItemById(tree, id),
     [tree]
   );
   const findParentAndSiblingsFromTree = useCallback(
-    (id) => findParentAndSiblingsUtil(tree, id),
+    (id) => findParentAndSiblings(tree, id),
     [tree]
   );
   const showMessage = useCallback(
