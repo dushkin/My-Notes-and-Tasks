@@ -70,6 +70,7 @@ import {
 import SearchResultsPane from "./components/search/SearchResultsPane.jsx";
 import { matchText } from "./utils/searchUtils";
 import { Sheet } from "react-modal-sheet";
+import { useSocketEvents } from "./hooks/useSocketEvents";
 import Login from "./components/dialogs/Login";
 import Register from "./components/dialogs/Register";
 import {
@@ -114,6 +115,7 @@ function htmlToPlainTextWithNewlines(html) {
 const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
+  useSocketEvents(currentUser);
   useEffect(() => {
     if (currentUser?.token) {
       subscribeToPushNotifications(currentUser.token);

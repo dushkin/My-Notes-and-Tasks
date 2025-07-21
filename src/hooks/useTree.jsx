@@ -1359,6 +1359,7 @@ export const useTree = (currentUser) => {
   return {
     fetchUserTree,
     tree,
+    setTreeWithUndo,
     selectedItem,
     selectedItemId,
     contextMenu,
