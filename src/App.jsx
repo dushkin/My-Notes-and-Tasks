@@ -124,11 +124,11 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
   }, [currentUser]);
 
   useEffect(() => {
-  if (message) {
-    const timer = setTimeout(() => onClose(), 5000);
-    return () => clearTimeout(timer);
-  }
-}, [message, onClose]);
+    if (message) {
+      const timer = setTimeout(() => onClose(), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message, onClose]);
 
   if (!message) {
     return null;
@@ -150,7 +150,6 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
 
   return (
-    <ErrorBoundary>
     <div
       data-item-id="error-display-message"
       className={`${baseClasses} ${typeClasses}`}
@@ -168,8 +167,6 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
         <XCircle className="w-5 h-5" />
       </LoadingButton>
     </div>
-    </ErrorBoundary>
-    </ErrorBoundary>
   );
 };
 
@@ -192,11 +189,9 @@ const App = () => {
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-    <ErrorBoundary>
   }, []);
 
   return (
-    <ErrorBoundary>
     <Router>
       <Routes>
         <Route path="/" element={<LandingPageRoute />} />
@@ -207,8 +202,6 @@ const App = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
-    </ErrorBoundary>
-    </ErrorBoundary>
   );
 };
 
@@ -243,8 +236,6 @@ const LandingPageRoute = () => {
   }
 
   return (
-    <ErrorBoundary>
-    <ErrorBoundary>
     <>
       <BetaBanner variant="landing" />
       <LandingPage
@@ -253,8 +244,6 @@ const LandingPageRoute = () => {
         currentUser={currentUser}
       />
     </>
-    </ErrorBoundary>
-    </ErrorBoundary>
   );
 };
 
@@ -297,8 +286,6 @@ const LoginRoute = () => {
     window.location.href = "/app";
   };
   return (
-    <ErrorBoundary>
-    <ErrorBoundary>
     <>
       <BetaBanner variant="auth" />
       <Login
@@ -306,8 +293,6 @@ const LoginRoute = () => {
         onSwitchToRegister={() => (window.location.href = "/register")}
       />
     </>
-    </ErrorBoundary>
-    </ErrorBoundary>
   );
 };
 
@@ -349,8 +334,6 @@ const RegisterRoute = () => {
     window.location.href = "/login";
   };
   return (
-    <ErrorBoundary>
-    <ErrorBoundary>
     <>
       <BetaBanner variant="auth" />
       <Register
@@ -358,8 +341,6 @@ const RegisterRoute = () => {
         onSwitchToLogin={() => (window.location.href = "/login")}
       />
     </>
-    </ErrorBoundary>
-    </ErrorBoundary>
   );
 };
 
@@ -401,8 +382,6 @@ const ProtectedAppRoute = () => {
   }
 
   return (
-    <ErrorBoundary>
-    <ErrorBoundary>
     <Routes>
       <Route
         index
@@ -417,8 +396,6 @@ const ProtectedAppRoute = () => {
       <Route path="item/:id" element={<EditorPage />} />
       <Route path="*" element={<Navigate to="" replace />} />
     </Routes>
-    </ErrorBoundary>
-    </ErrorBoundary>
   );
 };
 
@@ -550,7 +527,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
 
     return () => {
-    <ErrorBoundary>
       // Unregister all event listeners on cleanup
       socket.off("reminderTriggered", handleReminderTriggered);
       socket.off("treeReplaced", handleTreeReplaced);
@@ -849,7 +825,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       const reminderRefreshInterval = setInterval(loadReminders, 5000);
 
       return () => {
-    <ErrorBoundary>
         window.removeEventListener("remindersUpdated", handleRemindersUpdate);
         clearInterval(reminderRefreshInterval);
       };
@@ -1005,7 +980,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     window.addEventListener("reminderDismissed", handleReminderDismissed);
     window.addEventListener("focusItem", handleFocusItem);
     return () => {
-    <ErrorBoundary>
       window.removeEventListener("showSnoozeDialog", handleShowSnoozeDialog);
       window.removeEventListener("showFeedback", handleShowFeedback);
       window.removeEventListener(
@@ -1145,7 +1119,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       );
     }
     return () => {
-    <ErrorBoundary>
       if (autoExportIntervalRef.current) {
         clearInterval(autoExportIntervalRef.current);
         autoExportIntervalRef.current = null;
@@ -1773,7 +1746,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-    <ErrorBoundary>
   }, [mobileMenuOpen]);
   useEffect(() => {
     const handler = (e) => {
@@ -1866,7 +1838,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     window.addEventListener("popstate", handlePopState);
 
     return () => {
-    <ErrorBoundary>
       window.removeEventListener("popstate", handlePopState);
     };
   }, [isMobile, mobileViewMode]);
@@ -1877,7 +1848,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
   const iconBaseClass = "w-4 h-4 mr-2";
   return (
-    <ErrorBoundary>
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <BetaBanner />
 
@@ -2285,8 +2255,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                           { viewMode: "content", itemId: id },
                           "",
                           window.location.href
-    </ErrorBoundary>
-    </ErrorBoundary>
                         );
                       }
                     }
