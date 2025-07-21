@@ -124,12 +124,11 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
   }, [currentUser]);
 
   useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => onClose(), 5000);
-      return () => clearTimeout(timer);
-    <ErrorBoundary>
-    }
-  }, [message, onClose]);
+  if (message) {
+    const timer = setTimeout(() => onClose(), 5000);
+    return () => clearTimeout(timer);
+  }
+}, [message, onClose]);
 
   if (!message) {
     return null;
