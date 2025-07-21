@@ -1,23 +1,35 @@
+import { getSocket } from '../services/socketClient';
+
 const REMINDERS_STORAGE_KEY = 'notes_app_reminders';
 
 /**
- * Stores a reminder in local storage.
+ * Stores a reminder and broadcasts to other devices via socket
  * @param {string} itemId - The ID of the item the reminder is for.
  * @param {number} timestamp - The Unix timestamp (in milliseconds) when the reminder should trigger.
  * @param {Object|null} repeatOptions - The repeat options for the reminder.
  */
 export const setReminder = (itemId, timestamp, repeatOptions = null) => {
   const reminders = getReminders();
-  reminders[itemId] = {
+  const reminderData = {
     timestamp,
     itemId,
     repeatOptions
   };
+  
+  reminders[itemId] = reminderData;
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
-  // FIX: Dispatch event to notify UI of the change immediately
+  
+  // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
     detail: reminders
   }));
+
+  // Broadcast to other devices via socket
+  const socket = getSocket();
+  if (socket && socket.connected) {
+    socket.emit('reminder:set', reminderData);
+  }
+
   console.log(`Reminder set for item ${itemId} at ${new Date(timestamp)}`);
 };
 
@@ -41,29 +53,79 @@ export const getReminder = (itemId) => {
 };
 
 /**
- * Clears a specific reminder from local storage.
+ * Clears a specific reminder and broadcasts to other devices.
  * @param {string} itemId - The ID of the item whose reminder should be cleared.
  */
 export const clearReminder = (itemId) => {
   const reminders = getReminders();
   delete reminders[itemId];
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
-  // FIX: Dispatch event to notify UI of the change immediately
+  
+  // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
     detail: reminders
   }));
+
+  // Broadcast to other devices via socket
+  const socket = getSocket();
+  if (socket && socket.connected) {
+    socket.emit('reminder:clear', { itemId });
+  }
+
   console.log(`Reminder cleared for item ${itemId}`);
 };
 
 /**
- * Clears all reminders from local storage.
+ * Updates a reminder (for snoozing) and broadcasts to other devices.
+ * @param {string} itemId - The ID of the item.
+ * @param {number} timestamp - The new timestamp.
+ * @param {Object|null} repeatOptions - The repeat options.
+ */
+export const updateReminder = (itemId, timestamp, repeatOptions = null) => {
+  const reminders = getReminders();
+  const reminderData = {
+    timestamp,
+    itemId,
+    repeatOptions
+  };
+  
+  reminders[itemId] = reminderData;
+  localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
+  
+  // Notify local UI immediately
+  window.dispatchEvent(new CustomEvent('remindersUpdated', {
+    detail: reminders
+  }));
+
+  // Broadcast to other devices via socket
+  const socket = getSocket();
+  if (socket && socket.connected) {
+    socket.emit('reminder:update', reminderData);
+  }
+
+  console.log(`Reminder updated for item ${itemId} at ${new Date(timestamp)}`);
+};
+
+/**
+ * Clears all reminders from local storage and broadcasts to other devices.
  */
 export const clearAllReminders = () => {
+  const reminders = getReminders();
+  
   localStorage.removeItem(REMINDERS_STORAGE_KEY);
-  // FIX: Dispatch event to notify UI of the change immediately
+  // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
     detail: {}
   }));
+
+  // Broadcast each clear to other devices
+  const socket = getSocket();
+  if (socket && socket.connected) {
+    Object.keys(reminders).forEach(itemId => {
+      socket.emit('reminder:clear', { itemId });
+    });
+  }
+
   console.log("All reminders cleared.");
 };
 

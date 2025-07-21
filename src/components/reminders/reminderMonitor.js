@@ -1,10 +1,8 @@
-import { showNotification, getReminders, clearReminder, setReminder } from '../../utils/reminderUtils';
-
+import { showNotification, getReminders, clearReminder, updateReminder } from '../../utils/reminderUtils';
 import { getSocket } from '../../services/socketClient';
 
 class ReminderMonitor {
   constructor() {
-
     this.intervalId = null;
     this.checkInterval = 500;
     this.serviceWorkerMessageHandler = null;
@@ -57,6 +55,7 @@ class ReminderMonitor {
         if (reminder.repeatOptions) {
           this.scheduleNextRepeat(reminder);
         } else {
+          // Use socket-broadcasting clearReminder
           clearReminder(reminder.itemId);
         }
       }
@@ -123,6 +122,7 @@ class ReminderMonitor {
 
   handleReminderDone(itemId, reminderId) {
     console.log('Marking reminder as done:', itemId);
+    // Use socket-broadcasting clearReminder
     clearReminder(itemId);
     this.clearProcessedReminder(itemId);
     window.dispatchEvent(new CustomEvent('reminderMarkedDone', {
@@ -141,6 +141,7 @@ class ReminderMonitor {
 
   handleReminderDismissed(itemId, reminderId) {
     console.log('Reminder dismissed:', itemId);
+    // Use socket-broadcasting clearReminder
     clearReminder(itemId);
     this.clearProcessedReminder(itemId);
     window.dispatchEvent(new CustomEvent('reminderDismissed', {
@@ -199,9 +200,8 @@ class ReminderMonitor {
     const newReminderTime = Date.now() + milliseconds;
     const repeatOptions = originalData?.originalReminder?.repeatOptions || null;
 
-    // FIX: Re-create the reminder with the new snoozed time using the utility function.
-    // This ensures it exists in storage and that the UI is notified.
-    setReminder(itemId, newReminderTime, repeatOptions);
+    // Use socket-broadcasting updateReminder
+    updateReminder(itemId, newReminderTime, repeatOptions);
 
     // Clear the 'processed' flag so the monitor can trigger it again after the snooze period.
     this.clearProcessedReminder(itemId);
@@ -246,12 +246,9 @@ class ReminderMonitor {
                 break;
               case 'snooze':
                 if (action.data && action.data.snoozeUntil) {
-                  const reminders = getReminders();
-                  if (reminders[action.itemId]) {
-                    reminders[action.itemId].timestamp = action.data.snoozeUntil;
-                    localStorage.setItem('notes_app_reminders', JSON.stringify(reminders));
-                    this.clearProcessedReminder(action.itemId);
-                  }
+                  // Use socket-broadcasting updateReminder
+                  updateReminder(action.itemId, action.data.snoozeUntil);
+                  this.clearProcessedReminder(action.itemId);
                 }
                 break;
             }
@@ -399,7 +396,6 @@ class ReminderMonitor {
     return null;
   }
 
-  
   registerSocketListeners() {
     const socket = getSocket();
     if (!socket || this._socketInitialized) return;
@@ -431,9 +427,9 @@ class ReminderMonitor {
       default:
         return;
     }
-    const reminders = getReminders();
-    reminders[reminder.itemId] = { ...reminder, timestamp: nextTime };
-    localStorage.setItem('notes_app_reminders', JSON.stringify(reminders));
+    
+    // Use socket-broadcasting updateReminder
+    updateReminder(reminder.itemId, nextTime, reminder.repeatOptions);
     this.clearProcessedReminder(reminder.itemId);
     console.log(`Scheduled next repeat for ${reminder.itemId} at ${new Date(nextTime)}`);
   }
@@ -447,13 +443,12 @@ if ('serviceWorker' in navigator) {
     if (type === 'SNOOZE_REMINDER') {
       console.log('Received snooze for item:', itemId);
       const newTime = Date.now() + 5 * 60 * 1000;
-      setReminder(itemId, newTime);
+      updateReminder(itemId, newTime); // This will broadcast to other devices
     } else if (type === 'MARK_DONE') {
       console.log('Received done for item:', itemId);
       window.dispatchEvent(new CustomEvent('markTaskDoneExternally', { detail: { itemId } }));
     }
   });
 }
-
 
 export default reminderMonitor;

@@ -450,6 +450,14 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       return;
     }
 
+    socket.on("connect_error", (error) => {
+      console.warn("Socket connection failed:", error.message);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("Socket disconnected:", reason);
+    });
+
     const handleReminderTriggered = ({ itemId }) => {
       const evt = new CustomEvent("remindersUpdated");
       window.dispatchEvent(evt);
@@ -484,7 +492,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     const handleItemMoved = ({ itemId, newParentId }) => {
       console.log("Socket event: itemMoved", { itemId, newParentId });
       setTreeWithUndo((prev) => {
-        // Create a local findItemById function that works with the prev parameter
         const findItemInTree = (nodes, id) => {
           for (const node of nodes) {
             if (node.id === id) return node;
@@ -499,7 +506,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         const item = findItemInTree(prev, itemId);
         if (!item) return prev;
 
-        // Use the functions from the dependency array
         const treeWithoutItem = deleteItemRecursive(prev, itemId);
         return insertItemRecursive(treeWithoutItem, newParentId, item);
       });
@@ -507,18 +513,15 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     const handleItemDeleted = ({ itemId }) => {
       console.log("Socket event: itemDeleted", { itemId });
-      // FIX: If the deleted item is currently selected, deselect it to prevent errors.
       if (selectedItemId === itemId) {
         selectItemById(null);
       }
-      // Update the tree to remove the item.
       setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
     };
 
     const handleItemCreated = ({ newItem, parentId }) => {
       console.log("Socket event: itemCreated", { newItem, parentId });
       setTreeWithUndo((prev) => {
-        // Create a local findItemById function that works with the prev parameter
         const findItemInTree = (nodes, id) => {
           for (const node of nodes) {
             if (node.id === id) return node;
@@ -532,12 +535,44 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
         const existingItem = findItemInTree(prev, newItem.id);
         if (existingItem) {
-          return prev; // Item already exists, don't add it again
+          return prev;
         }
         return insertItemRecursive(prev, parentId, newItem);
       });
     };
 
+    // NEW: Reminder sync handlers
+    const handleReminderSet = (reminderData) => {
+      console.log("Socket event: reminder:set", reminderData);
+      const reminders = getReminders();
+      reminders[reminderData.itemId] = reminderData;
+      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      window.dispatchEvent(
+        new CustomEvent("remindersUpdated", { detail: reminders })
+      );
+    };
+
+    const handleReminderClear = ({ itemId }) => {
+      console.log("Socket event: reminder:clear", { itemId });
+      const reminders = getReminders();
+      delete reminders[itemId];
+      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      window.dispatchEvent(
+        new CustomEvent("remindersUpdated", { detail: reminders })
+      );
+    };
+
+    const handleReminderUpdate = (reminderData) => {
+      console.log("Socket event: reminder:update", reminderData);
+      const reminders = getReminders();
+      reminders[reminderData.itemId] = reminderData;
+      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      window.dispatchEvent(
+        new CustomEvent("remindersUpdated", { detail: reminders })
+      );
+    };
+
+    // Register all socket listeners (existing + new)
     socket.on("reminderTriggered", handleReminderTriggered);
     socket.on("treeReplaced", handleTreeReplaced);
     socket.on("itemUpdated", handleItemUpdated);
@@ -545,13 +580,27 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     socket.on("itemDeleted", handleItemDeleted);
     socket.on("itemCreated", handleItemCreated);
 
+    // NEW: Reminder socket listeners
+    socket.on("reminder:set", handleReminderSet);
+    socket.on("reminder:clear", handleReminderClear);
+    socket.on("reminder:update", handleReminderUpdate);
+
     return () => {
+      // Cleanup all listeners (existing + new)
       socket.off("reminderTriggered", handleReminderTriggered);
       socket.off("treeReplaced", handleTreeReplaced);
       socket.off("itemUpdated", handleItemUpdated);
       socket.off("itemMoved", handleItemMoved);
       socket.off("itemDeleted", handleItemDeleted);
       socket.off("itemCreated", handleItemCreated);
+
+      // NEW: Cleanup reminder listeners
+      socket.off("reminder:set", handleReminderSet);
+      socket.off("reminder:clear", handleReminderClear);
+      socket.off("reminder:update", handleReminderUpdate);
+
+      socket.off("connect_error");
+      socket.off("disconnect");
       disconnectSocket();
     };
   }, [
@@ -562,8 +611,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     resetTreeHistory,
     selectedItemId,
     selectItemById,
-    insertItemRecursive, // Add this dependency
-    deleteItemRecursive, // Add this dependency
   ]);
 
   useEffect(() => {
