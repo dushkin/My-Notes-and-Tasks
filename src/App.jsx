@@ -493,6 +493,11 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     const handleItemDeleted = ({ itemId }) => {
       console.log("Socket event: itemDeleted", { itemId });
+      // FIX: If the deleted item is currently selected, deselect it to prevent errors.
+      if (selectedItemId === itemId) {
+        selectItemById(null);
+      }
+      // Update the tree to remove the item.
       setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
     };
 
@@ -528,6 +533,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     setTreeWithUndo,
     fetchUserTree,
     resetTreeHistory,
+    selectedItemId, // Dependency needed for the fix in handleItemDeleted
+    selectItemById, // Dependency needed for the fix in handleItemDeleted
   ]);
 
   useEffect(() => {
