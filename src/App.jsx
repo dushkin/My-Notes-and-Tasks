@@ -439,6 +439,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     deleteItemRecursive,
     findItemById,
   } = useTree(currentUser);
+
   useEffect(() => {
     console.log("Attempting to init socket with token:", authToken);
 
@@ -451,19 +452,16 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       return;
     }
 
-    // Existing handler for reminder triggers
     const handleReminderTriggered = ({ itemId }) => {
       const evt = new CustomEvent("remindersUpdated");
       window.dispatchEvent(evt);
     };
 
-    // Handler for replacing the entire tree (e.g., after import or major sync)
     const handleTreeReplaced = (newTree) => {
       console.log("Socket event: treeReplaced");
       resetTreeHistory(newTree);
     };
 
-    // Handler for when an item's data (like content or label) is updated
     const handleItemUpdated = (data) => {
       console.log("Socket event: itemUpdated", data);
       setTreeWithUndo((prev) => {
@@ -485,7 +483,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       });
     };
 
-    // Handler for when an item is moved to a new parent
     const handleItemMoved = ({ itemId, newParentId }) => {
       console.log("Socket event: itemMoved", { itemId, newParentId });
       setTreeWithUndo((prev) => {
@@ -496,13 +493,11 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       });
     };
 
-    // Handler for when an item is deleted
     const handleItemDeleted = ({ itemId }) => {
       console.log("Socket event: itemDeleted", { itemId });
       setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
     };
 
-    // FIX: Correctly handle item creation from another client
     const handleItemCreated = ({ newItem, parentId }) => {
       console.log("Socket event: itemCreated", { newItem, parentId });
       setTreeWithUndo((prev) => {
@@ -515,7 +510,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       });
     };
 
-    // Register all event listeners
     socket.on("reminderTriggered", handleReminderTriggered);
     socket.on("treeReplaced", handleTreeReplaced);
     socket.on("itemUpdated", handleItemUpdated);
@@ -524,7 +518,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     socket.on("itemCreated", handleItemCreated);
 
     return () => {
-      // Unregister all event listeners on cleanup
       socket.off("reminderTriggered", handleReminderTriggered);
       socket.off("treeReplaced", handleTreeReplaced);
       socket.off("itemUpdated", handleItemUpdated);
@@ -533,7 +526,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       socket.off("itemCreated", handleItemCreated);
       disconnectSocket();
     };
-    // FIX: Correct dependency array to prevent unnecessary re-renders and stale closures
   }, [
     currentUser?._id,
     authToken,
@@ -541,6 +533,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     fetchUserTree,
     resetTreeHistory,
   ]);
+
   useEffect(() => {
     const liveSocket = getSocket();
     if (!liveSocket) return;
