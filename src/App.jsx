@@ -122,14 +122,12 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
       subscribeToPushNotifications(currentUser.token);
     }
   }, [currentUser]);
-
   useEffect(() => {
     if (message) {
       const timer = setTimeout(() => onClose(), 5000);
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
-
   if (!message) {
     return null;
   }
@@ -148,7 +146,6 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
       : type === "info"
       ? "text-sky-500 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-100"
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
-
   return (
     <div
       data-item-id="error-display-message"
@@ -190,7 +187,6 @@ const App = () => {
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
-
   return (
     <Router>
       <Routes>
@@ -349,7 +345,6 @@ const ProtectedAppRoute = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
-
   useEffect(() => {
     const checkAuth = async () => {
       const initialToken = getAccessToken();
@@ -376,7 +371,6 @@ const ProtectedAppRoute = () => {
 
     checkAuth();
   }, []);
-
   if (!isAuthCheckComplete || !currentUser) {
     return <LoadingSpinner variant="overlay" text="Loading application..." />;
   }
@@ -404,7 +398,6 @@ const dragOverItemId = null;
 const handleDragEnter = () => {};
 const handleDragOver = () => {};
 const handleDragLeave = () => {};
-
 const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   const {
     tree,
@@ -446,7 +439,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     deleteItemRecursive,
     findItemById,
   } = useTree(currentUser);
-
   useEffect(() => {
     console.log("Attempting to init socket with token:", authToken);
 
@@ -465,11 +457,12 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       window.dispatchEvent(evt);
     };
 
-    // Existing handler for replacing the entire tree (e.g., after import)
+    // Handler for replacing the entire tree (e.g., after import or major sync)
     const handleTreeReplaced = (newTree) => {
-      setTreeWithUndo(() => newTree, true);
+      console.log("Socket event: treeReplaced");
+      resetTreeHistory(newTree);
     };
-    
+
     // Handler for when an item's data (like content or label) is updated
     const handleItemUpdated = (data) => {
       console.log("Socket event: itemUpdated", data);
@@ -505,17 +498,22 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     // Handler for when an item is deleted
     const handleItemDeleted = ({ itemId }) => {
-        console.log("Socket event: itemDeleted", { itemId });
-        setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
+      console.log("Socket event: itemDeleted", { itemId });
+      setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
     };
 
-    // Handler for when a new item is created elsewhere
-    const handleItemCreated = (newItem) => {
-        console.warn("Socket event: itemCreated. Refetching tree for consistency.", newItem);
-        // See explanation below for why we refetch here.
-        fetchUserTree(true); 
+    // FIX: Correctly handle item creation from another client
+    const handleItemCreated = ({ newItem, parentId }) => {
+      console.log("Socket event: itemCreated", { newItem, parentId });
+      setTreeWithUndo((prev) => {
+        // Idempotency check: if item already exists (from optimistic UI), do nothing.
+        if (findItemById(prev, newItem.id)) {
+          return prev;
+        }
+        // Otherwise, insert the new item received from another client.
+        return insertItemRecursive(prev, parentId, newItem);
+      });
     };
-
 
     // Register all event listeners
     socket.on("reminderTriggered", handleReminderTriggered);
@@ -524,7 +522,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     socket.on("itemMoved", handleItemMoved);
     socket.on("itemDeleted", handleItemDeleted);
     socket.on("itemCreated", handleItemCreated);
-
 
     return () => {
       // Unregister all event listeners on cleanup
@@ -536,16 +533,14 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       socket.off("itemCreated", handleItemCreated);
       disconnectSocket();
     };
+    // FIX: Correct dependency array to prevent unnecessary re-renders and stale closures
   }, [
     currentUser?._id,
     authToken,
     setTreeWithUndo,
-    insertItemRecursive,
-    deleteItemRecursive,
-    findItemById,
     fetchUserTree,
+    resetTreeHistory,
   ]);
-
   useEffect(() => {
     const liveSocket = getSocket();
     if (!liveSocket) return;
@@ -571,7 +566,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       liveSocket.off("itemContentUpdated");
     };
   }, [updateTask, updateNoteContent]);
-
   const isMobile = useIsMobile();
   const [mobileViewMode, setMobileViewMode] = useState("tree");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -598,7 +592,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   useEffect(() => {
     reminderMonitor.setSettingsContext(settings);
   }, [settings]);
-
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
 
@@ -671,7 +664,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     },
     []
   );
-
   // Reminder Dialog handlers
   const handleOpenSetReminderDialog = useCallback(
     (item) => {
@@ -683,7 +675,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     },
     [setContextMenu]
   );
-
   const handleConfirmSetReminder = useCallback(
     async (itemId, timestamp, repeatOptions) => {
       if (!itemId || !timestamp) {
@@ -705,7 +696,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     },
     [itemForReminder, showMessage]
   );
-
   const handleUiMessageClose = useCallback(() => {
     setUiMessage("");
   }, []);
