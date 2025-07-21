@@ -150,6 +150,7 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
       : "text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100";
 
   return (
+    <ErrorBoundary>
     <div
       data-item-id="error-display-message"
       className={`${baseClasses} ${typeClasses}`}
@@ -167,6 +168,7 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
         <XCircle className="w-5 h-5" />
       </LoadingButton>
     </div>
+    </ErrorBoundary>
     </ErrorBoundary>
   );
 };
@@ -194,6 +196,7 @@ const App = () => {
   }, []);
 
   return (
+    <ErrorBoundary>
     <Router>
       <Routes>
         <Route path="/" element={<LandingPageRoute />} />
@@ -204,6 +207,7 @@ const App = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
+    </ErrorBoundary>
     </ErrorBoundary>
   );
 };
@@ -240,6 +244,7 @@ const LandingPageRoute = () => {
 
   return (
     <ErrorBoundary>
+    <ErrorBoundary>
     <>
       <BetaBanner variant="landing" />
       <LandingPage
@@ -248,6 +253,7 @@ const LandingPageRoute = () => {
         currentUser={currentUser}
       />
     </>
+    </ErrorBoundary>
     </ErrorBoundary>
   );
 };
@@ -292,6 +298,7 @@ const LoginRoute = () => {
   };
   return (
     <ErrorBoundary>
+    <ErrorBoundary>
     <>
       <BetaBanner variant="auth" />
       <Login
@@ -299,6 +306,7 @@ const LoginRoute = () => {
         onSwitchToRegister={() => (window.location.href = "/register")}
       />
     </>
+    </ErrorBoundary>
     </ErrorBoundary>
   );
 };
@@ -342,6 +350,7 @@ const RegisterRoute = () => {
   };
   return (
     <ErrorBoundary>
+    <ErrorBoundary>
     <>
       <BetaBanner variant="auth" />
       <Register
@@ -349,6 +358,7 @@ const RegisterRoute = () => {
         onSwitchToLogin={() => (window.location.href = "/login")}
       />
     </>
+    </ErrorBoundary>
     </ErrorBoundary>
   );
 };
@@ -392,6 +402,7 @@ const ProtectedAppRoute = () => {
 
   return (
     <ErrorBoundary>
+    <ErrorBoundary>
     <Routes>
       <Route
         index
@@ -406,6 +417,7 @@ const ProtectedAppRoute = () => {
       <Route path="item/:id" element={<EditorPage />} />
       <Route path="*" element={<Navigate to="" replace />} />
     </Routes>
+    </ErrorBoundary>
     </ErrorBoundary>
   );
 };
@@ -671,7 +683,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   const findItemByIdFromTree = useCallback(
     (id) => findItemByIdUtil(tree, id),
     [tree]
-    </ErrorBoundary>
   );
   const findParentAndSiblingsFromTree = useCallback(
     (id) => findParentAndSiblingsUtil(tree, id),
@@ -909,7 +920,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
             notif.message === message &&
             notif.type === type &&
             Date.now() - notif.timestamp < 1000
-    </ErrorBoundary>
         );
 
         if (isDuplicate) {
@@ -1001,7 +1011,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       window.removeEventListener(
         "reminderMarkedDone",
         handleReminderMarkedDone
-    </ErrorBoundary>
       );
       window.removeEventListener("reminderDismissed", handleReminderDismissed);
       window.removeEventListener("focusItem", handleFocusItem);
@@ -1142,7 +1151,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         autoExportIntervalRef.current = null;
         console.log(
           "Auto Export: Interval cleared on cleanup or settings change."
-    </ErrorBoundary>
         );
       }
     };
@@ -1850,7 +1858,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           { viewMode: "tree" },
           "",
           window.location.href
-    </ErrorBoundary>
         );
       }
     };
@@ -1870,6 +1877,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
   const iconBaseClass = "w-4 h-4 mr-2";
   return (
+    <ErrorBoundary>
     <div className="relative flex flex-col h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <BetaBanner />
 
@@ -2277,6 +2285,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                           { viewMode: "content", itemId: id },
                           "",
                           window.location.href
+    </ErrorBoundary>
     </ErrorBoundary>
                         );
                       }
