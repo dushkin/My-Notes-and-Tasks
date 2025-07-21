@@ -1,11 +1,11 @@
 import React, {
-import ErrorBoundary from "./ErrorBoundary.jsx";
   useState,
   useRef,
   useCallback,
   useMemo,
   useEffect,
 } from "react";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 import {
   BrowserRouter as Router,
   Routes,
