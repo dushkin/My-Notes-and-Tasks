@@ -306,15 +306,20 @@ export const showNotification = (title, body, data = {}) => {
     return;
   }
 
+  console.log('🔔 showNotification called:', { title, body, permission: Notification.permission });
+
   // Mobile fix: Ensure notifications show even when page is backgrounded
   const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
   const isPageHidden = document.hidden;
-
+  
+  console.log('🔔 Device info:', { isMobile, isPageHidden, userAgent: navigator.userAgent.substring(0, 50) });
+  
   // For mobile devices when page is hidden, try to bring attention
   if (isMobile && isPageHidden) {
+    console.log('🔔 Mobile page hidden - trying to bring attention');
     // Try to focus the window
     if (window.focus) window.focus();
-
+    
     // Flash the title to get attention
     const originalTitle = document.title;
     document.title = `🔔 ${title}`;
@@ -325,8 +330,13 @@ export const showNotification = (title, body, data = {}) => {
 
   // Always try service worker first (required for mobile)
   navigator.serviceWorker.getRegistration().then((registration) => {
+    console.log('🔔 Service worker registration:', !!registration, registration?.active ? 'active' : 'not active');
+    
     if (registration && registration.active) {
       const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
+      
+      console.log('🔔 Attempting service worker notification with tag:', uniqueTag);
+      
       return registration.showNotification(title, {
         requireInteraction: data?.reminderDoneButtonEnabled ?? false,
         silent: !(data?.reminderSoundEnabled ?? true),
@@ -350,9 +360,13 @@ export const showNotification = (title, body, data = {}) => {
         requireInteraction: isMobile && isPageHidden, // Force interaction for hidden mobile
         tag: uniqueTag,
       }).then(() => {
-        console.log('Notification sent successfully with tag:', uniqueTag);
+        console.log('🔔 Service worker notification SUCCESS with tag:', uniqueTag);
+      }).catch(serviceWorkerError => {
+        console.error('🔔 Service worker notification ERROR:', serviceWorkerError);
+        throw serviceWorkerError;
       });
     } else {
+      console.log('🔔 No active service worker, trying direct notification');
       // Only use direct Notification constructor if no service worker AND not mobile
       if (!isMobile) {
         const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
@@ -363,12 +377,13 @@ export const showNotification = (title, body, data = {}) => {
           data: data,
           tag: uniqueTag,
         });
+        console.log('🔔 Direct notification created for desktop');
       } else {
-        console.warn('Mobile device without active service worker - notifications may not work');
+        console.error('🔔 MOBILE ERROR: No active service worker available for notifications');
       }
     }
   }).catch(error => {
-    console.error('Error with service worker notification:', error);
+    console.error('🔔 Service worker registration error:', error);
     // Only fallback to direct constructor on desktop
     if (!isMobile) {
       try {
@@ -380,9 +395,12 @@ export const showNotification = (title, body, data = {}) => {
           data: data,
           tag: uniqueTag,
         });
+        console.log('🔔 Fallback direct notification created for desktop');
       } catch (fallbackError) {
-        console.error('Fallback notification also failed:', fallbackError);
+        console.error('🔔 Fallback notification also failed:', fallbackError);
       }
+    } else {
+      console.error('🔔 MOBILE ERROR: Service worker failed and no fallback available');
     }
   });
 };
