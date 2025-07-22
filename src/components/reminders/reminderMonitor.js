@@ -87,8 +87,11 @@ class ReminderMonitor {
         if (reminder.repeatOptions) {
           this.scheduleNextRepeat(reminder);
         } else {
-          // Use socket-broadcasting clearReminder
-          clearReminder(reminder.itemId);
+          // FIXED: Don't clear immediately - let all devices trigger first
+          // Clear with a delay to allow other devices to trigger
+          setTimeout(() => {
+            clearReminder(reminder.itemId);
+          }, 2000); // 2 second delay
         }
       } else {
         // Don't log every check for future reminders to avoid spam
