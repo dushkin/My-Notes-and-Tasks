@@ -119,8 +119,21 @@ class ReminderMonitor {
       }, 3000);
     }
 
+    // DEBUG: Check if showNotification exists
+    console.log('🚨 About to call showNotification:', {
+      title,
+      body,
+      showNotificationExists: typeof showNotification,
+      settings
+    });
+
     // Single notification call - let showNotification handle all the logic
-    showNotification(title, body, notificationData);
+    try {
+      showNotification(title, body, notificationData);
+      console.log('🚨 showNotification called successfully');
+    } catch (error) {
+      console.error('🚨 showNotification ERROR:', error);
+    }
     
     window.dispatchEvent(new CustomEvent('reminderTriggered', {
       detail: { ...reminder, itemTitle, notificationData }
