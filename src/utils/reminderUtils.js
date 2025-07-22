@@ -309,25 +309,25 @@ export const showNotification = (title, body, data = {}) => {
   console.log('🔔 showNotification called:', { title, body, permission: Notification.permission });
 
   // Better mobile detection - check for touch capability and screen size
-  const isMobile = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ||
-    ('ontouchstart' in window) ||
-    (window.screen && window.screen.width <= 768);
+  const isMobile = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) || 
+                   ('ontouchstart' in window) || 
+                   (window.screen && window.screen.width <= 768);
   const isPageHidden = document.hidden;
-
-  console.log('🔔 Device info:', {
-    isMobile,
-    isPageHidden,
+  
+  console.log('🔔 Device info:', { 
+    isMobile, 
+    isPageHidden, 
     hasTouch: 'ontouchstart' in window,
     screenWidth: window.screen?.width,
-    userAgent: navigator.userAgent.substring(0, 100)
+    userAgent: navigator.userAgent.substring(0, 100) 
   });
-
+  
   // For mobile devices when page is hidden, try to bring attention
   if (isMobile && isPageHidden) {
     console.log('🔔 Mobile page hidden - trying to bring attention');
     // Try to focus the window
     if (window.focus) window.focus();
-
+    
     // Flash the title to get attention
     const originalTitle = document.title;
     document.title = `🔔 ${title}`;
@@ -339,17 +339,17 @@ export const showNotification = (title, body, data = {}) => {
   // Always try service worker first (required for mobile)
   navigator.serviceWorker.getRegistration().then((registration) => {
     console.log('🔔 Service worker registration:', !!registration, registration?.active ? 'active' : 'not active');
-
+    
     if (registration && registration.active) {
       const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
-
+      
       console.log('🔔 Attempting service worker notification with tag:', uniqueTag);
       console.log('🔔 Notification options:', {
         requireInteraction: isMobile || isPageHidden, // Force interaction for mobile OR hidden pages
         silent: !(data?.reminderSoundEnabled ?? true),
         vibrate: (data?.reminderVibrationEnabled ?? true) ? [200, 100, 200] : undefined,
       });
-
+      
       return registration.showNotification(title, {
         requireInteraction: isMobile || isPageHidden, // FIXED: Force interaction for mobile OR hidden pages
         silent: !(data?.reminderSoundEnabled ?? true),

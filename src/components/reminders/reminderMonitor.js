@@ -443,6 +443,18 @@ class ReminderMonitor {
 
     // Only sync data, don't trigger reminders immediately
     socket.on("reminder:set", (reminderData) => {
+      const now = Date.now();
+      const timeDiff = reminderData.timestamp - now;
+      
+      // DEBUG: Log when receiving reminder from other device
+      console.log('📡 RECEIVED REMINDER via socket:', {
+        itemId: reminderData.itemId.substring(0, 8) + '...',
+        scheduledFor: new Date(reminderData.timestamp).toISOString(),
+        receivedAt: new Date(now).toISOString(),
+        secondsRemaining: Math.round(timeDiff / 1000),
+        originalTimestamp: reminderData.timestamp
+      });
+      
       // Just update localStorage, let the normal check cycle handle triggering
       const reminders = getReminders();
       reminders[reminderData.itemId] = reminderData;
