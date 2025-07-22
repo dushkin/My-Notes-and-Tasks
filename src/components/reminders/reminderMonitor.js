@@ -58,8 +58,20 @@ class ReminderMonitor {
         return;
       }
 
+      // DEBUG: Show the actual timestamp comparison
+      const timeDiff = reminder.timestamp - now;
+      if (Object.keys(reminders).length > 0) {
+        console.log('⏱️ Time check:', {
+          reminderTime: new Date(reminder.timestamp).toISOString(),
+          currentTime: new Date(now).toISOString(),
+          diff: timeDiff,
+          willTrigger: reminder.timestamp <= now
+        });
+      }
+
       // Only trigger if the time has actually passed
       if (reminder.timestamp <= now) {
+        console.log('🔔 MOBILE TRIGGERING REMINDER');
         this.triggerReminder(reminder, this.currentSettings);
         this.processedReminders.add(reminderKey);
 

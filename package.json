@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.5.32",
+  "version": "12.5.33",
   "commitMessage": "Devices sync - fixes",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
