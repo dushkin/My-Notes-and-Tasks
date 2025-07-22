@@ -46,6 +46,11 @@ class ReminderMonitor {
   checkReminders() {
     const reminders = getReminders();
     const now = Date.now();
+    
+    // DEBUG: Temporary check if this runs on mobile
+    if (Object.keys(reminders).length > 0) {
+      console.log('📱 Mobile reminder check:', Object.keys(reminders).length, 'reminders');
+    }
 
     Object.values(reminders).forEach(reminder => {
       const reminderKey = `${reminder.itemId}-${reminder.timestamp}`;
