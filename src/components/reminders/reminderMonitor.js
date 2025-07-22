@@ -444,20 +444,29 @@ class ReminderMonitor {
     // Only sync data, don't trigger reminders immediately
     socket.on("reminder:set", (reminderData) => {
       const now = Date.now();
-      const timeDiff = reminderData.timestamp - now;
       
-      // DEBUG: Log when receiving reminder from other device
-      console.log('📡 RECEIVED REMINDER via socket:', {
-        itemId: reminderData.itemId.substring(0, 8) + '...',
-        scheduledFor: new Date(reminderData.timestamp).toISOString(),
-        receivedAt: new Date(now).toISOString(),
-        secondsRemaining: Math.round(timeDiff / 1000),
-        originalTimestamp: reminderData.timestamp
-      });
+      // Handle clock skew by recalculating timestamp based on duration
+      let finalTimestamp = reminderData.timestamp;
+      
+      if (reminderData.durationMs && reminderData.createdAt) {
+        // Recalculate based on our local time to avoid clock skew
+        finalTimestamp = now + reminderData.durationMs;
+        console.log('🕐 Clock skew adjustment:', {
+          originalTimestamp: reminderData.timestamp,
+          adjustedTimestamp: finalTimestamp,
+          durationMs: reminderData.durationMs
+        });
+      }
+      
+      // Create adjusted reminder data
+      const adjustedReminderData = {
+        ...reminderData,
+        timestamp: finalTimestamp
+      };
       
       // Just update localStorage, let the normal check cycle handle triggering
       const reminders = getReminders();
-      reminders[reminderData.itemId] = reminderData;
+      reminders[reminderData.itemId] = adjustedReminderData;
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
       
       // Notify UI of the sync
