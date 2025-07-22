@@ -48,16 +48,39 @@ class ReminderMonitor {
   checkReminders() {
     const reminders = getReminders();
     const now = Date.now();
+    
+    // DEBUG: Show what we're checking
+    const reminderCount = Object.keys(reminders).length;
+    if (reminderCount > 0) {
+      console.log(`🕐 Checking ${reminderCount} reminder(s) at:`, new Date(now).toISOString());
+    }
 
     Object.values(reminders).forEach(reminder => {
       const reminderKey = `${reminder.itemId}-${reminder.timestamp}`;
+      const timeDiff = reminder.timestamp - now;
+      
+      // DEBUG: Log each reminder check
+      console.log('📝 Checking reminder:', {
+        itemId: reminder.itemId.substring(0, 8) + '...',
+        scheduledFor: new Date(reminder.timestamp).toISOString(),
+        timeUntilTrigger: `${Math.round(timeDiff/1000)}s`,
+        alreadyProcessed: this.processedReminders.has(reminderKey),
+        willTrigger: timeDiff <= 0 && !this.processedReminders.has(reminderKey)
+      });
+      
       if (this.processedReminders.has(reminderKey)) {
         return;
       }
 
-      // Only trigger if the time has actually passed
+      // Only trigger if the time has actually passed (with small buffer to avoid race conditions)
       if (reminder.timestamp <= now) {
-        console.log('Triggering reminder locally:', reminder);
+        console.log('🔔 TRIGGERING reminder locally (time passed):', {
+          itemId: reminder.itemId,
+          scheduledTime: new Date(reminder.timestamp).toISOString(),
+          currentTime: new Date(now).toISOString(),
+          delay: now - reminder.timestamp
+        });
+        
         this.triggerReminder(reminder, this.currentSettings);
         this.processedReminders.add(reminderKey);
 
@@ -66,6 +89,11 @@ class ReminderMonitor {
         } else {
           // Use socket-broadcasting clearReminder
           clearReminder(reminder.itemId);
+        }
+      } else {
+        // Don't log every check for future reminders to avoid spam
+        if (timeDiff < 10000) { // Only log if less than 10 seconds away
+          console.log('⏰ Reminder pending:', `${Math.round(timeDiff/1000)}s remaining`);
         }
       }
     });
@@ -421,6 +449,16 @@ class ReminderMonitor {
       window.dispatchEvent(
         new CustomEvent("remindersUpdated", { detail: reminders })
       );
+      
+      // DEBUG: Check timing
+      const now = Date.now();
+      const timeDiff = reminderData.timestamp - now;
+      console.log("🔔 Synced reminder timing:", {
+        scheduledFor: new Date(reminderData.timestamp).toISOString(),
+        currentTime: new Date(now).toISOString(),
+        timeUntilTrigger: `${Math.round(timeDiff/1000)}s`,
+        willTriggerNow: timeDiff <= 0
+      });
     });
 
     socket.on("reminder:update", (reminderData) => {
@@ -438,6 +476,16 @@ class ReminderMonitor {
       window.dispatchEvent(
         new CustomEvent("remindersUpdated", { detail: reminders })
       );
+      
+      // DEBUG: Check timing
+      const now = Date.now();
+      const timeDiff = reminderData.timestamp - now;
+      console.log("🔔 Updated reminder timing:", {
+        scheduledFor: new Date(reminderData.timestamp).toISOString(),
+        currentTime: new Date(now).toISOString(),
+        timeUntilTrigger: `${Math.round(timeDiff/1000)}s`,
+        willTriggerNow: timeDiff <= 0
+      });
     });
 
     socket.on("reminder:clear", ({ itemId }) => {
