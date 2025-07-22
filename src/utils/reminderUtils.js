@@ -323,10 +323,11 @@ export const showNotification = (title, body, data = {}) => {
     }, 3000);
   }
 
+  // Always try service worker first (required for mobile)
   navigator.serviceWorker.getRegistration().then((registration) => {
-    if (registration) {
+    if (registration && registration.active) {
       const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
-      registration.showNotification(title, {
+      return registration.showNotification(title, {
         requireInteraction: data?.reminderDoneButtonEnabled ?? false,
         silent: !(data?.reminderSoundEnabled ?? true),
         vibrate: (data?.reminderVibrationEnabled ?? true) ? [200, 100, 200] : undefined,
@@ -350,9 +351,11 @@ export const showNotification = (title, body, data = {}) => {
         tag: uniqueTag,
       }).then(() => {
         console.log('Notification sent successfully with tag:', uniqueTag);
-      }).catch(error => {
-        console.error('Error showing notification:', error);
-        // Fallback to basic notification
+      });
+    } else {
+      // Only use direct Notification constructor if no service worker AND not mobile
+      if (!isMobile) {
+        const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
         new Notification(title, {
           body,
           icon: "/favicon-32x32.png",
@@ -360,28 +363,26 @@ export const showNotification = (title, body, data = {}) => {
           data: data,
           tag: uniqueTag,
         });
-      });
-    } else {
-      console.warn('No service worker registration found, falling back to basic notification');
-      const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
-      new Notification(title, {
-        body,
-        icon: "/favicon-32x32.png",
-        badge: "/favicon-32x32.png",
-        data: data,
-        tag: uniqueTag,
-      });
+      } else {
+        console.warn('Mobile device without active service worker - notifications may not work');
+      }
     }
   }).catch(error => {
-    console.error('Error getting service worker registration:', error);
-    // Fallback to basic notification
-    const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
-    new Notification(title, {
-      body,
-      icon: "/favicon-32x32.png",
-      badge: "/favicon-32x32.png",
-      data: data,
-      tag: uniqueTag,
-    });
+    console.error('Error with service worker notification:', error);
+    // Only fallback to direct constructor on desktop
+    if (!isMobile) {
+      try {
+        const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
+        new Notification(title, {
+          body,
+          icon: "/favicon-32x32.png",
+          badge: "/favicon-32x32.png",
+          data: data,
+          tag: uniqueTag,
+        });
+      } catch (fallbackError) {
+        console.error('Fallback notification also failed:', fallbackError);
+      }
+    }
   });
 };
