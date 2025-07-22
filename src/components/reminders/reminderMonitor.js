@@ -78,10 +78,10 @@ class ReminderMonitor {
         if (reminder.repeatOptions) {
           this.scheduleNextRepeat(reminder);
         } else {
-          // Clear with a delay to allow other devices to trigger
+          // INCREASED delay to allow other devices more time to trigger
           setTimeout(() => {
             clearReminder(reminder.itemId);
-          }, 2000); // 2 second delay
+          }, 5000); // 5 second delay instead of 2
         }
       }
     });
