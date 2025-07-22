@@ -301,6 +301,9 @@ export const schedulePushNotification = (title, body, timestamp, data = {}) => {
  * @param {Object} data - Additional data for the notification.
  */
 export const showNotification = (title, body, data = {}) => {
+
+  alert('🔔 Reminder: ' + title + ' - ' + body);
+
   if (Notification.permission !== "granted") {
     console.warn("Notification permission not granted.");
     return;
