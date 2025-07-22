@@ -86,29 +86,23 @@ class ReminderMonitor {
       originalReminder: reminder
     };
 
-    // Mobile fix: Request focus/visibility to ensure notifications show
-    if (document.hidden && 'serviceWorker' in navigator) {
-      // If page is hidden, try to bring attention via service worker
-      navigator.serviceWorker.ready.then(registration => {
-        if (registration.active) {
-          // Force service worker notification with requireInteraction
-          registration.showNotification(title, {
-            body: body,
-            icon: "/favicon-32x32.png",
-            badge: "/favicon-32x32.png",
-            requireInteraction: true,  // Forces notification to stay visible
-            tag: `reminder-${reminder.itemId}`,
-            data: notificationData,
-            actions: [
-              { action: 'done', title: '✅ Done' },
-              { action: 'snooze', title: '⏰ Snooze' }
-            ]
-          });
-        }
-      });
+    // Mobile fix: Try to focus window for backgrounded mobile pages
+    const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
+    const isPageHidden = document.hidden;
+    
+    if (isMobile && isPageHidden) {
+      // Try to focus the window
+      if (window.focus) window.focus();
+      
+      // Flash the title to get attention
+      const originalTitle = document.title;
+      document.title = `🔔 ${title}`;
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 3000);
     }
 
-    // Also try regular notification (for desktop/active mobile)
+    // Single notification call - let showNotification handle all the logic
     showNotification(title, body, notificationData);
     
     window.dispatchEvent(new CustomEvent('reminderTriggered', {
