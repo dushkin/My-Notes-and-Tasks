@@ -438,6 +438,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     findItemById,
   } = useTree(currentUser);
 
+  // In your App.jsx useEffect, replace the socket handlers with these corrected versions:
+
   useEffect(() => {
     console.log("Attempting to init socket with token:", authToken);
 
@@ -492,6 +494,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     const handleItemMoved = ({ itemId, newParentId }) => {
       console.log("Socket event: itemMoved", { itemId, newParentId });
       setTreeWithUndo((prev) => {
+        // Create local helper functions
         const findItemInTree = (nodes, id) => {
           for (const node of nodes) {
             if (node.id === id) return node;
@@ -503,11 +506,42 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           return null;
         };
 
+        const deleteItemFromTree = (nodes, id) => {
+          return nodes.filter((node) => {
+            if (node.id === id) return false;
+            if (node.children) {
+              node.children = deleteItemFromTree(node.children, id);
+            }
+            return true;
+          });
+        };
+
+        const insertItemInTree = (nodes, parentId, item) => {
+          if (parentId === null) {
+            return [...nodes, item];
+          }
+          return nodes.map((node) => {
+            if (node.id === parentId && node.type === "folder") {
+              return {
+                ...node,
+                children: [...(node.children || []), item],
+              };
+            }
+            if (node.children) {
+              return {
+                ...node,
+                children: insertItemInTree(node.children, parentId, item),
+              };
+            }
+            return node;
+          });
+        };
+
         const item = findItemInTree(prev, itemId);
         if (!item) return prev;
 
-        const treeWithoutItem = deleteItemRecursive(prev, itemId);
-        return insertItemRecursive(treeWithoutItem, newParentId, item);
+        const treeWithoutItem = deleteItemFromTree(prev, itemId);
+        return insertItemInTree(treeWithoutItem, newParentId, item);
       });
     };
 
@@ -516,7 +550,18 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       if (selectedItemId === itemId) {
         selectItemById(null);
       }
-      setTreeWithUndo((prev) => deleteItemRecursive(prev, itemId));
+      setTreeWithUndo((prev) => {
+        const deleteItemFromTree = (nodes, id) => {
+          return nodes.filter((node) => {
+            if (node.id === id) return false;
+            if (node.children) {
+              node.children = deleteItemFromTree(node.children, id);
+            }
+            return true;
+          });
+        };
+        return deleteItemFromTree(prev, itemId);
+      });
     };
 
     const handleItemCreated = ({ newItem, parentId }) => {
@@ -533,11 +578,32 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           return null;
         };
 
+        const insertItemInTree = (nodes, parentId, item) => {
+          if (parentId === null) {
+            return [...nodes, item];
+          }
+          return nodes.map((node) => {
+            if (node.id === parentId && node.type === "folder") {
+              return {
+                ...node,
+                children: [...(node.children || []), item],
+              };
+            }
+            if (node.children) {
+              return {
+                ...node,
+                children: insertItemInTree(node.children, parentId, item),
+              };
+            }
+            return node;
+          });
+        };
+
         const existingItem = findItemInTree(prev, newItem.id);
         if (existingItem) {
           return prev;
         }
-        return insertItemRecursive(prev, parentId, newItem);
+        return insertItemInTree(prev, parentId, newItem);
       });
     };
 
@@ -2302,23 +2368,67 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       >
         {isMobile ? (
           <>
+            // In your App.jsx, replace the entire mobile Tree section with this
+            improved version:
             {mobileViewMode === "tree" ? (
               <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
                 <Tree
                   items={tree || []}
                   selectedItemId={selectedItemId}
                   onSelect={(id) => {
+                    console.log("🔵 Mobile tree item selected:", id);
+
+                    // Always select the item first
                     selectItemById(id);
-                    if (!inlineRenameId) {
-                      const selectedItem = findItemByIdFromTree(id);
-                      if (selectedItem && selectedItem.type !== "folder") {
-                        setMobileViewMode("content");
-                        window.history.pushState(
-                          { viewMode: "content", itemId: id },
-                          "",
-                          window.location.href
-                        );
+
+                    // Skip navigation if we're in rename mode
+                    if (inlineRenameId) {
+                      console.log(
+                        "⏸️ Skipping navigation - rename mode active"
+                      );
+                      return;
+                    }
+
+                    // Find the item directly from tree data
+                    const findItemInTree = (items, targetId) => {
+                      if (!Array.isArray(items)) return null;
+                      for (const item of items) {
+                        if (item.id === targetId) return item;
+                        if (item.children && Array.isArray(item.children)) {
+                          const found = findItemInTree(item.children, targetId);
+                          if (found) return found;
+                        }
                       }
+                      return null;
+                    };
+
+                    const selectedItem = findItemInTree(tree || [], id);
+                    console.log("🔍 Found item:", selectedItem);
+
+                    if (!selectedItem) {
+                      console.warn("⚠️ Could not find item with id:", id);
+                      return;
+                    }
+
+                    // Handle different item types
+                    if (selectedItem.type === "folder") {
+                      console.log("📁 Folder selected - toggling expansion");
+                      toggleFolderExpand(id);
+                    } else if (
+                      selectedItem.type === "note" ||
+                      selectedItem.type === "task"
+                    ) {
+                      console.log(
+                        "📄 Note/Task selected - navigating to content view"
+                      );
+                      setMobileViewMode("content");
+                      window.history.pushState(
+                        { viewMode: "content", itemId: id },
+                        "",
+                        window.location.href
+                      );
+                    } else {
+                      console.log("❓ Unknown item type:", selectedItem.type);
                     }
                   }}
                   inlineRenameId={inlineRenameId}
@@ -2344,7 +2454,44 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                 />
               </div>
             ) : (
+              // Content view remains the same
               <div className="flex-grow flex flex-col">
+                {/* Add back button for mobile content view */}
+                <div className="flex items-center p-2 bg-white dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 md:hidden">
+                  <button
+                    onClick={() => {
+                      console.log("🔙 Back button pressed");
+                      setMobileViewMode("tree");
+                      window.history.pushState(
+                        { viewMode: "tree" },
+                        "",
+                        window.location.href
+                      );
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-600 dark:text-zinc-300 hover:text-zinc-800 dark:hover:text-zinc-100"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 19l-7-7 7-7"
+                      />
+                    </svg>
+                    Back to Tree
+                  </button>
+                  {selectedItem && (
+                    <span className="ml-2 text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                      {selectedItem.label}
+                    </span>
+                  )}
+                </div>
+
                 {selectedItem ? (
                   selectedItem.type === "folder" ? (
                     <FolderContents

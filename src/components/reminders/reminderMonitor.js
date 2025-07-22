@@ -62,6 +62,36 @@ class ReminderMonitor {
     });
   }
 
+  // NEW: Method to force check a specific reminder (for socket-received reminders)
+  forceCheckReminder(reminderData) {
+    console.log('Force checking reminder:', reminderData);
+    const now = Date.now();
+    const reminderKey = `${reminderData.itemId}-${reminderData.timestamp}`;
+    
+    // Don't trigger if already processed
+    if (this.processedReminders.has(reminderKey)) {
+      console.log('Reminder already processed, skipping:', reminderKey);
+      return;
+    }
+
+    // If the reminder time has passed or is very close (within 10 seconds), trigger immediately
+    const timeDiff = reminderData.timestamp - now;
+    if (timeDiff <= 10000) { // 10 seconds tolerance
+      console.log('Triggering received reminder immediately:', reminderData);
+      this.triggerReminder(reminderData, this.currentSettings);
+      this.processedReminders.add(reminderKey);
+
+      if (reminderData.repeatOptions) {
+        this.scheduleNextRepeat(reminderData);
+      } else {
+        // Clear the reminder after triggering
+        clearReminder(reminderData.itemId);
+      }
+    } else {
+      console.log(`Reminder scheduled for future: ${new Date(reminderData.timestamp)}`);
+    }
+  }
+
   triggerReminder(reminder, settings) {
     console.log('Triggering reminder:', reminder);
     const itemTitle = this.findItemTitle(reminder.itemId);
@@ -404,6 +434,24 @@ class ReminderMonitor {
     socket.on("reminder:trigger", (reminder) => {
       console.log("🔔 Received socket trigger:", reminder);
       this.triggerReminder(reminder, this.currentSettings || {});
+    });
+
+    // NEW: Listen for socket reminder events and force check them
+    socket.on("reminder:set", (reminderData) => {
+      console.log("🔔 Received socket reminder:set:", reminderData);
+      // Force check this reminder immediately
+      setTimeout(() => {
+        this.forceCheckReminder(reminderData);
+      }, 100); // Small delay to ensure localStorage is updated
+    });
+
+    socket.on("reminder:update", (reminderData) => {
+      console.log("🔔 Received socket reminder:update:", reminderData);
+      // Clear any processed state for this item and force check
+      this.clearProcessedReminder(reminderData.itemId);
+      setTimeout(() => {
+        this.forceCheckReminder(reminderData);
+      }, 100);
     });
   }
 
