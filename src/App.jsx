@@ -438,8 +438,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     findItemById,
   } = useTree(currentUser);
 
-  // In your App.jsx useEffect, replace the socket handlers with these corrected versions:
-
   useEffect(() => {
     console.log("Attempting to init socket with token:", authToken);
 
@@ -460,11 +458,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       console.log("Socket disconnected:", reason);
     });
 
-    const handleReminderTriggered = ({ itemId }) => {
-      const evt = new CustomEvent("remindersUpdated");
-      window.dispatchEvent(evt);
-    };
-
+    // Tree sync handlers
     const handleTreeReplaced = (newTree) => {
       console.log("Socket event: treeReplaced");
       resetTreeHistory(newTree);
@@ -494,7 +488,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     const handleItemMoved = ({ itemId, newParentId }) => {
       console.log("Socket event: itemMoved", { itemId, newParentId });
       setTreeWithUndo((prev) => {
-        // Create local helper functions
         const findItemInTree = (nodes, id) => {
           for (const node of nodes) {
             if (node.id === id) return node;
@@ -607,9 +600,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       });
     };
 
-    // NEW: Reminder sync handlers
+    // FIXED: Reminder sync handlers - only sync data, don't trigger
     const handleReminderSet = (reminderData) => {
-      console.log("Socket event: reminder:set", reminderData);
+      console.log("Socket event: reminder:set - SYNCING ONLY", reminderData);
       const reminders = getReminders();
       reminders[reminderData.itemId] = reminderData;
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
@@ -619,7 +612,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     };
 
     const handleReminderClear = ({ itemId }) => {
-      console.log("Socket event: reminder:clear", { itemId });
+      console.log("Socket event: reminder:clear - SYNCING ONLY", { itemId });
       const reminders = getReminders();
       delete reminders[itemId];
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
@@ -629,7 +622,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     };
 
     const handleReminderUpdate = (reminderData) => {
-      console.log("Socket event: reminder:update", reminderData);
+      console.log("Socket event: reminder:update - SYNCING ONLY", reminderData);
       const reminders = getReminders();
       reminders[reminderData.itemId] = reminderData;
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
@@ -638,33 +631,38 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       );
     };
 
-    // Register all socket listeners (existing + new)
-    socket.on("reminderTriggered", handleReminderTriggered);
+    // NEW: Direct reminder trigger from server (for server-scheduled reminders)
+    const handleReminderTriggered = (reminder) => {
+      console.log("Socket event: reminder:trigger - DIRECT TRIGGER", reminder);
+      window.dispatchEvent(
+        new CustomEvent("reminderTriggered", {
+          detail: { ...reminder },
+        })
+      );
+    };
+
+    // Register all socket listeners
     socket.on("treeReplaced", handleTreeReplaced);
     socket.on("itemUpdated", handleItemUpdated);
     socket.on("itemMoved", handleItemMoved);
     socket.on("itemDeleted", handleItemDeleted);
     socket.on("itemCreated", handleItemCreated);
-
-    // NEW: Reminder socket listeners
     socket.on("reminder:set", handleReminderSet);
     socket.on("reminder:clear", handleReminderClear);
     socket.on("reminder:update", handleReminderUpdate);
+    socket.on("reminder:trigger", handleReminderTriggered);
 
     return () => {
-      // Cleanup all listeners (existing + new)
-      socket.off("reminderTriggered", handleReminderTriggered);
+      // Cleanup all listeners
       socket.off("treeReplaced", handleTreeReplaced);
       socket.off("itemUpdated", handleItemUpdated);
       socket.off("itemMoved", handleItemMoved);
       socket.off("itemDeleted", handleItemDeleted);
       socket.off("itemCreated", handleItemCreated);
-
-      // NEW: Cleanup reminder listeners
       socket.off("reminder:set", handleReminderSet);
       socket.off("reminder:clear", handleReminderClear);
       socket.off("reminder:update", handleReminderUpdate);
-
+      socket.off("reminder:trigger", handleReminderTriggered);
       socket.off("connect_error");
       socket.off("disconnect");
       disconnectSocket();
@@ -2368,8 +2366,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       >
         {isMobile ? (
           <>
-            // In your App.jsx, replace the entire mobile Tree section with this
-            improved version:
             {mobileViewMode === "tree" ? (
               <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
                 <Tree

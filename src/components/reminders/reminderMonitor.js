@@ -9,6 +9,7 @@ class ReminderMonitor {
     this.snoozeDialogCallback = null;
     this.lastFeedback = null;
     this.processedReminders = new Set();
+    this.socketListenersInitialized = false;
   }
 
   setSettingsContext(settings) {
@@ -22,9 +23,15 @@ class ReminderMonitor {
 
     console.log('Starting reminder monitor...');
     this.intervalId = setInterval(() => {
-      this.registerSocketListeners();
       this.checkReminders();
     }, this.checkInterval);
+    
+    // Initialize socket listeners only once
+    if (!this.socketListenersInitialized) {
+      this.registerSocketListeners();
+      this.socketListenersInitialized = true;
+    }
+    
     this.setupServiceWorkerListener();
     this.processPendingActions();
     this.checkReminders();
@@ -48,7 +55,9 @@ class ReminderMonitor {
         return;
       }
 
+      // Only trigger if the time has actually passed
       if (reminder.timestamp <= now) {
+        console.log('Triggering reminder locally:', reminder);
         this.triggerReminder(reminder, this.currentSettings);
         this.processedReminders.add(reminderKey);
 
@@ -62,35 +71,8 @@ class ReminderMonitor {
     });
   }
 
-  // NEW: Method to force check a specific reminder (for socket-received reminders)
-  forceCheckReminder(reminderData) {
-    console.log('Force checking reminder:', reminderData);
-    const now = Date.now();
-    const reminderKey = `${reminderData.itemId}-${reminderData.timestamp}`;
-    
-    // Don't trigger if already processed
-    if (this.processedReminders.has(reminderKey)) {
-      console.log('Reminder already processed, skipping:', reminderKey);
-      return;
-    }
-
-    // If the reminder time has passed or is very close (within 10 seconds), trigger immediately
-    const timeDiff = reminderData.timestamp - now;
-    if (timeDiff <= 10000) { // 10 seconds tolerance
-      console.log('Triggering received reminder immediately:', reminderData);
-      this.triggerReminder(reminderData, this.currentSettings);
-      this.processedReminders.add(reminderKey);
-
-      if (reminderData.repeatOptions) {
-        this.scheduleNextRepeat(reminderData);
-      } else {
-        // Clear the reminder after triggering
-        clearReminder(reminderData.itemId);
-      }
-    } else {
-      console.log(`Reminder scheduled for future: ${new Date(reminderData.timestamp)}`);
-    }
-  }
+  // REMOVED: forceCheckReminder method - this was causing immediate triggers
+  // Instead, socket events should only update localStorage, not trigger immediately
 
   triggerReminder(reminder, settings) {
     console.log('Triggering reminder:', reminder);
@@ -152,7 +134,6 @@ class ReminderMonitor {
 
   handleReminderDone(itemId, reminderId) {
     console.log('Marking reminder as done:', itemId);
-    // Use socket-broadcasting clearReminder
     clearReminder(itemId);
     this.clearProcessedReminder(itemId);
     window.dispatchEvent(new CustomEvent('reminderMarkedDone', {
@@ -171,7 +152,6 @@ class ReminderMonitor {
 
   handleReminderDismissed(itemId, reminderId) {
     console.log('Reminder dismissed:', itemId);
-    // Use socket-broadcasting clearReminder
     clearReminder(itemId);
     this.clearProcessedReminder(itemId);
     window.dispatchEvent(new CustomEvent('reminderDismissed', {
@@ -184,7 +164,7 @@ class ReminderMonitor {
 
   handleFocusItem(itemId) {
     console.log('Focusing on item:', itemId);
-    window.focus(); // Bring the application window to the foreground
+    window.focus();
     window.dispatchEvent(new CustomEvent('focusItem', {
       detail: {
         itemId
@@ -230,10 +210,7 @@ class ReminderMonitor {
     const newReminderTime = Date.now() + milliseconds;
     const repeatOptions = originalData?.originalReminder?.repeatOptions || null;
 
-    // Use socket-broadcasting updateReminder
     updateReminder(itemId, newReminderTime, repeatOptions);
-
-    // Clear the 'processed' flag so the monitor can trigger it again after the snooze period.
     this.clearProcessedReminder(itemId);
 
     this.showFeedback(`⏰ Reminder snoozed for ${duration} ${unit}`, 'info');
@@ -276,7 +253,6 @@ class ReminderMonitor {
                 break;
               case 'snooze':
                 if (action.data && action.data.snoozeUntil) {
-                  // Use socket-broadcasting updateReminder
                   updateReminder(action.itemId, action.data.snoozeUntil);
                   this.clearProcessedReminder(action.itemId);
                 }
@@ -428,30 +404,63 @@ class ReminderMonitor {
 
   registerSocketListeners() {
     const socket = getSocket();
-    if (!socket || this._socketInitialized) return;
-    this._socketInitialized = true;
+    if (!socket) return;
 
-    socket.on("reminder:trigger", (reminder) => {
-      console.log("🔔 Received socket trigger:", reminder);
-      this.triggerReminder(reminder, this.currentSettings || {});
-    });
+    console.log('🔔 Registering reminder socket listeners');
 
-    // NEW: Listen for socket reminder events and force check them
+    // FIXED: Only sync data, don't trigger reminders immediately
     socket.on("reminder:set", (reminderData) => {
-      console.log("🔔 Received socket reminder:set:", reminderData);
-      // Force check this reminder immediately
-      setTimeout(() => {
-        this.forceCheckReminder(reminderData);
-      }, 100); // Small delay to ensure localStorage is updated
+      console.log("🔔 Received reminder:set - SYNCING ONLY:", reminderData);
+      
+      // Just update localStorage, let the normal check cycle handle triggering
+      const reminders = getReminders();
+      reminders[reminderData.itemId] = reminderData;
+      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      // Notify UI of the sync
+      window.dispatchEvent(
+        new CustomEvent("remindersUpdated", { detail: reminders })
+      );
     });
 
     socket.on("reminder:update", (reminderData) => {
-      console.log("🔔 Received socket reminder:update:", reminderData);
-      // Clear any processed state for this item and force check
+      console.log("🔔 Received reminder:update - SYNCING ONLY:", reminderData);
+      
+      // Clear any processed state for this item and sync
       this.clearProcessedReminder(reminderData.itemId);
-      setTimeout(() => {
-        this.forceCheckReminder(reminderData);
-      }, 100);
+      
+      // Just update localStorage
+      const reminders = getReminders();
+      reminders[reminderData.itemId] = reminderData;
+      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      // Notify UI of the sync
+      window.dispatchEvent(
+        new CustomEvent("remindersUpdated", { detail: reminders })
+      );
+    });
+
+    socket.on("reminder:clear", ({ itemId }) => {
+      console.log("🔔 Received reminder:clear - SYNCING ONLY:", { itemId });
+      
+      // Just update localStorage
+      const reminders = getReminders();
+      delete reminders[itemId];
+      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      // Clear processed state
+      this.clearProcessedReminder(itemId);
+      
+      // Notify UI of the sync
+      window.dispatchEvent(
+        new CustomEvent("remindersUpdated", { detail: reminders })
+      );
+    });
+
+    // Direct trigger from server (for server-scheduled reminders)
+    socket.on("reminder:trigger", (reminder) => {
+      console.log("🔔 Received DIRECT trigger from server:", reminder);
+      this.triggerReminder(reminder, this.currentSettings || {});
     });
   }
 
@@ -476,7 +485,6 @@ class ReminderMonitor {
         return;
     }
     
-    // Use socket-broadcasting updateReminder
     updateReminder(reminder.itemId, nextTime, reminder.repeatOptions);
     this.clearProcessedReminder(reminder.itemId);
     console.log(`Scheduled next repeat for ${reminder.itemId} at ${new Date(nextTime)}`);
@@ -485,13 +493,14 @@ class ReminderMonitor {
 
 const reminderMonitor = new ReminderMonitor();
 
+// Clean up service worker listeners
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (event) => {
     const { type, itemId } = event.data || {};
     if (type === 'SNOOZE_REMINDER') {
       console.log('Received snooze for item:', itemId);
       const newTime = Date.now() + 5 * 60 * 1000;
-      updateReminder(itemId, newTime); // This will broadcast to other devices
+      updateReminder(itemId, newTime);
     } else if (type === 'MARK_DONE') {
       console.log('Received done for item:', itemId);
       window.dispatchEvent(new CustomEvent('markTaskDoneExternally', { detail: { itemId } }));
