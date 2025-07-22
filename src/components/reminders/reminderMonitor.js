@@ -21,7 +21,6 @@ class ReminderMonitor {
       this.stop();
     }
 
-    console.log('Starting reminder monitor...');
     this.intervalId = setInterval(() => {
       this.checkReminders();
     }, this.checkInterval);
@@ -39,7 +38,6 @@ class ReminderMonitor {
 
   stop() {
     if (this.intervalId) {
-      console.log('Stopping reminder monitor...');
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
@@ -48,55 +46,25 @@ class ReminderMonitor {
   checkReminders() {
     const reminders = getReminders();
     const now = Date.now();
-    
-    // DEBUG: Show what we're checking
-    const reminderCount = Object.keys(reminders).length;
-    if (reminderCount > 0) {
-      console.log(`🕐 Checking ${reminderCount} reminder(s) at:`, new Date(now).toISOString());
-    }
 
     Object.values(reminders).forEach(reminder => {
       const reminderKey = `${reminder.itemId}-${reminder.timestamp}`;
-      const timeDiff = reminder.timestamp - now;
-      
-      // DEBUG: Log each reminder check
-      console.log('📝 Checking reminder:', {
-        itemId: reminder.itemId.substring(0, 8) + '...',
-        scheduledFor: new Date(reminder.timestamp).toISOString(),
-        timeUntilTrigger: `${Math.round(timeDiff/1000)}s`,
-        alreadyProcessed: this.processedReminders.has(reminderKey),
-        willTrigger: timeDiff <= 0 && !this.processedReminders.has(reminderKey)
-      });
-      
       if (this.processedReminders.has(reminderKey)) {
         return;
       }
 
-      // Only trigger if the time has actually passed (with small buffer to avoid race conditions)
+      // Only trigger if the time has actually passed
       if (reminder.timestamp <= now) {
-        console.log('🔔 TRIGGERING reminder locally (time passed):', {
-          itemId: reminder.itemId,
-          scheduledTime: new Date(reminder.timestamp).toISOString(),
-          currentTime: new Date(now).toISOString(),
-          delay: now - reminder.timestamp
-        });
-        
         this.triggerReminder(reminder, this.currentSettings);
         this.processedReminders.add(reminderKey);
 
         if (reminder.repeatOptions) {
           this.scheduleNextRepeat(reminder);
         } else {
-          // FIXED: Don't clear immediately - let all devices trigger first
           // Clear with a delay to allow other devices to trigger
           setTimeout(() => {
             clearReminder(reminder.itemId);
           }, 2000); // 2 second delay
-        }
-      } else {
-        // Don't log every check for future reminders to avoid spam
-        if (timeDiff < 10000) { // Only log if less than 10 seconds away
-          console.log('⏰ Reminder pending:', `${Math.round(timeDiff/1000)}s remaining`);
         }
       }
     });
@@ -106,7 +74,6 @@ class ReminderMonitor {
   // Instead, socket events should only update localStorage, not trigger immediately
 
   triggerReminder(reminder, settings) {
-    console.log('Triggering reminder:', reminder);
     const itemTitle = this.findItemTitle(reminder.itemId);
     const title = '⏰ Reminder';
     const body = `Don't forget: ${itemTitle || 'Untitled'}`;
@@ -119,8 +86,31 @@ class ReminderMonitor {
       originalReminder: reminder
     };
 
-    console.log('Calling showNotification with:', { title, body, notificationData });
+    // Mobile fix: Request focus/visibility to ensure notifications show
+    if (document.hidden && 'serviceWorker' in navigator) {
+      // If page is hidden, try to bring attention via service worker
+      navigator.serviceWorker.ready.then(registration => {
+        if (registration.active) {
+          // Force service worker notification with requireInteraction
+          registration.showNotification(title, {
+            body: body,
+            icon: "/favicon-32x32.png",
+            badge: "/favicon-32x32.png",
+            requireInteraction: true,  // Forces notification to stay visible
+            tag: `reminder-${reminder.itemId}`,
+            data: notificationData,
+            actions: [
+              { action: 'done', title: '✅ Done' },
+              { action: 'snooze', title: '⏰ Snooze' }
+            ]
+          });
+        }
+      });
+    }
+
+    // Also try regular notification (for desktop/active mobile)
     showNotification(title, body, notificationData);
+    
     window.dispatchEvent(new CustomEvent('reminderTriggered', {
       detail: { ...reminder, itemTitle, notificationData }
     }));
@@ -138,7 +128,6 @@ class ReminderMonitor {
         reminderId,
         originalData
       } = event.data;
-      console.log('Received service worker message:', event.data);
 
       switch (type) {
         case 'REMINDER_DONE':
@@ -153,8 +142,6 @@ class ReminderMonitor {
         case 'FOCUS_ITEM':
           this.handleFocusItem(itemId);
           break;
-        default:
-          console.log('Unknown service worker message type:', type);
       }
     };
 
@@ -164,7 +151,6 @@ class ReminderMonitor {
   }
 
   handleReminderDone(itemId, reminderId) {
-    console.log('Marking reminder as done:', itemId);
     clearReminder(itemId);
     this.clearProcessedReminder(itemId);
     window.dispatchEvent(new CustomEvent('reminderMarkedDone', {
@@ -176,13 +162,11 @@ class ReminderMonitor {
   }
 
   handleReminderSnooze(itemId, reminderId, originalData) {
-    console.log('Handling reminder snooze:', itemId);
     this.handleFocusItem(itemId);
     this.showSnoozeDialog(itemId, reminderId, originalData);
   }
 
   handleReminderDismissed(itemId, reminderId) {
-    console.log('Reminder dismissed:', itemId);
     clearReminder(itemId);
     this.clearProcessedReminder(itemId);
     window.dispatchEvent(new CustomEvent('reminderDismissed', {
@@ -194,7 +178,6 @@ class ReminderMonitor {
   }
 
   handleFocusItem(itemId) {
-    console.log('Focusing on item:', itemId);
     window.focus();
     window.dispatchEvent(new CustomEvent('focusItem', {
       detail: {
@@ -217,7 +200,6 @@ class ReminderMonitor {
   }
 
   applySnooze(itemId, duration, unit, originalData) {
-    console.log(`Snoozing reminder for ${duration} ${unit}:`, itemId);
     let milliseconds = 0;
     const value = parseInt(duration, 10);
     switch (unit) {
@@ -245,7 +227,6 @@ class ReminderMonitor {
     this.clearProcessedReminder(itemId);
 
     this.showFeedback(`⏰ Reminder snoozed for ${duration} ${unit}`, 'info');
-    console.log(`Reminder snoozed until ${new Date(newReminderTime)}`);
   }
 
   showFeedback(message, type = 'info') {
@@ -277,7 +258,6 @@ class ReminderMonitor {
         const actions = getAllRequest.result;
         if (actions && actions.length > 0) {
           actions.forEach(action => {
-            console.log('Processing pending action:', action);
             switch (action.type) {
               case 'done':
                 this.handleReminderDone(action.itemId, action.reminderId);
@@ -437,12 +417,8 @@ class ReminderMonitor {
     const socket = getSocket();
     if (!socket) return;
 
-    console.log('🔔 Registering reminder socket listeners');
-
-    // FIXED: Only sync data, don't trigger reminders immediately
+    // Only sync data, don't trigger reminders immediately
     socket.on("reminder:set", (reminderData) => {
-      console.log("🔔 Received reminder:set - SYNCING ONLY:", reminderData);
-      
       // Just update localStorage, let the normal check cycle handle triggering
       const reminders = getReminders();
       reminders[reminderData.itemId] = reminderData;
@@ -452,21 +428,9 @@ class ReminderMonitor {
       window.dispatchEvent(
         new CustomEvent("remindersUpdated", { detail: reminders })
       );
-      
-      // DEBUG: Check timing
-      const now = Date.now();
-      const timeDiff = reminderData.timestamp - now;
-      console.log("🔔 Synced reminder timing:", {
-        scheduledFor: new Date(reminderData.timestamp).toISOString(),
-        currentTime: new Date(now).toISOString(),
-        timeUntilTrigger: `${Math.round(timeDiff/1000)}s`,
-        willTriggerNow: timeDiff <= 0
-      });
     });
 
     socket.on("reminder:update", (reminderData) => {
-      console.log("🔔 Received reminder:update - SYNCING ONLY:", reminderData);
-      
       // Clear any processed state for this item and sync
       this.clearProcessedReminder(reminderData.itemId);
       
@@ -479,21 +443,9 @@ class ReminderMonitor {
       window.dispatchEvent(
         new CustomEvent("remindersUpdated", { detail: reminders })
       );
-      
-      // DEBUG: Check timing
-      const now = Date.now();
-      const timeDiff = reminderData.timestamp - now;
-      console.log("🔔 Updated reminder timing:", {
-        scheduledFor: new Date(reminderData.timestamp).toISOString(),
-        currentTime: new Date(now).toISOString(),
-        timeUntilTrigger: `${Math.round(timeDiff/1000)}s`,
-        willTriggerNow: timeDiff <= 0
-      });
     });
 
     socket.on("reminder:clear", ({ itemId }) => {
-      console.log("🔔 Received reminder:clear - SYNCING ONLY:", { itemId });
-      
       // Just update localStorage
       const reminders = getReminders();
       delete reminders[itemId];
@@ -510,7 +462,6 @@ class ReminderMonitor {
 
     // Direct trigger from server (for server-scheduled reminders)
     socket.on("reminder:trigger", (reminder) => {
-      console.log("🔔 Received DIRECT trigger from server:", reminder);
       this.triggerReminder(reminder, this.currentSettings || {});
     });
   }
@@ -538,7 +489,6 @@ class ReminderMonitor {
     
     updateReminder(reminder.itemId, nextTime, reminder.repeatOptions);
     this.clearProcessedReminder(reminder.itemId);
-    console.log(`Scheduled next repeat for ${reminder.itemId} at ${new Date(nextTime)}`);
   }
 }
 
