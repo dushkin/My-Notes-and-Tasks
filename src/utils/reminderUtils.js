@@ -15,10 +15,10 @@ export const setReminder = (itemId, timestamp, repeatOptions = null) => {
     itemId,
     repeatOptions
   };
-  
+
   reminders[itemId] = reminderData;
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
-  
+
   // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
     detail: reminders
@@ -60,7 +60,7 @@ export const clearReminder = (itemId) => {
   const reminders = getReminders();
   delete reminders[itemId];
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
-  
+
   // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
     detail: reminders
@@ -88,10 +88,10 @@ export const updateReminder = (itemId, timestamp, repeatOptions = null) => {
     itemId,
     repeatOptions
   };
-  
+
   reminders[itemId] = reminderData;
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
-  
+
   // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
     detail: reminders
@@ -111,7 +111,7 @@ export const updateReminder = (itemId, timestamp, repeatOptions = null) => {
  */
 export const clearAllReminders = () => {
   const reminders = getReminders();
-  
+
   localStorage.removeItem(REMINDERS_STORAGE_KEY);
   // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
@@ -301,18 +301,31 @@ export const schedulePushNotification = (title, body, timestamp, data = {}) => {
  * @param {Object} data - Additional data for the notification.
  */
 export const showNotification = (title, body, data = {}) => {
-
-  alert('🔔 Reminder: ' + title + ' - ' + body);
-
   if (Notification.permission !== "granted") {
     console.warn("Notification permission not granted.");
     return;
   }
-  console.log('showNotification called with:', { title, body, data });
+
+  // Mobile fix: Ensure notifications show even when page is backgrounded
+  const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
+  const isPageHidden = document.hidden;
+
+  // For mobile devices when page is hidden, try to bring attention
+  if (isMobile && isPageHidden) {
+    // Try to focus the window
+    if (window.focus) window.focus();
+
+    // Flash the title to get attention
+    const originalTitle = document.title;
+    document.title = `🔔 ${title}`;
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 3000);
+  }
+
   navigator.serviceWorker.getRegistration().then((registration) => {
     if (registration) {
-      const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`; // Unique tag
-      console.log('Service worker found, attempting to show notification with tag:', uniqueTag);
+      const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
       registration.showNotification(title, {
         requireInteraction: data?.reminderDoneButtonEnabled ?? false,
         silent: !(data?.reminderSoundEnabled ?? true),
@@ -333,7 +346,7 @@ export const showNotification = (title, body, data = {}) => {
             icon: '/favicon-32x32.png'
           }
         ],
-        requireInteraction: true,
+        requireInteraction: isMobile && isPageHidden, // Force interaction for hidden mobile
         tag: uniqueTag,
       }).then(() => {
         console.log('Notification sent successfully with tag:', uniqueTag);
