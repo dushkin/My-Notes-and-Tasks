@@ -8,6 +8,7 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
+  "gcm_sender_id": "103953800507",
   "theme_color": "#3b82f6",
   "background_color": "#ffffff",
   "edge_side_panel": {

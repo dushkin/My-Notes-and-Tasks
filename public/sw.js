@@ -1,4 +1,4 @@
-const CACHE_NAME = 'notes-tasks-v1.1.0';
+const CACHE_NAME = 'notes-tasks-v1.2.0';
 const STATIC_CACHE_URLS = [
   '/',
   '/app',
@@ -22,7 +22,7 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Caching static resources');
-        
+
         // Cache resources one by one to handle failures gracefully
         return Promise.allSettled(
           STATIC_CACHE_URLS.map(url => {
@@ -38,11 +38,11 @@ self.addEventListener('install', (event) => {
         const failedCaches = results
           .filter((result, index) => result.status === 'rejected')
           .map((result, index) => STATIC_CACHE_URLS[index]);
-          
+
         if (failedCaches.length > 0) {
           console.warn('Some resources failed to cache:', failedCaches);
         }
-        
+
         console.log('Service Worker installation completed');
         return self.skipWaiting();
       })
@@ -81,9 +81,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   // Skip extension requests and other non-HTTP requests
-  if (event.request.url.startsWith('chrome-extension://') || 
-      event.request.url.startsWith('moz-extension://') ||
-      !event.request.url.startsWith('http')) {
+  if (event.request.url.startsWith('chrome-extension://') ||
+    event.request.url.startsWith('moz-extension://') ||
+    !event.request.url.startsWith('http')) {
     return;
   }
 
@@ -99,7 +99,7 @@ self.addEventListener('fetch', (event) => {
         if (response) {
           return response;
         }
-        
+
         if (event.request.mode === 'navigate') {
           return fetch(event.request)
             .then(response => {
@@ -112,14 +112,14 @@ self.addEventListener('fetch', (event) => {
               return response;
             })
             .catch(() => {
-              return caches.match('/app') || caches.match('/') || 
-                     new Response(
-                       '<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>You are offline</h1><p>Please check your internet connection.</p></body></html>',
-                       { headers: { 'Content-Type': 'text/html' } }
-                     );
+              return caches.match('/app') || caches.match('/') ||
+                new Response(
+                  '<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>You are offline</h1><p>Please check your internet connection.</p></body></html>',
+                  { headers: { 'Content-Type': 'text/html' } }
+                );
             });
         }
-        
+
         return fetch(event.request)
           .then(response => {
             // Cache successful responses
@@ -133,16 +133,16 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(error => {
             console.warn('Fetch failed for:', event.request.url, error);
-            return caches.match(event.request) || 
-                   new Response('Resource not available offline', {
-                     status: 503,
-                     statusText: 'Service Unavailable'
-                   });
+            return caches.match(event.request) ||
+              new Response('Resource not available offline', {
+                status: 503,
+                statusText: 'Service Unavailable'
+              });
           });
       })
       .catch(error => {
         console.error('Cache match failed:', error);
-        return fetch(event.request).catch(() => 
+        return fetch(event.request).catch(() =>
           new Response('Service temporarily unavailable', {
             status: 503,
             statusText: 'Service Unavailable'
@@ -155,7 +155,7 @@ self.addEventListener('fetch', (event) => {
 // Enhanced background sync
 self.addEventListener('sync', (event) => {
   console.log('Background sync triggered:', event.tag);
-  
+
   switch (event.tag) {
     case SYNC_TAGS.DATA_SYNC:
       event.waitUntil(syncOfflineData());
@@ -172,7 +172,7 @@ self.addEventListener('sync', (event) => {
 // Enhanced push notification handling
 self.addEventListener('push', function (event) {
   console.log('Push event received:', event);
-  
+
   let data = {};
   if (event.data) {
     try {
@@ -227,7 +227,7 @@ self.addEventListener('notificationclose', function (event) {
 // Message handling for cross-tab communication
 self.addEventListener('message', (event) => {
   const { type, data } = event.data;
-  
+
   switch (type) {
     case 'SYNC_REQUEST':
       event.waitUntil(triggerDataSync());
@@ -249,37 +249,37 @@ async function handleAPIRequest(request) {
 
   try {
     const response = await fetch(request);
-    
+
     if (response && response.ok && isWriteOperation) {
       // Trigger sync to other devices after successful write
-      await notifyOtherDevicesOfChange().catch(error => 
+      await notifyOtherDevicesOfChange().catch(error =>
         console.warn('Failed to notify other devices:', error)
       );
     }
-    
+
     return response;
   } catch (error) {
     console.warn('API request failed:', request.url, error.message);
-    
+
     if (isWriteOperation) {
       // Store offline for later sync
-      await storeOfflineRequest(request).catch(storeError => 
+      await storeOfflineRequest(request).catch(storeError =>
         console.error('Failed to store offline request:', storeError)
       );
-      
+
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          offline: true, 
-          message: 'Stored for sync when connection returns' 
+        JSON.stringify({
+          success: true,
+          offline: true,
+          message: 'Stored for sync when connection returns'
         }),
-        { 
-          status: 202, 
-          headers: { 'Content-Type': 'application/json' } 
+        {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' }
         }
       );
     }
-    
+
     // For read operations, try to serve from cache or return error
     try {
       const cachedResponse = await caches.match(request);
@@ -289,15 +289,15 @@ async function handleAPIRequest(request) {
     } catch (cacheError) {
       console.warn('Cache lookup failed:', cacheError);
     }
-    
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Offline and no cached data available',
-        offline: true 
+        offline: true
       }),
-      { 
-        status: 503, 
-        headers: { 'Content-Type': 'application/json' } 
+      {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
       }
     );
   }
@@ -307,20 +307,45 @@ async function registerDeviceAndSync() {
   try {
     const deviceInfo = await getDeviceInfo();
     const db = await openDatabase();
-    
+
     // Store device info locally
     const transaction = db.transaction(['devices'], 'readwrite');
     const store = transaction.objectStore('devices');
-    
-    const existingDevice = await store.get(deviceInfo.id);
+
+    let existingDevice = null;
+    try {
+      if (deviceInfo.id && typeof deviceInfo.id === 'string') {
+        existingDevice = await store.get(deviceInfo.id);
+      }
+    } catch (error) {
+      console.warn('Could not get existing device, creating new one:', error);
+      existingDevice = null;
+    }
+
     if (!existingDevice) {
-      await store.put({
-        ...deviceInfo,
+      const deviceRecord = {
+        id: deviceInfo.id,
+        userAgent: deviceInfo.userAgent || '',
+        platform: deviceInfo.platform || '',
+        type: deviceInfo.type || '',
+        name: deviceInfo.name || '',
+        lastActive: deviceInfo.lastActive || Date.now(),
+        capabilities: {
+          pushNotifications: deviceInfo.capabilities?.pushNotifications || false,
+          backgroundSync: deviceInfo.capabilities?.backgroundSync || false,
+          indexedDB: deviceInfo.capabilities?.indexedDB || false
+        },
         lastSync: Date.now(),
         isCurrentDevice: true
-      });
+      };
+
+      console.log('🔍 Device record to store:', deviceRecord);
+      console.log('🔍 Device record type check:', typeof deviceRecord);
+      console.log('🔍 Device record JSON test:', JSON.stringify(deviceRecord));
+
+      await store.put(deviceRecord);
     }
-    
+
     // Register with server if online
     try {
       await fetch('/api/devices/register', {
@@ -331,7 +356,7 @@ async function registerDeviceAndSync() {
     } catch (error) {
       console.log('Device registration will sync when online');
     }
-    
+
     // Trigger initial data sync
     await triggerDataSync();
   } catch (error) {
@@ -342,21 +367,31 @@ async function registerDeviceAndSync() {
 async function getDeviceInfo() {
   const userAgent = self.navigator.userAgent;
   const platform = self.navigator.platform || 'Unknown';
-  
+
   // Generate or retrieve device ID
   const db = await openDatabase();
   const transaction = db.transaction(['settings'], 'readonly');
   const store = transaction.objectStore('settings');
-  
-  let deviceId = await store.get('deviceId');
-  if (!deviceId) {
+
+  let deviceId;
+  try {
+    const storedDeviceId = await store.get('deviceId');
+    if (!storedDeviceId) {
+      deviceId = generateDeviceId();
+      const writeTransaction = db.transaction(['settings'], 'readwrite');
+      const writeStore = writeTransaction.objectStore('settings');
+      await writeStore.put(deviceId, 'deviceId');
+    } else {
+      // Extract the actual value, not the IDBRequest
+      deviceId = typeof storedDeviceId === 'string' ? storedDeviceId : (storedDeviceId.value || generateDeviceId());
+    }
+  } catch (error) {
+    console.warn('Error getting device ID, generating new one:', error);
     deviceId = generateDeviceId();
-    const writeTransaction = db.transaction(['settings'], 'readwrite');
-    const writeStore = writeTransaction.objectStore('settings');
-    await writeStore.put(deviceId, 'deviceId');
-  } else {
-    deviceId = deviceId.value || deviceId;
   }
+
+  // Ensure deviceId is always a string
+  deviceId = String(deviceId);
 
   return {
     id: deviceId,
@@ -385,12 +420,12 @@ function detectDeviceType(userAgent) {
 function generateDeviceName(userAgent, platform) {
   const type = detectDeviceType(userAgent);
   const timestamp = new Date().toLocaleDateString();
-  
+
   if (type === 'iOS') {
     if (userAgent.includes('iPhone')) return `iPhone (${timestamp})`;
     if (userAgent.includes('iPad')) return `iPad (${timestamp})`;
   }
-  
+
   return `${type} Device (${timestamp})`;
 }
 
@@ -413,19 +448,19 @@ async function triggerDataSync() {
 async function syncOfflineData() {
   try {
     const db = await openDatabase();
-    
+
     // Sync offline requests
     await syncOfflineRequests(db);
-    
+
     // Sync data changes
     await syncDataChanges(db);
-    
+
     // Update last sync time
     await updateLastSyncTime(db);
-    
+
     // Notify clients of successful sync
     await notifyClientsOfSync();
-    
+
     console.log('Data sync completed successfully');
   } catch (error) {
     console.error('Error syncing offline data:', error);
@@ -433,25 +468,37 @@ async function syncOfflineData() {
 }
 
 async function syncOfflineRequests(db) {
-  const transaction = db.transaction(['offlineRequests'], 'readwrite');
-  const store = transaction.objectStore('offlineRequests');
-  const requests = await store.getAll();
-  
-  for (const requestData of requests) {
-    try {
-      const response = await fetch(requestData.url, {
-        method: requestData.method,
-        headers: requestData.headers,
-        body: requestData.body
-      });
-      
-      if (response.ok) {
-        await store.delete(requestData.id);
-        console.log('Synced offline request:', requestData.method, requestData.url);
-      }
-    } catch (error) {
-      console.log('Failed to sync request, will retry later:', requestData.url);
+  try {
+    const transaction = db.transaction(['offlineRequests'], 'readwrite');
+    const store = transaction.objectStore('offlineRequests');
+    const requests = await store.getAll();
+
+    // Ensure requests is an array
+    if (!Array.isArray(requests)) {
+      console.log('No offline requests to sync');
+      return;
     }
+
+    console.log(`Syncing ${requests.length} offline requests`);
+
+    for (const requestData of requests) {
+      try {
+        const response = await fetch(requestData.url, {
+          method: requestData.method,
+          headers: requestData.headers,
+          body: requestData.body
+        });
+
+        if (response.ok) {
+          await store.delete(requestData.id);
+          console.log('Synced offline request:', requestData.method, requestData.url);
+        }
+      } catch (error) {
+        console.log('Failed to sync request, will retry later:', requestData.url);
+      }
+    }
+  } catch (error) {
+    console.error('Error in syncOfflineRequests:', error);
   }
 }
 
@@ -462,20 +509,20 @@ async function syncDataChanges(db) {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
-    
+
     if (response.ok) {
       const serverData = await response.json();
-      
+
       // Store updated data locally
       const transaction = db.transaction(['syncData'], 'readwrite');
       const store = transaction.objectStore('syncData');
-      
+
       await store.put({
         id: 'latest',
         data: serverData,
         timestamp: Date.now()
       });
-      
+
       console.log('Updated local data from server');
     }
   } catch (error) {
@@ -527,18 +574,18 @@ async function storeOfflineRequest(request) {
     const db = await openDatabase();
     const transaction = db.transaction(['offlineRequests'], 'readwrite');
     const store = transaction.objectStore('offlineRequests');
-    
+
     // Clone the request to read the body
     const clonedRequest = request.clone();
     let body = '';
-    
+
     try {
       body = await clonedRequest.text();
     } catch (bodyError) {
       console.warn('Could not read request body:', bodyError);
       body = '';
     }
-    
+
     const requestData = {
       id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
       url: request.url,
@@ -547,7 +594,7 @@ async function storeOfflineRequest(request) {
       body: body,
       timestamp: Date.now()
     };
-    
+
     // Safely extract headers
     try {
       for (const [key, value] of request.headers.entries()) {
@@ -556,10 +603,10 @@ async function storeOfflineRequest(request) {
     } catch (headerError) {
       console.warn('Could not extract headers:', headerError);
     }
-    
+
     await store.add(requestData);
     console.log('Stored offline request:', request.method, request.url);
-    
+
     // Register for background sync
     if ('serviceWorker' in self && 'sync' in self.ServiceWorkerRegistration.prototype) {
       try {
@@ -630,7 +677,7 @@ async function handleDeviceSyncNotification(data) {
 
   await self.registration.showNotification("🔄 Syncing", options);
   await triggerDataSync();
-  
+
   // Auto-close after 3 seconds
   setTimeout(async () => {
     const notifications = await self.registration.getNotifications({ tag: "device-sync" });
@@ -640,10 +687,10 @@ async function handleDeviceSyncNotification(data) {
 
 async function handleNotificationAction(action, data) {
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  
+
   if (clients.length > 0) {
     const client = clients[0];
-    
+
     switch (action) {
       case 'done':
         client.postMessage({
@@ -676,7 +723,7 @@ async function handleNotificationAction(action, data) {
     } else if (action === 'snooze') {
       await createDefaultSnooze(data);
     }
-    
+
     const urlToOpen = data.itemId ? `/app?focus=${data.itemId}` : '/app';
     await self.clients.openWindow(urlToOpen);
   }
@@ -711,9 +758,9 @@ async function storeAction(actionType, data) {
       data: data,
       synced: false
     });
-    
+
     console.log('Stored action:', actionType, 'for item:', data.itemId);
-    
+
     if ('serviceWorker' in self && 'sync' in self.ServiceWorkerRegistration.prototype) {
       await self.registration.sync.register(SYNC_TAGS.REMINDER_ACTIONS);
     }
@@ -743,21 +790,21 @@ async function openDatabase() {
       reject(new Error('IndexedDB not supported'));
       return;
     }
-    
+
     const request = indexedDB.open('PWASync', 3);
-    
+
     request.onerror = () => {
       console.error('IndexedDB error:', request.error);
       reject(request.error);
     };
-    
+
     request.onsuccess = () => {
       resolve(request.result);
     };
-    
+
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-      
+
       try {
         // Actions store
         if (!db.objectStoreNames.contains('actions')) {
@@ -765,43 +812,43 @@ async function openDatabase() {
           actionStore.createIndex('synced', 'synced', { unique: false });
           actionStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
-        
+
         // Notifications tracking
         if (!db.objectStoreNames.contains('notifications')) {
           const notificationStore = db.createObjectStore('notifications', { keyPath: 'id', autoIncrement: true });
           notificationStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
-        
+
         // Offline requests
         if (!db.objectStoreNames.contains('offlineRequests')) {
           const offlineStore = db.createObjectStore('offlineRequests', { keyPath: 'id' });
           offlineStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
-        
+
         // Device information
         if (!db.objectStoreNames.contains('devices')) {
           const deviceStore = db.createObjectStore('devices', { keyPath: 'id' });
           deviceStore.createIndex('lastActive', 'lastActive', { unique: false });
         }
-        
+
         // Sync data
         if (!db.objectStoreNames.contains('syncData')) {
           const syncStore = db.createObjectStore('syncData', { keyPath: 'id' });
           syncStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
-        
+
         // Settings
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings');
         }
-        
+
         console.log('IndexedDB upgraded successfully to version 3');
       } catch (upgradeError) {
         console.error('Error during database upgrade:', upgradeError);
         reject(upgradeError);
       }
     };
-    
+
     request.onblocked = () => {
       console.warn('IndexedDB upgrade blocked by other connections');
     };
@@ -814,11 +861,11 @@ async function syncReminderActions() {
     const transaction = db.transaction(['actions'], 'readonly');
     const store = transaction.objectStore('actions');
     const index = store.index('synced');
-    
+
     const unsyncedActions = await index.getAll(false);
-    
+
     console.log('Syncing', unsyncedActions.length, 'unsynced actions');
-    
+
     for (const action of unsyncedActions) {
       try {
         await fetch('/api/reminder-actions', {
@@ -826,12 +873,12 @@ async function syncReminderActions() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(action)
         });
-        
+
         const updateTransaction = db.transaction(['actions'], 'readwrite');
         const updateStore = updateTransaction.objectStore('actions');
         action.synced = true;
         await updateStore.put(action);
-        
+
         console.log('Synced action:', action.type, 'for item:', action.itemId);
       } catch (error) {
         console.error('Failed to sync action:', error);
@@ -847,7 +894,7 @@ async function trackNotificationEvent(eventType, data, action = null) {
     const db = await openDatabase();
     const transaction = db.transaction(['notifications'], 'readwrite');
     const store = transaction.objectStore('notifications');
-    
+
     await store.add({
       eventType,
       action,
@@ -878,7 +925,7 @@ async function updateSyncStatus(data) {
 // Network status tracking with enhanced error handling
 self.addEventListener('online', () => {
   console.log('Service Worker: Back online');
-  
+
   // Attempt to register sync events when back online
   Promise.allSettled([
     self.registration.sync.register(SYNC_TAGS.DATA_SYNC),
@@ -890,7 +937,7 @@ self.addEventListener('online', () => {
       }
     });
   });
-  
+
   // Notify clients of online status
   self.clients.matchAll().then(clients => {
     clients.forEach(client => {
@@ -905,7 +952,7 @@ self.addEventListener('online', () => {
 
 self.addEventListener('offline', () => {
   console.log('Service Worker: Gone offline');
-  
+
   // Notify clients of offline status
   self.clients.matchAll().then(clients => {
     clients.forEach(client => {

@@ -1,5 +1,5 @@
 // clientInit.js - Client-side initialization and setup
-(function() {
+(function () {
   'use strict';
 
   // Global app state
@@ -47,7 +47,7 @@
       window.MyNotesApp.isInitialized = true;
 
       console.log('✅ App initialized successfully');
-      
+
       // Dispatch initialization complete event
       window.dispatchEvent(new CustomEvent('appInitialized'));
 
@@ -216,7 +216,7 @@
   function initializeTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
-    
+
     // Update theme toggle if it exists
     const themeToggle = document.getElementById('theme-toggle');
     if (themeToggle) {
@@ -276,7 +276,7 @@
       if (permission === 'granted' && window.MyNotesApp.swRegistration) {
         // Wait for service worker to be ready
         const registration = await navigator.serviceWorker.ready;
-        
+
         // Subscribe to push notifications
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -284,7 +284,7 @@
         });
 
         console.log('✅ Push subscription created');
-        
+
         // Send subscription to server
         await sendSubscriptionToServer(subscription);
       }
@@ -319,7 +319,7 @@
   function handleBeforeUnload(event) {
     // Save any pending changes
     savePendingChanges();
-    
+
     // Don't show confirmation dialog for normal operation
     return undefined;
   }
@@ -339,7 +339,7 @@
   function handleOnline() {
     console.log('🌐 Back online');
     showNotification('Back online - syncing data...', 'success');
-    
+
     if (window.MyNotesApp.syncManager) {
       window.MyNotesApp.syncManager.processSyncQueue();
     }
@@ -395,9 +395,9 @@
       max-width: 300px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     `;
-    
+
     document.body.appendChild(errorDiv);
-    
+
     setTimeout(() => {
       if (errorDiv.parentNode) {
         errorDiv.parentNode.removeChild(errorDiv);
@@ -409,14 +409,14 @@
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
-    
+
     const colors = {
       success: '#4CAF50',
       error: '#f44336',
       warning: '#ff9800',
       info: '#2196F3'
     };
-    
+
     notification.style.cssText = `
       position: fixed;
       top: 20px;
@@ -430,9 +430,9 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
       animation: slideIn 0.3s ease-out;
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
       notification.style.animation = 'slideOut 0.3s ease-in';
       setTimeout(() => {
@@ -478,7 +478,7 @@
         ">Later</button>
       </div>
     `;
-    
+
     document.body.appendChild(updateDiv);
   }
 
@@ -507,16 +507,16 @@
 
   function loadUserPreferences() {
     const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
-    
+
     // Apply preferences
     if (preferences.fontSize) {
       document.documentElement.style.fontSize = preferences.fontSize;
     }
-    
+
     if (preferences.compactMode) {
       document.body.classList.toggle('compact-mode', preferences.compactMode);
     }
-    
+
     if (preferences.autoSave !== undefined) {
       window.MyNotesApp.config.autoSave = preferences.autoSave;
     }
@@ -526,23 +526,23 @@
     // Load from localStorage first (faster)
     const notes = JSON.parse(localStorage.getItem('notes') || '[]');
     const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    
+
     // Dispatch events to update UI
     window.dispatchEvent(new CustomEvent('notesLoaded', { detail: notes }));
     window.dispatchEvent(new CustomEvent('tasksLoaded', { detail: tasks }));
-    
+
     // Load from IndexedDB if available
     if (window.MyNotesApp.db) {
       try {
         const dbNotes = await getFromIndexedDB('notes');
         const dbTasks = await getFromIndexedDB('tasks');
-        
+
         // Merge with localStorage data (IndexedDB is more reliable)
         if (dbNotes.length > 0) {
           localStorage.setItem('notes', JSON.stringify(dbNotes));
           window.dispatchEvent(new CustomEvent('notesLoaded', { detail: dbNotes }));
         }
-        
+
         if (dbTasks.length > 0) {
           localStorage.setItem('tasks', JSON.stringify(dbTasks));
           window.dispatchEvent(new CustomEvent('tasksLoaded', { detail: dbTasks }));
@@ -558,7 +558,7 @@
       const transaction = window.MyNotesApp.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       const request = store.getAll();
-      
+
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -566,26 +566,50 @@
 
   async function getVapidKey() {
     try {
+      console.log('🔑 Fetching VAPID key from:', '/api/vapid-key');
       const response = await fetch('/api/vapid-key');
-      const data = await response.json();
+      console.log('🔑 VAPID response status:', response.status);
+      console.log('🔑 VAPID response headers:', response.headers);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const text = await response.text();
+      console.log('🔑 VAPID raw response:', text);
+
+      const data = JSON.parse(text);
+      console.log('🔑 VAPID parsed data:', data);
       return data.publicKey;
     } catch (error) {
       console.error('Failed to get VAPID key:', error);
-      // Return a default key or handle gracefully
       return null;
     }
   }
 
   async function sendSubscriptionToServer(subscription) {
     try {
-      await fetch('/api/push-subscription', {
+      const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
+
+      if (!authToken) {
+        console.warn('No auth token found, skipping push subscription');
+        return;
+      }
+
+      const response = await fetch('/api/push-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify(subscription)
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('✅ Push subscription sent to server successfully');
     } catch (error) {
       console.error('Failed to send subscription to server:', error);
     }
@@ -595,17 +619,17 @@
   function setupTouchEvents() {
     let touchStartY = 0;
     let touchStartTime = 0;
-    
+
     document.addEventListener('touchstart', (e) => {
       touchStartY = e.touches[0].clientY;
       touchStartTime = Date.now();
     }, { passive: true });
-    
+
     document.addEventListener('touchend', (e) => {
       const touchEndY = e.changedTouches[0].clientY;
       const touchDuration = Date.now() - touchStartTime;
       const touchDistance = touchStartY - touchEndY;
-      
+
       // Pull to refresh
       if (touchDistance < -100 && touchDuration < 500 && window.scrollY === 0) {
         handlePullToRefresh();
@@ -650,13 +674,13 @@
       pointer-events: none;
       white-space: nowrap;
     `;
-    
+
     document.body.appendChild(tooltip);
-    
+
     const rect = event.target.getBoundingClientRect();
     tooltip.style.left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2) + 'px';
     tooltip.style.top = rect.top - tooltip.offsetHeight - 8 + 'px';
-    
+
     event.target._tooltip = tooltip;
   }
 
@@ -677,7 +701,7 @@
     const form = event.target;
     const requiredFields = form.querySelectorAll('[required]');
     let isValid = true;
-    
+
     requiredFields.forEach(field => {
       if (!field.value.trim()) {
         field.classList.add('error');
@@ -686,7 +710,7 @@
         field.classList.remove('error');
       }
     });
-    
+
     if (!isValid) {
       event.preventDefault();
       showNotification('Please fill in all required fields', 'error');
@@ -700,7 +724,7 @@
         closeModal(event.target.querySelector('.modal'));
       }
     });
-    
+
     // Close modals with escape key
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
@@ -723,7 +747,7 @@
     const searchInput = document.querySelector('#search-input, .search-input');
     if (searchInput) {
       let searchTimeout;
-      
+
       searchInput.addEventListener('input', (event) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
@@ -739,9 +763,9 @@
   }
 
   function checkDragDropSupport() {
-    return 'draggable' in document.createElement('div') && 
-           'ondragstart' in document.createElement('div') && 
-           'ondrop' in document.createElement('div');
+    return 'draggable' in document.createElement('div') &&
+      'ondragstart' in document.createElement('div') &&
+      'ondrop' in document.createElement('div');
   }
 
   function initializeDragDrop() {
@@ -768,25 +792,25 @@
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // Store the resolve callback
     window._currentConflictResolve = resolveCallback;
     window._currentConflict = conflict;
   }
 
   // Global conflict resolution function
-  window.resolveConflict = function(strategy) {
+  window.resolveConflict = function (strategy) {
     if (window._currentConflictResolve && window._currentConflict) {
       const resolver = new ConflictResolver();
       const resolved = resolver.resolve(window._currentConflict, strategy);
       window._currentConflictResolve(resolved);
-      
+
       // Clean up
       delete window._currentConflictResolve;
       delete window._currentConflict;
-      
+
       // Close modal
       const modal = document.querySelector('.conflict-resolution-modal');
       if (modal) {
@@ -801,26 +825,26 @@
       this.queue = [];
       this.isProcessing = false;
     }
-    
+
     show(message, type = 'info', duration = 3000) {
       this.queue.push({ message, type, duration });
       this.processQueue();
     }
-    
+
     async processQueue() {
       if (this.isProcessing || this.queue.length === 0) return;
-      
+
       this.isProcessing = true;
-      
+
       while (this.queue.length > 0) {
         const notification = this.queue.shift();
         showNotification(notification.message, notification.type);
         await this.delay(notification.duration + 500); // Add delay between notifications
       }
-      
+
       this.isProcessing = false;
     }
-    
+
     delay(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
