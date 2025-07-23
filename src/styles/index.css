@@ -122,3 +122,55 @@
 .dark .tiptap-image {
  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
 }
+
+/* Sync UI Styles */
+.sync-status {
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.sync-status.success { background: #d4edda; color: #155724; }
+.sync-status.error { background: #f8d7da; color: #721c24; }
+
+.network-status.online { color: #28a745; }
+.network-status.offline { color: #dc3545; }
+
+.device-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.device-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-status.online { color: #28a745; }
+.device-status.offline { color: #6c757d; }
+
+.focused {
+  background-color: #fff3cd;
+  transition: background-color 0.3s ease;
+}
+
+.app-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 4px;
+  color: white;
+  z-index: 1000;
+  display: none;
+}
+
+.app-notification.success { background: #28a745; }
+.app-notification.error { background: #dc3545; }
+.app-notification.info { background: #17a2b8; }
