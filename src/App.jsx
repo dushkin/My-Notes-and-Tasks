@@ -195,6 +195,8 @@ const App = () => {
         <Route path="/register" element={<RegisterRoute />} />
         <Route path="/app/*" element={<ProtectedAppRoute />} />
         <Route path="/deletion-status" element={<DeletionStatusPage />} />
+        {/* Only catch non-API routes */}
+        <Route path="/api/*" element={null} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
