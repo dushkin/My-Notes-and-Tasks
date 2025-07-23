@@ -566,8 +566,9 @@
 
   async function getVapidKey() {
     try {
-      console.log('🔑 Fetching VAPID key from:', '/api/vapid-key');
-      const response = await fetch('/api/vapid-key');
+      const endpointURL = '/api/push/vapid-public-key';
+      console.log('🔑 Fetching VAPID key from:', endpointURL);
+      const response = await fetch(endpointURL);
       console.log('🔑 VAPID response status:', response.status);
       console.log('🔑 VAPID response headers:', response.headers);
 
