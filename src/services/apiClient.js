@@ -40,16 +40,16 @@ const createApiError = (message, status = null, originalError = null) => {
 };
 
 const isNetworkError = (error) => {
-  return error instanceof TypeError && 
-         (error.message.includes('Failed to fetch') || 
-          error.message.includes('Network request failed') ||
-          error.message.includes('fetch is not defined'));
+  return error instanceof TypeError &&
+    (error.message.includes('Failed to fetch') ||
+      error.message.includes('Network request failed') ||
+      error.message.includes('fetch is not defined'));
 };
 
 const isTimeoutError = (error) => {
-  return error.name === 'AbortError' || 
-         error.message.includes('timeout') ||
-         error.code === 'TIMEOUT';
+  return error.name === 'AbortError' ||
+    error.message.includes('timeout') ||
+    error.code === 'TIMEOUT';
 };
 
 const shouldTriggerLogout = (status, errorMessage = '') => {
@@ -64,12 +64,12 @@ const shouldTriggerLogout = (status, errorMessage = '') => {
     'access denied',
     'forbidden'
   ];
-  
-  return status === 401 || 
-         status === 403 ||
-         authErrorPatterns.some(pattern => 
-           errorMessage.toLowerCase().includes(pattern)
-         );
+
+  return status === 401 ||
+    status === 403 ||
+    authErrorPatterns.some(pattern =>
+      errorMessage.toLowerCase().includes(pattern)
+    );
 };
 
 const refreshTokenFlow = async () => {
@@ -106,10 +106,10 @@ const refreshTokenFlow = async () => {
 
       console.error("Refresh token failed:", response.status, errorData);
       clearTokens();
-      
+
       const errorMessage = errorData.error || "Session expired. Please login again.";
       const error = createApiError(errorMessage, response.status);
-      
+
       onLogoutCallback();
       return Promise.reject(error);
     }
@@ -127,10 +127,10 @@ const refreshTokenFlow = async () => {
   } catch (error) {
     console.error("Error during token refresh:", error);
     clearTokens();
-    
+
     let errorMessage;
     let status = null;
-    
+
     if (isNetworkError(error)) {
       errorMessage = "Network error during authentication. Please check your connection and try again.";
     } else if (isTimeoutError(error)) {
@@ -142,7 +142,7 @@ const refreshTokenFlow = async () => {
     } else {
       errorMessage = "Authentication failed. Please login again.";
     }
-    
+
     const apiError = createApiError(errorMessage, status, error);
     onLogoutCallback();
     return Promise.reject(apiError);
@@ -162,8 +162,8 @@ const broadcastTreeUpdate = (method, url) => {
         localStorage.setItem('notesTreeSync', String(Date.now()));
       }
     }
-  } catch (e) { 
-    console.warn('Broadcast failed', e); 
+  } catch (e) {
+    console.warn('Broadcast failed', e);
   }
 };
 
@@ -172,16 +172,16 @@ export const authFetch = async (url, options = {}) => {
 
   const makeRequest = async (accessToken, retryCount = 0) => {
     const maxRetries = 2;
-    
+
     try {
       const headers = {
         ...options.headers,
       };
-      
+
       if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
-      
+
       // Do not set Content-Type if FormData is used (browser will set it with boundary)
       if (!(options.body instanceof FormData) && !headers['Content-Type']) {
         headers['Content-Type'] = 'application/json';
@@ -198,8 +198,23 @@ export const authFetch = async (url, options = {}) => {
         signal: controller.signal,
       };
 
+      let finalPath;
+      // Check if the URL you provided already has the /api prefix
+      if (url.startsWith('/api')) {
+        finalPath = url; // Use the path as-is
+      } else {
+        // If not, add the /api prefix
+        const slash = url.startsWith('/') ? '' : '/';
+        finalPath = `/api${slash}${url}`;
+      }
+
+      // Construct the final URL, handling absolute URLs correctly
+      const finalUrl = url.startsWith('http') ? url : `${API_BASE_URL}${finalPath}`;
+
+      console.log(`[apiClient] Requesting: ${finalOptions.method || 'GET'} ${finalUrl}`); // Added for debugging
+
       const response = await fetch(
-        url.startsWith('http') ? url : `${API_BASE_URL}${url}`, 
+        finalUrl,
         finalOptions
       );
 
@@ -218,7 +233,7 @@ export const authFetch = async (url, options = {}) => {
         } catch (parseError) {
           errorData = { error: `Authentication error (${response.status})` };
         }
-        
+
         // Check if this is a token expiration issue
         if (shouldTriggerLogout(response.status, errorData.error)) {
           if (!isRefreshing) {
@@ -263,7 +278,7 @@ export const authFetch = async (url, options = {}) => {
         }
 
         let errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
-        
+
         // Provide more user-friendly error messages
         switch (response.status) {
           case 400:
@@ -298,7 +313,7 @@ export const authFetch = async (url, options = {}) => {
 
         throw createApiError(errorMessage, response.status);
       }
-      
+
       return response;
 
     } catch (error) {
@@ -310,8 +325,8 @@ export const authFetch = async (url, options = {}) => {
           return makeRequest(accessToken, retryCount + 1);
         }
         throw createApiError(
-          "Network error. Please check your internet connection and try again.", 
-          null, 
+          "Network error. Please check your internet connection and try again.",
+          null,
           error
         );
       }
@@ -323,8 +338,8 @@ export const authFetch = async (url, options = {}) => {
           return makeRequest(accessToken, retryCount + 1);
         }
         throw createApiError(
-          "Request timed out. Please try again.", 
-          null, 
+          "Request timed out. Please try again.",
+          null,
           error
         );
       }
@@ -337,8 +352,8 @@ export const authFetch = async (url, options = {}) => {
       // Handle other unexpected errors
       console.error("Unexpected error in authFetch:", error);
       throw createApiError(
-        "An unexpected error occurred. Please try again.", 
-        null, 
+        "An unexpected error occurred. Please try again.",
+        null,
         error
       );
     }
@@ -356,13 +371,13 @@ export const handleApiResponse = async (response) => {
     } catch (parseError) {
       errorData = { error: `Server error (${response.status})` };
     }
-    
+
     throw createApiError(
       errorData.error || errorData.message || `HTTP ${response.status}`,
       response.status
     );
   }
-  
+
   try {
     return await response.json();
   } catch (parseError) {
@@ -380,15 +395,15 @@ export const getErrorMessage = (error) => {
   if (isApiError(error)) {
     return error.message;
   }
-  
+
   if (isNetworkError(error)) {
     return "Network error. Please check your internet connection.";
   }
-  
+
   if (isTimeoutError(error)) {
     return "Request timed out. Please try again.";
   }
-  
+
   return error?.message || "An unexpected error occurred.";
 };
 
