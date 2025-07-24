@@ -1,8 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.8.0",
-  "commitMessage": "Fixed reminder issues",
+  "version": "12.9.0",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
