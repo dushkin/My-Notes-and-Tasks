@@ -128,7 +128,7 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
 
   useEffect(() => {
     if (message) {
-      const timer = setTimeout(() => onClose(), 5000);
+      const timer = setTimeout(() => onClose(), 8000);
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
@@ -453,7 +453,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     fetchUserTree,
     isFetchingTree,
     currentItemCount,
-    findItemById,
   } = useTree(currentUser);
 
   useEffect(() => {
@@ -812,7 +811,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     [tree]
   );
   const showMessage = useCallback(
-    (message, type = "error", duration = 5000) => {
+    (message, type = "error", duration = 8000) => {
       setUiMessage(message);
       setUiMessageType(type);
     },
@@ -966,7 +965,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       // Listen for immediate updates
       window.addEventListener("remindersUpdated", handleRemindersUpdate);
       // Also poll as a fallback
-      const reminderRefreshInterval = setInterval(loadReminders, 5000);
+      const reminderRefreshInterval = setInterval(loadReminders, 8000);
 
       return () => {
         window.removeEventListener("remindersUpdated", handleRemindersUpdate);

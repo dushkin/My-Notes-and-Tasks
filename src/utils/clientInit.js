@@ -412,7 +412,7 @@ import { authFetch } from '../services/apiClient';
       if (errorDiv.parentNode) {
         errorDiv.parentNode.removeChild(errorDiv);
       }
-    }, 5000);
+    }, 8000);
   }
 
   function showNotification(message, type = 'info') {

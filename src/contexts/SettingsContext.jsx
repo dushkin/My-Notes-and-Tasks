@@ -1,4 +1,3 @@
-// src/contexts/SettingsContext.jsx
 import React, {
   createContext,
   useContext,
@@ -37,7 +36,9 @@ export const editorFontSizeOptions = [
 
 export const defaultSettings = {
   reminderSoundEnabled: true,
-  reminderVibrationEnabled: true,  theme: "system",
+  reminderVibrationEnabled: true,
+  reminderDisplayDoneButton: true,
+  theme: "system",
   autoExpandNewFolders: true,
   editorFontFamily:
     editorFontFamilyOptions.length > 0
@@ -48,7 +49,6 @@ export const defaultSettings = {
   defaultExportFormat: "json",
   autoExportEnabled: false,
   autoExportIntervalMinutes: 30,
-  // autoExportDirectory: '', // Removed this line
 };
 
 const SettingsContext = createContext();

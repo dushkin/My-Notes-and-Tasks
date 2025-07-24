@@ -81,65 +81,62 @@ class ReminderMonitor {
           // INCREASED delay to allow other devices more time to trigger
           setTimeout(() => {
             clearReminder(reminder.itemId);
-          }, 5000); // 5 second delay instead of 2
+          }, 8000); // 5 second delay instead of 2
         }
       }
     });
   }
 
-  // REMOVED: forceCheckReminder method - this was causing immediate triggers
-  // Instead, socket events should only update localStorage, not trigger immediately
+triggerReminder(reminder, settings) {
+  const itemTitle = this.findItemTitle(reminder.itemId);
+  const title = '⏰ Reminder';
+  const body = `Don't forget: ${itemTitle || 'Untitled'}`;
+  const notificationData = {
+    reminderVibrationEnabled: settings.reminderVibrationEnabled,
+    reminderSoundEnabled: settings.reminderSoundEnabled,
+    reminderDisplayDoneButton: settings.reminderDisplayDoneButton,
+    itemId: reminder.itemId,
+    reminderId: `${reminder.itemId}-${reminder.timestamp}`,
+    itemTitle: itemTitle || 'Untitled',
+    originalReminder: reminder
+  };
 
-  triggerReminder(reminder, settings) {
-    const itemTitle = this.findItemTitle(reminder.itemId);
-    const title = '⏰ Reminder';
-    const body = `Don't forget: ${itemTitle || 'Untitled'}`;
-    const notificationData = {
-      reminderVibrationEnabled: settings.reminderVibrationEnabled,
-      reminderSoundEnabled: settings.reminderSoundEnabled,
-      itemId: reminder.itemId,
-      reminderId: `${reminder.itemId}-${reminder.timestamp}`,
-      itemTitle: itemTitle || 'Untitled',
-      originalReminder: reminder
-    };
-
-    // Mobile fix: Try to focus window for backgrounded mobile pages
     const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
-    const isPageHidden = document.hidden;
+  const isPageHidden = document.hidden;
+  
+  if (isMobile && isPageHidden) {
+    // Try to focus the window
+    if (window.focus) window.focus();
     
-    if (isMobile && isPageHidden) {
-      // Try to focus the window
-      if (window.focus) window.focus();
-      
-      // Flash the title to get attention
-      const originalTitle = document.title;
-      document.title = `🔔 ${title}`;
-      setTimeout(() => {
-        document.title = originalTitle;
-      }, 3000);
-    }
-
-    // DEBUG: Check if showNotification exists
-    console.log('🚨 About to call showNotification:', {
-      title,
-      body,
-      showNotificationExists: typeof showNotification,
-      settings
-    });
-
-    // Single notification call - let showNotification handle all the logic
-    try {
-      showNotification(title, body, notificationData);
-      console.log('🚨 showNotification called successfully');
-    } catch (error) {
-      console.error('🚨 showNotification ERROR:', error);
-    }
-    
-    window.dispatchEvent(new CustomEvent('reminderTriggered', {
-      detail: { ...reminder, itemTitle, notificationData }
-    }));
+    // Flash the title to get attention
+    const originalTitle = document.title;
+    document.title = `🔔 ${title}`;
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 3000);
   }
 
+  // DEBUG: Check if showNotification exists
+  console.log('🚨 About to call showNotification:', {
+    title,
+    body,
+    showNotificationExists: typeof showNotification,
+    settings,
+    reminderDisplayDoneButton: settings.reminderDisplayDoneButton
+  });
+
+  // Single notification call - let showNotification handle all the logic
+  try {
+    showNotification(title, body, notificationData);
+    console.log('🚨 showNotification called successfully');
+  } catch (error) {
+    console.error('🚨 showNotification ERROR:', error);
+  }
+  
+  window.dispatchEvent(new CustomEvent('reminderTriggered', {
+    detail: { ...reminder, itemTitle, notificationData }
+  }));
+}
   setupServiceWorkerListener() {
     if (this.serviceWorkerMessageHandler) {
       navigator.serviceWorker.removeEventListener('message', this.serviceWorkerMessageHandler);

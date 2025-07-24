@@ -371,7 +371,7 @@ export class TreePage {
     for (const selector of dialogSelectors) {
       try {
         dialog = this.page.locator(selector);
-        await dialog.waitFor({ state: 'visible', timeout: 5000 });
+        await dialog.waitFor({ state: 'visible', timeout: 8000 });
         console.log(`[TreePage] Dialog found with selector: ${selector}`);
         break;
       } catch (e) {

@@ -100,13 +100,13 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/')) {
     // Check if this is a path we should skip SW handling for
     const shouldSkip = SKIP_SW_PATHS.some(path => event.request.url.includes(path));
-    
+
     if (shouldSkip) {
       // Let these requests go directly to the network without SW interference
       console.log('SW: Skipping intercept for:', event.request.url);
       return;
     }
-    
+
     // Only handle write operations or authenticated API requests
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(event.request.method)) {
       event.respondWith(handleAPIRequest(event.request));
@@ -286,7 +286,7 @@ async function handleAPIRequest(request) {
       // Store offline for later sync
       try {
         await storeOfflineRequest(request);
-        
+
         return new Response(
           JSON.stringify({
             success: true,
@@ -300,7 +300,7 @@ async function handleAPIRequest(request) {
         );
       } catch (storeError) {
         console.error('Failed to store offline request:', storeError);
-        
+
         return new Response(
           JSON.stringify({
             error: 'Failed to handle offline request',
@@ -329,7 +329,7 @@ async function handleAPIRequest(request) {
 }
 
 async function registerDeviceAndSync() {
-  
+
   console.log('🔍 Service Worker registerDeviceAndSync called');
   console.trace('🔍 Service Worker call stack')
 
@@ -378,7 +378,7 @@ async function registerDeviceAndSync() {
       if (token) {
         await fetch('/api/sync/devices/register', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
@@ -416,7 +416,7 @@ async function getAuthToken() {
           };
           client.postMessage({ type: 'GET_AUTH_TOKEN' }, [messageChannel.port2]);
         });
-        
+
         if (response && response.token) {
           return response.token;
         }
@@ -633,11 +633,11 @@ async function notifyOtherDevicesOfChange() {
     if (!token) return;
 
     const deviceId = await getDeviceId();
-    
+
     // Use the correct sync trigger endpoint
     await fetch('/api/sync/trigger', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
@@ -647,7 +647,7 @@ async function notifyOtherDevicesOfChange() {
         timestamp: Date.now()
       })
     });
-    
+
     console.log('Notified other devices of changes');
   } catch (error) {
     console.log('Could not notify other devices:', error);
@@ -715,28 +715,66 @@ async function handleSyncNotification(data) {
   await triggerDataSync();
 }
 
+// Update the showReminderNotification function in sw.js
+// Replace the existing function with this updated version:
+
 async function showReminderNotification(data) {
   const title = data.title || "⏰ Reminder";
+
+  // Check if Done button should be displayed (from notification data)
+  const shouldDisplayDoneButton = data.shouldDisplayDoneButton ?? true; // Default to true for backward compatibility
+
+  console.log('🔔 SW: showReminderNotification - shouldDisplayDoneButton:', shouldDisplayDoneButton);
+
+  // Configure actions based on setting
+  const actions = shouldDisplayDoneButton ? [
+    { action: "done", title: "✅ Done", icon: "/favicon-32x32.png" },
+    { action: "snooze", title: "⏰ Snooze", icon: "/favicon-32x32.png" },
+    { action: "open", title: "📱 Open App", icon: "/favicon-32x32.png" }
+  ] : [
+    { action: "snooze", title: "⏰ Snooze", icon: "/favicon-32x32.png" },
+    { action: "open", title: "📱 Open App", icon: "/favicon-32x32.png" }
+  ];
+
   const options = {
     body: data.body || "You have a task reminder.",
     icon: "/favicon-192x192.png",
     badge: "/favicon-48x48.png",
     tag: data.tag || `reminder-${data.itemId || Date.now()}`,
     data: data.data || data,
-    requireInteraction: true,
+    requireInteraction: shouldDisplayDoneButton, // Only require interaction if Done button is enabled
     silent: false,
     vibrate: [200, 100, 200],
-    actions: [
-      { action: "done", title: "✅ Done", icon: "/favicon-32x32.png" },
-      { action: "snooze", title: "⏰ Snooze", icon: "/favicon-32x32.png" },
-      { action: "open", title: "📱 Open App", icon: "/favicon-32x32.png" }
-    ],
+    actions: actions,
     timestamp: Date.now(),
     renotify: true
   };
 
+  console.log('🔔 SW: Notification options:', {
+    requireInteraction: options.requireInteraction,
+    actionsCount: options.actions.length,
+    hasDoneAction: shouldDisplayDoneButton
+  });
+
   await self.registration.showNotification(title, options);
-  console.log('Reminder notification displayed successfully');
+  console.log('🔔 SW: Reminder notification displayed successfully');
+
+  // If Done button is disabled, set up auto-dismiss after 5 seconds
+  if (!shouldDisplayDoneButton) {
+    setTimeout(async () => {
+      try {
+        const notifications = await self.registration.getNotifications({
+          tag: options.tag
+        });
+        notifications.forEach(notification => {
+          console.log('🔔 SW: Auto-dismissing notification after 8 seconds:', options.tag);
+          notification.close();
+        });
+      } catch (error) {
+        console.warn('🔔 SW: Failed to auto-dismiss notification:', error);
+      }
+    }, 8000);
+  }
 }
 
 async function showDefaultNotification(data) {
@@ -957,7 +995,7 @@ async function syncReminderActions() {
       try {
         await fetch('/api/reminder-actions', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
