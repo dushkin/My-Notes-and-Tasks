@@ -10,6 +10,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  useNavigate,
   Navigate,
 } from "react-router-dom";
 import BetaBanner from "./components/BetaBanner";
