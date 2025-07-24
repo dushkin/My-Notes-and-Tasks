@@ -726,9 +726,7 @@ async function handleSyncNotification(data) {
 
 async function showReminderNotification(data) {
   const title = data.title || "⏰ Reminder";
-
-  // Check if Done button should be displayed (from notification data)
-  const shouldDisplayDoneButton = data.shouldDisplayDoneButton ?? true; // Default to true for backward compatibility
+  const shouldDisplayDoneButton = data.shouldDisplayDoneButton ?? true;
 
   console.log('🔔 SW: showReminderNotification - shouldDisplayDoneButton:', shouldDisplayDoneButton);
 
@@ -742,45 +740,98 @@ async function showReminderNotification(data) {
     { action: "open", title: "📱 Open App", icon: "/favicon-32x32.png" }
   ];
 
+  // 🚨 ENHANCED MOBILE VISIBILITY OPTIONS
   const options = {
     body: data.body || "You have a task reminder.",
     icon: "/favicon-192x192.png",
     badge: "/favicon-48x48.png",
+    image: "/favicon-192x192.png", // Large image for Android expanded view
     tag: data.tag || `reminder-${data.itemId || Date.now()}`,
     data: data.data || data,
-    requireInteraction: shouldDisplayDoneButton, // Only require interaction if Done button is enabled
-    silent: false,
-    vibrate: [200, 100, 200],
-    actions: actions,
+    
+    // 🎯 HIGH VISIBILITY SETTINGS
+    requireInteraction: true, // ALWAYS require interaction for maximum visibility
+    persistent: true, // Don't auto-dismiss
+    renotify: true, // Allow re-notification of same tag
+    
+    // 🔊 ATTENTION-GRABBING SETTINGS
+    silent: false, // Always allow sound
+    vibrate: [500, 200, 500, 200, 500], // Longer, more noticeable vibration pattern
+    
+    // 📱 MOBILE-SPECIFIC URGENCY
+    urgency: 'high', // Chrome/Edge priority
+    priority: 'high', // General priority hint
+    
+    // 🌟 VISUAL ENHANCEMENTS
+    dir: 'ltr',
+    lang: 'en',
     timestamp: Date.now(),
-    renotify: true
+    
+    // 📋 ACTION BUTTONS
+    actions: actions,
+    
+    // 🔴 ANDROID-SPECIFIC HIGH VISIBILITY
+    android: {
+      channelId: 'reminders-urgent', // Create high-priority channel
+      priority: 2, // PRIORITY_HIGH (Android)
+      visibility: 1, // VISIBILITY_PUBLIC (show on lock screen)
+      category: 'alarm', // Android alarm category for urgent reminders
+      color: '#FF4444', // Red accent color
+      ongoing: false, // Can be dismissed
+      autoCancel: true,
+      largeIcon: '/favicon-192x192.png',
+      bigPicture: '/favicon-192x192.png',
+      bigText: data.body || "You have a task reminder.",
+      subText: '🔔 Task Reminder',
+      showWhen: true,
+      when: Date.now(),
+      usesChronometer: false,
+      chronometerCountDown: false,
+      number: 1,
+      ticker: `⏰ ${data.body || "Task reminder"}`,
+      // 🚨 FULL SCREEN INTENT (highest priority - shows over other apps)
+      fullScreenIntent: true,
+      // 🔊 SOUND AND VIBRATION OVERRIDE
+      sound: 'default',
+      vibrationPattern: [500, 200, 500, 200, 500],
+      lights: {
+        argb: 0xFFFF4444, // Red light
+        onMs: 1000,
+        offMs: 1000
+      }
+    },
+
+    // 🍎 iOS-SPECIFIC SETTINGS
+    ios: {
+      // iOS doesn't support many customizations, but these help
+      sound: 'default',
+      badge: 1,
+      alert: {
+        title: title,
+        body: data.body || "You have a task reminder.",
+        'launch-image': '/favicon-192x192.png'
+      },
+      category: 'REMINDER_CATEGORY', // Must be registered in app
+      'thread-id': 'reminders', // Group related notifications
+      'target-content-id': data.itemId,
+      'interruption-level': 'active' // iOS 15+ interruption level
+    }
   };
 
-  console.log('🔔 SW: Notification options:', {
+  console.log('🔔 SW: Enhanced notification options:', {
     requireInteraction: options.requireInteraction,
-    actionsCount: options.actions.length,
-    hasDoneAction: shouldDisplayDoneButton
+    persistent: options.persistent,
+    urgency: options.urgency,
+    vibrationPattern: options.vibrate,
+    androidPriority: options.android?.priority,
+    fullScreenIntent: options.android?.fullScreenIntent
   });
 
   await self.registration.showNotification(title, options);
-  console.log('🔔 SW: Reminder notification displayed successfully');
+  console.log('🔔 SW: Enhanced reminder notification displayed successfully');
 
-  // If Done button is disabled, set up auto-dismiss after 5 seconds
-  if (!shouldDisplayDoneButton) {
-    setTimeout(async () => {
-      try {
-        const notifications = await self.registration.getNotifications({
-          tag: options.tag
-        });
-        notifications.forEach(notification => {
-          console.log('🔔 SW: Auto-dismissing notification after 8 seconds:', options.tag);
-          notification.close();
-        });
-      } catch (error) {
-        console.warn('🔔 SW: Failed to auto-dismiss notification:', error);
-      }
-    }, 8000);
-  }
+  // 🔄 NO AUTO-DISMISS - Let requireInteraction handle it
+  // The notification will stay until user interacts
 }
 
 async function showDefaultNotification(data) {

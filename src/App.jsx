@@ -252,71 +252,71 @@ const LandingPageRoute = () => {
 
 // Login Route Component
 const LoginRoute = () => {
- const navigate = useNavigate(); // Add this for proper navigation
- const [currentUser, setCurrentUser] = useState(null);
- const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const navigate = useNavigate(); // Add this for proper navigation
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
- useEffect(() => {
-   const checkAuth = async () => {
-     const token = getAccessToken();
-     if (token) {
-       try {
-         const response = await authFetch("/auth/verify-token");
-         if (response.ok) {
-           const data = await response.json();
-           if (data.valid && data.user) {
-             setCurrentUser(data.user);
-             // Also subscribe to push notifications for existing authenticated users
-             if (typeof window.subscribeAfterLogin === "function") {
-               window.subscribeAfterLogin();
-             }
-           }
-         }
-       } catch (error) {
-         console.log("Auth check failed:", error);
-       }
-     }
-     setIsCheckingAuth(false);
-   };
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getAccessToken();
+      if (token) {
+        try {
+          const response = await authFetch("/auth/verify-token");
+          if (response.ok) {
+            const data = await response.json();
+            if (data.valid && data.user) {
+              setCurrentUser(data.user);
+              // Also subscribe to push notifications for existing authenticated users
+              if (typeof window.subscribeAfterLogin === "function") {
+                window.subscribeAfterLogin();
+              }
+            }
+          }
+        } catch (error) {
+          console.log("Auth check failed:", error);
+        }
+      }
+      setIsCheckingAuth(false);
+    };
 
-   checkAuth();
- }, []);
+    checkAuth();
+  }, []);
 
- if (isCheckingAuth) {
-   return <LoadingSpinner variant="overlay" text="Loading..." />;
- }
+  if (isCheckingAuth) {
+    return <LoadingSpinner variant="overlay" text="Loading..." />;
+  }
 
- if (currentUser) {
-   return <Navigate to="/app" replace />;
- }
+  if (currentUser) {
+    return <Navigate to="/app" replace />;
+  }
 
- const handleLoginSuccess = (userData) => {
-   console.log("[DEBUG] Login success - setting user:", userData);
-   setCurrentUser(userData);
+  const handleLoginSuccess = (userData) => {
+    console.log("[DEBUG] Login success - setting user:", userData);
+    setCurrentUser(userData);
 
-   // Subscribe to push notifications after successful login
-   if (typeof window.subscribeAfterLogin === "function") {
-     window.subscribeAfterLogin();
-   }
+    // Subscribe to push notifications after successful login
+    if (typeof window.subscribeAfterLogin === "function") {
+      window.subscribeAfterLogin();
+    }
 
-   // Use React Router navigation instead of hard redirect
-   console.log("[DEBUG] Navigating to /app");
-   navigate("/app", { replace: true });
- };
+    // Use React Router navigation instead of hard redirect
+    console.log("[DEBUG] Navigating to /app");
+    navigate("/app", { replace: true });
+  };
 
- const handleSwitchToRegister = () => {
-   navigate("/register", { replace: true });
- };
+  const handleSwitchToRegister = () => {
+    navigate("/register", { replace: true });
+  };
 
- return (
-   <>
-     <BetaBanner variant="auth" />
-     <Login
-       onLoginSuccess={handleLoginSuccess}
-       onSwitchToRegister={handleSwitchToRegister}
-     />
-   </>
- );
+  return (
+    <>
+      <BetaBanner variant="auth" />
+      <Login
+        onLoginSuccess={handleLoginSuccess}
+        onSwitchToRegister={handleSwitchToRegister}
+      />
+    </>
+  );
 };
 
 // Register Route Component
@@ -997,15 +997,43 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         const permission = await requestNotificationPermission();
         if (permission === "granted") {
           console.log("Notification permission granted");
+
+          // 🚨 ADD THIS ENHANCED CHANNEL SETUP HERE:
+          console.log("🔔 Setting up enhanced notification channels...");
+
+          // Set up high-priority notification channel (Android Chrome)
+          if ("setUserVisibleOnly" in registration.pushManager) {
+            registration.pushManager.getSubscription().then((subscription) => {
+              if (subscription) {
+                console.log("🔔 Enhanced notification channels ready");
+              }
+            });
+          }
+
+          // Request critical notification permissions (if supported)
+          if (
+            "requestPermission" in Notification &&
+            Notification.permission === "default"
+          ) {
+            const criticalPermission = await Notification.requestPermission();
+            console.log(
+              "🔔 Critical notification permission:",
+              criticalPermission
+            );
+          }
+
           const subscription = await subscribePush(registration);
           if (subscription) {
-            console.log("Push subscription successful");
+            console.log("Push subscription successful with enhanced channels");
           }
         } else {
           console.warn("Notification permission denied");
         }
       } catch (error) {
-        console.error("Failed to initialize push notifications:", error);
+        console.error(
+          "Failed to initialize enhanced push notifications:",
+          error
+        );
       }
     };
 

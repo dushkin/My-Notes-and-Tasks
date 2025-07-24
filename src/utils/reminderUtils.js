@@ -308,52 +308,45 @@ export const showNotification = (title, body, data = {}) => {
 
   console.log('🔔 showNotification called:', { title, body, permission: Notification.permission });
 
-  // Better mobile detection - check for touch capability and screen size
   const isMobile = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) || 
                    ('ontouchstart' in window) || 
                    (window.screen && window.screen.width <= 768);
   const isPageHidden = document.hidden;
   
-  console.log('🔔 Device info:', { 
-    isMobile, 
-    isPageHidden, 
-    hasTouch: 'ontouchstart' in window,
-    screenWidth: window.screen?.width,
-    userAgent: navigator.userAgent.substring(0, 100) 
-  });
+  console.log('🔔 Device info:', { isMobile, isPageHidden });
   
-  // For mobile devices when page is hidden, try to bring attention
-  if (isMobile && isPageHidden) {
-    console.log('🔔 Mobile page hidden - trying to bring attention');
-    // Try to focus the window
+  // 🚨 ENHANCED MOBILE ATTENTION-GRABBING
+  if (isMobile) {
+    console.log('🔔 Mobile device - applying enhanced visibility');
+    
+    // Try to wake up the device/app
     if (window.focus) window.focus();
     
-    // Flash the title to get attention
+    // Flash the title more aggressively
     const originalTitle = document.title;
-    document.title = `🔔 ${title}`;
-    setTimeout(() => {
-      document.title = originalTitle;
-    }, 3000);
+    let flashCount = 0;
+    const flashInterval = setInterval(() => {
+      document.title = flashCount % 2 === 0 ? `🚨 ${title}` : `🔔 REMINDER!`;
+      flashCount++;
+      if (flashCount >= 10) { // Flash 5 times
+        clearInterval(flashInterval);
+        document.title = originalTitle;
+      }
+    }, 500);
+    
+    // Try to vibrate the device if supported
+    if ('vibrate' in navigator) {
+      navigator.vibrate([800, 200, 800, 200, 800, 200, 800]);
+    }
   }
 
-  // Check if Done button should be displayed (from settings)
-  const shouldDisplayDoneButton = data?.reminderDisplayDoneButton ?? true; // Default to true
-  const shouldRequireInteraction = shouldDisplayDoneButton;
+  const shouldDisplayDoneButton = data?.reminderDisplayDoneButton ?? true;
   
-  console.log('🔔 Done button setting:', {
-    shouldDisplayDoneButton,
-    shouldRequireInteraction,
-    settingValue: data?.reminderDisplayDoneButton
-  });
-
-  // Always try service worker first (required for mobile)
+  // Always try service worker first for enhanced features
   navigator.serviceWorker.getRegistration().then((registration) => {
-    console.log('🔔 Service worker registration:', !!registration, registration?.active ? 'active' : 'not active');
-    
     if (registration && registration.active) {
-      const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
+      const uniqueTag = `urgent-reminder-${data.itemId || 'reminder'}-${Date.now()}`;
       
-      // Configure actions based on setting
       const actions = shouldDisplayDoneButton ? [
         { action: "done", title: "✅ Done", icon: "/favicon-32x32.png" },
         { action: "snooze", title: "⏰ Snooze", icon: "/favicon-32x32.png" },
@@ -363,108 +356,62 @@ export const showNotification = (title, body, data = {}) => {
         { action: "open", title: "📱 Open App", icon: "/favicon-32x32.png" }
       ];
       
-      console.log('🔔 Attempting service worker notification with tag:', uniqueTag);
-      console.log('🔔 Notification options:', {
-        requireInteraction: shouldRequireInteraction,
-        silent: !(data?.reminderSoundEnabled ?? true),
-        vibrate: (data?.reminderVibrationEnabled ?? true) ? [200, 100, 200] : undefined,
-        actions: actions.length,
-        actionsIncludeDone: shouldDisplayDoneButton
-      });
+      console.log('🔔 Using enhanced service worker notification');
       
       return registration.showNotification(title, {
-        requireInteraction: shouldRequireInteraction, // Only require interaction if Done button is enabled
-        silent: !(data?.reminderSoundEnabled ?? true),
-        vibrate: (data?.reminderVibrationEnabled ?? true) ? [200, 100, 200] : undefined,
-        body,
-        icon: "/favicon-32x32.png",
-        badge: "/favicon-32x32.png",
+        body: `⚠️ ${body}`, // Add warning emoji to body
+        icon: "/favicon-192x192.png",
+        badge: "/favicon-48x48.png",
+        image: "/favicon-192x192.png", // Large image for expanded view
+        
+        // 🚨 MAXIMUM VISIBILITY
+        requireInteraction: true, // ALWAYS require interaction
+        persistent: true,
+        renotify: true,
+        silent: false,
+        vibrate: [800, 200, 800, 200, 800], // Strong vibration
+        urgency: 'high',
+        
         data: { 
           ...data, 
-          shouldDisplayDoneButton, // Pass setting to service worker
-          autoTimeoutMs: shouldDisplayDoneButton ? null : 8000 // Auto-dismiss after 5s if no Done button
+          shouldDisplayDoneButton,
+          priority: 'urgent'
         },
         actions: actions,
         tag: uniqueTag,
-        persistent: shouldDisplayDoneButton, // Only persistent if Done button is enabled
-        renotify: true,   // Force renotify
-      }).then(() => {
-        console.log('🔔 Service worker notification SUCCESS with tag:', uniqueTag);
+        timestamp: Date.now(),
         
-        // If Done button is disabled, set up auto-dismiss after 5 seconds
-        if (!shouldDisplayDoneButton) {
-          setTimeout(async () => {
-            try {
-              const notifications = await registration.getNotifications({ tag: uniqueTag });
-              notifications.forEach(notification => {
-                console.log('🔔 Auto-dismissing notification after 8 seconds:', uniqueTag);
-                notification.close();
-              });
-            } catch (error) {
-              console.warn('🔔 Failed to auto-dismiss notification:', error);
-            }
-          }, 8000);
+        // Platform-specific enhancements
+        android: {
+          channelId: 'urgent-reminders',
+          priority: 2, // PRIORITY_HIGH
+          visibility: 1, // VISIBILITY_PUBLIC (lock screen)
+          category: 'alarm', // Alarm category
+          color: '#FF0000', // Red color
+          fullScreenIntent: true, // Show over other apps
+          sound: 'default',
+          vibrationPattern: [800, 200, 800, 200, 800],
+          lights: {
+            argb: 0xFFFF0000, // Red light
+            onMs: 1000,
+            offMs: 500
+          }
         }
-      }).catch(serviceWorkerError => {
-        console.error('🔔 Service worker notification ERROR:', serviceWorkerError);
-        throw serviceWorkerError;
       });
     } else {
-      console.log('🔔 No active service worker, trying direct notification');
-      // Only use direct Notification constructor if no service worker AND not mobile
+      console.log('🔔 No service worker, using direct notification with enhancements');
       if (!isMobile) {
-        const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
-        const notification = new Notification(title, {
-          body,
-          icon: "/favicon-32x32.png",
-          badge: "/favicon-32x32.png",
+        const notification = new Notification(`🚨 ${title}`, {
+          body: `⚠️ ${body}`,
+          icon: "/favicon-192x192.png",
+          badge: "/favicon-48x48.png",
           data: { ...data, shouldDisplayDoneButton },
-          tag: uniqueTag,
-          requireInteraction: shouldRequireInteraction
+          tag: `urgent-${data.itemId || 'reminder'}-${Date.now()}`,
+          requireInteraction: true
         });
         
-        console.log('🔔 Direct notification created for desktop');
-        
-        // Auto-dismiss if Done button is disabled
-        if (!shouldDisplayDoneButton) {
-          setTimeout(() => {
-            console.log('🔔 Auto-dismissing direct notification after 5 seconds:', uniqueTag);
-            notification.close();
-          }, 8000);
-        }
-      } else {
-        console.error('🔔 MOBILE ERROR: No active service worker available for notifications');
+        console.log('🔔 Enhanced direct notification created');
       }
-    }
-  }).catch(error => {
-    console.error('🔔 Service worker registration error:', error);
-    // Only fallback to direct constructor on desktop
-    if (!isMobile) {
-      try {
-        const uniqueTag = `${data.itemId || 'reminder'}-${Date.now()}`;
-        const notification = new Notification(title, {
-          body,
-          icon: "/favicon-32x32.png",
-          badge: "/favicon-32x32.png",
-          data: { ...data, shouldDisplayDoneButton },
-          tag: uniqueTag,
-          requireInteraction: shouldRequireInteraction
-        });
-        
-        console.log('🔔 Fallback direct notification created for desktop');
-        
-        // Auto-dismiss if Done button is disabled
-        if (!shouldDisplayDoneButton) {
-          setTimeout(() => {
-            console.log('🔔 Auto-dismissing fallback notification after 5 seconds:', uniqueTag);
-            notification.close();
-          }, 8000);
-        }
-      } catch (fallbackError) {
-        console.error('🔔 Fallback notification also failed:', fallbackError);
-      }
-    } else {
-      console.error('🔔 MOBILE ERROR: Service worker failed and no fallback available');
     }
   });
 };
