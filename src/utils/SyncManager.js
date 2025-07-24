@@ -138,7 +138,7 @@ class SyncManager {
   }
 
   async syncUpdateNote(noteData) {
-    const response = await fetch(`/api/notes/${noteData.id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/notes/${noteData.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -166,7 +166,7 @@ class SyncManager {
   }
 
   async syncDeleteNote(noteData) {
-    const response = await fetch(`/api/notes/${noteData.id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/notes/${noteData.id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('authToken')}`
@@ -215,7 +215,7 @@ class SyncManager {
   }
 
   async syncUpdateTask(taskData) {
-    const response = await fetch(`/api/tasks/${taskData.id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskData.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -243,7 +243,7 @@ class SyncManager {
   }
 
   async syncDeleteTask(taskData) {
-    const response = await fetch(`/api/tasks/${taskData.id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskData.id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('authToken')}`

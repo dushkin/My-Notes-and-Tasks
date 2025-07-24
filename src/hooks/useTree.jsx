@@ -19,6 +19,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { itemMatches } from "../utils/searchUtils";
 import { useUndoRedo } from "./useUndoRedo";
 import { authFetch } from "../services/apiClient";
+import { API_BASE_URL } from '../services/apiClient.js';
 
 // Unique tab/session identifier
 const TAB_ID =
@@ -28,9 +29,6 @@ const TAB_ID =
     sessionStorage.setItem("tab_id", id);
     return id;
   })();
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
 // === FREE PLAN LIMITATION ===
 const FREE_PLAN_ITEM_LIMIT = 100;

@@ -2,9 +2,7 @@
 import React, { useState, useEffect } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import LoadingButton from "../ui/LoadingButton";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+import { API_BASE_URL } from '../../services/apiClient.js';
 
 const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [email, setEmail] = useState("");
@@ -51,7 +49,7 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
   useEffect(() => {
     const checkBetaUserLimit = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/meta/user-count`);
+        const response = await fetch(`${API_BASE_URL}/api/meta/user-count`);
         if (response.ok) {
           const data = await response.json();
           setBetaInfo(data);
@@ -105,7 +103,7 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

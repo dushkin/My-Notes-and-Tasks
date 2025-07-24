@@ -1,7 +1,7 @@
 import { getAccessToken, getRefreshToken, storeTokens, clearTokens } from "./authService";
 
 // The base URL must NOT include /api. This client will add it.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
 let onLogoutCallback = () => {
   console.warn("onLogoutCallback not initialized in apiClient. Call apiClient.init() in App.jsx.");

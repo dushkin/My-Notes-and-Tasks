@@ -2,9 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { storeTokens } from "../../services/authService";
 import LoadingButton from "../ui/LoadingButton";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+import { API_BASE_URL } from '../../services/apiClient.js';
 
 const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   const [email, setEmail] = useState("");
