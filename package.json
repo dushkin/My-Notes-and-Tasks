@@ -1,8 +1,8 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "12.7.6",
-  "commitMessage": "PWA Sync Features - Loop Fixed",
+  "version": "12.7.7",
+  "commitMessage": "Fixed login API cal",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {

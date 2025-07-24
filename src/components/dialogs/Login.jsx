@@ -4,7 +4,7 @@ import { storeTokens } from "../../services/authService";
 import LoadingButton from "../ui/LoadingButton";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
 const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   const [email, setEmail] = useState("");
@@ -21,7 +21,7 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   useEffect(() => {
     const checkBetaUserLimit = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/meta/user-count`);
+        const response = await fetch(`${API_BASE_URL}/api/meta/user-count`);
         if (response.ok) {
           const data = await response.json();
           setBetaInfo(data);
@@ -55,7 +55,7 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
