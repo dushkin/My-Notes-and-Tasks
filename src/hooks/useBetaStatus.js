@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { authFetch } from '../services/apiClient';
 
 export const useBetaStatus = () => {
   const [betaStatus, setBetaStatus] = useState({
@@ -13,7 +14,9 @@ export const useBetaStatus = () => {
   const fetchBetaStatus = async () => {
     try {
       setBetaStatus(prev => ({ ...prev, isLoading: true, error: null }));
-      const response = await fetch('/api/auth/beta-status');
+      
+      // Use authFetch, path does NOT include /api
+      const response = await authFetch('/auth/beta-status');
       
       if (!response.ok) {
         throw new Error(`Failed to fetch beta status: ${response.status}`);

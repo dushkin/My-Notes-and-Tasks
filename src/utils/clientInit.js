@@ -1,4 +1,7 @@
 // clientInit.js - Client-side initialization and setup
+
+import { authFetch } from '../services/apiClient';
+
 (function () {
   'use strict';
 
@@ -237,7 +240,17 @@
     }
 
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      // Unregister old service worker first
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (let registration of registrations) {
+        await registration.unregister();
+        console.log('🗑️ Unregistered old service worker');
+      }
+
+      // Register new service worker
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        updateViaCache: 'none' // Force fresh download
+      });
       console.log('✅ Service Worker registered:', registration);
 
       // Listen for updates
@@ -284,9 +297,6 @@
         });
 
         console.log('✅ Push subscription created');
-
-        // Send subscription to server
-        await sendSubscriptionToServer(subscription);
       }
     } catch (error) {
       console.error('❌ Push notification setup failed:', error);
@@ -566,20 +576,13 @@
 
   async function getVapidKey() {
     try {
-      const endpointURL = '/api/push/vapid-public-key';
+      const endpointURL = '/push/vapid-public-key';
       console.log('🔑 Fetching VAPID key from:', endpointURL);
-      const response = await fetch(endpointURL);
-      console.log('🔑 VAPID response status:', response.status);
-      console.log('🔑 VAPID response headers:', response.headers);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      // Use authFetch and get the raw response to parse it
+      const response = await authFetch(endpointURL);
+      const data = await response.json();
 
-      const text = await response.text();
-      console.log('🔑 VAPID raw response:', text);
-
-      const data = JSON.parse(text);
       console.log('🔑 VAPID parsed data:', data);
       return data.publicKey;
     } catch (error) {
@@ -590,25 +593,13 @@
 
   async function sendSubscriptionToServer(subscription) {
     try {
-      const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
-
-      if (!authToken) {
-        console.warn('No auth token found, skipping push subscription');
-        return;
-      }
-
-      const response = await fetch('/api/push-subscription', {
+      console.log('🔍 sendSubscriptionToServer called!');
+      console.trace('🔍 Call stack:');
+      console.log('✅ Sending push subscription to server...');
+      await authFetch('/push/subscribe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(subscription)
+        body: subscription.toJSON()
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
 
       console.log('✅ Push subscription sent to server successfully');
     } catch (error) {
@@ -826,6 +817,8 @@
       this.queue = [];
       this.isProcessing = false;
     }
+
+
 
     show(message, type = 'info', duration = 3000) {
       this.queue.push({ message, type, duration });

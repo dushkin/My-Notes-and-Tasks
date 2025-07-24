@@ -118,10 +118,14 @@ const APP_HEADER_HEIGHT_CLASS = "h-14 sm:h-12";
 
 const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
   useEffect(() => {
-    if (currentUser?.token) {
-      subscribeToPushNotifications(currentUser.token);
+    if (
+      currentUser?.token &&
+      typeof window.subscribeAfterLogin === "function"
+    ) {
+      window.subscribeAfterLogin();
     }
   }, [currentUser]);
+
   useEffect(() => {
     if (message) {
       const timer = setTimeout(() => onClose(), 5000);
@@ -260,6 +264,10 @@ const LoginRoute = () => {
             const data = await response.json();
             if (data.valid && data.user) {
               setCurrentUser(data.user);
+              // Also subscribe to push notifications for existing authenticated users
+              if (typeof window.subscribeAfterLogin === "function") {
+                window.subscribeAfterLogin();
+              }
             }
           }
         } catch (error) {
@@ -271,6 +279,7 @@ const LoginRoute = () => {
 
     checkAuth();
   }, []);
+
   if (isCheckingAuth) {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
@@ -281,8 +290,15 @@ const LoginRoute = () => {
 
   const handleLoginSuccess = (userData) => {
     setCurrentUser(userData);
+
+    // Subscribe to push notifications after successful login
+    if (typeof window.subscribeAfterLogin === "function") {
+      window.subscribeAfterLogin();
+    }
+
     window.location.href = "/app";
   };
+
   return (
     <>
       <BetaBanner variant="auth" />

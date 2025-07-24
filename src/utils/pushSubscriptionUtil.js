@@ -1,4 +1,10 @@
 export async function subscribeToPushNotifications(userToken) {
+  
+  if (!userToken) {
+    console.log('⚠️ No user token provided, skipping push subscription');
+    return;
+  }
+  
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
   try {

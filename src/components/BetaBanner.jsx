@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { authFetch } from '../services/apiClient'; // 👈 IMPORT apiClient
 import '../styles/BetaBanner.css';
 import packageJson from '../../package.json';
 
@@ -10,11 +11,11 @@ export default function BetaBanner({ variant }) {
   useEffect(() => {
     const fetchBetaStatus = async () => {
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
-        const response = await fetch(`${API_BASE_URL}/auth/beta-status`);
+        // 👇 USE authFetch, which handles the URL and /api prefix
+        const response = await authFetch('/auth/beta-status');
         
         if (response.ok) {
-          const data = await response.json();
+           const data = await response.json();
           setBetaStatus(data);
         } else {
           console.warn('Beta API failed with status:', response.status);
