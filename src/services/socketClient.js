@@ -13,7 +13,7 @@ export function initSocket(token) {
     return socket;
   }
 
-  const serverUrl = import.meta.env.VITE_SOCKET_SERVER || "http://localhost:5001";
+  const serverUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
   socket = io(serverUrl, {
     auth: { token },

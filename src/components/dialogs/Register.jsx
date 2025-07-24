@@ -4,7 +4,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import LoadingButton from "../ui/LoadingButton";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
 const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [email, setEmail] = useState("");
