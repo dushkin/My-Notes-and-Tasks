@@ -247,9 +247,13 @@ self.addEventListener('notificationclose', function (event) {
 
 // Message handling for cross-tab communication
 self.addEventListener('message', (event) => {
-  const { type, data } = event.data;
+  const { type, data } = event.data || {};
 
   switch (type) {
+    case 'SKIP_WAITING':
+      console.log('🔄 SW: Received SKIP_WAITING message, taking control...');
+      self.skipWaiting();
+      break;
     case 'SYNC_REQUEST':
       event.waitUntil(triggerDataSync());
       break;
@@ -259,6 +263,8 @@ self.addEventListener('message', (event) => {
     case 'UPDATE_SYNC_STATUS':
       event.waitUntil(updateSyncStatus(data));
       break;
+    default:
+      console.log('🔄 SW: Unknown message type:', type);
   }
 });
 

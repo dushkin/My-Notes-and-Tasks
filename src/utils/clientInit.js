@@ -456,40 +456,82 @@ import { authFetch } from '../services/apiClient';
   function showUpdateAvailableNotification() {
     const updateDiv = document.createElement('div');
     updateDiv.innerHTML = `
-      <div style="
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        background: #2196F3;
+    <div style="
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: #2196F3;
+      color: white;
+      padding: 16px;
+      border-radius: 8px;
+      z-index: 10000;
+      max-width: 300px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    ">
+      <div style="margin-bottom: 10px;">Update available!</div>
+      <button id="update-now-btn" style="
+        background: white;
+        color: #2196F3;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 8px;
+      ">Update Now</button>
+      <button id="update-later-btn" style="
+        background: transparent;
         color: white;
-        padding: 16px;
-        border-radius: 8px;
-        z-index: 10000;
-        max-width: 300px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      ">
-        <div style="margin-bottom: 10px;">Update available!</div>
-        <button onclick="window.location.reload()" style="
-          background: white;
-          color: #2196F3;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          margin-right: 8px;
-        ">Update Now</button>
-        <button onclick="this.parentElement.parentElement.remove()" style="
-          background: transparent;
-          color: white;
-          border: 1px solid white;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-        ">Later</button>
-      </div>
-    `;
+        border: 1px solid white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      ">Later</button>
+    </div>
+  `;
 
     document.body.appendChild(updateDiv);
+
+    // Add proper event listeners
+    const updateNowBtn = updateDiv.querySelector('#update-now-btn');
+    const updateLaterBtn = updateDiv.querySelector('#update-later-btn');
+
+    updateNowBtn.addEventListener('click', async () => {
+      console.log('🔄 Update Now clicked - triggering service worker update...');
+
+      try {
+        // Get the service worker registration
+        const registration = window.MyNotesApp.swRegistration || await navigator.serviceWorker.getRegistration();
+
+        if (registration && registration.waiting) {
+          console.log('🔄 Found waiting service worker, sending SKIP_WAITING message...');
+
+          // Tell the waiting service worker to skip waiting
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+
+          // Listen for the controller change (new SW taking over)
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('🔄 Controller changed, reloading page...');
+            window.location.reload();
+          }, { once: true });
+
+          // Show loading message
+          updateNowBtn.textContent = 'Updating...';
+          updateNowBtn.disabled = true;
+
+        } else {
+          console.log('🔄 No waiting service worker found, forcing page reload...');
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error('❌ Error during update:', error);
+        // Fallback to simple reload
+        window.location.reload();
+      }
+    });
+
+    updateLaterBtn.addEventListener('click', () => {
+      updateDiv.remove();
+    });
   }
 
   // App-specific utility functions
