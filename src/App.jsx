@@ -251,63 +251,71 @@ const LandingPageRoute = () => {
 
 // Login Route Component
 const LoginRoute = () => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+ const navigate = useNavigate(); // Add this for proper navigation
+ const [currentUser, setCurrentUser] = useState(null);
+ const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = getAccessToken();
-      if (token) {
-        try {
-          const response = await authFetch("/auth/verify-token");
-          if (response.ok) {
-            const data = await response.json();
-            if (data.valid && data.user) {
-              setCurrentUser(data.user);
-              // Also subscribe to push notifications for existing authenticated users
-              if (typeof window.subscribeAfterLogin === "function") {
-                window.subscribeAfterLogin();
-              }
-            }
-          }
-        } catch (error) {
-          console.log("Auth check failed:", error);
-        }
-      }
-      setIsCheckingAuth(false);
-    };
+ useEffect(() => {
+   const checkAuth = async () => {
+     const token = getAccessToken();
+     if (token) {
+       try {
+         const response = await authFetch("/auth/verify-token");
+         if (response.ok) {
+           const data = await response.json();
+           if (data.valid && data.user) {
+             setCurrentUser(data.user);
+             // Also subscribe to push notifications for existing authenticated users
+             if (typeof window.subscribeAfterLogin === "function") {
+               window.subscribeAfterLogin();
+             }
+           }
+         }
+       } catch (error) {
+         console.log("Auth check failed:", error);
+       }
+     }
+     setIsCheckingAuth(false);
+   };
 
-    checkAuth();
-  }, []);
+   checkAuth();
+ }, []);
 
-  if (isCheckingAuth) {
-    return <LoadingSpinner variant="overlay" text="Loading..." />;
-  }
+ if (isCheckingAuth) {
+   return <LoadingSpinner variant="overlay" text="Loading..." />;
+ }
 
-  if (currentUser) {
-    return <Navigate to="/app" replace />;
-  }
+ if (currentUser) {
+   return <Navigate to="/app" replace />;
+ }
 
-  const handleLoginSuccess = (userData) => {
-    setCurrentUser(userData);
+ const handleLoginSuccess = (userData) => {
+   console.log("[DEBUG] Login success - setting user:", userData);
+   setCurrentUser(userData);
 
-    // Subscribe to push notifications after successful login
-    if (typeof window.subscribeAfterLogin === "function") {
-      window.subscribeAfterLogin();
-    }
+   // Subscribe to push notifications after successful login
+   if (typeof window.subscribeAfterLogin === "function") {
+     window.subscribeAfterLogin();
+   }
 
-    window.location.href = "/app";
-  };
+   // Use React Router navigation instead of hard redirect
+   console.log("[DEBUG] Navigating to /app");
+   navigate("/app", { replace: true });
+ };
 
-  return (
-    <>
-      <BetaBanner variant="auth" />
-      <Login
-        onLoginSuccess={handleLoginSuccess}
-        onSwitchToRegister={() => (window.location.href = "/register")}
-      />
-    </>
-  );
+ const handleSwitchToRegister = () => {
+   navigate("/register", { replace: true });
+ };
+
+ return (
+   <>
+     <BetaBanner variant="auth" />
+     <Login
+       onLoginSuccess={handleLoginSuccess}
+       onSwitchToRegister={handleSwitchToRegister}
+     />
+   </>
+ );
 };
 
 // Register Route Component
