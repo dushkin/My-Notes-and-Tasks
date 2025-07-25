@@ -14,6 +14,18 @@ import SetReminderDialog from "../reminders/SetReminderDialog"; // Import the di
 import { setReminder, getReminder } from "../../utils/reminderUtils"; // Import utilities
 import { useAutoSave } from "../../hooks/useAutoSave";
 
+// Safe content conversion that prevents [object Object]
+const safeStringify = (value) => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    console.warn('⚠️ Attempted to stringify object as content:', value);
+    return '';
+  }
+  return String(value);
+};
+
 const MOBILE_BREAKPOINT = 768;
 const formatTimestamp = (isoString) => {
   const date = new Date(isoString);
@@ -59,7 +71,7 @@ const ContentEditor = memo(
       if (!data || !data.id) return;
       
       // Ensure content is always a string
-      const safeContent = typeof data.content === 'string' ? data.content : String(data.content || '');
+      const safeContent = safeStringify(data.content);
       
       // Call the original save function from props with proper object structure
       const dataToSave = { content: safeContent };
@@ -82,6 +94,12 @@ const ContentEditor = memo(
     // Reset auto-save when item changes
     useEffect(() => {
       if (item) {
+        console.log('🔄 ContentEditor received new item:', {
+          id: item.id,
+          contentType: typeof item.content,
+          contentValue: item.content,
+          contentPreview: typeof item.content === 'string' ? item.content.substring(0, 100) : 'NON-STRING'
+        });
         resetAutoSave();
       }
     }, [item?.id, resetAutoSave]);
@@ -119,7 +137,7 @@ const ContentEditor = memo(
       if (!item) return;
       
       // Ensure content is a string
-      const safeContent = typeof content === 'string' ? content : String(content || '');
+      const safeContent = safeStringify(content);
       if (safeContent !== content) {
         console.warn('⚠️ Content was not a string in handleContentUpdate:', typeof content, content);
       }

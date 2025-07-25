@@ -1,5 +1,17 @@
 import { authFetch } from '../services/apiClient.js';
 
+// Safe content conversion that prevents [object Object]
+const safeStringify = (value) => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    console.warn('⚠️ Attempted to stringify object as content:', value);
+    return '';
+  }
+  return String(value);
+};
+
 class SyncManager {
   constructor() {
     this.isOnline = navigator.onLine;
@@ -166,7 +178,7 @@ class SyncManager {
     const { id, content, direction } = contentData;
     
     // Ensure content is a string
-    const stringContent = typeof content === 'string' ? content : String(content || '');
+    const stringContent = safeStringify(content);
     
     const updates = { content: stringContent };
     if (direction) {
@@ -195,7 +207,7 @@ class SyncManager {
               // Ensure content is always a string
               if (safeUpdatedItem.content && typeof safeUpdatedItem.content !== 'string') {
                 console.warn('⚠️ SyncManager localStorage update contained non-string content:', typeof safeUpdatedItem.content);
-                safeUpdatedItem.content = String(safeUpdatedItem.content);
+                safeUpdatedItem.content = safeStringify(safeUpdatedItem.content);
               }
               return { ...item, ...safeUpdatedItem };
             }

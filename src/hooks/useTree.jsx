@@ -23,6 +23,18 @@ import { API_BASE_URL } from '../services/apiClient.js';
 import { htmlToPlainText } from "../utils/htmlUtils";
 import { useRealTimeSync } from "./useRealTimeSync";
 
+// Safe content conversion that prevents [object Object]
+const safeStringify = (value) => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    console.warn('⚠️ Attempted to stringify object as content:', value);
+    return '';
+  }
+  return String(value);
+};
+
 // Unique tab/session identifier
 const TAB_ID =
   sessionStorage.getItem("tab_id") ||
@@ -87,7 +99,49 @@ export const useTree = (currentUser) => {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
       const parsed = stored ? JSON.parse(stored) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      const validArray = Array.isArray(parsed) ? parsed : [];
+      
+      // Debug localStorage content types and auto-fix corruption
+      console.log("💾 Loading initial tree from localStorage:", validArray.length, "items");
+      let hasCorruption = false;
+      
+      const cleanTree = (items) => {
+        return items.map(item => {
+          if (!item) return item;
+          
+          // Check for corrupted content
+          if (item.content === '[object Object]') {
+            console.warn(`🔧 Auto-fixing corrupted content for item ${item.id}`);
+            hasCorruption = true;
+            return { ...item, content: '' };
+          }
+          
+          // Check for non-string content
+          if (item.content && typeof item.content !== 'string') {
+            console.warn(`⚠️ localStorage item (${item.id}) has non-string content:`, typeof item.content, item.content);
+            hasCorruption = true;
+            return { ...item, content: safeStringify(item.content) };
+          }
+          
+          // Recursively clean children
+          if (item.children && Array.isArray(item.children)) {
+            const cleanedChildren = cleanTree(item.children);
+            return { ...item, children: cleanedChildren };
+          }
+          
+          return item;
+        });
+      };
+      
+      const cleanedArray = cleanTree(validArray);
+      
+      // If we found corruption, save the cleaned version
+      if (hasCorruption) {
+        console.log('💾 Saving cleaned tree back to localStorage');
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanedArray));
+      }
+      
+      return cleanedArray;
     } catch (error) {
       console.error("Failed to load tree from localStorage:", error);
       return [];
@@ -124,10 +178,18 @@ export const useTree = (currentUser) => {
   const [cutItemId, setCutItemId] = useState(null);
   const [isFetchingTree, setIsFetchingTree] = useState(false);
 
-  const selectedItem = useMemo(
-    () => findItemById(tree, selectedItemId),
-    [tree, selectedItemId]
-  );
+  const selectedItem = useMemo(() => {
+    const item = findItemById(tree, selectedItemId);
+    if (item) {
+      console.log('🎯 Selected item from tree:', {
+        id: item.id,
+        contentType: typeof item.content,
+        contentValue: item.content,
+        contentPreview: typeof item.content === 'string' ? item.content.substring(0, 100) : 'NON-STRING'
+      });
+    }
+    return item;
+  }, [tree, selectedItemId]);
 
   // Real-time sync handlers
   const handleItemUpdatedFromSocket = useCallback((updatedItem) => {
@@ -137,7 +199,7 @@ export const useTree = (currentUser) => {
     const safeUpdatedItem = { ...updatedItem };
     if (safeUpdatedItem.content && typeof safeUpdatedItem.content !== 'string') {
       console.warn('⚠️ Socket update contained non-string content:', typeof safeUpdatedItem.content, safeUpdatedItem.content);
-      safeUpdatedItem.content = String(safeUpdatedItem.content);
+      safeUpdatedItem.content = safeStringify(safeUpdatedItem.content);
     }
     
     // Update the tree with the new item data
@@ -209,6 +271,15 @@ export const useTree = (currentUser) => {
         }
         const data = await response.json();
         if (data && Array.isArray(data.notesTree)) {
+          console.log("📥 Fetched tree from server:", data.notesTree.length, "items");
+          
+          // Debug tree content types
+          data.notesTree.forEach((item, index) => {
+            if (item.content && typeof item.content !== 'string') {
+              console.warn(`⚠️ Tree item ${index} (${item.id}) has non-string content:`, typeof item.content, item.content);
+            }
+          });
+          
           if (preserveHistory) {
             setTreeWithUndo(data.notesTree);
           } else {
@@ -477,7 +548,7 @@ export const useTree = (currentUser) => {
     async (itemId, content, direction) => {
       try {
         // Build updates object - ensure content is a string
-        const stringContent = typeof content === 'string' ? content : String(content || '');
+        const stringContent = safeStringify(content);
         const updates = { content: stringContent };
         if (direction) {
           updates.direction = direction;
@@ -541,7 +612,7 @@ export const useTree = (currentUser) => {
         const safeServerUpdate = { ...updatedItemFromServer };
         if (safeServerUpdate.content && typeof safeServerUpdate.content !== 'string') {
           console.warn('⚠️ Server response contained non-string content:', typeof safeServerUpdate.content, safeServerUpdate.content);
-          safeServerUpdate.content = String(safeServerUpdate.content);
+          safeServerUpdate.content = safeStringify(safeServerUpdate.content);
         }
         
         const mapRecursiveUpdate = (items, id, serverUpdates) =>
@@ -1490,6 +1561,48 @@ export const useTree = (currentUser) => {
   );
 
   window.fetchUserTree = fetchUserTree;
+  window.clearTreeCache = () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    localStorage.removeItem('notes_tree');
+    localStorage.removeItem('lastSyncedTimestamp');
+    console.log('🧹 Cleared all tree cache from localStorage');
+  };
+  
+  window.fixCorruptedContent = () => {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (!stored) return;
+      
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return;
+      
+      let fixed = false;
+      const cleanTree = (items) => {
+        return items.map(item => {
+          if (item.content === '[object Object]') {
+            console.log('🔧 Fixed corrupted content for item:', item.id);
+            fixed = true;
+            return { ...item, content: '' };
+          }
+          if (item.children && Array.isArray(item.children)) {
+            return { ...item, children: cleanTree(item.children) };
+          }
+          return item;
+        });
+      };
+      
+      const cleanedTree = cleanTree(parsed);
+      if (fixed) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanedTree));
+        console.log('✅ Fixed and saved cleaned tree to localStorage');
+        window.location.reload();
+      } else {
+        console.log('ℹ️ No corrupted content found');
+      }
+    } catch (error) {
+      console.error('❌ Error fixing corrupted content:', error);
+    }
+  };
   return {
     fetchUserTree,
     tree,

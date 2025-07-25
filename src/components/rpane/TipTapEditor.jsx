@@ -31,6 +31,18 @@ import {
 import { marked } from "marked";
 import { authFetch } from "../../services/apiClient";
 
+// Safe content conversion that prevents [object Object]
+const safeStringify = (value) => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    console.warn('⚠️ Attempted to stringify object as content:', value);
+    return '';
+  }
+  return String(value);
+};
+
 const FONT_FAMILIES = [
   "Arial",
   "Times New Roman",
@@ -127,6 +139,15 @@ const TipTapEditor = ({
   const [editorDir, setEditorDir] = useState(initialDirection || dir || "ltr");
   const contentSetRef = useRef(false);
   const isInitializedRef = useRef(false);
+  
+  // Debug content prop changes
+  useEffect(() => {
+    console.log('🎨 TipTap received content prop:', {
+      contentType: typeof content,
+      contentValue: content,
+      contentPreview: typeof content === 'string' ? content.substring(0, 100) : 'NON-STRING'
+    });
+  }, [content]);
 
   const editor = useEditor({
     extensions: [
@@ -209,7 +230,7 @@ const TipTapEditor = ({
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
 
-    content: typeof content === 'string' ? content : (content ? String(content) : ""),
+    content: safeStringify(content),
 
     onUpdate: ({ editor: currentEditor }) => {
       if (onUpdate && isInitializedRef.current) {
@@ -392,8 +413,18 @@ const TipTapEditor = ({
 
   useEffect(() => {
     if (editor && !contentSetRef.current) {
-      if (content !== editor.getHTML()) {
-        editor.commands.setContent(content || "", false);
+      const safeContent = safeStringify(content);
+      const currentHTML = editor.getHTML();
+      
+      console.log('🔄 TipTap setting content:', {
+        contentToSet: safeContent,
+        currentHTML: currentHTML,
+        contentType: typeof content,
+        areEqual: safeContent === currentHTML
+      });
+      
+      if (safeContent !== currentHTML) {
+        editor.commands.setContent(safeContent, false);
       }
 
       contentSetRef.current = true;
