@@ -469,8 +469,9 @@ export const useTree = (currentUser) => {
   const updateNoteContent = useCallback(
     async (itemId, content, direction) => {
       try {
-        // Build updates object
-        const updates = { content };
+        // Build updates object - ensure content is a string
+        const stringContent = typeof content === 'string' ? content : String(content || '');
+        const updates = { content: stringContent };
         if (direction) {
           updates.direction = direction;
         }
@@ -491,7 +492,7 @@ export const useTree = (currentUser) => {
             // Try direct sync first
             await window.MyNotesApp.syncManager.syncUpdateContent({
               id: itemId,
-              content,
+              content: stringContent,
               direction
             });
             
@@ -505,7 +506,7 @@ export const useTree = (currentUser) => {
               type: 'UPDATE_CONTENT',
               data: {
                 id: itemId,
-                content,
+                content: stringContent,
                 direction,
                 timestamp: Date.now()
               }
@@ -555,7 +556,7 @@ export const useTree = (currentUser) => {
               type: 'UPDATE_CONTENT',
               data: {
                 id: itemId,
-                content,
+                content: stringContent,
                 direction,
                 timestamp: Date.now()
               }

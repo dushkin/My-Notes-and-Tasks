@@ -165,7 +165,10 @@ class SyncManager {
   async syncUpdateContent(contentData) {
     const { id, content, direction } = contentData;
     
-    const updates = { content };
+    // Ensure content is a string
+    const stringContent = typeof content === 'string' ? content : String(content || '');
+    
+    const updates = { content: stringContent };
     if (direction) {
       updates.direction = direction;
     }
