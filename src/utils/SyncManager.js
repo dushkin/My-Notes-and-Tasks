@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../services/apiClient.js';
+
 class SyncManager {
   constructor() {
     this.isOnline = navigator.onLine;
