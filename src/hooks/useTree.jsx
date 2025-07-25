@@ -23,12 +23,35 @@ import { API_BASE_URL } from '../services/apiClient.js';
 import { htmlToPlainText } from "../utils/htmlUtils";
 import { useRealTimeSync } from "./useRealTimeSync";
 
+// Decode HTML entities if they exist
+const decodeHtmlEntities = (str) => {
+  if (!str || typeof str !== 'string') return str;
+  
+  // Check if the string contains HTML entities
+  if (str.includes('&lt;') || str.includes('&gt;') || str.includes('&amp;')) {
+    // Create a temporary DOM element to decode
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
+  }
+  
+  return str;
+};
+
 // Safe content conversion that prevents [object Object]
 const safeStringify = (value) => {
   if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
+  if (typeof value === 'string') {
+    // Decode HTML entities if present
+    return decodeHtmlEntities(value);
+  }
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (typeof value === 'object') {
+    // Handle the specific case where content data is passed as an object
+    if (value.content && typeof value.content === 'string') {
+      console.warn('⚠️ Extracting content from object:', value);
+      return decodeHtmlEntities(value.content);
+    }
     console.warn('⚠️ Attempted to stringify object as content:', value);
     return '';
   }
@@ -195,11 +218,15 @@ export const useTree = (currentUser) => {
   const handleItemUpdatedFromSocket = useCallback((updatedItem) => {
     if (!updatedItem || !updatedItem.id) return;
     
+    console.log('📡 Full socket event data:', updatedItem);
+    
     // Ensure content is properly handled
     const safeUpdatedItem = { ...updatedItem };
     if (safeUpdatedItem.content && typeof safeUpdatedItem.content !== 'string') {
       console.warn('⚠️ Socket update contained non-string content:', typeof safeUpdatedItem.content, safeUpdatedItem.content);
       safeUpdatedItem.content = safeStringify(safeUpdatedItem.content);
+    } else if (safeUpdatedItem.content) {
+      console.log('📡 Socket content received:', safeUpdatedItem.content);
     }
     
     // Update the tree with the new item data

@@ -6,6 +6,11 @@ const safeStringify = (value) => {
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (typeof value === 'object') {
+    // Handle the specific case where content data is passed as an object
+    if (value.content && typeof value.content === 'string') {
+      console.warn('⚠️ Extracting content from object:', value);
+      return value.content;
+    }
     console.warn('⚠️ Attempted to stringify object as content:', value);
     return '';
   }
@@ -180,6 +185,8 @@ class SyncManager {
     // Ensure content is a string
     const stringContent = safeStringify(content);
     
+    console.log('📤 SyncManager sending content:', stringContent);
+    
     const updates = { content: stringContent };
     if (direction) {
       updates.direction = direction;
@@ -195,6 +202,8 @@ class SyncManager {
     }
 
     const updatedItem = await response.json();
+    
+    console.log('📥 SyncManager received response:', updatedItem);
     
     // Update local tree data if available
     try {

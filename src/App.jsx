@@ -875,7 +875,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
       try {
         if (item.type === "note") {
-          result = await updateNoteContent(itemId, updates);
+          result = await updateNoteContent(itemId, updates.content, updates.direction);
         } else if (item.type === "task") {
           result = await updateTask(itemId, updates);
         }

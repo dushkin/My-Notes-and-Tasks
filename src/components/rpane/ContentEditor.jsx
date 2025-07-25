@@ -20,6 +20,11 @@ const safeStringify = (value) => {
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (typeof value === 'object') {
+    // Handle the specific case where content data is passed as an object
+    if (value.content && typeof value.content === 'string') {
+      console.warn('⚠️ Extracting content from object:', value);
+      return value.content;
+    }
     console.warn('⚠️ Attempted to stringify object as content:', value);
     return '';
   }
