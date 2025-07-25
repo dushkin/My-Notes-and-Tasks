@@ -49,11 +49,9 @@ function hasActiveAccess(user) {
 function htmlToPlainTextWithNewlines(html) {
   if (!html) return "";
   try {
-    const tempDiv1 = document.createElement("div");
-    tempDiv1.innerHTML = html;
-    const tempDiv2 = document.createElement("div");
-    tempDiv2.innerHTML = tempDiv1.textContent || tempDiv1.innerText;
-    return (tempDiv2.textContent || tempDiv2.innerText || "").trim();
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = html;
+    return (tempDiv.textContent || tempDiv.innerText || "").trim();
   } catch (e) {
     console.error("Error converting HTML to plain text:", e);
     return html;
