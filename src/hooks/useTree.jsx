@@ -21,6 +21,7 @@ import { useUndoRedo } from "./useUndoRedo";
 import { authFetch } from "../services/apiClient";
 import { API_BASE_URL } from '../services/apiClient.js';
 import { htmlToPlainText } from "../utils/htmlUtils";
+import { useRealTimeSync } from "./useRealTimeSync";
 
 // Unique tab/session identifier
 const TAB_ID =
@@ -126,6 +127,58 @@ export const useTree = (currentUser) => {
   const selectedItem = useMemo(
     () => findItemById(tree, selectedItemId),
     [tree, selectedItemId]
+  );
+
+  // Real-time sync handlers
+  const handleItemUpdatedFromSocket = useCallback((updatedItem) => {
+    if (!updatedItem || !updatedItem.id) return;
+    
+    // Update the tree with the new item data
+    const mapRecursiveUpdate = (items, id, serverUpdates) =>
+      items.map((i) =>
+        i.id === id
+          ? { ...i, ...serverUpdates }
+          : Array.isArray(i.children)
+          ? {
+              ...i,
+              children: mapRecursiveUpdate(i.children, id, serverUpdates),
+            }
+          : i
+      );
+    
+    const updatedTree = mapRecursiveUpdate(tree, updatedItem.id, updatedItem);
+    setTreeWithUndo(updatedTree);
+    
+    console.log('📡 Item updated from real-time sync:', updatedItem.id);
+  }, [tree, setTreeWithUndo]);
+
+  const handleItemDeletedFromSocket = useCallback((data) => {
+    if (!data || !data.itemId) return;
+    
+    const newTreeState = deleteItemRecursive(tree, data.itemId);
+    setTreeWithUndo(newTreeState);
+    
+    // Clear selection if deleted item was selected
+    if (selectedItemId === data.itemId) {
+      setSelectedItemId(null);
+    }
+    
+    console.log('📡 Item deleted from real-time sync:', data.itemId);
+  }, [tree, selectedItemId, setTreeWithUndo]);
+
+  const handleTreeUpdatedFromSocket = useCallback((newTree) => {
+    if (Array.isArray(newTree)) {
+      setTreeWithUndo(newTree);
+      console.log('📡 Tree structure updated from real-time sync');
+    }
+  }, [setTreeWithUndo]);
+
+  // Initialize real-time sync
+  const { emitToOtherDevices, isConnected: isSocketConnected } = useRealTimeSync(
+    handleItemUpdatedFromSocket,
+    handleItemDeletedFromSocket,
+    handleTreeUpdatedFromSocket,
+    true // enabled
   );
 
   const currentItemCount = useMemo(() => countTotalItems(tree), [tree]);
@@ -414,8 +467,54 @@ export const useTree = (currentUser) => {
     ]
   );
   const updateNoteContent = useCallback(
-    async (itemId, updates) => {
+    async (itemId, content, direction) => {
       try {
+        // Build updates object
+        const updates = { content };
+        if (direction) {
+          updates.direction = direction;
+        }
+
+        // Use SyncManager if available for better offline support
+        if (window.MyNotesApp?.syncManager && navigator.onLine) {
+          try {
+            const operation = {
+              type: 'UPDATE_CONTENT',
+              data: {
+                id: itemId,
+                content,
+                direction,
+                timestamp: Date.now()
+              }
+            };
+            
+            // Try direct sync first
+            await window.MyNotesApp.syncManager.syncUpdateContent({
+              id: itemId,
+              content,
+              direction
+            });
+            
+            console.log('📝 Content updated via SyncManager:', itemId);
+            return { success: true };
+            
+          } catch (syncError) {
+            // If SyncManager fails, add to queue and fall back to direct API
+            console.warn('SyncManager failed, falling back to direct API:', syncError);
+            const operation = {
+              type: 'UPDATE_CONTENT',
+              data: {
+                id: itemId,
+                content,
+                direction,
+                timestamp: Date.now()
+              }
+            };
+            window.MyNotesApp.syncManager.addToSyncQueue(operation);
+          }
+        }
+
+        // Direct API call (fallback or when SyncManager not available)
         const response = await authFetch(`/items/${itemId}`, {
           method: "PATCH",
           body: JSON.stringify(updates),
@@ -429,15 +528,49 @@ export const useTree = (currentUser) => {
           };
         }
 
-        await fetchUserTree();
+        // Don't refetch entire tree for content updates - just update locally
+        const mapRecursiveUpdate = (items, id, serverUpdates) =>
+          items.map((i) =>
+            i.id === id
+              ? { ...i, ...serverUpdates }
+              : Array.isArray(i.children)
+              ? {
+                  ...i,
+                  children: mapRecursiveUpdate(i.children, id, serverUpdates),
+                }
+              : i
+          );
+        
+        const updatedTree = mapRecursiveUpdate(tree, itemId, updatedItemFromServer);
+        setTreeWithUndo(updatedTree);
 
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("updateNoteContent API error:", error);
+        
+        // Add to sync queue on error
+        if (window.MyNotesApp?.syncManager) {
+          try {
+            const operation = {
+              type: 'UPDATE_CONTENT',
+              data: {
+                id: itemId,
+                content,
+                direction,
+                timestamp: Date.now()
+              }
+            };
+            window.MyNotesApp.syncManager.addToSyncQueue(operation);
+            console.log('📝 Added failed update to sync queue:', itemId);
+          } catch (syncError) {
+            console.error('Failed to add to sync queue:', syncError);
+          }
+        }
+        
         return { success: false, error: "Network error updating note." };
       }
     },
-    [fetchUserTree]
+    [tree, setTreeWithUndo]
   );
 
   const updateTask = useCallback(
@@ -1380,5 +1513,8 @@ export const useTree = (currentUser) => {
     resetState: resetTreeHistory,
     isFetchingTree,
     currentItemCount,
+    // Real-time sync status
+    isSocketConnected,
+    emitToOtherDevices,
   };
 };

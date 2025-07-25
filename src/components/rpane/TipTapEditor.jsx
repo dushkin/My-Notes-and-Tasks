@@ -122,8 +122,9 @@ const TipTapEditor = ({
   onBlur,
   defaultFontFamily,
   showToolbar, // Ensure this prop is included
+  dir, // Add dir prop for direction control
 }) => {
-  const [editorDir, setEditorDir] = useState(initialDirection || "ltr");
+  const [editorDir, setEditorDir] = useState(initialDirection || dir || "ltr");
   const contentSetRef = useRef(false);
   const isInitializedRef = useRef(false);
 
@@ -404,15 +405,16 @@ const TipTapEditor = ({
   }, [content, editor]);
 
   useEffect(() => {
+    const targetDir = dir || initialDirection;
     if (
       editor &&
-      initialDirection &&
-      initialDirection !== editor.view.dom.getAttribute("dir")
+      targetDir &&
+      targetDir !== editor.view.dom.getAttribute("dir")
     ) {
-      setEditorDir(initialDirection);
-      editor.view.dom.setAttribute("dir", initialDirection);
+      setEditorDir(targetDir);
+      editor.view.dom.setAttribute("dir", targetDir);
     }
-  }, [initialDirection, editor]);
+  }, [dir, initialDirection, editor]);
 
   useEffect(() => {
     contentSetRef.current = false;

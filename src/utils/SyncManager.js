@@ -95,6 +95,8 @@ class SyncManager {
         return await this.syncCreateNote(operation.data);
       case 'UPDATE_NOTE':
         return await this.syncUpdateNote(operation.data);
+      case 'UPDATE_CONTENT':
+        return await this.syncUpdateContent(operation.data);
       case 'DELETE_NOTE':
         return await this.syncDeleteNote(operation.data);
       case 'CREATE_TASK':
@@ -163,6 +165,56 @@ class SyncManager {
     }
 
     return serverNote;
+  }
+
+  // New method for content-only updates (optimized for auto-save)
+  async syncUpdateContent(contentData) {
+    const { id, content, direction } = contentData;
+    
+    const updates = { content };
+    if (direction) {
+      updates.direction = direction;
+    }
+
+    const response = await fetch(`${API_BASE_URL || ''}/api/items/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      },
+      body: JSON.stringify(updates)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update content: ${response.statusText}`);
+    }
+
+    const updatedItem = await response.json();
+    
+    // Update local tree data if available
+    try {
+      const treeData = JSON.parse(localStorage.getItem('notes_tree') || '[]');
+      if (Array.isArray(treeData)) {
+        const updateItemInTree = (items) => {
+          return items.map(item => {
+            if (item.id === id) {
+              return { ...item, ...updatedItem };
+            }
+            if (item.children && Array.isArray(item.children)) {
+              return { ...item, children: updateItemInTree(item.children) };
+            }
+            return item;
+          });
+        };
+        
+        const updatedTree = updateItemInTree(treeData);
+        localStorage.setItem('notes_tree', JSON.stringify(updatedTree));
+      }
+    } catch (error) {
+      console.warn('Failed to update local tree cache:', error);
+    }
+
+    return updatedItem;
   }
 
   async syncDeleteNote(noteData) {

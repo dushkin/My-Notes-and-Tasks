@@ -12,6 +12,7 @@ import { formatRemainingTime } from "../../utils/reminderUtils";
 import { useLiveCountdown } from "../../hooks/useLiveCountdown";
 import SetReminderDialog from "../reminders/SetReminderDialog"; // Import the dialog
 import { setReminder, getReminder } from "../../utils/reminderUtils"; // Import utilities
+import { useAutoSave } from "../../hooks/useAutoSave";
 
 const MOBILE_BREAKPOINT = 768;
 const formatTimestamp = (isoString) => {
@@ -43,8 +44,6 @@ const ContentEditor = memo(
     renderToolbarToggle,
     reminder,
   }) => {
-    const [isSaving, setIsSaving] = useState(false);
-    const [lastSaved, setLastSaved] = useState(null);
     const [isMobile, setIsMobile] = useState(
       window.innerWidth < MOBILE_BREAKPOINT
     );
@@ -54,6 +53,31 @@ const ContentEditor = memo(
 
     // FIX: Use the reminder prop for the live countdown
     const liveCountdown = useLiveCountdown(reminder?.timestamp);
+
+    // Auto-save implementation with proper integration
+    const saveFunction = useCallback(async (data) => {
+      if (!data || !data.id) return;
+      
+      // Call the original save function from props
+      await onSaveItemData(data.id, data.content, data.direction);
+    }, [onSaveItemData]);
+
+    const {
+      isSaving,
+      lastSaved,
+      hasUnsavedChanges,
+      saveError,
+      debouncedSave,
+      forceSave,
+      reset: resetAutoSave
+    } = useAutoSave(saveFunction, 1500, !!item);
+
+    // Reset auto-save when item changes
+    useEffect(() => {
+      if (item) {
+        resetAutoSave();
+      }
+    }, [item?.id, resetAutoSave]);
 
     const handleSetReminder = (id, timestamp, repeatOptions) => {
       setReminder(id, timestamp, repeatOptions);
@@ -70,21 +94,41 @@ const ContentEditor = memo(
     }, [resizeListener]);
 
     useEffect(() => {
-      // Trigger save on unmount
+      // Force save on unmount to ensure no data loss
       return () => {
-        // Save logic if needed
+        if (hasUnsavedChanges) {
+          forceSave();
+        }
       };
-    }, []);
+    }, [hasUnsavedChanges, forceSave]);
 
     // Toggle toolbar
     const toggleToolbar = () => setShowToolbar((prev) => !prev);
 
     const finalShowToolbar = !isMobile || showToolbar;
 
-    // Set direction based on content
-    const updateDir = (content) => {
-      setDir(isRTLText(content) ? "rtl" : "ltr");
-    };
+    // Handle content updates with auto-save
+    const handleContentUpdate = useCallback((content, direction) => {
+      if (!item) return;
+      
+      // Update direction based on content
+      const newDir = direction || (isRTLText(content) ? "rtl" : "ltr");
+      setDir(newDir);
+      
+      // Trigger debounced auto-save
+      debouncedSave({
+        id: item.id,
+        content,
+        direction: newDir
+      });
+    }, [item, debouncedSave]);
+
+    // Handle blur events - force save immediately
+    const handleEditorBlur = useCallback(() => {
+      if (hasUnsavedChanges) {
+        forceSave();
+      }
+    }, [hasUnsavedChanges, forceSave]);
 
     if (!item) {
       return (
@@ -135,12 +179,36 @@ const ContentEditor = memo(
               </a>
             )}
           </div>
-          {isSaving && <LoadingSpinner size="small" />}
-          {lastSaved && (
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              Saved {formatTimestamp(lastSaved.toISOString())}
-            </span>
-          )}
+          
+          {/* Enhanced Save Status Display */}
+          <div className="flex items-center space-x-2">
+            {isSaving && (
+              <div className="flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400">
+                <LoadingSpinner size="small" />
+                <span>Saving...</span>
+              </div>
+            )}
+            {hasUnsavedChanges && !isSaving && (
+              <span className="text-xs text-orange-600 dark:text-orange-400">
+                Unsaved changes
+              </span>
+            )}
+            {lastSaved && !hasUnsavedChanges && !isSaving && (
+              <span className="text-xs text-green-600 dark:text-green-400">
+                ✓ Saved {formatTimestamp(lastSaved.toISOString())}
+              </span>
+            )}
+            {saveError && (
+              <span className="text-xs text-red-600 dark:text-red-400" title={saveError}>
+                ⚠ Save failed
+              </span>
+            )}
+            {!navigator.onLine && (
+              <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                📴 Offline
+              </span>
+            )}
+          </div>
         </div>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 space-y-0.5">
           {/* Additional content */}
@@ -149,10 +217,8 @@ const ContentEditor = memo(
         <TipTapEditor
           key={`editor-${item.id}`}
           content={item.content || ""}
-          onUpdate={(content) => {
-            updateDir(content);
-            onSaveItemData(item.id, content);
-          }}
+          onUpdate={handleContentUpdate}
+          onBlur={handleEditorBlur}
           dir={dir}
           defaultFontFamily={defaultFontFamily}
           showToolbar={finalShowToolbar}
