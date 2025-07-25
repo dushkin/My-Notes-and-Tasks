@@ -1,6 +1,7 @@
 // src/components/SearchResultsPane.jsx
 import React from "react";
 import { CaseSensitive, WholeWord, Regex, XCircle } from "lucide-react";
+import { sanitizeForAttribute } from "../../utils/htmlUtils";
 
 function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -221,7 +222,7 @@ export default function SearchResultsPane({
 
                 <p
                   className="text-base md:text-sm text-zinc-800 dark:text-zinc-200 max-w-full truncate"
-                  title={item.displaySnippetText}
+                  title={sanitizeForAttribute(item.displaySnippetText)}
                 >
                   <HighlightMultiple
                     text={item.displaySnippetText}

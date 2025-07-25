@@ -1,3 +1,5 @@
+import { htmlToPlainText } from './htmlUtils';
+
 export function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -62,15 +64,7 @@ export function itemMatches(item, query, opts) {
   // Check content only for notes and tasks
   if ((item.type === 'note' || item.type === 'task') && typeof item.content === 'string') {
     // Convert HTML content to plain text before matching
-    // Note: This assumes a simple HTML structure or requires a more robust HTML-to-text conversion
-    // For efficiency, this conversion might ideally happen once when indexing or preparing search data,
-    // but for direct matching, we do it here.
-    let plainTextContent = '';
-    try {
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = item.content;
-      plainTextContent = tempDiv.textContent || tempDiv.innerText || "";
-    } catch (e) { /* Ignore potential errors during conversion for search */ }
+    const plainTextContent = htmlToPlainText(item.content);
 
     if (matchText(plainTextContent, query, opts) !== null) {
       return true;

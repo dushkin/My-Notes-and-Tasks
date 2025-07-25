@@ -20,6 +20,7 @@ import { itemMatches } from "../utils/searchUtils";
 import { useUndoRedo } from "./useUndoRedo";
 import { authFetch } from "../services/apiClient";
 import { API_BASE_URL } from '../services/apiClient.js';
+import { htmlToPlainText } from "../utils/htmlUtils";
 
 // Unique tab/session identifier
 const TAB_ID =
@@ -46,17 +47,6 @@ function hasActiveAccess(user) {
   return false;
 }
 
-function htmlToPlainTextWithNewlines(html) {
-  if (!html) return "";
-  try {
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = html;
-    return (tempDiv.textContent || tempDiv.innerText || "").trim();
-  } catch (e) {
-    console.error("Error converting HTML to plain text:", e);
-    return html;
-  }
-}
 
 export const assignClientPropsForDuplicate = (item) => {
   const newItem = { ...item };
@@ -1112,7 +1102,7 @@ export const useTree = (currentUser) => {
 
       let contentLines = [];
       if (item.content) {
-        const plainTextContent = htmlToPlainTextWithNewlines(item.content);
+        const plainTextContent = htmlToPlainText(item.content);
         if (plainTextContent) {
           const processedContent = processBidiText(plainTextContent);
           const contentIndentX = textX + indentWidth;
