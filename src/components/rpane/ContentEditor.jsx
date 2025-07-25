@@ -58,8 +58,12 @@ const ContentEditor = memo(
     const saveFunction = useCallback(async (data) => {
       if (!data || !data.id) return;
       
-      // Call the original save function from props
-      await onSaveItemData(data.id, data.content, data.direction);
+      // Call the original save function from props with proper object structure
+      const dataToSave = { content: data.content };
+      if (data.direction) {
+        dataToSave.direction = data.direction;
+      }
+      await onSaveItemData(data.id, dataToSave);
     }, [onSaveItemData]);
 
     const {

@@ -517,7 +517,7 @@ export const useTree = (currentUser) => {
         // Direct API call (fallback or when SyncManager not available)
         const response = await authFetch(`/items/${itemId}`, {
           method: "PATCH",
-          body: JSON.stringify(updates),
+          body: updates,
         });
         const updatedItemFromServer = await response.json();
 
