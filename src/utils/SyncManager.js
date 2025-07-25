@@ -191,7 +191,13 @@ class SyncManager {
         const updateItemInTree = (items) => {
           return items.map(item => {
             if (item.id === id) {
-              return { ...item, ...updatedItem };
+              const safeUpdatedItem = { ...updatedItem };
+              // Ensure content is always a string
+              if (safeUpdatedItem.content && typeof safeUpdatedItem.content !== 'string') {
+                console.warn('⚠️ SyncManager localStorage update contained non-string content:', typeof safeUpdatedItem.content);
+                safeUpdatedItem.content = String(safeUpdatedItem.content);
+              }
+              return { ...item, ...safeUpdatedItem };
             }
             if (item.children && Array.isArray(item.children)) {
               return { ...item, children: updateItemInTree(item.children) };

@@ -133,6 +133,13 @@ export const useTree = (currentUser) => {
   const handleItemUpdatedFromSocket = useCallback((updatedItem) => {
     if (!updatedItem || !updatedItem.id) return;
     
+    // Ensure content is properly handled
+    const safeUpdatedItem = { ...updatedItem };
+    if (safeUpdatedItem.content && typeof safeUpdatedItem.content !== 'string') {
+      console.warn('⚠️ Socket update contained non-string content:', typeof safeUpdatedItem.content, safeUpdatedItem.content);
+      safeUpdatedItem.content = String(safeUpdatedItem.content);
+    }
+    
     // Update the tree with the new item data
     const mapRecursiveUpdate = (items, id, serverUpdates) =>
       items.map((i) =>
@@ -146,7 +153,7 @@ export const useTree = (currentUser) => {
           : i
       );
     
-    const updatedTree = mapRecursiveUpdate(tree, updatedItem.id, updatedItem);
+    const updatedTree = mapRecursiveUpdate(tree, updatedItem.id, safeUpdatedItem);
     setTreeWithUndo(updatedTree);
     
     console.log('📡 Item updated from real-time sync:', updatedItem.id);
@@ -530,6 +537,13 @@ export const useTree = (currentUser) => {
         }
 
         // Don't refetch entire tree for content updates - just update locally
+        // Ensure server response content is properly handled
+        const safeServerUpdate = { ...updatedItemFromServer };
+        if (safeServerUpdate.content && typeof safeServerUpdate.content !== 'string') {
+          console.warn('⚠️ Server response contained non-string content:', typeof safeServerUpdate.content, safeServerUpdate.content);
+          safeServerUpdate.content = String(safeServerUpdate.content);
+        }
+        
         const mapRecursiveUpdate = (items, id, serverUpdates) =>
           items.map((i) =>
             i.id === id
@@ -542,7 +556,7 @@ export const useTree = (currentUser) => {
               : i
           );
         
-        const updatedTree = mapRecursiveUpdate(tree, itemId, updatedItemFromServer);
+        const updatedTree = mapRecursiveUpdate(tree, itemId, safeServerUpdate);
         setTreeWithUndo(updatedTree);
 
         return { success: true, item: updatedItemFromServer };

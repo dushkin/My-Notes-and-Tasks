@@ -58,8 +58,11 @@ const ContentEditor = memo(
     const saveFunction = useCallback(async (data) => {
       if (!data || !data.id) return;
       
+      // Ensure content is always a string
+      const safeContent = typeof data.content === 'string' ? data.content : String(data.content || '');
+      
       // Call the original save function from props with proper object structure
-      const dataToSave = { content: data.content };
+      const dataToSave = { content: safeContent };
       if (data.direction) {
         dataToSave.direction = data.direction;
       }
@@ -115,14 +118,20 @@ const ContentEditor = memo(
     const handleContentUpdate = useCallback((content, direction) => {
       if (!item) return;
       
+      // Ensure content is a string
+      const safeContent = typeof content === 'string' ? content : String(content || '');
+      if (safeContent !== content) {
+        console.warn('⚠️ Content was not a string in handleContentUpdate:', typeof content, content);
+      }
+      
       // Update direction based on content
-      const newDir = direction || (isRTLText(content) ? "rtl" : "ltr");
+      const newDir = direction || (isRTLText(safeContent) ? "rtl" : "ltr");
       setDir(newDir);
       
       // Trigger debounced auto-save
       debouncedSave({
         id: item.id,
-        content,
+        content: safeContent,
         direction: newDir
       });
     }, [item, debouncedSave]);

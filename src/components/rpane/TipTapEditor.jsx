@@ -209,7 +209,7 @@ const TipTapEditor = ({
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
 
-    content: content || "",
+    content: typeof content === 'string' ? content : (content ? String(content) : ""),
 
     onUpdate: ({ editor: currentEditor }) => {
       if (onUpdate && isInitializedRef.current) {
