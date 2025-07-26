@@ -6,6 +6,7 @@ const SnoozeDialog = ({ isOpen, onClose, onSnooze, itemTitle }) => {
   const [snoozeUnit, setSnoozeUnit] = useState("minutes");
   const [showCustom, setShowCustom] = useState(false);
   const dialogRef = useRef(null);
+  const customInputRef = useRef(null);
 
   // Effect to handle the Escape key to close the modal
   useEffect(() => {
@@ -30,6 +31,16 @@ const SnoozeDialog = ({ isOpen, onClose, onSnooze, itemTitle }) => {
       setSnoozeUnit("minutes");
     }
   }, [isOpen]);
+
+  // Auto-focus custom input when switching to custom mode
+  useEffect(() => {
+    if (showCustom && customInputRef.current) {
+      setTimeout(() => {
+        customInputRef.current.focus();
+        customInputRef.current.select();
+      }, 100);
+    }
+  }, [showCustom]);
 
   // Handler for one-click quick snooze options
   const handleQuickSnooze = (value, unit) => {
@@ -116,6 +127,7 @@ const SnoozeDialog = ({ isOpen, onClose, onSnooze, itemTitle }) => {
                 </label>
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                   <input
+                    ref={customInputRef}
                     id="snooze-value"
                     type="number"
                     value={snoozeValue}

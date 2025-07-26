@@ -20,6 +20,21 @@ const Modal = ({ isOpen, onClose, title, children, actions, dialogRef }) => {
     };
   }, [isOpen, onClose]);
 
+  // Auto-focus first input when modal opens
+  useEffect(() => {
+    if (isOpen && dialogRef?.current) {
+      setTimeout(() => {
+        const firstInput = dialogRef.current.querySelector('input, select, textarea, button[autofocus]');
+        if (firstInput && !firstInput.disabled) {
+          firstInput.focus();
+          if (firstInput.type === 'text' || firstInput.type === 'number') {
+            firstInput.select();
+          }
+        }
+      }, 100);
+    }
+  }, [isOpen]);
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm"

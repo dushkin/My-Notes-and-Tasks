@@ -16,8 +16,10 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
   const [relativeError, setRelativeError] = useState("");
   const [specificError, setSpecificError] = useState("");
 
-  // Ref for debouncing
+  // Refs for inputs
   const debounceRef = useRef(null);
+  const relativeInputRef = useRef(null);
+  const datePickerRef = useRef(null);
 
   // Validate relative time input
   const validateRelativeTime = (value) => {
@@ -118,6 +120,25 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
     }
   }, [enableReminder, reminderType, specificDateTime, relativeValue, relativeUnit, isRepeating, repeatInterval, repeatUnit, onSetReminder]);
 
+  // Auto-focus the first input when reminder is enabled and type changes
+  useEffect(() => {
+    if (!enableReminder) return;
+    
+    if (reminderType === "relative" && relativeInputRef.current) {
+      setTimeout(() => {
+        relativeInputRef.current.focus();
+        relativeInputRef.current.select();
+      }, 100);
+    } else if (reminderType === "specific" && datePickerRef.current) {
+      setTimeout(() => {
+        const input = datePickerRef.current.querySelector('input');
+        if (input) {
+          input.focus();
+        }
+      }, 100);
+    }
+  }, [enableReminder, reminderType]);
+
   // Handle relative value change with validation
   const handleRelativeValueChange = (e) => {
     const value = e.target.value;
@@ -188,7 +209,7 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
           </div>
 
           {reminderType === "specific" && (
-            <div className="mb-4">
+            <div className="mb-4" ref={datePickerRef}>
               <DatePicker
                 selected={specificDateTime}
                 onChange={handleSpecificDateChange}
@@ -216,6 +237,7 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
             <div className="mb-4">
               <div className="flex space-x-3 max-w-full">
                 <input
+                  ref={relativeInputRef}
                   type="number"
                   value={relativeValue}
                   onChange={handleRelativeValueChange}

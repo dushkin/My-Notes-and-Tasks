@@ -31,6 +31,14 @@ const AddDialog = ({
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current.focus();
+      }, 100);
+    }
+  }, [isOpen]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
