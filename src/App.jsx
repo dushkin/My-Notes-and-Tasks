@@ -900,21 +900,15 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       defaultFontFamily: settings.editorFontFamily,
       onSaveItemData: handleSaveItemData,
       reminder: reminders[selectedItemId],
-      renderToolbarToggle: (toggleToolbar, showToolbar) => {
-        console.log('🔧 App.jsx renderToolbarToggle called:', { toggleToolbar, showToolbar });
-        return (
-          <button
-            className="toolbar-toggle-button px-3 py-1 border rounded bg-blue-500 text-white hover:bg-blue-600"
-            onClick={() => {
-              console.log('🔧 App.jsx Toolbar toggle clicked');
-              toggleToolbar();
-            }}
-            style={{ position: 'fixed', top: '60px', left: '10px', zIndex: 99999 }}
-          >
-            {showToolbar ? "Hide Tools" : "Show Tools"}
-          </button>
-        );
-      },
+      renderToolbarToggle: (toggleToolbar, showToolbar) => (
+        <button
+          className="toolbar-toggle-button px-3 py-1 border rounded bg-blue-500 text-white hover:bg-blue-600"
+          onClick={toggleToolbar}
+          style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 99999 }}
+        >
+          {showToolbar ? "Hide Tools" : "Show Tools"}
+        </button>
+      ),
     }),
     [
       selectedItem,

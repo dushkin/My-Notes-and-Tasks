@@ -260,13 +260,8 @@ const ContentEditor = memo(
           showToolbar={finalShowToolbar}
         />
         {/* Toolbar Toggle for Mobile */}
-        {console.log('🔍 ContentEditor toolbar toggle conditions:', { 
-          isMobile, 
-          hasRenderToolbarToggle: !!renderToolbarToggle,
-          windowWidth: window.innerWidth,
-          MOBILE_BREAKPOINT
-        })}
-        {renderToolbarToggle &&
+        {isMobile &&
+          renderToolbarToggle &&
           renderToolbarToggle(toggleToolbar, showToolbar)}
         {/* Reminder Dialog */}
         <SetReminderDialog

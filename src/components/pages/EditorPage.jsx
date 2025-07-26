@@ -79,7 +79,6 @@ export default function EditorPage() {
 
   // Show loading while checking authentication
   if (isCheckingAuth) {
-    console.log('🔍 EditorPage: Checking authentication...');
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-gray-400 dark:text-gray-500">Loading...</div>
@@ -91,8 +90,6 @@ export default function EditorPage() {
   if (!currentUser) {
     return null;
   }
-
-  console.log('🔍 EditorPage: Rendering with item:', { item, currentUser });
 
   return (
     <div className="flex flex-col h-full">
@@ -121,21 +118,15 @@ export default function EditorPage() {
           <ContentEditor
             item={item}
             onSaveItemData={handleSaveItemData}
-            renderToolbarToggle={(toggleToolbar, showToolbar) => {
-              console.log('🔧 EditorPage renderToolbarToggle called:', { toggleToolbar, showToolbar });
-              return (
-                <button
-                  className="toolbar-toggle-button px-3 py-1 border rounded bg-blue-500 text-white hover:bg-blue-600"
-                  onClick={() => {
-                    console.log('🔧 Toolbar toggle clicked');
-                    toggleToolbar();
-                  }}
-                  style={{ position: 'fixed', top: '60px', left: '10px', zIndex: 99999 }}
-                >
-                  {showToolbar ? "Hide Tools" : "Show Tools"}
-                </button>
-              );
-            }}
+            renderToolbarToggle={(toggleToolbar, showToolbar) => (
+              <button
+                className="toolbar-toggle-button px-3 py-1 border rounded bg-blue-500 text-white hover:bg-blue-600"
+                onClick={toggleToolbar}
+                style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 99999 }}
+              >
+                {showToolbar ? "Hide Tools" : "Show Tools"}
+              </button>
+            )}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
