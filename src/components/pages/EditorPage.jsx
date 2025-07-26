@@ -79,6 +79,7 @@ export default function EditorPage() {
 
   // Show loading while checking authentication
   if (isCheckingAuth) {
+    console.log('🔍 EditorPage: Checking authentication...');
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-gray-400 dark:text-gray-500">Loading...</div>
@@ -90,6 +91,8 @@ export default function EditorPage() {
   if (!currentUser) {
     return null;
   }
+
+  console.log('🔍 EditorPage: Rendering with item:', { item, currentUser });
 
   return (
     <div className="flex flex-col h-full">
