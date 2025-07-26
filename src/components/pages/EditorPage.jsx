@@ -118,14 +118,21 @@ export default function EditorPage() {
           <ContentEditor
             item={item}
             onSaveItemData={handleSaveItemData}
-            renderToolbarToggle={(toggleToolbar, showToolbar) => (
-              <button
-                className="toolbar-toggle-button px-3 py-1 border rounded"
-                onClick={toggleToolbar}
-              >
-                {showToolbar ? "Hide Tools" : "Show Tools"}
-              </button>
-            )}
+            renderToolbarToggle={(toggleToolbar, showToolbar) => {
+              console.log('🔧 EditorPage renderToolbarToggle called:', { toggleToolbar, showToolbar });
+              return (
+                <button
+                  className="toolbar-toggle-button px-3 py-1 border rounded bg-blue-500 text-white hover:bg-blue-600"
+                  onClick={() => {
+                    console.log('🔧 Toolbar toggle clicked');
+                    toggleToolbar();
+                  }}
+                  style={{ position: 'fixed', top: '10px', right: '10px', zIndex: 1000 }}
+                >
+                  {showToolbar ? "Hide Tools" : "Show Tools"}
+                </button>
+              );
+            }}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
