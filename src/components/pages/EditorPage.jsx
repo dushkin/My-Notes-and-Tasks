@@ -127,7 +127,7 @@ export default function EditorPage() {
                     console.log('🔧 Toolbar toggle clicked');
                     toggleToolbar();
                   }}
-                  style={{ position: 'fixed', top: '10px', right: '10px', zIndex: 1000 }}
+                  style={{ position: 'fixed', top: '60px', left: '10px', zIndex: 99999 }}
                 >
                   {showToolbar ? "Hide Tools" : "Show Tools"}
                 </button>
