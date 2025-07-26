@@ -63,10 +63,7 @@ const Tree = ({
           onClick={isMobile ? (e) => {
             e.preventDefault();
             onSelect(null);
-            onShowItemMenu(e, null, [
-              { key: "add", label: "Add root folder" },
-              { key: "import", label: "Import" }
-            ]);
+            onNativeContextMenu(e, null);
           } : undefined}
         >
           {message}
