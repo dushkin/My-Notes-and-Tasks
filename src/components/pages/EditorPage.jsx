@@ -120,11 +120,11 @@ export default function EditorPage() {
             onSaveItemData={handleSaveItemData}
             renderToolbarToggle={(toggleToolbar, showToolbar) => (
               <button
-                className="toolbar-toggle-button px-3 py-1 border rounded bg-blue-500 text-white hover:bg-blue-600"
+                className="toolbar-toggle-button px-3 py-1 rounded bg-slate-500 text-white hover:bg-slate-600"
                 onClick={toggleToolbar}
                 style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 99999 }}
               >
-                {showToolbar ? "Hide Tools" : "Show Tools"}
+                {showToolbar ? "Hide Toolbar" : "Show Toolbar"}
               </button>
             )}
           />
