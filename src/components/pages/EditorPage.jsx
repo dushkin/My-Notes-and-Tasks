@@ -1,15 +1,47 @@
 // src/pages/EditorPage.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ContentEditor from "../../components/rpane/ContentEditor";
 import { useTree } from "../../hooks/useTree";
 import { findItemById } from "../../utils/treeUtils";
-import { useAuth } from "../../hooks/useAuth";
+import { getAccessToken } from "../../services/authService";
+import { authFetch } from "../../services/apiClient";
 
 export default function EditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Check authentication
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getAccessToken();
+      if (token) {
+        try {
+          const response = await authFetch("/auth/verify-token");
+          if (response.ok) {
+            const data = await response.json();
+            if (data.valid && data.user) {
+              setCurrentUser(data.user);
+            } else {
+              navigate("/");
+            }
+          } else {
+            navigate("/");
+          }
+        } catch (error) {
+          console.error("Auth verification failed:", error);
+          navigate("/");
+        }
+      } else {
+        navigate("/");
+      }
+      setIsCheckingAuth(false);
+    };
+
+    checkAuth();
+  }, [navigate]);
 
   // Get tree data and handlers
   const { tree, updateNoteContent, updateTask } = useTree(currentUser);
@@ -44,6 +76,20 @@ export default function EditorPage() {
       throw error;
     }
   };
+
+  // Show loading while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-400 dark:text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col h-full">
