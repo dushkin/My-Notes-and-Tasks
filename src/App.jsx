@@ -2586,78 +2586,113 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
             )}
           </>
         ) : (
-          <PanelGroup direction="horizontal">
-            <Panel id="tree-panel" order={0} defaultSize={30} minSize={20}>
-              <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800 h-full">
-                <Tree
-                  items={tree || []}
-                  selectedItemId={selectedItemId}
-                  onSelect={(id) => {
-                    selectItemById(id);
-                  }}
-                  inlineRenameId={inlineRenameId}
-                  inlineRenameValue={inlineRenameValue}
-                  setInlineRenameValue={setInlineRenameValue}
-                  onAttemptRename={handleAttemptRename}
-                  cancelInlineRename={cancelInlineRename}
-                  expandedFolders={expandedFolders}
-                  onToggleExpand={toggleFolderExpand}
-                  onToggleTask={handleToggleTask}
-                  draggedId={draggedId}
-                  onDragStart={(e, id) => {
-                    if (inlineRenameId) e.preventDefault();
-                    else setDraggedId(id);
-                  }}
-                  onDrop={(targetId) => handleDrop(targetId, draggedId)}
-                  onDragEnd={handleDragEnd}
-                  onNativeContextMenu={handleNativeContextMenu}
-                  onShowItemMenu={handleShowItemMenu}
-                  onRename={startInlineRename}
-                  uiError={uiMessage}
-                  setUiError={(msg) => showMessage(msg, "error")}
-                />
-              </div>
-            </Panel>
-            <PanelResizeHandle className="w-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors" />
-            <Panel
-              id="content-panel"
-              order={1}
-              defaultSize={70}
+          <PanelGroup direction="vertical">
+            <Panel 
+              id="main-content-panel" 
+              order={0} 
+              defaultSize={searchSheetOpen ? 75 : 100} 
               minSize={40}
-              className="flex flex-col"
             >
-              {selectedItem ? (
-                selectedItem.type === "folder" ? (
-                  <FolderContents
-                    folder={selectedItem}
-                    onSelect={(id) => selectItemById(id)}
-                    handleDragStart={(e, id) => {
-                      if (inlineRenameId) e.preventDefault();
-                      else setDraggedId(id);
-                    }}
-                    handleDragEnter={handleDragEnter}
-                    handleDragOver={handleDragOver}
-                    handleDragLeave={handleDragLeave}
-                    handleDrop={(targetId) => handleDrop(targetId, draggedId)}
-                    handleDragEnd={handleDragEnd}
-                    draggedId={draggedId}
-                    dragOverItemId={dragOverItemId}
-                    onToggleExpand={toggleFolderExpand}
-                    expandedItems={expandedFolders}
-                    onShowItemMenu={handleShowItemMenu}
-                    reminders={reminders}
-                    contextMenu={contextMenu}
-                    clipboardItem={clipboardItem}
-                  />
-                ) : (
-                  <ContentEditor {...contentEditorProps} />
-                )
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-                  Select an item to view or edit
-                </div>
-              )}
+              <PanelGroup direction="horizontal">
+                <Panel id="tree-panel" order={0} defaultSize={30} minSize={20}>
+                  <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800 h-full">
+                    <Tree
+                      items={tree || []}
+                      selectedItemId={selectedItemId}
+                      onSelect={(id) => {
+                        selectItemById(id);
+                      }}
+                      inlineRenameId={inlineRenameId}
+                      inlineRenameValue={inlineRenameValue}
+                      setInlineRenameValue={setInlineRenameValue}
+                      onAttemptRename={handleAttemptRename}
+                      cancelInlineRename={cancelInlineRename}
+                      expandedFolders={expandedFolders}
+                      onToggleExpand={toggleFolderExpand}
+                      onToggleTask={handleToggleTask}
+                      draggedId={draggedId}
+                      onDragStart={(e, id) => {
+                        if (inlineRenameId) e.preventDefault();
+                        else setDraggedId(id);
+                      }}
+                      onDrop={(targetId) => handleDrop(targetId, draggedId)}
+                      onDragEnd={handleDragEnd}
+                      onNativeContextMenu={handleNativeContextMenu}
+                      onShowItemMenu={handleShowItemMenu}
+                      onRename={startInlineRename}
+                      uiError={uiMessage}
+                      setUiError={(msg) => showMessage(msg, "error")}
+                    />
+                  </div>
+                </Panel>
+                <PanelResizeHandle className="w-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors" />
+                <Panel
+                  id="content-panel"
+                  order={1}
+                  defaultSize={70}
+                  minSize={40}
+                  className="flex flex-col"
+                >
+                  {selectedItem ? (
+                    selectedItem.type === "folder" ? (
+                      <FolderContents
+                        folder={selectedItem}
+                        onSelect={(id) => selectItemById(id)}
+                        handleDragStart={(e, id) => {
+                          if (inlineRenameId) e.preventDefault();
+                          else setDraggedId(id);
+                        }}
+                        handleDragEnter={handleDragEnter}
+                        handleDragOver={handleDragOver}
+                        handleDragLeave={handleDragLeave}
+                        handleDrop={(targetId) => handleDrop(targetId, draggedId)}
+                        handleDragEnd={handleDragEnd}
+                        draggedId={draggedId}
+                        dragOverItemId={dragOverItemId}
+                        onToggleExpand={toggleFolderExpand}
+                        expandedItems={expandedFolders}
+                        onShowItemMenu={handleShowItemMenu}
+                        reminders={reminders}
+                        contextMenu={contextMenu}
+                        clipboardItem={clipboardItem}
+                      />
+                    ) : (
+                      <ContentEditor {...contentEditorProps} />
+                    )
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
+                      Select an item to view or edit
+                    </div>
+                  )}
+                </Panel>
+              </PanelGroup>
             </Panel>
+            {searchSheetOpen && (
+              <>
+                <PanelResizeHandle className="h-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors" />
+                <Panel
+                  id="search-panel"
+                  order={1}
+                  defaultSize={25}
+                  minSize={15}
+                  maxSize={60}
+                >
+                  <SearchResultsPane
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    searchOptions={searchOptions}
+                    setSearchOptions={setSearchOptions}
+                    searchResults={searchResults}
+                    onSelect={(id) => {
+                      selectItemById(id);
+                      setSearchSheetOpen(false);
+                    }}
+                    searchInputRef={searchInputRef}
+                    onClose={() => setSearchSheetOpen(false)}
+                  />
+                </Panel>
+              </>
+            )}
           </PanelGroup>
         )}
       </main>
@@ -2765,7 +2800,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         cancelText={confirmDialog.cancelText}
       />
 
-      {isMobile ? (
+      {isMobile && (
         <Sheet
           isOpen={searchSheetOpen}
           onClose={() => setSearchSheetOpen(false)}
@@ -2813,41 +2848,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           </Sheet.Container>
           <Sheet.Backdrop />
         </Sheet>
-      ) : (
-        <div
-          className={`fixed inset-0 z-30 transition-transform duration-300 ease-in-out ${
-            searchSheetOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="w-full max-w-md h-full bg-white dark:bg-zinc-800 shadow-xl border-r border-zinc-200 dark:border-zinc-700">
-            <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
-              <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                Search
-              </h2>
-              <LoadingButton
-                onClick={() => setSearchSheetOpen(false)}
-                className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
-                variant="secondary"
-                size="small"
-              >
-                <X className="w-5 h-5" />
-              </LoadingButton>
-            </div>
-            <SearchResultsPane
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              searchOptions={searchOptions}
-              setSearchOptions={setSearchOptions}
-              searchResults={searchResults}
-              onSelect={(id) => {
-                selectItemById(id);
-                setSearchSheetOpen(false);
-              }}
-              searchInputRef={searchInputRef}
-              onClose={() => setSearchSheetOpen(false)}
-            />
-          </div>
-        </div>
       )}
 
       {feedbackNotifications.map((notification) => (
