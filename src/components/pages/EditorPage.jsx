@@ -122,7 +122,7 @@ export default function EditorPage() {
               <button
                 className="toolbar-toggle-button px-3 py-1 border rounded bg-blue-500 text-white hover:bg-blue-600"
                 onClick={toggleToolbar}
-                style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 99999 }}
+                style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 99999 }}
               >
                 {showToolbar ? "Hide Tools" : "Show Tools"}
               </button>
