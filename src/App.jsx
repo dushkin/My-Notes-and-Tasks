@@ -52,6 +52,7 @@ import {
 import reminderMonitor from "./components/reminders/reminderMonitor.js";
 import SnoozeDialog from "./components/reminders/SnoozeDialog";
 import SetReminderDialog from "./components/reminders/SetReminderDialog.jsx";
+import MobileReminderPopup from "./components/reminders/MobileReminderPopup.jsx";
 import FeedbackNotification from "./components/FeedbackNotification";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
@@ -791,6 +792,16 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   const [snoozeDialogOpen, setSnoozeDialogOpen] = useState(false);
   const [snoozeDialogData, setSnoozeDialogData] = useState(null);
   const [feedbackNotifications, setFeedbackNotifications] = useState([]);
+  
+  // Mobile reminder popup state
+  const [mobileReminderPopup, setMobileReminderPopup] = useState({
+    isVisible: false,
+    title: '',
+    message: '',
+    itemId: null,
+    reminderId: null,
+    showDoneButton: true
+  });
 
   // Reminder states
   const [reminders, setReminders] = useState({});
@@ -1163,12 +1174,35 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       }
     };
 
+    // Handle reminder triggered event to show mobile popup
+    const handleReminderTriggered = (event) => {
+      const { itemTitle, notificationData, itemId } = event.detail;
+      
+      // Only show popup on mobile devices
+      const isMobile = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) || 
+                       ('ontouchstart' in window) || 
+                       (window.screen && window.screen.width <= 768);
+      
+      if (isMobile) {
+        setMobileReminderPopup({
+          isVisible: true,
+          title: '⏰ Reminder',
+          message: `Don't forget: ${itemTitle || 'Untitled'}`,
+          itemId: itemId,
+          reminderId: notificationData?.reminderId,
+          showDoneButton: notificationData?.reminderDisplayDoneButton ?? true
+        });
+      }
+    };
+
+    window.addEventListener("reminderTriggered", handleReminderTriggered);
     window.addEventListener("showSnoozeDialog", handleShowSnoozeDialog);
     window.addEventListener("showFeedback", handleShowFeedback);
     window.addEventListener("reminderMarkedDone", handleReminderMarkedDone);
     window.addEventListener("reminderDismissed", handleReminderDismissed);
     window.addEventListener("focusItem", handleFocusItem);
     return () => {
+      window.removeEventListener("reminderTriggered", handleReminderTriggered);
       window.removeEventListener("showSnoozeDialog", handleShowSnoozeDialog);
       window.removeEventListener("showFeedback", handleShowFeedback);
       window.removeEventListener(
@@ -1200,6 +1234,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     setSnoozeDialogOpen(false);
     setSnoozeDialogData(null);
   }, []);
+
   const removeFeedbackNotification = useCallback((id) => {
     setFeedbackNotifications((prev) => prev.filter((notif) => notif.id !== id));
   }, []);
@@ -1612,6 +1647,32 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     },
     [updateTask, showMessage]
   );
+
+  // Mobile reminder popup handlers
+  const handleMobileReminderDismiss = useCallback(() => {
+    setMobileReminderPopup(prev => ({ ...prev, isVisible: false }));
+  }, []);
+
+  const handleMobileReminderDone = useCallback(() => {
+    const { itemId } = mobileReminderPopup;
+    if (itemId) {
+      // Mark the task as done
+      handleToggleTask(itemId, true);
+      // Clear the reminder
+      clearReminder(itemId);
+      showMessage("Task marked as completed!", "success");
+    }
+    setMobileReminderPopup(prev => ({ ...prev, isVisible: false }));
+  }, [mobileReminderPopup, handleToggleTask, showMessage]);
+
+  const handleMobileReminderSnooze = useCallback((duration, unit) => {
+    const { itemId } = mobileReminderPopup;
+    if (itemId) {
+      reminderMonitor.applySnooze(itemId, duration, unit, {});
+    }
+    setMobileReminderPopup(prev => ({ ...prev, isVisible: false }));
+  }, [mobileReminderPopup]);
+
   const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
 
   const openExportDialog = useCallback(
@@ -2787,6 +2848,16 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         }}
         onSetReminder={handleConfirmSetReminder}
         item={itemForReminder}
+      />
+
+      <MobileReminderPopup
+        isVisible={mobileReminderPopup.isVisible}
+        title={mobileReminderPopup.title}
+        message={mobileReminderPopup.message}
+        onDismiss={handleMobileReminderDismiss}
+        onMarkDone={handleMobileReminderDone}
+        onSnooze={handleMobileReminderSnooze}
+        showDoneButton={mobileReminderPopup.showDoneButton}
       />
 
       <ConfirmDialog
