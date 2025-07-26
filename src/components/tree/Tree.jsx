@@ -51,27 +51,23 @@ const Tree = ({
   // Render empty-tree placeholder or items
   const renderContent = () => {
     if (!items || items.length === 0) {
-      const message = `${isMobile ? "Long press" : "Right click"} here to add your first tree folder!`;
+      const message = `${isMobile ? "Press" : "Right click"} here to add your first tree folder!`;
       return (
         <div
-          className="h-full flex items-center justify-center text-zinc-500 dark:text-zinc-400 italic p-4"
+          className="h-full flex items-center justify-center text-zinc-500 dark:text-zinc-400 italic p-4 cursor-pointer"
           onContextMenu={(e) => {
             e.preventDefault();
             onSelect(null);
             onNativeContextMenu(e, null);
           }}
-          onTouchStart={(e) => {
-            longPressTimeoutRef.current = setTimeout(() => {
-              e.preventDefault();
-              onSelect(null);
-              onShowItemMenu(e, null, [
-                { key: "add", label: "Add root folder" },
-                { key: "import", label: "Import" }
-              ]);
-            }, 300);
-          }}
-          onTouchEnd={() => clearTimeout(longPressTimeoutRef.current)}
-          onTouchMove={() => clearTimeout(longPressTimeoutRef.current)}
+          onClick={isMobile ? (e) => {
+            e.preventDefault();
+            onSelect(null);
+            onShowItemMenu(e, null, [
+              { key: "add", label: "Add root folder" },
+              { key: "import", label: "Import" }
+            ]);
+          } : undefined}
         >
           {message}
         </div>
