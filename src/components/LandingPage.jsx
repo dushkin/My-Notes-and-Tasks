@@ -205,7 +205,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       >
         {/* Banner Notice */}
         <div className="bg-yellow-100 border-b border-yellow-200 text-yellow-800 text-center py-1 text-sm">
-          Currently supports Desktop and Android only; iOS support coming soon.
+          Supported on Desktop, Android, and iOS (via Chrome only)
         </div>
         <header className="relative z-10 backdrop-blur-sm bg-white/80 border-b border-gray-200/50">
           <div className="block sm:hidden">
