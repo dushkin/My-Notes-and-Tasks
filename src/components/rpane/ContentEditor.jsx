@@ -219,7 +219,7 @@ const ContentEditor = memo(
           {/* Enhanced Save Status Display */}
           <div className="flex items-center space-x-2">
             {isSaving && (
-              <div className="flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400">
+              <div className="flex items-center space-x-1 text-xs text-green-600 dark:text-green-400">
                 <LoadingSpinner size="small" />
                 <span>Saving...</span>
               </div>
