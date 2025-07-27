@@ -1157,15 +1157,84 @@ export const useTree = (currentUser) => {
           })`;
         }
         itemToInsertData.label = newLabel;
-        const addResult = await addItem(itemToInsertData, targetFolderId);
-        if (
-          addResult.success &&
-          targetFolderId &&
-          settings.autoExpandNewFolders
-        ) {
-          expandFolderPath(targetFolderId);
+
+        // Use the same recursive creation logic as duplicateItem
+        const createItemWithChildren = async (itemData, currentParentId) => {
+          const payload = {
+            label: itemData.label,
+            type: itemData.type,
+          };
+
+          if (itemData.type === "note" || itemData.type === "task") {
+            payload.content = itemData.content || "";
+            payload.direction = itemData.direction || "ltr";
+          }
+          if (itemData.type === "task") {
+            payload.completed = !!itemData.completed;
+          }
+
+          try {
+            const endpoint = currentParentId
+              ? `/items/${currentParentId}`
+              : `/items`;
+            const response = await authFetch(endpoint, {
+              method: "POST",
+              body: JSON.stringify(payload),
+            });
+            const createdItemFromServer = await response.json();
+
+            if (!response.ok) {
+              throw new Error(
+                createdItemFromServer.error ||
+                  `Failed to create item: ${response.status}`
+              );
+            }
+
+            if (
+              itemData.type === "folder" &&
+              Array.isArray(itemData.children) &&
+              itemData.children.length > 0
+            ) {
+              const createdChildren = [];
+              for (const childData of itemData.children) {
+                const createdChild = await createItemWithChildren(
+                  childData,
+                  createdItemFromServer.id
+                );
+                if (createdChild) {
+                  createdChildren.push(createdChild);
+                }
+              }
+              createdItemFromServer.children = createdChildren;
+            }
+
+            return createdItemFromServer;
+          } catch (error) {
+            console.error("Error creating item during paste:", error);
+            throw error;
+          }
+        };
+
+        try {
+          const createdItem = await createItemWithChildren(
+            itemToInsertData,
+            targetFolderId
+          );
+          const newTreeState = insertItemRecursive(tree, targetFolderId, createdItem);
+          setTreeWithUndo(newTreeState);
+
+          if (targetFolderId && settings.autoExpandNewFolders) {
+            expandFolderPath(targetFolderId);
+          }
+
+          return { success: true, item: createdItem };
+        } catch (error) {
+          console.error("pasteItem copy error:", error);
+          return {
+            success: false,
+            error: error.message || "Network error pasting item.",
+          };
         }
-        return addResult;
       } else if (clipboardMode === "cut" && cutItemId) {
         const itemToMove = clipboardItem;
         const parentInfo = findParentAndSiblings(tree, cutItemId);
@@ -1229,10 +1298,8 @@ export const useTree = (currentUser) => {
       cutItemId,
       settings.autoExpandNewFolders,
       expandFolderPath,
-      addItem,
       fetchUserTree,
-      currentItemCount,
-      currentUser,
+      setTreeWithUndo,
     ]
   );
 
