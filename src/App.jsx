@@ -755,8 +755,36 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   useEffect(() => {
     reminderMonitor.setSettingsContext(settings);
   }, [settings]);
+
+  // Safari detection and warning
+  useEffect(() => {
+    const detectSafari = () => {
+      const userAgent = navigator.userAgent;
+      const vendor = navigator.vendor;
+      
+      // Check for Safari on all platforms (iOS, macOS, iPadOS)
+      const isSafari = /Safari/.test(userAgent) && 
+                       /Apple Computer/.test(vendor) && 
+                       !/Chrome|Chromium|CriOS|FxiOS|EdgiOS/.test(userAgent);
+      
+      // Check for WebKit-based browsers on iOS that might have Safari-like behavior
+      const isIOSWebView = /iPhone|iPad|iPod/.test(userAgent) && 
+                           /WebKit/.test(userAgent) && 
+                           !/CriOS|FxiOS|EdgiOS/.test(userAgent);
+      
+      return isSafari || isIOSWebView;
+    };
+
+    const hasShownWarning = localStorage.getItem('safari-warning-dismissed');
+    
+    if (detectSafari() && !hasShownWarning) {
+      setShowSafariWarning(true);
+    }
+  }, []);
+
   const [uiMessage, setUiMessage] = useState("");
   const [uiMessageType, setUiMessageType] = useState("error");
+  const [showSafariWarning, setShowSafariWarning] = useState(false);
 
   const [searchSheetOpen, setSearchSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -2107,6 +2135,51 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         type={uiMessageType}
         onClose={handleUiMessageClose}
       />
+
+      {/* Safari Warning Dialog */}
+      {showSafariWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl max-w-md mx-4 p-6">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                  Browser Compatibility Notice
+                </h3>
+                <p className="text-sm text-zinc-600 dark:text-zinc-300 mb-4">
+                  We've detected you're using Safari. For the best experience with all features, we recommend using <strong>Google Chrome</strong>. 
+                  Some advanced functionality may not work properly in Safari.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('safari-warning-dismissed', 'true');
+                      setShowSafariWarning(false);
+                    }}
+                    className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
+                  >
+                    Continue with Safari
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.open('https://www.google.com/chrome/', '_blank');
+                      localStorage.setItem('safari-warning-dismissed', 'true');
+                      setShowSafariWarning(false);
+                    }}
+                    className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                  >
+                    Download Chrome
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <header
         className={`fixed left-0 right-0 z-30 bg-white dark:bg-zinc-800/95 backdrop-blur-sm shadow-sm ${APP_HEADER_HEIGHT_CLASS}`}

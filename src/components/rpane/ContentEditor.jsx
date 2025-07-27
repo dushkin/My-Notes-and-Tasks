@@ -188,7 +188,7 @@ const ContentEditor = memo(
                   e.preventDefault();
                   setIsReminderDialogOpen(true);
                 }}
-                className="text-green-500 hover:underline flex items-center"
+                className="text-purple-500 dark:text-purple-400 hover:underline flex items-center"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -208,7 +208,7 @@ const ContentEditor = memo(
                 {/* FIX: Check for reminder existence before showing text */}
                 {reminder ? "Reminder" : "Set Reminder"}
                 {reminder && (
-                  <span className="ml-2 text-green-600 dark:text-green-400 text-xs">
+                  <span className="ml-2 text-purple-600 dark:text-purple-400 text-xs">
                     ({liveCountdown || formatRemainingTime(reminder.timestamp)})
                   </span>
                 )}
