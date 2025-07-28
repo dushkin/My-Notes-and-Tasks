@@ -317,9 +317,24 @@ const ContextMenu = ({
             <button
               role="menuitem"
               className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
-              onClick={() => {
-                onPaste(item.id);
-                onClose();
+              onPointerDown={() => {
+                console.log('📋 Paste button clicked:', { 
+                  targetFolderId: item.id, 
+                  targetFolderLabel: item.label,
+                  clipboardItemType: clipboardItem?.type,
+                  clipboardItemLabel: clipboardItem?.label 
+                });
+                
+                if (typeof onPaste === 'function') {
+                  onPaste(item.id);
+                  console.log('✅ Paste function called successfully');
+                } else {
+                  console.error('❌ onPaste is not a function:', typeof onPaste);
+                }
+                
+                if (typeof onClose === 'function') {
+                  onClose();
+                }
               }}
               title={`Paste item into ${item.label}`}
             >
