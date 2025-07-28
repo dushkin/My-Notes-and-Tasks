@@ -241,8 +241,11 @@ const Tree = ({
         !isSelfOrDescendant(items, draggedId, item.id)
       ) {
         setDragOverId(item.id);
+        // Allow the drop by setting dropEffect
+        e.dataTransfer.dropEffect = "move";
       } else {
         setDragOverId(null);
+        e.dataTransfer.dropEffect = "none";
       }
     },
     [draggedId, items]
@@ -251,24 +254,38 @@ const Tree = ({
   const handleDragLeave = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragOverId(null);
+    
+    // Use a timeout to prevent premature clearing when moving between child elements
+    setTimeout(() => {
+      setDragOverId(null);
+    }, 50);
   }, []);
 
   const handleItemDrop = useCallback(
     (e, targetItem) => {
       e.preventDefault();
       e.stopPropagation();
-      const currentDragOverId = dragOverId;
       setDragOverId(null);
+      
+      // Allow drop if target is a valid folder and not the dragged item itself
       if (
-        targetItem?.id === currentDragOverId &&
         targetItem?.type === "folder" &&
-        targetItem.id !== draggedId
+        targetItem.id !== draggedId &&
+        !isSelfOrDescendant(items, draggedId, targetItem.id)
       ) {
+        console.log('Dropping item', draggedId, 'into folder', targetItem.id);
         onDrop(targetItem.id);
+      } else {
+        console.log('Drop blocked:', {
+          targetType: targetItem?.type,
+          targetId: targetItem?.id,
+          draggedId,
+          isSelf: targetItem.id === draggedId,
+          isSelfOrDesc: isSelfOrDescendant(items, draggedId, targetItem.id)
+        });
       }
     },
-    [dragOverId, draggedId, onDrop]
+    [draggedId, onDrop, items]
   );
 
   const handleTaskToggle = useCallback(
