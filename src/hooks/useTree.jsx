@@ -118,7 +118,7 @@ export const useTree = (currentUser) => {
   const EXPANDED_KEY = `${LOCAL_STORAGE_KEY}_expanded`;
   const { settings } = useSettings();
 
-  const initialTreeState = (() => {
+  const initialTreeState = useMemo(() => {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
       const parsed = stored ? JSON.parse(stored) : [];
@@ -169,7 +169,7 @@ export const useTree = (currentUser) => {
       console.error("Failed to load tree from localStorage:", error);
       return [];
     }
-  })();
+  }, []); // Empty dependency array - only calculate once
   const {
     state: tree,
     setState: setTreeWithUndo,
@@ -204,12 +204,20 @@ export const useTree = (currentUser) => {
   const selectedItem = useMemo(() => {
     const item = findItemById(tree, selectedItemId);
     if (item) {
+      // Ensure content is always a string
+      const normalizedItem = {
+        ...item,
+        content: safeStringify(item.content)
+      };
+      
       console.log('🎯 Selected item from tree:', {
-        id: item.id,
-        contentType: typeof item.content,
-        contentValue: item.content,
-        contentPreview: typeof item.content === 'string' ? item.content.substring(0, 100) : 'NON-STRING'
+        id: normalizedItem.id,
+        contentType: typeof normalizedItem.content,
+        contentValue: normalizedItem.content,
+        contentPreview: normalizedItem.content.substring(0, 100) || '(empty)'
       });
+      
+      return normalizedItem;
     }
     return item;
   }, [tree, selectedItemId]);
@@ -289,42 +297,54 @@ export const useTree = (currentUser) => {
             .json()
             .catch(() => ({ message: "Failed to parse error response" }));
           console.error(response.status, errorData);
-          if (preserveHistory) {
-            setTreeWithUndo([]);
-          } else {
-            resetTreeHistory([]);
-          }
+          console.warn("⚠️ Server error - preserving current tree state and undo history");
+          // Don't reset tree state on server errors - preserve current state and history
           return;
         }
         const data = await response.json();
         if (data && Array.isArray(data.notesTree)) {
           console.log("📥 Fetched tree from server:", data.notesTree.length, "items");
           
-          // Debug tree content types
-          data.notesTree.forEach((item, index) => {
-            if (item.content && typeof item.content !== 'string') {
-              console.warn(`⚠️ Tree item ${index} (${item.id}) has non-string content:`, typeof item.content, item.content);
-            }
-          });
+          // Normalize tree data to ensure all content properties are strings
+          const normalizeTreeData = (items) => {
+            return items.map(item => {
+              const normalizedItem = {
+                ...item,
+                content: safeStringify(item.content)
+              };
+              
+              // Debug log for problematic items
+              if (item.content !== normalizedItem.content) {
+                console.warn(`🔧 Normalized content for item ${item.id}:`, {
+                  original: typeof item.content,
+                  normalized: typeof normalizedItem.content
+                });
+              }
+              
+              // Recursively normalize children
+              if (normalizedItem.children && Array.isArray(normalizedItem.children)) {
+                normalizedItem.children = normalizeTreeData(normalizedItem.children);
+              }
+              
+              return normalizedItem;
+            });
+          };
+          
+          const normalizedTree = normalizeTreeData(data.notesTree);
           
           if (preserveHistory) {
-            setTreeWithUndo(data.notesTree);
+            setTreeWithUndo(normalizedTree);
           } else {
-            resetTreeHistory(data.notesTree);
+            resetTreeHistory(normalizedTree);
           }
         } else {
-          if (preserveHistory) {
-            setTreeWithUndo([]);
-          } else {
-            resetTreeHistory([]);
-          }
+          console.warn("⚠️ Invalid server response - preserving current tree state and undo history");
+          // Don't reset tree state on invalid response - preserve current state and history
         }
       } catch (error) {
-        if (preserveHistory) {
-          setTreeWithUndo([]);
-        } else {
-          resetTreeHistory([]);
-        }
+        console.error("📡 Network error fetching tree:", error);
+        console.warn("⚠️ Network error - preserving current tree state and undo history");
+        // Don't reset tree state on network errors - preserve current state and history
       } finally {
         setIsFetchingTree(false);
       }
@@ -381,7 +401,7 @@ export const useTree = (currentUser) => {
 
       // Only if it's a tree update from another tab, reload the tree.
       console.log("Detected tree update in another tab, reloading…");
-      fetchUserTree();
+      fetchUserTree(true); // Preserve history when syncing from other tabs
     };
 
     // Handler for the localStorage fallback
@@ -389,7 +409,7 @@ export const useTree = (currentUser) => {
       // The key must match the one used in `broadcastSync`
       if (e.key === "notesTreeSync") {
         console.log("Detected tree update via storage, reloading…");
-        fetchUserTree();
+        fetchUserTree(true); // Preserve history when syncing via storage
       }
     };
 
@@ -913,17 +933,7 @@ export const useTree = (currentUser) => {
         // Update the local state
         setTreeWithUndo(newTreeState);
 
-        // Fetch fresh tree data to ensure server-client sync and get proper IDs
-        const treeResponse = await authFetch(`/items`, { cache: "no-store" });
-        if (treeResponse.ok) {
-          const treeData = await treeResponse.json();
-          if (treeData && Array.isArray(treeData.notesTree)) {
-            setTreeWithUndo(treeData.notesTree);
-          }
-        } else {
-          // Fallback to fetchUserTree if direct fetch fails
-          await fetchUserTree();
-        }
+        // Note: Real-time sync will handle the server-client sync automatically
 
         if (parentId && settings.autoExpandNewFolders) {
           setTimeout(() => expandFolderPath(parentId), 0);
@@ -932,8 +942,8 @@ export const useTree = (currentUser) => {
         return { success: true };
       } catch (error) {
         console.error("duplicateItem error:", error);
-        // Restore original tree state on error
-        await fetchUserTree();
+        // Restore original tree state on error, preserving undo history
+        await fetchUserTree(true);
         return {
           success: false,
           error: error.message || "Network error duplicating item.",
@@ -1029,8 +1039,8 @@ export const useTree = (currentUser) => {
             setTreeWithUndo(treeData.notesTree);
           }
         } else {
-          // Fallback to fetchUserTree if direct fetch fails
-          await fetchUserTree();
+          // Fallback to fetchUserTree if direct fetch fails, preserving undo history
+          await fetchUserTree(true);
         }
 
         if (targetFolderId) {
@@ -1040,7 +1050,7 @@ export const useTree = (currentUser) => {
         return { success: true };
       } catch (err) {
         console.error("Move (handleDrop) API error:", err);
-        await fetchUserTree();
+        await fetchUserTree(true);
         return {
           success: false,
           error: err.message || "A network error occurred during the move.",
@@ -1154,8 +1164,7 @@ export const useTree = (currentUser) => {
           // Update the local state
           setTreeWithUndo(newTreeState);
 
-          // Fetch fresh tree data to ensure server-client sync and get proper IDs
-          await fetchUserTree();
+          // Note: Real-time sync will handle the server-client sync automatically
 
           if (targetFolderId && settings.autoExpandNewFolders) {
             expandFolderPath(targetFolderId);
@@ -1164,8 +1173,8 @@ export const useTree = (currentUser) => {
           return { success: true };
         } catch (error) {
           console.error("pasteItem copy error:", error);
-          // Restore original tree state on error
-          await fetchUserTree();
+          // Restore original tree state on error, preserving undo history
+          await fetchUserTree(true);
           return {
             success: false,
             error: error.message || "Network error pasting item.",
@@ -1218,8 +1227,8 @@ export const useTree = (currentUser) => {
               setTreeWithUndo(treeData.notesTree);
             }
           } else {
-            // Fallback to fetchUserTree if direct fetch fails
-            await fetchUserTree();
+            // Fallback to fetchUserTree if direct fetch fails, preserving undo history
+            await fetchUserTree(true);
           }
           
           if (targetFolderId && settings.autoExpandNewFolders) {
@@ -1229,7 +1238,7 @@ export const useTree = (currentUser) => {
           return { success: true, item: data.data.movedItem };
         } catch (err) {
           console.error("Move (pasteItem) API error:", err);
-          await fetchUserTree(); // Resync state on failure
+          await fetchUserTree(true); // Resync state on failure, preserving undo history
           return {
             success: false,
             error: err.message || "A network error occurred during the move.",
@@ -1562,8 +1571,8 @@ export const useTree = (currentUser) => {
                 setTreeWithUndo(treeData.notesTree);
               }
             } else {
-              // Fallback to fetchUserTree if direct fetch fails
-              await fetchUserTree();
+              // Fallback to fetchUserTree if direct fetch fails, preserving undo history
+              await fetchUserTree(true);
             }
             
             resolveOuter({

@@ -41,12 +41,20 @@ const ContextMenu = ({
         contextMenuRef.current &&
         !contextMenuRef.current.contains(e.target)
       ) {
-        onClose();
+        if (typeof onClose === 'function') {
+          onClose();
+        } else {
+          console.error('ContextMenu: onClose is not a function', typeof onClose);
+        }
       }
     };
     const handleEscapeKey = (e) => {
       if (e.key === "Escape" && visible) {
-        onClose();
+        if (typeof onClose === 'function') {
+          onClose();
+        } else {
+          console.error('ContextMenu: onClose is not a function', typeof onClose);
+        }
       }
     };
     window.addEventListener("mousedown", handleOutsideClick);

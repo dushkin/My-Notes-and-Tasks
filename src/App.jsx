@@ -485,147 +485,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       console.log("Socket disconnected:", reason);
     });
 
-    // Tree sync handlers
-    const handleTreeReplaced = (newTree) => {
-      console.log("Socket event: treeReplaced");
-      resetTreeHistory(newTree);
-    };
-
-    const handleItemUpdated = (data) => {
-      console.log("Socket event: itemUpdated", data);
-      setTreeWithUndo((prev) => {
-        const updateItemInTree = (nodes, updatedItem) => {
-          return nodes.map((node) => {
-            if (node.id === updatedItem.id) {
-              return { ...node, ...updatedItem };
-            }
-            if (node.children) {
-              return {
-                ...node,
-                children: updateItemInTree(node.children, updatedItem),
-              };
-            }
-            return node;
-          });
-        };
-        return updateItemInTree(prev, data);
-      });
-    };
-
-    const handleItemMoved = ({ itemId, newParentId }) => {
-      console.log("Socket event: itemMoved", { itemId, newParentId });
-      setTreeWithUndo((prev) => {
-        const findItemInTree = (nodes, id) => {
-          for (const node of nodes) {
-            if (node.id === id) return node;
-            if (node.children) {
-              const found = findItemInTree(node.children, id);
-              if (found) return found;
-            }
-          }
-          return null;
-        };
-
-        const deleteItemFromTree = (nodes, id) => {
-          return nodes.filter((node) => {
-            if (node.id === id) return false;
-            if (node.children) {
-              node.children = deleteItemFromTree(node.children, id);
-            }
-            return true;
-          });
-        };
-
-        const insertItemInTree = (nodes, parentId, item) => {
-          if (parentId === null) {
-            return [...nodes, item];
-          }
-          return nodes.map((node) => {
-            if (node.id === parentId && node.type === "folder") {
-              return {
-                ...node,
-                children: [...(node.children || []), item],
-              };
-            }
-            if (node.children) {
-              return {
-                ...node,
-                children: insertItemInTree(node.children, parentId, item),
-              };
-            }
-            return node;
-          });
-        };
-
-        const item = findItemInTree(prev, itemId);
-        if (!item) return prev;
-
-        const treeWithoutItem = deleteItemFromTree(prev, itemId);
-        return insertItemInTree(treeWithoutItem, newParentId, item);
-      });
-    };
-
-    const handleItemDeleted = ({ itemId }) => {
-      console.log("Socket event: itemDeleted", { itemId });
-      if (selectedItemId === itemId) {
-        selectItemById(null);
-      }
-      setTreeWithUndo((prev) => {
-        const deleteItemFromTree = (nodes, id) => {
-          return nodes.filter((node) => {
-            if (node.id === id) return false;
-            if (node.children) {
-              node.children = deleteItemFromTree(node.children, id);
-            }
-            return true;
-          });
-        };
-        return deleteItemFromTree(prev, itemId);
-      });
-    };
-
-    const handleItemCreated = ({ newItem, parentId }) => {
-      console.log("Socket event: itemCreated", { newItem, parentId });
-      setTreeWithUndo((prev) => {
-        const findItemInTree = (nodes, id) => {
-          for (const node of nodes) {
-            if (node.id === id) return node;
-            if (node.children) {
-              const found = findItemInTree(node.children, id);
-              if (found) return found;
-            }
-          }
-          return null;
-        };
-
-        const insertItemInTree = (nodes, parentId, item) => {
-          if (parentId === null) {
-            return [...nodes, item];
-          }
-          return nodes.map((node) => {
-            if (node.id === parentId && node.type === "folder") {
-              return {
-                ...node,
-                children: [...(node.children || []), item],
-              };
-            }
-            if (node.children) {
-              return {
-                ...node,
-                children: insertItemInTree(node.children, parentId, item),
-              };
-            }
-            return node;
-          });
-        };
-
-        const existingItem = findItemInTree(prev, newItem.id);
-        if (existingItem) {
-          return prev;
-        }
-        return insertItemInTree(prev, parentId, newItem);
-      });
-    };
+    // Tree sync is now handled entirely by useRealTimeSync in useTree.jsx
 
     // FIXED: Reminder sync handlers - only sync data, don't trigger
     const handleReminderSet = (reminderData) => {
@@ -668,24 +528,16 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       );
     };
 
-    // Register all socket listeners
-    socket.on("treeReplaced", handleTreeReplaced);
-    socket.on("itemUpdated", handleItemUpdated);
-    socket.on("itemMoved", handleItemMoved);
-    socket.on("itemDeleted", handleItemDeleted);
-    socket.on("itemCreated", handleItemCreated);
+    // Register only reminder-related socket listeners
+    // Tree-related events (treeReplaced, itemUpdated, itemMoved, itemDeleted, itemCreated) 
+    // are handled by useRealTimeSync in useTree.jsx to avoid duplicate listeners
     socket.on("reminder:set", handleReminderSet);
     socket.on("reminder:clear", handleReminderClear);
     socket.on("reminder:update", handleReminderUpdate);
     socket.on("reminder:trigger", handleReminderTriggered);
 
     return () => {
-      // Cleanup all listeners
-      socket.off("treeReplaced", handleTreeReplaced);
-      socket.off("itemUpdated", handleItemUpdated);
-      socket.off("itemMoved", handleItemMoved);
-      socket.off("itemDeleted", handleItemDeleted);
-      socket.off("itemCreated", handleItemCreated);
+      // Cleanup only reminder listeners
       socket.off("reminder:set", handleReminderSet);
       socket.off("reminder:clear", handleReminderClear);
       socket.off("reminder:update", handleReminderUpdate);
