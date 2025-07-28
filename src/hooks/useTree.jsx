@@ -894,93 +894,51 @@ export const useTree = (currentUser) => {
       }
       newDuplicateDataForServer.label = newLabel;
 
-      const createItemWithChildren = async (itemData, currentParentId) => {
-        const payload = {
-          label: itemData.label,
-          type: itemData.type,
-        };
-
-        if (itemData.type === "note" || itemData.type === "task") {
-          payload.content = itemData.content || "";
-          payload.direction = itemData.direction || "ltr";
-        }
-        if (itemData.type === "task") {
-          payload.completed = !!itemData.completed;
-        }
-
-        try {
-          const endpoint = currentParentId
-            ? `/items/${currentParentId}`
-            : `/items`;
-          const response = await authFetch(endpoint, {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-          const createdItemFromServer = await response.json();
-
-          if (!response.ok) {
-            throw new Error(
-              createdItemFromServer.error ||
-                `Failed to create item: ${response.status}`
-            );
-          }
-
-          if (
-            itemData.type === "folder" &&
-            Array.isArray(itemData.children) &&
-            itemData.children.length > 0
-          ) {
-            const createdChildren = [];
-            for (const childData of itemData.children) {
-              const createdChild = await createItemWithChildren(
-                childData,
-                createdItemFromServer.id
-              );
-              if (createdChild) {
-                createdChildren.push(createdChild);
-              }
-            }
-            createdItemFromServer.children = createdChildren;
-          }
-
-          return createdItemFromServer;
-        } catch (error) {
-          console.error("Error creating item during duplication:", error);
-          throw error;
-        }
-      };
-
+      // Use bulk tree update for better performance and reliability
       try {
-        const createdItem = await createItemWithChildren(
-          newDuplicateDataForServer,
-          parentId
-        );
-        const newTreeState = insertItemRecursive(tree, parentId, createdItem);
+        // Create the new tree structure with the duplicated item inserted
+        const newTreeState = insertItemRecursive(tree, parentId, newDuplicateDataForServer);
+        
+        // Update the entire tree on the server in one operation
+        const response = await authFetch(`/items/tree`, {
+          method: "PUT",
+          body: JSON.stringify({ newTree: newTreeState }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Server responded with ${response.status}`);
+        }
+
+        // Update the local state
         setTreeWithUndo(newTreeState);
+
+        // Fetch fresh tree data to ensure server-client sync and get proper IDs
+        await fetchUserTree();
 
         if (parentId && settings.autoExpandNewFolders) {
           setTimeout(() => expandFolderPath(parentId), 0);
         }
 
-        return { success: true, item: createdItem };
+        return { success: true };
       } catch (error) {
         console.error("duplicateItem error:", error);
-        if (error && error.message) {
-          return { success: false, error: error.message };
-        }
-
-        return { success: false, error: "Network error duplicating item." };
+        // Restore original tree state on error
+        await fetchUserTree();
+        return {
+          success: false,
+          error: error.message || "Network error duplicating item.",
+        };
       }
     },
     [
       tree,
-      findParentAndSiblings,
-      insertItemRecursive,
       setTreeWithUndo,
       settings.autoExpandNewFolders,
       expandFolderPath,
       currentItemCount,
       currentUser,
+      fetchUserTree,
     ]
   );
 
@@ -1158,78 +1116,37 @@ export const useTree = (currentUser) => {
         }
         itemToInsertData.label = newLabel;
 
-        // Use the same recursive creation logic as duplicateItem
-        const createItemWithChildren = async (itemData, currentParentId) => {
-          const payload = {
-            label: itemData.label,
-            type: itemData.type,
-          };
-
-          if (itemData.type === "note" || itemData.type === "task") {
-            payload.content = itemData.content || "";
-            payload.direction = itemData.direction || "ltr";
-          }
-          if (itemData.type === "task") {
-            payload.completed = !!itemData.completed;
-          }
-
-          try {
-            const endpoint = currentParentId
-              ? `/items/${currentParentId}`
-              : `/items`;
-            const response = await authFetch(endpoint, {
-              method: "POST",
-              body: JSON.stringify(payload),
-            });
-            const createdItemFromServer = await response.json();
-
-            if (!response.ok) {
-              throw new Error(
-                createdItemFromServer.error ||
-                  `Failed to create item: ${response.status}`
-              );
-            }
-
-            if (
-              itemData.type === "folder" &&
-              Array.isArray(itemData.children) &&
-              itemData.children.length > 0
-            ) {
-              const createdChildren = [];
-              for (const childData of itemData.children) {
-                const createdChild = await createItemWithChildren(
-                  childData,
-                  createdItemFromServer.id
-                );
-                if (createdChild) {
-                  createdChildren.push(createdChild);
-                }
-              }
-              createdItemFromServer.children = createdChildren;
-            }
-
-            return createdItemFromServer;
-          } catch (error) {
-            console.error("Error creating item during paste:", error);
-            throw error;
-          }
-        };
-
+        // Use bulk tree update for better performance and reliability
         try {
-          const createdItem = await createItemWithChildren(
-            itemToInsertData,
-            targetFolderId
-          );
-          const newTreeState = insertItemRecursive(tree, targetFolderId, createdItem);
+          // Create the new tree structure with the copied item inserted
+          const newTreeState = insertItemRecursive(tree, targetFolderId, itemToInsertData);
+          
+          // Update the entire tree on the server in one operation
+          const response = await authFetch(`/items/tree`, {
+            method: "PUT",
+            body: JSON.stringify({ newTree: newTreeState }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Server responded with ${response.status}`);
+          }
+
+          // Update the local state
           setTreeWithUndo(newTreeState);
+
+          // Fetch fresh tree data to ensure server-client sync and get proper IDs
+          await fetchUserTree();
 
           if (targetFolderId && settings.autoExpandNewFolders) {
             expandFolderPath(targetFolderId);
           }
 
-          return { success: true, item: createdItem };
+          return { success: true };
         } catch (error) {
           console.error("pasteItem copy error:", error);
+          // Restore original tree state on error
+          await fetchUserTree();
           return {
             success: false,
             error: error.message || "Network error pasting item.",
