@@ -505,6 +505,38 @@ export const useTree = (currentUser) => {
       [id]: forceState !== undefined ? Boolean(forceState) : !prev[id],
     }));
   }, []);
+
+  const collapseAll = useCallback(() => {
+    console.log('🔄 Collapsing all folders');
+    setExpandedFolders({});
+  }, []);
+
+  const expandAll = useCallback(() => {
+    console.log('🔄 Expanding all folders');
+    const getAllFolderIds = (items) => {
+      const folderIds = [];
+      if (!Array.isArray(items)) return folderIds;
+      
+      items.forEach(item => {
+        if (item.type === 'folder') {
+          folderIds.push(item.id);
+          if (Array.isArray(item.children)) {
+            folderIds.push(...getAllFolderIds(item.children));
+          }
+        }
+      });
+      return folderIds;
+    };
+
+    const allFolderIds = getAllFolderIds(tree);
+    const newExpandedState = {};
+    allFolderIds.forEach(id => {
+      newExpandedState[id] = true;
+    });
+    
+    setExpandedFolders(newExpandedState);
+    console.log('✅ Expanded', allFolderIds.length, 'folders');
+  }, [tree]);
   const addItem = useCallback(
     async (newItemData, parentId) => {
       if (
@@ -1693,6 +1725,8 @@ export const useTree = (currentUser) => {
     setDraggedId,
     selectItemById,
     toggleFolderExpand,
+    collapseAll,
+    expandAll,
     updateNoteContent,
     updateTask,
     addItem,

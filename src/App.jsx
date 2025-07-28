@@ -71,6 +71,8 @@ import {
   Gem,
   Menu,
   X,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import SearchResultsPane from "./components/search/SearchResultsPane.jsx";
 import { matchText } from "./utils/searchUtils";
@@ -437,6 +439,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     setContextMenu,
     expandedFolders,
     toggleFolderExpand,
+    collapseAll,
+    expandAll,
     expandFolderPath,
     getItemPath,
     updateNoteContent,
@@ -2417,6 +2421,25 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           <>
             {mobileViewMode === "tree" ? (
               <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
+                {/* Tree Controls */}
+                <div className="flex items-center gap-2 p-2 bg-zinc-100 dark:bg-zinc-700 border-b border-zinc-200 dark:border-zinc-600">
+                  <button
+                    onClick={expandAll}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                    title="Expand All Folders"
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                    Expand All
+                  </button>
+                  <button
+                    onClick={collapseAll}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors"
+                    title="Collapse All Folders"
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                    Collapse All
+                  </button>
+                </div>
                 <Tree
                   items={tree || []}
                   selectedItemId={selectedItemId}
@@ -2602,6 +2625,25 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
               <PanelGroup direction="horizontal">
                 <Panel id="tree-panel" order={0} defaultSize={30} minSize={20}>
                   <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800 h-full">
+                    {/* Tree Controls */}
+                    <div className="flex items-center gap-2 p-2 bg-zinc-100 dark:bg-zinc-700 border-b border-zinc-200 dark:border-zinc-600">
+                      <button
+                        onClick={expandAll}
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                        title="Expand All Folders"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                        Expand All
+                      </button>
+                      <button
+                        onClick={collapseAll}
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors"
+                        title="Collapse All Folders"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                        Collapse All
+                      </button>
+                    </div>
                     <Tree
                       items={tree || []}
                       selectedItemId={selectedItemId}

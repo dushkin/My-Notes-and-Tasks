@@ -256,9 +256,7 @@ const ContextMenu = ({
           <button
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
-            onMouseDown={() => console.log('🖱️ Cut button MOUSE DOWN detected')}
-            onMouseUp={() => console.log('🖱️ Cut button MOUSE UP detected')}
-            onClick={() => {
+            onPointerDown={() => {
               console.log('✂️ ContextMenu Cut button clicked:', { itemId: item.id, itemType: item.type, itemLabel: item.label });
               if (typeof onCut === 'function') {
                 onCut(item.id);
