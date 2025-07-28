@@ -30,9 +30,29 @@ const ContextMenu = ({
   onSetReminder,
   onExport,
   onImport,
-  onClose,
+  onClose = () => console.warn('ContextMenu: onClose not provided, using default no-op'),
 }) => {
+  // Debug props
+  if (visible) {
+    console.log('🔧 ContextMenu props debug:', {
+      hasOnCopy: typeof onCopy === 'function',
+      hasOnCut: typeof onCut === 'function',
+      hasOnPaste: typeof onPaste === 'function',
+      itemId: item?.id,
+      itemType: item?.type
+    });
+  }
   const contextMenuRef = useRef(null);
+  
+  // Debug logging for onClose prop
+  if (visible && typeof onClose !== 'function') {
+    console.error('ContextMenu rendered with invalid onClose prop:', {
+      onClose,
+      typeofOnClose: typeof onClose,
+      visible,
+      allProps: arguments[0]
+    });
+  }
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -41,11 +61,14 @@ const ContextMenu = ({
         contextMenuRef.current &&
         !contextMenuRef.current.contains(e.target)
       ) {
-        if (typeof onClose === 'function') {
-          onClose();
-        } else {
-          console.error('ContextMenu: onClose is not a function', typeof onClose);
-        }
+        // Add a small delay to allow click events to complete
+        setTimeout(() => {
+          if (typeof onClose === 'function') {
+            onClose();
+          } else {
+            console.error('ContextMenu: onClose is not a function', typeof onClose);
+          }
+        }, 10);
       }
     };
     const handleEscapeKey = (e) => {
@@ -107,6 +130,28 @@ const ContextMenu = ({
   const canPaste = !!clipboardItem;
   const itemPadding = "px-4 py-2.5 sm:py-2"; // Consistent padding for items
   const iconBaseClass = "w-4 h-4 mr-2"; // Shared icon base style (size, margin)
+  
+  // Debug clipboard state
+  if (visible) {
+    console.log('ContextMenu clipboard debug:', {
+      hasClipboardItem: !!clipboardItem,
+      clipboardItemType: clipboardItem?.type,
+      clipboardItemLabel: clipboardItem?.label,
+      targetItemType: item?.type,
+      isEmptyArea,
+      canPaste,
+      fullClipboardItem: clipboardItem ? { id: clipboardItem.id, type: clipboardItem.type, label: clipboardItem.label } : null
+    });
+    
+    // Debug menu rendering
+    console.log('📋 ContextMenu rendered with:', {
+      itemType: item?.type,
+      itemLabel: item?.label,
+      isEmptyArea,
+      willShowCopyButton: !isEmptyArea && item,
+      willShowPasteButton: !isEmptyArea && item && item.type === "folder" && canPaste
+    });
+  }
 
   return (
     <div
@@ -211,9 +256,19 @@ const ContextMenu = ({
           <button
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+            onMouseDown={() => console.log('🖱️ Cut button MOUSE DOWN detected')}
+            onMouseUp={() => console.log('🖱️ Cut button MOUSE UP detected')}
             onClick={() => {
-              onCut(item.id);
-              onClose();
+              console.log('✂️ ContextMenu Cut button clicked:', { itemId: item.id, itemType: item.type, itemLabel: item.label });
+              if (typeof onCut === 'function') {
+                onCut(item.id);
+                console.log('✅ Cut function called successfully');
+              } else {
+                console.error('❌ onCut is not a function:', typeof onCut);
+              }
+              if (typeof onClose === 'function') {
+                onClose();
+              }
             }}
           >
             <Scissors
@@ -224,9 +279,20 @@ const ContextMenu = ({
           <button
             role="menuitem"
             className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
-            onClick={() => {
-              onCopy(item.id);
-              onClose();
+            onPointerDown={(e) => {
+              console.log('🔄 ContextMenu Copy button clicked:', { itemId: item.id, itemType: item.type, itemLabel: item.label });
+              
+              if (typeof onCopy === 'function') {
+                onCopy(item.id);
+                console.log('✅ Copy function called successfully');
+              } else {
+                console.error('❌ onCopy is not a function:', typeof onCopy);
+              }
+              
+              // Close menu immediately
+              if (typeof onClose === 'function') {
+                onClose();
+              }
             }}
           >
             <Copy

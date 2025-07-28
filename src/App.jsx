@@ -2559,6 +2559,26 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       reminders={reminders}
                       contextMenu={contextMenu}
                       clipboardItem={clipboardItem}
+                      handleAdd={openAddDialog}
+                      handleRename={startInlineRename}
+                      handleDelete={(item) =>
+                        showConfirm({
+                          title: `Delete ${
+                            item.type.charAt(0).toUpperCase() + item.type.slice(1)
+                          }`,
+                          message: `Are you sure you want to delete "${item.label}"? This cannot be undone.`,
+                          onConfirm: () => handleDeleteConfirm(item.id),
+                          variant: "danger",
+                          confirmText: "Delete",
+                        })
+                      }
+                      handleCopy={copyItem}
+                      handleCut={cutItem}
+                      handlePaste={handlePasteWrapper}
+                      handleDuplicate={handleDuplicate}
+                      handleExport={(context) => openExportDialog(context)}
+                      handleImport={(context) => openImportDialog(context)}
+                      handleCloseContextMenu={() => setContextMenu((m) => ({ ...m, visible: false }))}
                     />
                   ) : (
                     <ContentEditor {...contentEditorProps} />
@@ -2641,6 +2661,26 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         reminders={reminders}
                         contextMenu={contextMenu}
                         clipboardItem={clipboardItem}
+                        handleAdd={openAddDialog}
+                        handleRename={startInlineRename}
+                        handleDelete={(item) =>
+                          showConfirm({
+                            title: `Delete ${
+                              item.type.charAt(0).toUpperCase() + item.type.slice(1)
+                            }`,
+                            message: `Are you sure you want to delete "${item.label}"? This cannot be undone.`,
+                            onConfirm: () => handleDeleteConfirm(item.id),
+                            variant: "danger",
+                            confirmText: "Delete",
+                          })
+                        }
+                        handleCopy={copyItem}
+                        handleCut={cutItem}
+                        handlePaste={handlePasteWrapper}
+                        handleDuplicate={handleDuplicate}
+                        handleExport={(context) => openExportDialog(context)}
+                        handleImport={(context) => openImportDialog(context)}
+                        handleCloseContextMenu={() => setContextMenu((m) => ({ ...m, visible: false }))}
                       />
                     ) : (
                       <ContentEditor {...contentEditorProps} />
@@ -2685,7 +2725,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
       <ContextMenu
         {...contextMenu}
-        onClose={() => setContextMenu((m) => ({ ...m, visible: false }))}
+        onClose={() => {
+          console.log('ContextMenu onClose called');
+          setContextMenu((m) => ({ ...m, visible: false }));
+        }}
         onAdd={openAddDialog}
         onRename={startInlineRename}
         onDelete={(item) =>

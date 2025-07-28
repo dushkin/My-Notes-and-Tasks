@@ -1062,18 +1062,31 @@ export const useTree = (currentUser) => {
   const copyItem = useCallback(
     (itemId) => {
       const itemToCopy = findItemById(tree, itemId);
+      console.log('📋 copyItem called:', { itemId, found: !!itemToCopy, itemType: itemToCopy?.type, itemLabel: itemToCopy?.label });
       if (itemToCopy) {
         try {
           const deepCopy = structuredClone(itemToCopy);
           setClipboardItem(deepCopy);
           setClipboardMode("copy");
           setCutItemId(null);
+          console.log('📋 Clipboard set:', { type: deepCopy.type, label: deepCopy.label });
+          
+          // Debug: Verify state is set
+          setTimeout(() => {
+            console.log('📋 Clipboard state after timeout:', { 
+              hasItem: !!deepCopy, 
+              mode: "copy",
+              currentClipboardItem: deepCopy 
+            });
+          }, 100);
         } catch (e) {
           console.error("Error copying item:", e);
           setClipboardItem(null);
           setClipboardMode(null);
           setCutItemId(null);
         }
+      } else {
+        console.warn('📋 copyItem: Item not found for ID:', itemId);
       }
     },
     [tree]
