@@ -914,7 +914,16 @@ export const useTree = (currentUser) => {
         setTreeWithUndo(newTreeState);
 
         // Fetch fresh tree data to ensure server-client sync and get proper IDs
-        await fetchUserTree();
+        const treeResponse = await authFetch(`/items`, { cache: "no-store" });
+        if (treeResponse.ok) {
+          const treeData = await treeResponse.json();
+          if (treeData && Array.isArray(treeData.notesTree)) {
+            setTreeWithUndo(treeData.notesTree);
+          }
+        } else {
+          // Fallback to fetchUserTree if direct fetch fails
+          await fetchUserTree();
+        }
 
         if (parentId && settings.autoExpandNewFolders) {
           setTimeout(() => expandFolderPath(parentId), 0);
@@ -1012,7 +1021,17 @@ export const useTree = (currentUser) => {
           );
         }
 
-        await fetchUserTree();
+        // Get the updated tree from server and use setTreeWithUndo for undo/redo support
+        const treeResponse = await authFetch(`/items`, { cache: "no-store" });
+        if (treeResponse.ok) {
+          const treeData = await treeResponse.json();
+          if (treeData && Array.isArray(treeData.notesTree)) {
+            setTreeWithUndo(treeData.notesTree);
+          }
+        } else {
+          // Fallback to fetchUserTree if direct fetch fails
+          await fetchUserTree();
+        }
 
         if (targetFolderId) {
           expandFolderPath(targetFolderId);
@@ -1028,7 +1047,7 @@ export const useTree = (currentUser) => {
         };
       }
     },
-    [draggedId, tree, fetchUserTree, expandFolderPath]
+    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo]
   );
   const copyItem = useCallback(
     (itemId) => {
@@ -1191,7 +1210,18 @@ export const useTree = (currentUser) => {
           setClipboardMode(null);
           setCutItemId(null);
 
-          await fetchUserTree();
+          // Get the updated tree from server and use setTreeWithUndo for undo/redo support
+          const treeResponse = await authFetch(`/items`, { cache: "no-store" });
+          if (treeResponse.ok) {
+            const treeData = await treeResponse.json();
+            if (treeData && Array.isArray(treeData.notesTree)) {
+              setTreeWithUndo(treeData.notesTree);
+            }
+          } else {
+            // Fallback to fetchUserTree if direct fetch fails
+            await fetchUserTree();
+          }
+          
           if (targetFolderId && settings.autoExpandNewFolders) {
             expandFolderPath(targetFolderId);
           }
@@ -1524,7 +1554,18 @@ export const useTree = (currentUser) => {
               return;
             }
 
-            await fetchUserTree();
+            // Get the updated tree from server and use setTreeWithUndo for undo/redo support
+            const treeResponse = await authFetch(`/items`, { cache: "no-store" });
+            if (treeResponse.ok) {
+              const treeData = await treeResponse.json();
+              if (treeData && Array.isArray(treeData.notesTree)) {
+                setTreeWithUndo(treeData.notesTree);
+              }
+            } else {
+              // Fallback to fetchUserTree if direct fetch fails
+              await fetchUserTree();
+            }
+            
             resolveOuter({
               success: true,
               message: "Import successful! Tree has been updated.",
@@ -1544,7 +1585,7 @@ export const useTree = (currentUser) => {
         reader.readAsText(file);
       });
     },
-    [tree, selectedItemId, fetchUserTree]
+    [tree, selectedItemId, fetchUserTree, setTreeWithUndo]
   );
 
   const searchItems = useCallback(
