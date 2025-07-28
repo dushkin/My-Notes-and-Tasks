@@ -8,7 +8,7 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
   const [relativeValue, setRelativeValue] = useState("");
   const [relativeUnit, setRelativeUnit] = useState("minutes");
   const [isRepeating, setIsRepeating] = useState(false); // State for repeating reminders
-  const [repeatInterval, setRepeatInterval] = useState(1); // Default repeat interval
+  const [repeatInterval, setRepeatInterval] = useState("1"); // Default repeat interval as string
   const [repeatUnit, setRepeatUnit] = useState("days"); // Default repeat unit
   const [enableReminder, setEnableReminder] = useState(!showEnableToggle);
   
@@ -110,7 +110,7 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
     // Only call onSetReminder if we have a valid calculated time
     if (calculatedTime !== null) {
       const repeatOptions = isRepeating ? {
-        interval: repeatInterval,
+        interval: parseInt(repeatInterval) || 1, // Convert to number here, default to 1 if empty
         unit: repeatUnit
       } : null;
       onSetReminder(calculatedTime, repeatOptions);
@@ -293,7 +293,13 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
               <input
                 type="number"
                 value={repeatInterval}
-                onChange={(e) => setRepeatInterval(parseInt(e.target.value) || 1)}
+                onChange={(e) => setRepeatInterval(e.target.value)}
+                onBlur={(e) => {
+                  // Set default value of 1 if field is empty when user leaves the field
+                  if (!e.target.value || parseInt(e.target.value) < 1) {
+                    setRepeatInterval("1");
+                  }
+                }}
                 placeholder="e.g., 1"
                 min="1"
                 className="flex-1 min-w-0 p-2 border border-gray-300 dark:border-zinc-600 rounded text-gray-900 dark:text-gray-100 bg-white dark:bg-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
