@@ -2422,7 +2422,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
             {mobileViewMode === "tree" ? (
               <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
                 {/* Tree Controls */}
-                <div className="flex items-center gap-2 p-2 bg-zinc-100 dark:bg-zinc-700 border-b border-zinc-200 dark:border-zinc-600">
+                <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600">
                   <button
                     onClick={expandAll}
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
@@ -2626,7 +2626,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                 <Panel id="tree-panel" order={0} defaultSize={30} minSize={20}>
                   <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800 h-full">
                     {/* Tree Controls */}
-                    <div className="flex items-center gap-2 p-2 bg-zinc-100 dark:bg-zinc-700 border-b border-zinc-200 dark:border-zinc-600">
+                    <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600">
                       <button
                         onClick={expandAll}
                         className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
