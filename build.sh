@@ -30,18 +30,27 @@ fi
 echo "🤖 Asking the AI to generate a commit message..."
 
 # Create the JSON payload for the Gemini API.
-JSON_PAYLOAD=$(jq -n --arg diff "$STAGED_DIFF" \
-  '{
-    "contents": [
-      {
-        "parts": [
-          {
-            "text": "Based on the following git diff, suggest a concise commit message in the conventional commit format (e.g., feat: summary). The message should have a subject line and an optional, brief body if needed.\n\nDiff:\n---\n\($diff)"
-          }
-        ]
-      }
-    ]
-  }')
+
+# Write the diff to a temporary file to avoid argument size limits
+TEMP_DIFF_FILE=$(mktemp)
+echo "$STAGED_DIFF" > "$TEMP_DIFF_FILE"
+
+# Construct the JSON payload using jq reading from the file
+JSON_PAYLOAD=$(cat "$TEMP_DIFF_FILE" | jq -Rs '
+{
+  contents: [
+    {
+      parts: [
+        {
+          text: "Based on the following git diff, suggest a concise commit message in the conventional commit format (e.g., feat: summary). The message should have a subject line and an optional, brief body if needed.\n\nDiff:\n---\n" + .
+        }
+      ]
+    }
+  ]
+}')
+
+rm "$TEMP_DIFF_FILE"
+
 
 # Call the Gemini API using the recommended 'gemini-1.5-flash-latest' model.
 API_RESPONSE=$(curl -s -X POST \
