@@ -43,7 +43,7 @@ rm "$TEMP_DIFF_FILE"
 printf '{\n  "contents": [{\n    "parts": [{\n      "text": %s\n    }]\n  }]\n}' "$(printf '%s' "Based on the following git diff, suggest a concise commit message in the conventional commit format (e.g., feat: summary). The message should be under 72 characters.\n\nDiff:\n---\n$DIFF_CONTENT" | jq -Rs .)" > "$TEMP_JSON_FILE"
 
 # Send to Gemini API
-API_RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$GOOGLE_API_KEY" \
+API_RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$GOOGLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d @"$TEMP_JSON_FILE")
 
