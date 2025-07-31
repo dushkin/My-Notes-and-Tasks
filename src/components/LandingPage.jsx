@@ -4,6 +4,7 @@ import { PRICING_PLANS, getAvailablePlans } from "../config/pricing";
 import Button from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import logo from "../assets/logo_dual_48x48.png";
+import packageInfo from "../../package.json";
 
 export default function LandingPage({ onLogin, onSignup, currentUser }) {
   const [billingCycle, setBillingCycle] = useState("yearly");
@@ -499,6 +500,79 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                   </div>
                 </motion.div>
               </div>
+            </div>
+          </section>
+
+          {/* Mobile App Download Section */}
+          <section className="py-16 bg-gradient-to-r from-blue-50 to-purple-50">
+            <div className="max-w-4xl mx-auto px-6">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                viewport={{ once: true }}
+                className="text-center"
+              >
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                  📱 Take Your Notes & Tasks Anywhere
+                </h3>
+                <p className="text-xl text-gray-600 mb-8">
+                  Download our Android app and access your workspace on the go
+                </p>
+                
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    viewport={{ once: true }}
+                  >
+                    <a
+                      href={`/notask-android-v${packageInfo.version}.apk`}
+                      download={`notask-android-v${packageInfo.version}.apk`}
+                      className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 group"
+                    >
+                      <svg className="w-6 h-6 mr-3 group-hover:animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      Download Android APK
+                    </a>
+                  </motion.div>
+                  
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    viewport={{ once: true }}
+                    className="text-sm text-gray-500 max-w-xs"
+                  >
+                    <div className="flex items-center justify-center space-x-2 mb-2">
+                      <span className="text-green-500">✓</span>
+                      <span>Works offline</span>
+                      <span className="text-green-500">✓</span>
+                      <span>Full sync</span>
+                      <span className="text-green-500">✓</span>
+                      <span>Free</span>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Version {packageInfo.version} • Android 7.0+ • File size: ~4MB
+                    </p>
+                  </motion.div>
+                </div>
+
+                <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg max-w-2xl mx-auto">
+                  <div className="flex items-start space-x-3">
+                    <span className="text-yellow-500 text-lg">⚠️</span>
+                    <div className="text-left">
+                      <h4 className="font-medium text-yellow-800 mb-1">Installation Note</h4>
+                      <p className="text-sm text-yellow-700">
+                        This APK is not available on Google Play Store. You'll need to enable "Install from unknown sources" 
+                        in your Android settings to install it. The app is safe and contains no malware.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </section>
 

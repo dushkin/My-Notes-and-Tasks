@@ -124,6 +124,10 @@ test-results/**/*.mp4
 !public/**/*.png
 !assets/**/*.png
 
+# Allow APK download files
+!public/notask-android.apk
+!public/notask-android-v*.apk
+
 
 # Custom scripts
 /cnrd.sh

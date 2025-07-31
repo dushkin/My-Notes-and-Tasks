@@ -13,7 +13,7 @@ import {
   getItemPath,
 } from "../utils/treeUtils";
 import { jsPDF } from "jspdf";
-import * as bidi from "unicode-bidirectional";
+import { resolve, reorder } from "unicode-bidirectional";
 import { notoSansHebrewBase64 } from "../fonts/NotoSansHebrewBase64";
 import { useSettings } from "../contexts/SettingsContext";
 import { itemMatches } from "../utils/searchUtils";
@@ -1364,19 +1364,35 @@ export const useTree = (currentUser) => {
     return nonLatinChars.test(text);
   };
 
+  // Helper function to implement bidirectional text reordering
+  const bidiReorderParagraph = (text) => {
+    if (!text) return text;
+    
+    try {
+      // Convert text to codepoints
+      const codepoints = [];
+      for (let i = 0; i < text.length; i++) {
+        codepoints.push(text.codePointAt(i));
+      }
+      
+      // Resolve bidirectional levels (0 = LTR paragraph level)
+      const levels = resolve(codepoints, 0);
+      
+      // Reorder the codepoints according to bidi levels
+      const reorderedCodepoints = reorder(codepoints, levels);
+      
+      // Convert back to string
+      return String.fromCodePoint(...reorderedCodepoints);
+    } catch (error) {
+      console.warn("Error in bidi reordering:", error);
+      return text; // Fallback to original text
+    }
+  };
+
   const processBidiText = (text) => {
     if (!text) return "";
     try {
-      if (
-        bidi.default &&
-        typeof bidi.default.bidiReorderParagraph === "function"
-      ) {
-        return bidi.default.bidiReorderParagraph(text);
-      }
-      if (typeof bidi.bidiReorderParagraph === "function") {
-        return bidi.bidiReorderParagraph(text);
-      }
-      return text;
+      return bidiReorderParagraph(text);
     } catch (error) {
       console.warn("Bidirectional text processing failed:", error);
       return text; // Fallback to original text

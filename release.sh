@@ -39,10 +39,24 @@ fi
 echo "📝 Updating package.json to version $VERSION"
 npm version $VERSION --no-git-tag-version
 
-# Commit the version update
-echo "💾 Committing version update"
-git add package.json
-git commit -m "Release v$VERSION"
+# Build production APK with new version
+echo "🤖 Building production APK for v$VERSION"
+./apk.sh
+
+if [ $? -ne 0 ]; then
+    echo "❌ APK build failed! Release cancelled."
+    exit 1
+fi
+
+# Commit the version update and APK files
+echo "💾 Committing version update and APK files"
+git add package.json public/notask-android*.apk
+git commit -m "Release v$VERSION
+
+✨ Features in this release:
+- Production APK build included
+- Version: $VERSION
+- APK files: notask-android.apk, notask-android-v$VERSION.apk"
 
 # Create and push tag
 echo "🏷️  Creating tag v$VERSION"
