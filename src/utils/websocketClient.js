@@ -7,7 +7,7 @@ export function connectLiveUpdates(token) { // 👈 Change parameter to `token`
   }
 
   try {
-    const socket = io(import.meta.env.VITE_API_BASE_URL || "http://localhost:5001", {
+    const socket = io(import.meta.env.VITE_API_BASE_URL || "https://my-notes-and-tasks-backend.onrender.com", {
       auth: { token }, // 👈 Send the token in the `auth` object
     });
 

@@ -12,20 +12,13 @@ const MobileReminderPopup = ({
   showDoneButton = true,
   autoHideDelay = 10000 // 10 seconds default
 }) => {
-  const [isJumping, setIsJumping] = useState(false);
+  // We only track progress for the auto‑hide countdown. The jump animation has
+  // been removed in favor of a simple slide-down effect.
   const [progress, setProgress] = useState(100);
 
   useEffect(() => {
     if (isVisible) {
-      // Start jumping animation immediately
-      setIsJumping(true);
       setProgress(100);
-      
-      // Stop jumping after 3 seconds
-      const jumpTimer = setTimeout(() => {
-        setIsJumping(false);
-      }, 3000);
-
       // Start countdown for auto-hide
       const startTime = Date.now();
       const progressTimer = setInterval(() => {
@@ -33,15 +26,12 @@ const MobileReminderPopup = ({
         const remaining = Math.max(0, autoHideDelay - elapsed);
         const newProgress = (remaining / autoHideDelay) * 100;
         setProgress(newProgress);
-
         if (remaining <= 0) {
           clearInterval(progressTimer);
           onDismiss();
         }
       }, 100);
-
       return () => {
-        clearTimeout(jumpTimer);
         clearInterval(progressTimer);
       };
     }
@@ -50,25 +40,19 @@ const MobileReminderPopup = ({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm pointer-events-auto" onClick={onDismiss} />
-      
+    <div className="fixed inset-0 z-[9999] flex justify-center items-center px-2 py-2 pointer-events-none">
       {/* Popup Card */}
-      <div 
+      <div
         className={`
-          relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border-2 border-red-500 dark:border-red-400
-          max-w-sm w-full mx-auto pointer-events-auto transform transition-all duration-300
-          ${isJumping ? 'animate-bounce' : 'animate-pulse'}
+          relative bg-white dark:bg-zinc-900 shadow-xl
+          rounded-2xl w-full max-w-2xl max-h-[80vh] pointer-events-auto transform transition-transform duration-300
         `}
         style={{
-          animation: isJumping 
-            ? 'jump 0.6s ease-in-out infinite' 
-            : 'pulse 2s ease-in-out infinite'
+          animation: 'popIn 0.3s ease-out'
         }}
       >
         {/* Progress bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-t-2xl overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-2 bg-zinc-200 dark:bg-zinc-700 rounded-t-2xl overflow-hidden">
           <div 
             className="h-full bg-red-500 dark:bg-red-400 transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}
@@ -154,13 +138,11 @@ const MobileReminderPopup = ({
         </div>
       </div>
 
-      {/* Custom keyframes for jumping animation */}
+      {/* Custom keyframes for pop-in animation */}
       <style jsx>{`
-        @keyframes jump {
-          0%, 100% { transform: translateY(0) scale(1); }
-          25% { transform: translateY(-20px) scale(1.05); }
-          50% { transform: translateY(-30px) scale(1.1); }
-          75% { transform: translateY(-20px) scale(1.05); }
+        @keyframes popIn {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

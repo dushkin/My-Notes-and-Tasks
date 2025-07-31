@@ -54,6 +54,9 @@ import SnoozeDialog from "./components/reminders/SnoozeDialog";
 import SetReminderDialog from "./components/reminders/SetReminderDialog.jsx";
 import MobileReminderPopup from "./components/reminders/MobileReminderPopup.jsx";
 import FeedbackNotification from "./components/FeedbackNotification";
+// Import notificationService so we can cancel high‑importance notifications and
+// schedule low‑importance drawer entries when reminders fire in the foreground.
+import notificationService from "./services/notificationService.js";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Search as SearchIcon,
@@ -194,6 +197,22 @@ const App = () => {
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  // Initialize notification service
+  useEffect(() => {
+    const initNotificationService = async () => {
+      try {
+        const { notificationService } = await import('./services/notificationService.js');
+        await notificationService.initialize();
+        await notificationService.registerActionTypes();
+        console.log('🔔 Notification service initialized in App');
+      } catch (error) {
+        console.error('❌ Failed to initialize notification service:', error);
+      }
+    };
+
+    initNotificationService();
   }, []);
   return (
     <Router>
@@ -1058,23 +1077,53 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       }
     };
 
-    // Handle reminder triggered event to show mobile popup
+    // Handle reminder triggered event to show mobile popup and manage system notifications.
     const handleReminderTriggered = (event) => {
       const { itemTitle, notificationData, itemId } = event.detail;
-      
+
+      // Some notifications (e.g. low‑importance drawer replacements) set skipPopup so the
+      // in‑app popup is not displayed. Check for that flag and bail early.
+      if (notificationData?.skipPopup) {
+        console.debug('🔕 Skipping in‑app popup for drawer‑only notification:', itemId);
+        return;
+      }
+
       // Only show popup on mobile devices
-      const isMobile = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) || 
-                       ('ontouchstart' in window) || 
-                       (window.screen && window.screen.width <= 768);
-      
-      if (isMobile) {
+      const isMobileDevice =
+        /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ||
+        "ontouchstart" in window ||
+        (window.screen && window.screen.width <= 768);
+
+      // Determine if app is currently visible (foreground). When in the foreground,
+      // we cancel the system's heads‑up notification and schedule a low‑importance
+      // notification in the drawer to avoid duplicate heads‑up alerts.
+      const isForeground = document.visibilityState === 'visible';
+      if (isForeground) {
+        try {
+          // Cancel the high‑priority notification so only our in‑app popup remains
+          notificationService.cancelNotificationByItem(itemId);
+          // Immediately schedule a drawer‑only notification so the user still has
+          // a persistent entry to act on later. Pass a minimal reminder object.
+          notificationService.scheduleDrawerNotification({
+            itemId,
+            timestamp: Date.now(),
+            itemTitle: itemTitle || 'Untitled',
+            originalReminder: notificationData?.originalReminder || null
+          });
+        } catch (err) {
+          console.warn('⚠️ Failed to downgrade notification for item', itemId, err);
+        }
+      }
+
+      if (isMobileDevice) {
         setMobileReminderPopup({
           isVisible: true,
           title: '⏰ Reminder',
           message: `Don't forget: ${itemTitle || 'Untitled'}`,
           itemId: itemId,
           reminderId: notificationData?.reminderId,
-          showDoneButton: notificationData?.reminderDisplayDoneButton ?? true
+          showDoneButton:
+            notificationData?.reminderDisplayDoneButton ?? true,
         });
       }
     };
@@ -2859,7 +2908,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         onSetReminder={handleConfirmSetReminder}
         item={itemForReminder}
       />
-
       <MobileReminderPopup
         isVisible={mobileReminderPopup.isVisible}
         title={mobileReminderPopup.title}

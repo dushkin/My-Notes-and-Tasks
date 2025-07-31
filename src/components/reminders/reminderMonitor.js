@@ -147,8 +147,13 @@ triggerReminder(reminder, settings) {
         type,
         itemId,
         reminderId,
-        originalData
+        originalData,
+        snoozeUntil,
+        itemTitle,
+        reminderData
       } = event.data;
+
+      console.log('📨 Service worker message received:', event.data);
 
       switch (type) {
         case 'REMINDER_DONE':
@@ -157,11 +162,17 @@ triggerReminder(reminder, settings) {
         case 'REMINDER_SNOOZE':
           this.handleReminderSnooze(itemId, reminderId, originalData);
           break;
+        case 'REMINDER_SNOOZED':
+          this.handleReminderSnoozed(itemId, snoozeUntil);
+          break;
         case 'REMINDER_DISMISSED':
           this.handleReminderDismissed(itemId, reminderId);
           break;
         case 'FOCUS_ITEM':
           this.handleFocusItem(itemId);
+          break;
+        case 'REMINDER_TRIGGERED':
+          this.handleServiceWorkerReminderTriggered(itemId, itemTitle, reminderData);
           break;
       }
     };
@@ -203,6 +214,39 @@ triggerReminder(reminder, settings) {
     window.dispatchEvent(new CustomEvent('focusItem', {
       detail: {
         itemId
+      }
+    }));
+  }
+
+  handleReminderSnoozed(itemId, snoozeUntil) {
+    // Update the reminder with the new snooze time
+    const reminders = getReminders();
+    if (reminders[itemId]) {
+      reminders[itemId].timestamp = snoozeUntil;
+      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      this.clearProcessedReminder(itemId);
+      
+      window.dispatchEvent(new CustomEvent('remindersUpdated', {
+        detail: reminders
+      }));
+      
+      this.showFeedback('⏰ Reminder snoozed for 5 minutes', 'info');
+    }
+  }
+
+  handleServiceWorkerReminderTriggered(itemId, itemTitle, reminderData) {
+    // This is called when the service worker triggers a reminder
+    // We should show any additional UI feedback here
+    console.log('🔔 Service worker reminder triggered:', itemTitle);
+    
+    // Dispatch the same event as local reminders for consistency
+    window.dispatchEvent(new CustomEvent('reminderTriggered', {
+      detail: {
+        itemId,
+        itemTitle,
+        notificationData: reminderData,
+        triggeredByServiceWorker: true
       }
     }));
   }

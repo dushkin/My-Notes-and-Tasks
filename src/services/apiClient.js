@@ -1,7 +1,8 @@
 import { getAccessToken, getRefreshToken, storeTokens, clearTokens } from "./authService";
+import { Capacitor } from '@capacitor/core';
 
 // The base URL must NOT include /api. This client will add it.
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://my-notes-and-tasks-backend.onrender.com";
 
 let onLogoutCallback = () => {
   console.warn("onLogoutCallback not initialized in apiClient. Call apiClient.init() in App.jsx.");
@@ -174,11 +175,17 @@ export const authFetch = async (url, options = {}) => {
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       const finalOptions = {
-        credentials: 'include',
+        credentials: isPublicEndpoint ? 'omit' : 'include',
         ...options,
         headers,
         signal: controller.signal,
       };
+
+      // For Android, remove some problematic options
+      if (Capacitor.getPlatform() === 'android') {
+        delete finalOptions.credentials;
+        delete finalOptions.signal; // Some Android WebViews don't support AbortController
+      }
 
       if (finalOptions.body && typeof finalOptions.body === 'object' && !(finalOptions.body instanceof FormData)) {
         finalOptions.body = JSON.stringify(finalOptions.body);
@@ -196,7 +203,9 @@ export const authFetch = async (url, options = {}) => {
 
       const response = await fetch(finalUrl, finalOptions);
 
-      clearTimeout(timeoutId);
+      if (Capacitor.getPlatform() !== 'android') {
+        clearTimeout(timeoutId);
+      }
 
       if (response.ok) {
         broadcastTreeUpdate(finalOptions.method, url);

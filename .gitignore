@@ -134,3 +134,29 @@ test-results/**/*.mp4
 
 # Archives
 *.zip
+
+# Android Studio and Gradle files (additional to android/.gitignore)
+*.iml
+.gradle/
+local.properties
+.idea/
+android/build/
+android/.gradle/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Capacitor
+.capacitor/
+capacitor.config.json.bak
+
+# Additional Android/Mobile development
+*.keystore
+*.jks
+google-services.json
+
+# PgLite debug files
+*.pglite-debug.log

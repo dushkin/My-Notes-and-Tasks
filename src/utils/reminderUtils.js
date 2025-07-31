@@ -8,7 +8,7 @@ const REMINDERS_STORAGE_KEY = 'notes_app_reminders';
  * @param {number} timestamp - The Unix timestamp (in milliseconds) when the reminder should trigger.
  * @param {Object|null} repeatOptions - The repeat options for the reminder.
  */
-export const setReminder = (itemId, timestamp, repeatOptions = null) => {
+export const setReminder = async (itemId, timestamp, repeatOptions = null) => {
   const reminders = getReminders();
   const reminderData = {
     timestamp,
@@ -18,6 +18,15 @@ export const setReminder = (itemId, timestamp, repeatOptions = null) => {
 
   reminders[itemId] = reminderData;
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
+
+  // Schedule notification using the notification service
+  try {
+    const { notificationService } = await import('../services/notificationService.js');
+    await notificationService.scheduleReminder(reminderData);
+    console.log('🔔 Reminder scheduled via notification service');
+  } catch (error) {
+    console.error('❌ Failed to schedule reminder via notification service:', error);
+  }
 
   // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
@@ -56,10 +65,19 @@ export const getReminder = (itemId) => {
  * Clears a specific reminder and broadcasts to other devices.
  * @param {string} itemId - The ID of the item whose reminder should be cleared.
  */
-export const clearReminder = (itemId) => {
+export const clearReminder = async (itemId) => {
   const reminders = getReminders();
   delete reminders[itemId];
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
+
+  // Cancel notification using the notification service
+  try {
+    const { notificationService } = await import('../services/notificationService.js');
+    await notificationService.cancelReminder(itemId);
+    console.log('🔔 Reminder cancelled via notification service');
+  } catch (error) {
+    console.error('❌ Failed to cancel reminder via notification service:', error);
+  }
 
   // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
@@ -81,7 +99,7 @@ export const clearReminder = (itemId) => {
  * @param {number} timestamp - The new timestamp.
  * @param {Object|null} repeatOptions - The repeat options.
  */
-export const updateReminder = (itemId, timestamp, repeatOptions = null) => {
+export const updateReminder = async (itemId, timestamp, repeatOptions = null) => {
   const reminders = getReminders();
   const reminderData = {
     timestamp,
@@ -91,6 +109,17 @@ export const updateReminder = (itemId, timestamp, repeatOptions = null) => {
 
   reminders[itemId] = reminderData;
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
+
+  // Update notification using the notification service
+  try {
+    const { notificationService } = await import('../services/notificationService.js');
+    // Cancel the old reminder and schedule the new one
+    await notificationService.cancelReminder(itemId);
+    await notificationService.scheduleReminder(reminderData);
+    console.log('🔔 Reminder updated via notification service');
+  } catch (error) {
+    console.error('❌ Failed to update reminder via notification service:', error);
+  }
 
   // Notify local UI immediately
   window.dispatchEvent(new CustomEvent('remindersUpdated', {
@@ -295,123 +324,113 @@ export const schedulePushNotification = (title, body, timestamp, data = {}) => {
 };
 
 /**
- * Show a notification immediately.
+ * Show a notification immediately using the proper notification service.
  * @param {string} title - Notification title.
  * @param {string} body - Notification body.
  * @param {Object} data - Additional data for the notification.
  */
-export const showNotification = (title, body, data = {}) => {
-  if (Notification.permission !== "granted") {
-    console.warn("Notification permission not granted.");
+export const showNotification = async (title, body, data = {}) => {
+  console.log('🔔 showNotification called:', { title, body, data });
+  
+  try {
+    // Import the notification service dynamically to avoid circular imports
+    const { notificationService } = await import('../services/notificationService.js');
+    
+    // Create reminder object for the notification service
+    const reminder = {
+      itemId: data.itemId || 'unknown',
+      itemTitle: body.replace('Don\'t forget: ', ''),
+      timestamp: Date.now(),
+      ...data.originalReminder
+    };
+    
+    // Show immediate notification
+    const success = await notificationService.showImmediate(reminder);
+    
+    if (success) {
+      console.log('🔔 Notification shown successfully via notification service');
+      return;
+    }
+    
+    // Fallback to legacy web notification if service fails
+    console.warn('⚠️ Notification service failed, falling back to web notification');
+    showLegacyWebNotification(title, body, data);
+    
+  } catch (error) {
+    console.error('❌ Error in showNotification:', error);
+    // Fallback to legacy web notification
+    showLegacyWebNotification(title, body, data);
+  }
+};
+
+/**
+ * Legacy web notification fallback
+ * @param {string} title - Notification title.
+ * @param {string} body - Notification body.
+ * @param {Object} data - Additional data for the notification.
+ */
+const showLegacyWebNotification = (title, body, data = {}) => {
+  if (!('Notification' in window) || Notification.permission !== "granted") {
+    console.warn("Web notification permission not granted.");
     return;
   }
 
-  console.log('🔔 showNotification called:', { title, body, permission: Notification.permission });
+  console.log('🌐 Using legacy web notification');
 
   const isMobile = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) || 
                    ('ontouchstart' in window) || 
                    (window.screen && window.screen.width <= 768);
-  const isPageHidden = document.hidden;
   
-  console.log('🔔 Device info:', { isMobile, isPageHidden });
-  
-  // 🚨 ENHANCED MOBILE ATTENTION-GRABBING
+  // Enhanced mobile attention-grabbing
   if (isMobile) {
-    console.log('🔔 Mobile device - applying enhanced visibility');
-    
-    // Try to wake up the device/app
     if (window.focus) window.focus();
     
-    // Flash the title more aggressively
+    // Flash the title
     const originalTitle = document.title;
     let flashCount = 0;
     const flashInterval = setInterval(() => {
       document.title = flashCount % 2 === 0 ? `🚨 ${title}` : `🔔 REMINDER!`;
       flashCount++;
-      if (flashCount >= 10) { // Flash 5 times
+      if (flashCount >= 6) {
         clearInterval(flashInterval);
         document.title = originalTitle;
       }
     }, 500);
     
-    // Try to vibrate the device if supported
+    // Vibrate if supported
     if ('vibrate' in navigator) {
-      navigator.vibrate([800, 200, 800, 200, 800, 200, 800]);
+      navigator.vibrate([800, 200, 800, 200, 800]);
     }
   }
 
-  const shouldDisplayDoneButton = data?.reminderDisplayDoneButton ?? true;
-  
-  // Always try service worker first for enhanced features
+  // Try service worker notification first
   navigator.serviceWorker.getRegistration().then((registration) => {
     if (registration && registration.active) {
-      const uniqueTag = `urgent-reminder-${data.itemId || 'reminder'}-${Date.now()}`;
-      
-      const actions = shouldDisplayDoneButton ? [
-        { action: "done", title: "✅ Done", icon: "/favicon-32x32.png" },
-        { action: "snooze", title: "⏰ Snooze", icon: "/favicon-32x32.png" },
-        { action: "open", title: "📱 Open App", icon: "/favicon-32x32.png" }
-      ] : [
-        { action: "snooze", title: "⏰ Snooze", icon: "/favicon-32x32.png" },
-        { action: "open", title: "📱 Open App", icon: "/favicon-32x32.png" }
-      ];
-      
-      console.log('🔔 Using enhanced service worker notification');
-      
       return registration.showNotification(title, {
-        body: `⚠️ ${body}`, // Add warning emoji to body
+        body: `⚠️ ${body}`,
         icon: "/favicon-192x192.png",
         badge: "/favicon-48x48.png",
-        image: "/favicon-192x192.png", // Large image for expanded view
-        
-        // 🚨 MAXIMUM VISIBILITY
-        requireInteraction: true, // ALWAYS require interaction
-        persistent: true,
-        renotify: true,
-        silent: false,
-        vibrate: [800, 200, 800, 200, 800], // Strong vibration
-        urgency: 'high',
-        
-        data: { 
-          ...data, 
-          shouldDisplayDoneButton,
-          priority: 'urgent'
-        },
-        actions: actions,
-        tag: uniqueTag,
-        timestamp: Date.now(),
-        
-        // Platform-specific enhancements
-        android: {
-          channelId: 'urgent-reminders',
-          priority: 2, // PRIORITY_HIGH
-          visibility: 1, // VISIBILITY_PUBLIC (lock screen)
-          category: 'alarm', // Alarm category
-          color: '#FF0000', // Red color
-          fullScreenIntent: true, // Show over other apps
-          sound: 'default',
-          vibrationPattern: [800, 200, 800, 200, 800],
-          lights: {
-            argb: 0xFFFF0000, // Red light
-            onMs: 1000,
-            offMs: 500
-          }
-        }
+        requireInteraction: true,
+        vibrate: [800, 200, 800],
+        tag: `reminder-${data.itemId || Date.now()}`,
+        data: data
       });
     } else {
-      console.log('🔔 No service worker, using direct notification with enhancements');
-      if (!isMobile) {
-        const notification = new Notification(`🚨 ${title}`, {
-          body: `⚠️ ${body}`,
-          icon: "/favicon-192x192.png",
-          badge: "/favicon-48x48.png",
-          data: { ...data, shouldDisplayDoneButton },
-          tag: `urgent-${data.itemId || 'reminder'}-${Date.now()}`,
-          requireInteraction: true
-        });
-        
-        console.log('🔔 Enhanced direct notification created');
-      }
+      // Direct web notification
+      const notification = new Notification(`🚨 ${title}`, {
+        body: `⚠️ ${body}`,
+        icon: "/favicon-192x192.png",
+        badge: "/favicon-48x48.png",
+        requireInteraction: true,
+        vibrate: [800, 200, 800],
+        tag: `reminder-${data.itemId || Date.now()}`,
+        data: data
+      });
+      
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
     }
   });
 };

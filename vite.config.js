@@ -2,8 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  base: './', // Use relative paths for assets in production builds
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -29,4 +30,6 @@ export default defineConfig({
      `.replace(/\s+/g, ' ').trim(),
     },
   },
-});
+  envDir: '.', // Look for .env files in the root directory
+  envPrefix: 'VITE_', // Load variables prefixed with VITE_
+}));

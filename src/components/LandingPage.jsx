@@ -128,9 +128,7 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
       console.log("Sending request body:", requestBody);
 
       const response = await fetch(
-        isLocalhost
-          ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5001"}/api/paddle/create-transaction`
-          : "https://my-notes-and-tasks-backend.onrender.com/api/paddle/create-transaction",
+        `${import.meta.env.VITE_API_BASE_URL || "https://my-notes-and-tasks-backend.onrender.com"}/api/paddle/create-transaction`,
         {
           method: "POST",
           headers: {
