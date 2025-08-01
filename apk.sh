@@ -42,8 +42,11 @@ fi
 
 cd ..
 
-# Show the APK location
-APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+# Show the APK location (check both signed and unsigned variants)
+APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+if [ ! -f "$APK_PATH" ]; then
+    APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+fi
 if [ -f "$APK_PATH" ]; then
     APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
     echo "✅ Production APK built successfully!"
