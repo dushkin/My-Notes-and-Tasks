@@ -70,12 +70,14 @@ const TAB_ID =
 // === FREE PLAN LIMITATION ===
 const FREE_PLAN_ITEM_LIMIT = 100;
 
-/** Checks if the user has active paid access (active or cancelled but until period end) */
+/** Checks if the user has active paid access (admin, active subscription, or cancelled but until period end) */
 function hasActiveAccess(user) {
   if (!user) return false;
+  if (user.role === "admin") return true;
   if (user.subscriptionStatus === "active") return true;
   if (
     user.subscriptionStatus === "cancelled" &&
+    user.subscriptionEndsAt &&
     new Date(user.subscriptionEndsAt) > new Date()
   ) {
     return true;

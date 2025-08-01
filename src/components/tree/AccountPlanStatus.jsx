@@ -1,11 +1,15 @@
 // src/components/tree/AccountPlanStatus.jsx
 import React from "react";
-import { Gem, Crown, Infinity } from "lucide-react";
+import { Gem, Crown, Infinity, Shield } from "lucide-react";
 
 const FREE_PLAN_ITEM_LIMIT = 100;
 
 const AccountPlanStatus = ({ user, currentItemCount }) => {
   if (!user) return null;
+
+  const isAdmin = () => {
+    return user.role === "admin";
+  };
 
   const isActivePlan = () => {
     if (user.subscriptionStatus === "active") return true;
@@ -17,19 +21,25 @@ const AccountPlanStatus = ({ user, currentItemCount }) => {
   };
 
   const isPaidPlan = isActivePlan();
-  const isFreePlan = !isPaidPlan;
+  const isFreePlan = !isAdmin() && !isPaidPlan;
 
   const getPlanDisplayName = () => {
+    if (isAdmin()) {
+      return "Admin";
+    }
     if (isPaidPlan) {
       if (user.subscriptionStatus === "cancelled") {
-        return "Premium (Ending Soon)";
+        return "Pro (Ending Soon)";
       }
-      return "Premium";
+      return "Pro";
     }
-    return "Free Plan";
+    return "Free";
   };
 
   const getPlanIcon = () => {
+    if (isAdmin()) {
+      return <Shield className="w-4 h-4 text-purple-500" />;
+    }
     if (isPaidPlan) {
       return <Crown className="w-4 h-4 text-yellow-500" />;
     }
@@ -37,11 +47,15 @@ const AccountPlanStatus = ({ user, currentItemCount }) => {
   };
 
   const getItemCountDisplay = () => {
-    if (isPaidPlan) {
+    if (isAdmin() || isPaidPlan) {
       return (
         <div className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400">
-          <Infinity className="w-3 h-3" />
-          <span>Unlimited items</span>
+          <span>{currentItemCount} items</span>
+          <span className="text-zinc-400 dark:text-zinc-500">•</span>
+          <span className="flex items-center gap-1">
+            <Infinity className="w-3 h-3" />
+            <span>Unlimited</span>
+          </span>
         </div>
       );
     }
@@ -85,9 +99,11 @@ const AccountPlanStatus = ({ user, currentItemCount }) => {
         <div className="flex items-center gap-2">
           {getPlanIcon()}
           <span className={`text-sm font-medium ${
-            isPaidPlan 
-              ? "text-yellow-700 dark:text-yellow-400" 
-              : "text-blue-700 dark:text-blue-400"
+            isAdmin()
+              ? "text-purple-700 dark:text-purple-400"
+              : isPaidPlan 
+                ? "text-yellow-700 dark:text-yellow-400" 
+                : "text-blue-700 dark:text-blue-400"
           }`}>
             {getPlanDisplayName()}
           </span>
@@ -96,7 +112,7 @@ const AccountPlanStatus = ({ user, currentItemCount }) => {
         {/* Item Count Display */}
         {getItemCountDisplay()}
 
-        {/* Upgrade prompt for free plan */}
+        {/* Upgrade prompt for free plan only */}
         {isFreePlan && (
           <button
             onClick={() => {
@@ -105,12 +121,12 @@ const AccountPlanStatus = ({ user, currentItemCount }) => {
             }}
             className="w-full text-xs bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-2 px-3 rounded-md transition-all duration-200 font-medium"
           >
-            Upgrade to Premium
+            Upgrade to Pro
           </button>
         )}
 
         {/* Expiration warning for cancelled premium */}
-        {user.subscriptionStatus === "cancelled" && user.subscriptionEndsAt && (
+        {!isAdmin() && user.subscriptionStatus === "cancelled" && user.subscriptionEndsAt && (
           <div className="text-xs text-orange-600 dark:text-orange-400 text-center">
             Expires: {new Date(user.subscriptionEndsAt).toLocaleDateString()}
           </div>

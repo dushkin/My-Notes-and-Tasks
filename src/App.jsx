@@ -835,9 +835,11 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   );
   const hasActiveAccess = (user) => {
     if (!user) return false;
+    if (user.role === "admin") return true;
     if (user.subscriptionStatus === "active") return true;
     if (
       user.subscriptionStatus === "cancelled" &&
+      user.subscriptionEndsAt &&
       new Date(user.subscriptionEndsAt) > new Date()
     ) {
       return true;
