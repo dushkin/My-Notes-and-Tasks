@@ -20,6 +20,7 @@ import {
   disconnectSocket,
 } from "./services/socketClient";
 import Tree from "./components/tree/Tree";
+import AccountPlanStatus from "./components/tree/AccountPlanStatus.jsx";
 import FolderContents from "./components/rpane/FolderContents";
 import ContentEditor from "./components/rpane/ContentEditor";
 import ContextMenu from "./components/tree/ContextMenu.jsx";
@@ -1128,12 +1129,18 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       }
     };
 
+    const handleUpgradePlanRequest = () => {
+      // Navigate to landing page pricing section
+      window.location.href = "/#pricing";
+    };
+
     window.addEventListener("reminderTriggered", handleReminderTriggered);
     window.addEventListener("showSnoozeDialog", handleShowSnoozeDialog);
     window.addEventListener("showFeedback", handleShowFeedback);
     window.addEventListener("reminderMarkedDone", handleReminderMarkedDone);
     window.addEventListener("reminderDismissed", handleReminderDismissed);
     window.addEventListener("focusItem", handleFocusItem);
+    window.addEventListener("upgrade-plan-requested", handleUpgradePlanRequest);
     return () => {
       window.removeEventListener("reminderTriggered", handleReminderTriggered);
       window.removeEventListener("showSnoozeDialog", handleShowSnoozeDialog);
@@ -1144,6 +1151,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       );
       window.removeEventListener("reminderDismissed", handleReminderDismissed);
       window.removeEventListener("focusItem", handleFocusItem);
+      window.removeEventListener("upgrade-plan-requested", handleUpgradePlanRequest);
     };
   }, [findItemByIdFromTree, expandFolderPath, selectItemById, showMessage]);
   const handleSnoozeConfirm = useCallback(
@@ -2471,7 +2479,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         {isMobile ? (
           <>
             {mobileViewMode === "tree" ? (
-              <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
+              <div className="flex flex-col bg-zinc-50 dark:bg-zinc-800 h-full">
                 {/* Tree Controls - Pinned at top */}
                 <div className="sticky top-0 z-10 flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600 shadow-sm">
                   <button
@@ -2491,86 +2499,89 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     Collapse All
                   </button>
                 </div>
-                <Tree
-                  items={tree || []}
-                  selectedItemId={selectedItemId}
-                  onSelect={(id) => {
-                    console.log("🔵 Mobile tree item selected:", id);
+                <div className="flex-grow overflow-auto">
+                  <Tree
+                    items={tree || []}
+                    selectedItemId={selectedItemId}
+                    onSelect={(id) => {
+                      console.log("🔵 Mobile tree item selected:", id);
 
-                    // Always select the item first
-                    selectItemById(id);
+                      // Always select the item first
+                      selectItemById(id);
 
-                    // Skip navigation if we're in rename mode
-                    if (inlineRenameId) {
-                      console.log(
-                        "⏸️ Skipping navigation - rename mode active"
-                      );
-                      return;
-                    }
-
-                    // Find the item directly from tree data
-                    const findItemInTree = (items, targetId) => {
-                      if (!Array.isArray(items)) return null;
-                      for (const item of items) {
-                        if (item.id === targetId) return item;
-                        if (item.children && Array.isArray(item.children)) {
-                          const found = findItemInTree(item.children, targetId);
-                          if (found) return found;
-                        }
+                      // Skip navigation if we're in rename mode
+                      if (inlineRenameId) {
+                        console.log(
+                          "⏸️ Skipping navigation - rename mode active"
+                        );
+                        return;
                       }
-                      return null;
-                    };
 
-                    const selectedItem = findItemInTree(tree || [], id);
-                    console.log("🔍 Found item:", selectedItem);
+                      // Find the item directly from tree data
+                      const findItemInTree = (items, targetId) => {
+                        if (!Array.isArray(items)) return null;
+                        for (const item of items) {
+                          if (item.id === targetId) return item;
+                          if (item.children && Array.isArray(item.children)) {
+                            const found = findItemInTree(item.children, targetId);
+                            if (found) return found;
+                          }
+                        }
+                        return null;
+                      };
 
-                    if (!selectedItem) {
-                      console.warn("⚠️ Could not find item with id:", id);
-                      return;
-                    }
+                      const selectedItem = findItemInTree(tree || [], id);
+                      console.log("🔍 Found item:", selectedItem);
 
-                    // Handle different item types
-                    if (selectedItem.type === "folder") {
-                      console.log("📁 Folder selected - toggling expansion");
-                      toggleFolderExpand(id);
-                    } else if (
-                      selectedItem.type === "note" ||
-                      selectedItem.type === "task"
-                    ) {
-                      console.log(
-                        "📄 Note/Task selected - navigating to content view"
-                      );
-                      setMobileViewMode("content");
-                      window.history.pushState(
-                        { viewMode: "content", itemId: id },
-                        "",
-                        window.location.href
-                      );
-                    } else {
-                      console.log("❓ Unknown item type:", selectedItem.type);
-                    }
-                  }}
-                  inlineRenameId={inlineRenameId}
-                  inlineRenameValue={inlineRenameValue}
-                  setInlineRenameValue={setInlineRenameValue}
-                  onAttemptRename={handleAttemptRename}
-                  cancelInlineRename={cancelInlineRename}
-                  expandedFolders={expandedFolders}
-                  onToggleExpand={toggleFolderExpand}
-                  onToggleTask={handleToggleTask}
-                  draggedId={draggedId}
-                  onDragStart={(e, id) => {
-                    if (inlineRenameId) e.preventDefault();
-                    else setDraggedId(id);
-                  }}
-                  onDrop={(targetId) => handleDrop(targetId, draggedId)}
-                  onDragEnd={handleDragEnd}
-                  onNativeContextMenu={handleNativeContextMenu}
-                  onShowItemMenu={handleShowItemMenu}
-                  onRename={startInlineRename}
-                  uiError={uiMessage}
-                  setUiError={(msg) => showMessage(msg, "error")}
-                />
+                      if (!selectedItem) {
+                        console.warn("⚠️ Could not find item with id:", id);
+                        return;
+                      }
+
+                      // Handle different item types
+                      if (selectedItem.type === "folder") {
+                        console.log("📁 Folder selected - toggling expansion");
+                        toggleFolderExpand(id);
+                      } else if (
+                        selectedItem.type === "note" ||
+                        selectedItem.type === "task"
+                      ) {
+                        console.log(
+                          "📄 Note/Task selected - navigating to content view"
+                        );
+                        setMobileViewMode("content");
+                        window.history.pushState(
+                          { viewMode: "content", itemId: id },
+                          "",
+                          window.location.href
+                        );
+                      } else {
+                        console.log("❓ Unknown item type:", selectedItem.type);
+                      }
+                    }}
+                    inlineRenameId={inlineRenameId}
+                    inlineRenameValue={inlineRenameValue}
+                    setInlineRenameValue={setInlineRenameValue}
+                    onAttemptRename={handleAttemptRename}
+                    cancelInlineRename={cancelInlineRename}
+                    expandedFolders={expandedFolders}
+                    onToggleExpand={toggleFolderExpand}
+                    onToggleTask={handleToggleTask}
+                    draggedId={draggedId}
+                    onDragStart={(e, id) => {
+                      if (inlineRenameId) e.preventDefault();
+                      else setDraggedId(id);
+                    }}
+                    onDrop={(targetId) => handleDrop(targetId, draggedId)}
+                    onDragEnd={handleDragEnd}
+                    onNativeContextMenu={handleNativeContextMenu}
+                    onShowItemMenu={handleShowItemMenu}
+                    onRename={startInlineRename}
+                    uiError={uiMessage}
+                    setUiError={(msg) => showMessage(msg, "error")}
+                  />
+                </div>
+                <AccountPlanStatus user={currentUser} currentItemCount={currentItemCount} />
               </div>
             ) : (
               // Content view remains the same
@@ -2675,7 +2686,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
             >
               <PanelGroup direction="horizontal">
                 <Panel id="tree-panel" order={0} defaultSize={30} minSize={20}>
-                  <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800 h-full">
+                  <div className="flex flex-col bg-zinc-50 dark:bg-zinc-800 h-full">
                     {/* Tree Controls - Pinned at top */}
                     <div className="sticky top-0 z-10 flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600 shadow-sm">
                       <button
@@ -2695,33 +2706,36 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         Collapse All
                       </button>
                     </div>
-                    <Tree
-                      items={tree || []}
-                      selectedItemId={selectedItemId}
-                      onSelect={(id) => {
-                        selectItemById(id);
-                      }}
-                      inlineRenameId={inlineRenameId}
-                      inlineRenameValue={inlineRenameValue}
-                      setInlineRenameValue={setInlineRenameValue}
-                      onAttemptRename={handleAttemptRename}
-                      cancelInlineRename={cancelInlineRename}
-                      expandedFolders={expandedFolders}
-                      onToggleExpand={toggleFolderExpand}
-                      onToggleTask={handleToggleTask}
-                      draggedId={draggedId}
-                      onDragStart={(e, id) => {
-                        if (inlineRenameId) e.preventDefault();
-                        else setDraggedId(id);
-                      }}
-                      onDrop={(targetId) => handleDrop(targetId, draggedId)}
-                      onDragEnd={handleDragEnd}
-                      onNativeContextMenu={handleNativeContextMenu}
-                      onShowItemMenu={handleShowItemMenu}
-                      onRename={startInlineRename}
-                      uiError={uiMessage}
-                      setUiError={(msg) => showMessage(msg, "error")}
-                    />
+                    <div className="flex-grow overflow-auto">
+                      <Tree
+                        items={tree || []}
+                        selectedItemId={selectedItemId}
+                        onSelect={(id) => {
+                          selectItemById(id);
+                        }}
+                        inlineRenameId={inlineRenameId}
+                        inlineRenameValue={inlineRenameValue}
+                        setInlineRenameValue={setInlineRenameValue}
+                        onAttemptRename={handleAttemptRename}
+                        cancelInlineRename={cancelInlineRename}
+                        expandedFolders={expandedFolders}
+                        onToggleExpand={toggleFolderExpand}
+                        onToggleTask={handleToggleTask}
+                        draggedId={draggedId}
+                        onDragStart={(e, id) => {
+                          if (inlineRenameId) e.preventDefault();
+                          else setDraggedId(id);
+                        }}
+                        onDrop={(targetId) => handleDrop(targetId, draggedId)}
+                        onDragEnd={handleDragEnd}
+                        onNativeContextMenu={handleNativeContextMenu}
+                        onShowItemMenu={handleShowItemMenu}
+                        onRename={startInlineRename}
+                        uiError={uiMessage}
+                        setUiError={(msg) => showMessage(msg, "error")}
+                      />
+                    </div>
+                    <AccountPlanStatus user={currentUser} currentItemCount={currentItemCount} />
                   </div>
                 </Panel>
                 <PanelResizeHandle className="w-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors" />
