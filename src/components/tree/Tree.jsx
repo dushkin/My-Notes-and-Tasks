@@ -31,7 +31,7 @@ const Tree = ({
   const longPressTimeoutRef = useRef(null);
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" &&
-      ("ontouchstart" in window || navigator.maxTouchPoints > 0)
+      (window.innerWidth < 640 || /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent))
   );
   const [dragOverId, setDragOverId] = useState(null);
   const [localRenameError, setLocalRenameError] = useState("");
@@ -41,7 +41,7 @@ const Tree = ({
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(
-        "ontouchstart" in window || navigator.maxTouchPoints > 0
+        window.innerWidth < 640 || /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)
       );
     };
     window.addEventListener("resize", handleResize);

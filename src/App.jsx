@@ -1356,17 +1356,19 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   ]);
   const openAddDialog = useCallback(
     (type, parent) => {
+      console.log('🔧 openAddDialog called:', { type, parent: parent?.label || parent, isMobile });
       setNewItemType(type);
       setParentItemForAdd(parent);
       setNewItemLabel("");
       setAddDialogErrorMessage("");
       showMessage("", "error");
       setAddDialogOpen(true);
+      console.log('🔧 setAddDialogOpen(true) called');
       setContextMenu((m) => ({ ...m, visible: false }));
       setTopMenuOpen(false);
       setMobileMenuOpen(false);
     },
-    [showMessage, setContextMenu]
+    [showMessage, setContextMenu, isMobile]
   );
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
@@ -2470,8 +2472,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           <>
             {mobileViewMode === "tree" ? (
               <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800">
-                {/* Tree Controls */}
-                <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600">
+                {/* Tree Controls - Pinned at top */}
+                <div className="sticky top-0 z-10 flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600 shadow-sm">
                   <button
                     onClick={expandAll}
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
@@ -2674,8 +2676,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
               <PanelGroup direction="horizontal">
                 <Panel id="tree-panel" order={0} defaultSize={30} minSize={20}>
                   <div className="flex-grow overflow-auto bg-zinc-50 dark:bg-zinc-800 h-full">
-                    {/* Tree Controls */}
-                    <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600">
+                    {/* Tree Controls - Pinned at top */}
+                    <div className="sticky top-0 z-10 flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600 shadow-sm">
                       <button
                         onClick={expandAll}
                         className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
