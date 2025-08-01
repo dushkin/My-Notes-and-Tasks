@@ -125,9 +125,7 @@ test-results/**/*.mp4
 !public/**/*.png
 !assets/**/*.png
 
-# Allow APK download files
-!public/notask-android.apk
-!public/notask-android-v*.apk
+# APK download files are now allowed below after the *.apk rule
 
 
 # Custom scripts
@@ -153,6 +151,10 @@ android/capacitor-cordova-android-plugins/build/
 *.aar
 *.ap_
 *.aab
+
+# Allow specific APK download files (must come after *.apk rule)
+!public/notask-android.apk
+!public/notask-android-v*.apk
 
 # Capacitor
 .capacitor/
