@@ -79,4 +79,3 @@ git tag "v$VERSION"
 git push origin "v$VERSION"
 
 echo "✅ Build completed: committed, pushed to dev, and tagged as v$VERSION"
-# Test change to build.sh script
