@@ -86,7 +86,8 @@ bower_components
 
 # Gatsby
 .cache/
-public/
+# Note: public/ is needed for this project, so don't ignore it
+# public/
 
 # Parcel bundler
 .parcel-cache/
