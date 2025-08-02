@@ -84,6 +84,15 @@
     display: none;
   }
 
+  /* Ensure tree items can extend horizontally and show their full content */
+  .tree-horizontal-scroll ul {
+    min-width: max-content;
+  }
+
+  .tree-horizontal-scroll li > div {
+    min-width: max-content;
+  }
+
   /* Show horizontal scrollbar on mobile devices */
   @media (max-width: 768px) {
     .tree-horizontal-scroll {

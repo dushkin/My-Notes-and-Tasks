@@ -425,7 +425,7 @@ const Tree = ({
                 />
               )}
               <div
-                className={`relative z-10 flex items-center cursor-pointer rounded py-1.5 sm:py-1 pr-1 ${
+                className={`relative z-10 flex items-center cursor-pointer rounded py-1.5 sm:py-1 pr-1 min-w-max ${
                   isSelected && !isRenaming
                     ? "bg-blue-600 text-white"
                     : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
@@ -512,7 +512,7 @@ const Tree = ({
                   )}
                 </div>
                 <div
-                  className="flex-1 overflow-x-auto relative tree-item-scroll"
+                  className="flex-1 relative"
                   style={{ minWidth: 0 }}
                 >
                   {isRenaming ? (
