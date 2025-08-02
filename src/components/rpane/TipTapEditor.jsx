@@ -528,7 +528,7 @@ const TipTapEditor = ({
     "p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded disabled:opacity-50 focus:ring-1 focus:ring-blue-400";
 
   return (
-    <div className="flex flex-col flex-grow overflow-hidden border rounded bg-white dark:bg-zinc-900 dark:border-zinc-700">
+    <div className="flex flex-col flex-grow border rounded bg-white dark:bg-zinc-900 dark:border-zinc-700">
       {showToolbar && (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 p-2 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
           <button

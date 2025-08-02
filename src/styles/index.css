@@ -146,31 +146,19 @@
     text-overflow: unset !important;
   }
 
-  /* Fix toolbar wrapping on mobile */
+  /* Fix mobile editor behavior */
   @media (max-width: 768px) {
-    /* Fix toolbar container wrapping */
-    .border.rounded.bg-white.dark\\:bg-zinc-900 > .flex.flex-wrap {
-      max-width: 100%;
-      overflow-x: auto;
-    }
-    
-    /* Ensure editor container allows proper height */
-    .border.rounded.bg-white.dark\\:bg-zinc-900 {
-      min-height: 200px;
-    }
-    
-    /* Fix scrolling in editor content area */
+    /* Ensure editor content area has proper height for scrolling */
     .tiptap-editor-content-area {
-      min-height: 200px;
-      flex: 1;
+      min-height: 300px;
       overflow-y: auto !important;
     }
     
-    /* Ensure editor content wrapper has proper height */
+    /* Ensure editor content has proper styling */
     .tiptap-editor-content-area .ProseMirror {
-      min-height: 180px;
       padding: 1rem;
       outline: none;
+      min-height: 200px;
     }
   }
 
