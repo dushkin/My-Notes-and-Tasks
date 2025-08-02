@@ -468,6 +468,10 @@ const TipTapEditor = ({
     ) {
       setEditorDir(targetDir);
       editor.view.dom.setAttribute("dir", targetDir);
+      
+      // Auto-set text alignment when direction changes programmatically
+      const alignment = targetDir === "rtl" ? "right" : "left";
+      editor.chain().focus().setTextAlign(alignment).run();
     }
   }, [dir, initialDirection, editor]);
 
@@ -481,6 +485,11 @@ const TipTapEditor = ({
     const newDir = editorDir === "ltr" ? "rtl" : "ltr";
     setEditorDir(newDir);
     editor.view.dom.setAttribute("dir", newDir);
+    
+    // Auto-set text alignment based on direction
+    const alignment = newDir === "rtl" ? "right" : "left";
+    editor.chain().focus().setTextAlign(alignment).run();
+    
     if (onUpdate && isInitializedRef.current) {
       onUpdate(editor.getHTML(), newDir);
     }

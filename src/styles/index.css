@@ -63,31 +63,62 @@
     scrollbar-width: none;
   }
 
-  /* Visible scrollbar for tree items */
+  /* Tree item scrollbar - visible only on mobile */
   .tree-item-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: #a1a1aa transparent;
+    /* Hide scrollbar on desktop */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
   .tree-item-scroll::-webkit-scrollbar {
-    height: 6px;
+    display: none;
   }
 
-  .tree-item-scroll::-webkit-scrollbar-track {
-    background: transparent;
+  /* Show scrollbar on mobile devices */
+  @media (max-width: 768px) {
+    .tree-item-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: #a1a1aa transparent;
+    }
+
+    .tree-item-scroll::-webkit-scrollbar {
+      display: block;
+      height: 6px;
+    }
+
+    .tree-item-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .tree-item-scroll::-webkit-scrollbar-thumb {
+      background-color: #a1a1aa;
+      border-radius: 3px;
+    }
+
+    .dark .tree-item-scroll {
+      scrollbar-color: #52525b transparent;
+    }
+
+    .dark .tree-item-scroll::-webkit-scrollbar-thumb {
+      background-color: #52525b;
+    }
   }
 
-  .tree-item-scroll::-webkit-scrollbar-thumb {
-    background-color: #a1a1aa;
-    border-radius: 3px;
+  /* RTL content alignment fix */
+  .tiptap-editor-content-area [dir="rtl"] {
+    text-align: right;
   }
-
-  .dark .tree-item-scroll {
-    scrollbar-color: #52525b transparent;
+  
+  .tiptap-editor-content-area [dir="rtl"] p {
+    text-align: right;
   }
-
-  .dark .tree-item-scroll::-webkit-scrollbar-thumb {
-    background-color: #52525b;
+  
+  .tiptap-editor-content-area [dir="rtl"] li {
+    text-align: right;
+  }
+  
+  .tiptap-editor-content-area [dir="ltr"] {
+    text-align: left;
   }
 }
 

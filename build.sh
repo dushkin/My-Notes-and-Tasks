@@ -137,4 +137,79 @@ git tag "v$VERSION"
 git push origin "v$VERSION"
 
 echo "✅ Build completed: committed, pushed to dev, and tagged as v$VERSION"
-# Test change to build.sh script
+
+# Build debug APK after successful commit and push
+echo ""
+echo "🏗️ Building debug APK..."
+
+# Build the web assets first
+echo "📦 Building web assets..."
+npm run build
+
+if [ $? -ne 0 ]; then
+    echo "❌ Web build failed!"
+    exit 1
+fi
+
+# Sync with Capacitor
+echo "🔄 Syncing with Capacitor..."
+npx cap sync android
+
+if [ $? -ne 0 ]; then
+    echo "❌ Capacitor sync failed!"
+    exit 1
+fi
+
+# Build debug APK using Gradle
+echo "🤖 Building debug APK..."
+cd android
+
+# Use gradlew.bat on Windows, gradlew on Unix
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+    ./gradlew.bat assembleDebug
+else
+    ./gradlew assembleDebug
+fi
+
+if [ $? -ne 0 ]; then
+    echo "❌ Debug APK build failed!"
+    exit 1
+fi
+
+cd ..
+
+# Show the debug APK location
+DEBUG_APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+if [ -f "$DEBUG_APK_PATH" ]; then
+    APK_SIZE=$(du -h "$DEBUG_APK_PATH" | cut -f1)
+    echo "✅ Debug APK built successfully!"
+    echo "📍 Location: $DEBUG_APK_PATH"
+    echo "📊 Size: $APK_SIZE"
+    echo ""
+    
+    # Copy debug APK to public directory with versioned name
+    echo "📱 Updating debug APK file..."
+    DEBUG_VERSIONED_APK_NAME="notask-android-debug-v${VERSION}.apk"
+    cp "$DEBUG_APK_PATH" "public/$DEBUG_VERSIONED_APK_NAME"
+    
+    # Also create a generic debug copy
+    cp "$DEBUG_APK_PATH" "public/notask-android-debug.apk"
+    
+    echo "✅ Debug APK copied to public/$DEBUG_VERSIONED_APK_NAME"
+    echo "✅ Generic debug copy created at public/notask-android-debug.apk"
+    echo ""
+    
+    echo "🔧 This is a debug APK - suitable for testing and development"
+    echo "🚀 Debug APKs are automatically signed and ready to install"
+    echo "🌐 Debug APK available at:"
+    echo "   🔧 Latest debug: /notask-android-debug.apk"
+    echo "   🔧 Versioned debug: /$DEBUG_VERSIONED_APK_NAME"
+else
+    echo "❌ Debug APK not found at expected location!"
+    echo "⚠️  Continuing without debug APK (git operations completed successfully)"
+fi
+
+echo ""
+echo "🎉 Full build process completed!"
+echo "✅ Git: committed, pushed to dev, and tagged as v$VERSION"
+echo "🔧 APK: debug version built and ready for testing"

@@ -101,13 +101,14 @@ export default function EditorPage() {
           ← Back to Tree
         </button>
 
-        {/* Title display with RTL detection */}
-        {title && (
+        {/* Title display with RTL detection - always show if item exists */}
+        {item && (
           <h1
             dir={isRtl ? "rtl" : "ltr"}
-            className={`text-xl font-bold ${isRtl ? "text-right" : "text-left"} flex-1 mx-4`}
+            className={`text-xl font-bold ${isRtl ? "text-right" : "text-left"} flex-1 mx-4 text-zinc-900 dark:text-zinc-100`}
+            style={{ visibility: 'visible', display: 'block' }}
           >
-            {title}
+            {title || "Untitled"}
           </h1>
         )}
       </div>

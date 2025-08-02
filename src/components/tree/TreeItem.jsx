@@ -10,13 +10,6 @@ const TreeItem = ({
   children,
   ...props
 }) => {
-  label,
-  onRename,
-  onSelect,
-  onContextMenu,
-  children,
-  ...props
-}) => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT
   );
