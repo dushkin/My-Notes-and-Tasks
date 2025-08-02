@@ -117,12 +117,15 @@ export default function EditorPage() {
           {item && (
             <h1
               dir={isRtl ? "rtl" : "ltr"}
-              className={`text-xl font-bold ${isRtl ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
+              className={`text-xl font-bold leading-7 ${isRtl ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
               style={{ 
                 visibility: 'visible', 
-                display: 'block',
-                minHeight: '2rem',
-                lineHeight: '2rem'
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word'
               }}
             >
               {title || "Untitled"}

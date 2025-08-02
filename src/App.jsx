@@ -2670,7 +2670,48 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       handleCloseContextMenu={() => setContextMenu((m) => ({ ...m, visible: false }))}
                     />
                   ) : (
-                    <ContentEditor {...contentEditorProps} />
+                    <div className="flex flex-col h-full">
+                      {/* Title Section */}
+                      {selectedItem && (
+                        <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
+                          <h1
+                            dir={(() => {
+                              const titleText = selectedItem?.label || selectedItem?.title || '';
+                              if (!titleText) return 'ltr';
+                              const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+                              const rtlMatches = titleText.match(rtlChars) || [];
+                              const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
+                              if (textForAnalysis.length === 0) return 'ltr';
+                              const rtlRatio = rtlMatches.length / textForAnalysis.length;
+                              return rtlRatio > 0.3 ? 'rtl' : 'ltr';
+                            })()}
+                            className={`text-xl font-bold leading-7 ${
+                              (() => {
+                                const titleText = selectedItem?.label || selectedItem?.title || '';
+                                const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+                                const rtlMatches = titleText.match(rtlChars) || [];
+                                const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
+                                const rtlRatio = textForAnalysis.length > 0 ? rtlMatches.length / textForAnalysis.length : 0;
+                                return rtlRatio > 0.3 ? 'text-right' : 'text-left';
+                              })()
+                            } text-zinc-900 dark:text-zinc-100`}
+                            style={{
+                              wordBreak: 'break-word',
+                              overflowWrap: 'break-word',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {selectedItem.label || selectedItem.title || "Untitled"}
+                          </h1>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <ContentEditor {...contentEditorProps} />
+                      </div>
+                    </div>
                   )
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
@@ -2796,7 +2837,48 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         handleCloseContextMenu={() => setContextMenu(m => ({ ...m, visible: false }))}
                       />
                   ) : (
-                      <ContentEditor {...contentEditorProps} />
+                    <div className="flex flex-col h-full">
+                      {/* Title Section */}
+                      {selectedItem && (
+                        <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
+                          <h1
+                            dir={(() => {
+                              const titleText = selectedItem?.label || selectedItem?.title || '';
+                              if (!titleText) return 'ltr';
+                              const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+                              const rtlMatches = titleText.match(rtlChars) || [];
+                              const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
+                              if (textForAnalysis.length === 0) return 'ltr';
+                              const rtlRatio = rtlMatches.length / textForAnalysis.length;
+                              return rtlRatio > 0.3 ? 'rtl' : 'ltr';
+                            })()}
+                            className={`text-xl font-bold leading-7 ${
+                              (() => {
+                                const titleText = selectedItem?.label || selectedItem?.title || '';
+                                const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+                                const rtlMatches = titleText.match(rtlChars) || [];
+                                const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
+                                const rtlRatio = textForAnalysis.length > 0 ? rtlMatches.length / textForAnalysis.length : 0;
+                                return rtlRatio > 0.3 ? 'text-right' : 'text-left';
+                              })()
+                            } text-zinc-900 dark:text-zinc-100`}
+                            style={{
+                              wordBreak: 'break-word',
+                              overflowWrap: 'break-word',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {selectedItem.label || selectedItem.title || "Untitled"}
+                          </h1>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <ContentEditor {...contentEditorProps} />
+                      </div>
+                    </div>
                     )
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">

@@ -72,7 +72,7 @@ const ContentEditor = memo(
     const [isMobile, setIsMobile] = useState(
       window.innerWidth < MOBILE_BREAKPOINT
     );
-    const [showToolbar, setShowToolbar] = useState(false); // State for toolbar visibility
+    const [showToolbar, setShowToolbar] = useState(true); // State for toolbar visibility - default to true for better UX
     const [dir, setDir] = useState("ltr"); // RTL/LTR state
     const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false); // State for dialog visibility
 
@@ -221,21 +221,6 @@ const ContentEditor = memo(
 
     return (
       <div className="h-full flex flex-col">
-        {/* Title Section */}
-        {item && (item.label || item.title) && (
-          <div className="mb-3">
-            <h1
-              dir={isRtlTitle ? "rtl" : "ltr"}
-              className={`text-xl font-bold ${isRtlTitle ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
-              style={{ 
-                minHeight: '2rem',
-                lineHeight: '2rem'
-              }}
-            >
-              {item.label || item.title || "Untitled"}
-            </h1>
-          </div>
-        )}
         
         {/* Metadata Section */}
         <div className="flex items-center justify-between mb-2">
