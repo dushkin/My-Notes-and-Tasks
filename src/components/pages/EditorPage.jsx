@@ -54,11 +54,22 @@ export default function EditorPage() {
   // Track the current item title via item data
   const title = item?.label || "";
 
-  // Detect RTL-heavy titles (more than 75% RTL characters)
+  // Enhanced RTL detection for titles (similar to ContentEditor)
   const isRtl = useMemo(() => {
-    const total = title.length;
-    const rtlChars = (title.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length;
-    return total > 0 && rtlChars / total > 0.75;
+    if (!title) return false;
+    
+    // Enhanced RTL character detection - covers Hebrew, Arabic, Persian, etc.
+    const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+    const rtlMatches = title.match(rtlChars) || [];
+    
+    // Remove spaces, numbers, punctuation, and English letters for better analysis
+    const textForAnalysis = title.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
+    
+    if (textForAnalysis.length === 0) return false;
+    
+    // Lower threshold for better RTL detection (30% instead of 75%)
+    const rtlRatio = rtlMatches.length / textForAnalysis.length;
+    return rtlRatio > 0.3;
   }, [title]);
 
   // Handle saving item data
@@ -102,15 +113,27 @@ export default function EditorPage() {
         </button>
 
         {/* Title display with RTL detection - always show if item exists */}
-        {item && (
-          <h1
-            dir={isRtl ? "rtl" : "ltr"}
-            className={`text-xl font-bold ${isRtl ? "text-right" : "text-left"} flex-1 mx-4 text-zinc-900 dark:text-zinc-100`}
-            style={{ visibility: 'visible', display: 'block' }}
-          >
-            {title || "Untitled"}
-          </h1>
-        )}
+        <div className="flex-1 mx-4">
+          {item && (
+            <h1
+              dir={isRtl ? "rtl" : "ltr"}
+              className={`text-xl font-bold ${isRtl ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
+              style={{ 
+                visibility: 'visible', 
+                display: 'block',
+                minHeight: '2rem',
+                lineHeight: '2rem'
+              }}
+            >
+              {title || "Untitled"}
+            </h1>
+          )}
+          {!item && (
+            <h1 className="text-xl font-bold text-zinc-500 dark:text-zinc-400">
+              Loading...
+            </h1>
+          )}
+        </div>
       </div>
 
       {/* Single ContentEditor with toolbar toggle functionality */}

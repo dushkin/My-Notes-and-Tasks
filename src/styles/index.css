@@ -63,9 +63,8 @@
     scrollbar-width: none;
   }
 
-  /* Tree item scrollbar - visible only on mobile */
+  /* Hide individual tree item scrollbars on all devices */
   .tree-item-scroll {
-    /* Hide scrollbar on desktop */
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -74,32 +73,48 @@
     display: none;
   }
 
-  /* Show scrollbar on mobile devices */
+  /* Tree container horizontal scrollbar - visible only on mobile */
+  .tree-horizontal-scroll {
+    /* Hide horizontal scrollbar on desktop */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .tree-horizontal-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Show horizontal scrollbar on mobile devices */
   @media (max-width: 768px) {
-    .tree-item-scroll {
+    .tree-horizontal-scroll {
       scrollbar-width: thin;
       scrollbar-color: #a1a1aa transparent;
     }
 
-    .tree-item-scroll::-webkit-scrollbar {
+    .tree-horizontal-scroll::-webkit-scrollbar {
       display: block;
-      height: 6px;
+      height: 8px;
     }
 
-    .tree-item-scroll::-webkit-scrollbar-track {
-      background: transparent;
+    .tree-horizontal-scroll::-webkit-scrollbar-track {
+      background: rgba(161, 161, 170, 0.1);
+      border-radius: 4px;
     }
 
-    .tree-item-scroll::-webkit-scrollbar-thumb {
+    .tree-horizontal-scroll::-webkit-scrollbar-thumb {
       background-color: #a1a1aa;
-      border-radius: 3px;
+      border-radius: 4px;
     }
 
-    .dark .tree-item-scroll {
+    .dark .tree-horizontal-scroll {
       scrollbar-color: #52525b transparent;
     }
 
-    .dark .tree-item-scroll::-webkit-scrollbar-thumb {
+    .dark .tree-horizontal-scroll::-webkit-scrollbar-track {
+      background: rgba(82, 82, 91, 0.1);
+    }
+
+    .dark .tree-horizontal-scroll::-webkit-scrollbar-thumb {
       background-color: #52525b;
     }
   }

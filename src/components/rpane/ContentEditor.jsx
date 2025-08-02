@@ -200,8 +200,43 @@ const ContentEditor = memo(
       );
     }
 
+    // Enhanced RTL detection for title
+    const isRtlTitle = useMemo(() => {
+      const titleText = item?.label || item?.title || '';
+      if (!titleText) return false;
+      
+      // Enhanced RTL character detection - covers Hebrew, Arabic, Persian, etc.
+      const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+      const rtlMatches = titleText.match(rtlChars) || [];
+      
+      // Remove spaces, numbers, punctuation, and English letters for better analysis
+      const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
+      
+      if (textForAnalysis.length === 0) return false;
+      
+      // Lower threshold for better RTL detection (30% instead of 75%)
+      const rtlRatio = rtlMatches.length / textForAnalysis.length;
+      return rtlRatio > 0.3;
+    }, [item?.label, item?.title]);
+
     return (
       <div className="h-full flex flex-col">
+        {/* Title Section */}
+        {item && (item.label || item.title) && (
+          <div className="mb-3">
+            <h1
+              dir={isRtlTitle ? "rtl" : "ltr"}
+              className={`text-xl font-bold ${isRtlTitle ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
+              style={{ 
+                minHeight: '2rem',
+                lineHeight: '2rem'
+              }}
+            >
+              {item.label || item.title || "Untitled"}
+            </h1>
+          </div>
+        )}
+        
         {/* Metadata Section */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center space-x-2 text-xs text-zinc-500 dark:text-zinc-400">

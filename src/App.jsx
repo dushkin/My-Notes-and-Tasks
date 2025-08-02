@@ -2502,7 +2502,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                   </button>
                 </div>
                 <div className="flex-grow overflow-auto w-full">
-                  <Tree
+                  <div className="overflow-x-auto tree-horizontal-scroll">
+                    <Tree
                     items={tree || []}
                     selectedItemId={selectedItemId}
                     onSelect={(id) => {
@@ -2582,6 +2583,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     uiError={uiMessage}
                     setUiError={(msg) => showMessage(msg, "error")}
                   />
+                  </div>
                 </div>
                 <AccountPlanStatus user={currentUser} currentItemCount={currentItemCount} />
               </div>
@@ -2709,7 +2711,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       </button>
                     </div>
                     <div className="flex-grow overflow-auto">
-                      <Tree
+                      <div className="overflow-x-auto tree-horizontal-scroll">
+                        <Tree
                         items={tree || []}
                         selectedItemId={selectedItemId}
                         onSelect={(id) => {
@@ -2736,6 +2739,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         uiError={uiMessage}
                         setUiError={(msg) => showMessage(msg, "error")}
                       />
+                      </div>
                     </div>
                     <AccountPlanStatus user={currentUser} currentItemCount={currentItemCount} />
                   </div>
@@ -2789,9 +2793,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         handleDuplicate={handleDuplicate}
                         handleExport={(context) => openExportDialog(context)}
                         handleImport={(context) => openImportDialog(context)}
-                        handleCloseContextMenu={() => setContextMenu((m) => ({ ...m, visible: false }))}
+                        handleCloseContextMenu={() => setContextMenu(m => ({ ...m, visible: false }))}
                       />
-                    ) : (
+                  ) : (
                       <ContentEditor {...contentEditorProps} />
                     )
                   ) : (
