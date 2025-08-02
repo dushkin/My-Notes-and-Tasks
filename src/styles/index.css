@@ -161,8 +161,16 @@
     
     /* Fix scrolling in editor content area */
     .tiptap-editor-content-area {
-      min-height: 150px;
-      max-height: none;
+      min-height: 200px;
+      flex: 1;
+      overflow-y: auto !important;
+    }
+    
+    /* Ensure editor content wrapper has proper height */
+    .tiptap-editor-content-area .ProseMirror {
+      min-height: 180px;
+      padding: 1rem;
+      outline: none;
     }
   }
 
