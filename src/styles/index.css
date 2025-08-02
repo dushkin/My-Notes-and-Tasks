@@ -128,6 +128,44 @@
     }
   }
 
+  /* Title multiline display */
+  .title-multiline {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.75rem;
+  }
+
+  /* Override any truncate classes for titles */
+  .title-multiline.truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+  }
+
+  /* Fix toolbar wrapping on mobile */
+  @media (max-width: 768px) {
+    /* Fix toolbar container wrapping */
+    .border.rounded.bg-white.dark\\:bg-zinc-900 > .flex.flex-wrap {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    
+    /* Ensure editor container allows proper height */
+    .border.rounded.bg-white.dark\\:bg-zinc-900 {
+      min-height: 200px;
+    }
+    
+    /* Fix scrolling in editor content area */
+    .tiptap-editor-content-area {
+      min-height: 150px;
+      max-height: none;
+    }
+  }
+
   /* RTL content alignment fix */
   .tiptap-editor-content-area [dir="rtl"] {
     text-align: right;

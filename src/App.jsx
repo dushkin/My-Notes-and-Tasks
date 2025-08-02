@@ -2619,11 +2619,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     </svg>
                     Back to Tree
                   </button>
-                  {selectedItem && (
-                    <span className="ml-2 text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
-                      {selectedItem.label}
-                    </span>
-                  )}
                 </div>
 
                 {selectedItem ? (
@@ -2685,7 +2680,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                               const rtlRatio = rtlMatches.length / textForAnalysis.length;
                               return rtlRatio > 0.3 ? 'rtl' : 'ltr';
                             })()}
-                            className={`text-xl font-bold leading-7 ${
+                            className={`text-xl font-bold title-multiline ${
                               (() => {
                                 const titleText = selectedItem?.label || selectedItem?.title || '';
                                 const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
@@ -2695,14 +2690,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                                 return rtlRatio > 0.3 ? 'text-right' : 'text-left';
                               })()
                             } text-zinc-900 dark:text-zinc-100`}
-                            style={{
-                              wordBreak: 'break-word',
-                              overflowWrap: 'break-word',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden'
-                            }}
                           >
                             {selectedItem.label || selectedItem.title || "Untitled"}
                           </h1>
@@ -2852,7 +2839,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                               const rtlRatio = rtlMatches.length / textForAnalysis.length;
                               return rtlRatio > 0.3 ? 'rtl' : 'ltr';
                             })()}
-                            className={`text-xl font-bold leading-7 ${
+                            className={`text-xl font-bold title-multiline ${
                               (() => {
                                 const titleText = selectedItem?.label || selectedItem?.title || '';
                                 const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
@@ -2862,14 +2849,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                                 return rtlRatio > 0.3 ? 'text-right' : 'text-left';
                               })()
                             } text-zinc-900 dark:text-zinc-100`}
-                            style={{
-                              wordBreak: 'break-word',
-                              overflowWrap: 'break-word',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden'
-                            }}
                           >
                             {selectedItem.label || selectedItem.title || "Untitled"}
                           </h1>

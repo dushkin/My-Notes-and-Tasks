@@ -122,15 +122,7 @@ export default function EditorPage() {
             <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
               <h1
                 dir={isRtl ? "rtl" : "ltr"}
-                className={`text-xl font-bold leading-7 ${isRtl ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
-                style={{
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
-                }}
+                className={`text-xl font-bold title-multiline ${isRtl ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
               >
                 {title || "Untitled"}
               </h1>
