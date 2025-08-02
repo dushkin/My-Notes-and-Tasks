@@ -62,6 +62,33 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Visible scrollbar for tree items */
+  .tree-item-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #a1a1aa transparent;
+  }
+
+  .tree-item-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .tree-item-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .tree-item-scroll::-webkit-scrollbar-thumb {
+    background-color: #a1a1aa;
+    border-radius: 3px;
+  }
+
+  .dark .tree-item-scroll {
+    scrollbar-color: #52525b transparent;
+  }
+
+  .dark .tree-item-scroll::-webkit-scrollbar-thumb {
+    background-color: #52525b;
+  }
 }
 
 .editor-pane code:not(pre > code) {

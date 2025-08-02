@@ -46,11 +46,19 @@ const formatTimestamp = (isoString) => {
 
 const isRTLText = (text) => {
   if (!text) return false;
-  const rtlChars =
-    /[\u0590-\u083F]|[\u08A0-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/;
+  
+  // Enhanced RTL character detection - covers Hebrew, Arabic, Persian, etc.
+  const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
   const rtlMatches = text.match(rtlChars) || [];
-  const textWithoutSpaces = text.replace(/\s/g, "");
-  return rtlMatches.length / textWithoutSpaces.length > 0.75;
+  
+  // Remove spaces, numbers, punctuation, and English letters for better analysis
+  const textForAnalysis = text.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
+  
+  if (textForAnalysis.length === 0) return false;
+  
+  // Lower threshold for better RTL detection (30% instead of 75%)
+  const rtlRatio = rtlMatches.length / textForAnalysis.length;
+  return rtlRatio > 0.3;
 };
 
 const ContentEditor = memo(
@@ -108,6 +116,24 @@ const ContentEditor = memo(
         resetAutoSave();
       }
     }, [item?.id, resetAutoSave]);
+
+    // Initialize direction based on title and content
+    useEffect(() => {
+      if (item) {
+        // Check if direction is already set in item data
+        if (item.direction) {
+          setDir(item.direction);
+        } else {
+          // Auto-detect direction from title and content
+          const titleText = item.title || '';
+          const contentText = safeStringify(item.content) || '';
+          const combinedText = titleText + ' ' + contentText;
+          
+          const detectedDir = isRTLText(combinedText) ? "rtl" : "ltr";
+          setDir(detectedDir);
+        }
+      }
+    }, [item?.id, item?.title, item?.content, item?.direction]);
 
     const handleSetReminder = (id, timestamp, repeatOptions) => {
       setReminder(id, timestamp, repeatOptions);

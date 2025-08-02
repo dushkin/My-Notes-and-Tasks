@@ -512,7 +512,7 @@ const Tree = ({
                   )}
                 </div>
                 <div
-                  className="flex-1 truncate relative"
+                  className="flex-1 overflow-x-auto relative tree-item-scroll"
                   style={{ minWidth: 0 }}
                 >
                   {isRenaming ? (
@@ -571,7 +571,7 @@ const Tree = ({
                     </>
                   ) : (
                     <span
-                      className={`${
+                      className={`whitespace-nowrap ${
                         item.type === "task" && item.completed
                           ? "line-through text-zinc-500 dark:text-zinc-400"
                           : ""

@@ -2481,7 +2481,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         {isMobile ? (
           <>
             {mobileViewMode === "tree" ? (
-              <div className="flex flex-col bg-zinc-50 dark:bg-zinc-800 h-full">
+              <div className="flex flex-col bg-zinc-50 dark:bg-zinc-800 h-full w-full">
                 {/* Tree Controls - Pinned at top */}
                 <div className="sticky top-0 z-10 flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600 shadow-sm">
                   <button
@@ -2501,7 +2501,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     Collapse All
                   </button>
                 </div>
-                <div className="flex-grow overflow-auto">
+                <div className="flex-grow overflow-auto w-full">
                   <Tree
                     items={tree || []}
                     selectedItemId={selectedItemId}
