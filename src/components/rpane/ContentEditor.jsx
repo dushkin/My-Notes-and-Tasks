@@ -296,7 +296,8 @@ const ContentEditor = memo(
           {/* Additional content */}
         </div>
         {/* TipTapEditor */}
-        <TipTapEditor
+        <div className="flex-1 flex flex-col min-h-0">
+          <TipTapEditor
           key={`editor-${item.id}`}
           content={item.content || ""}
           onUpdate={handleContentUpdate}
@@ -305,6 +306,7 @@ const ContentEditor = memo(
           defaultFontFamily={defaultFontFamily}
           showToolbar={finalShowToolbar}
         />
+        </div>
         {/* Toolbar Toggle for Mobile */}
         {isMobile &&
           renderToolbarToggle &&

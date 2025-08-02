@@ -112,37 +112,31 @@ export default function EditorPage() {
           ← Back to Tree
         </button>
 
-        {/* Title display with RTL detection - always show if item exists */}
-        <div className="flex-1 mx-4">
-          {item && (
-            <h1
-              dir={isRtl ? "rtl" : "ltr"}
-              className={`text-xl font-bold leading-7 ${isRtl ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
-              style={{ 
-                visibility: 'visible', 
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                wordBreak: 'break-word',
-                overflowWrap: 'break-word'
-              }}
-            >
-              {title || "Untitled"}
-            </h1>
-          )}
-          {!item && (
-            <h1 className="text-xl font-bold text-zinc-500 dark:text-zinc-400">
-              Loading...
-            </h1>
-          )}
-        </div>
       </div>
 
       {/* Single ContentEditor with toolbar toggle functionality */}
       <div className="flex-1 m-2">
         {item ? (
-          <ContentEditor
+          <div className="flex flex-col h-full">
+            {/* Title Section */}
+            <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
+              <h1
+                dir={isRtl ? "rtl" : "ltr"}
+                className={`text-xl font-bold leading-7 ${isRtl ? "text-right" : "text-left"} text-zinc-900 dark:text-zinc-100`}
+                style={{
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}
+              >
+                {title || "Untitled"}
+              </h1>
+            </div>
+            <div className="flex-1">
+              <ContentEditor
             item={item}
             onSaveItemData={handleSaveItemData}
             renderToolbarToggle={(toggleToolbar, showToolbar) => (
@@ -155,6 +149,8 @@ export default function EditorPage() {
               </button>
             )}
           />
+            </div>
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
             {tree.length === 0 ? "Loading..." : "Item not found"}
