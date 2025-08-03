@@ -30,6 +30,18 @@
   [draggable="true"]:active {
     cursor: grabbing;
   }
+  
+  /* Ensure child elements don't interfere with drag */
+  [draggable="true"] * {
+    pointer-events: none;
+  }
+  
+  /* Re-enable pointer events for specific interactive elements */
+  [draggable="true"] button,
+  [draggable="true"] input,
+  [draggable="true"] select {
+    pointer-events: auto;
+  }
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
   }

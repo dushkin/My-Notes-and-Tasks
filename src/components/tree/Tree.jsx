@@ -332,8 +332,10 @@ const Tree = ({
         return;
       }
 
-      // Don't stop propagation immediately for potential drag operations
-      // e.stopPropagation();
+      // Only stop propagation on mobile or when not dragging
+      if (isMobile || !e.target.closest('[draggable="true"]')) {
+        e.stopPropagation();
+      }
 
       if (isMobile) {
         // Mobile: Always just select - no rename on click
@@ -435,6 +437,10 @@ const Tree = ({
                 draggable={!isRenaming}
                 onMouseDown={(e) => {
                   console.log('🖱️ mouseDown on tree item div:', item.id);
+                  // Prevent text selection that might interfere with drag
+                  if (!isMobile) {
+                    e.preventDefault();
+                  }
                 }}
                 onDragStart={(e) => {
                   console.log('🔄 Tree div onDragStart:', { itemId: item.id, isRenaming, draggable: !isRenaming });
@@ -479,7 +485,14 @@ const Tree = ({
                   console.log('🏁 Drag ended for item:', item.id);
                   onDragEnd(e);
                 }}
-                onClick={(e) => handleItemClick(e, item)}
+                onClick={(e) => {
+                  // Don't handle click if this was part of a drag operation
+                  if (draggedId) {
+                    console.log('🚫 Ignoring click during drag operation');
+                    return;
+                  }
+                  handleItemClick(e, item);
+                }}
                 onDoubleClick={(e) => handleDoubleClick(e, item)}
               >
                 <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center mr-1">
