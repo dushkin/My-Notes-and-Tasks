@@ -31,14 +31,9 @@
     cursor: grabbing;
   }
   
-  /* More selective child element handling during drag */
-  [draggable="true"]:active * {
-    pointer-events: none;
-  }
-  
-  /* Always allow buttons to be interactive */
+  /* Ensure buttons remain interactive during drag operations */
   [draggable="true"] button {
-    pointer-events: auto;
+    pointer-events: auto !important;
   }
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
