@@ -2572,8 +2572,13 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     onToggleTask={handleToggleTask}
                     draggedId={draggedId}
                     onDragStart={(e, id) => {
-                      if (inlineRenameId) e.preventDefault();
-                      else setDraggedId(id);
+                      if (inlineRenameId) {
+                        e.preventDefault();
+                      } else {
+                        e.dataTransfer.setData('text/plain', id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        setDraggedId(id);
+                      }
                     }}
                     onDrop={(targetId) => handleDrop(targetId, draggedId)}
                     onDragEnd={handleDragEnd}
@@ -2756,8 +2761,13 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         onToggleTask={handleToggleTask}
                         draggedId={draggedId}
                         onDragStart={(e, id) => {
-                          if (inlineRenameId) e.preventDefault();
-                          else setDraggedId(id);
+                          if (inlineRenameId) {
+                            e.preventDefault();
+                          } else {
+                            e.dataTransfer.setData('text/plain', id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            setDraggedId(id);
+                          }
                         }}
                         onDrop={(targetId) => handleDrop(targetId, draggedId)}
                         onDragEnd={handleDragEnd}

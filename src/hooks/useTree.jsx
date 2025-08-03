@@ -314,15 +314,7 @@ export const useTree = (currentUser) => {
                 ...item,
                 content: safeStringify(item.content)
               };
-              
-              // Debug log for problematic items
-              if (item.content !== normalizedItem.content) {
-                console.warn(`🔧 Normalized content for item ${item.id}:`, {
-                  original: typeof item.content,
-                  normalized: typeof normalizedItem.content
-                });
-              }
-              
+
               // Recursively normalize children
               if (normalizedItem.children && Array.isArray(normalizedItem.children)) {
                 normalizedItem.children = normalizeTreeData(normalizedItem.children);
@@ -711,6 +703,13 @@ export const useTree = (currentUser) => {
         const updatedTree = mapRecursiveUpdate(tree, itemId, safeServerUpdate);
         setTreeWithUndo(updatedTree);
 
+        // Emit to other devices for real-time sync
+        emitToOtherDevices('itemUpdated', {
+          id: itemId,
+          item: updatedItemFromServer,
+          type: 'content'
+        });
+
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("updateNoteContent API error:", error);
@@ -788,6 +787,13 @@ export const useTree = (currentUser) => {
           updatedItemFromServer
         );
         setTreeWithUndo(finalTreeState);
+
+        // Emit to other devices for real-time sync
+        emitToOtherDevices('itemUpdated', {
+          id: taskId,
+          item: updatedItemFromServer,
+          type: 'task'
+        });
 
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
@@ -1080,6 +1086,12 @@ export const useTree = (currentUser) => {
         if (targetFolderId) {
           expandFolderPath(targetFolderId);
         }
+
+        // Emit to other devices for real-time sync
+        emitToOtherDevices('itemMoved', {
+          id: currentDraggedId,
+          newParentId: targetFolderId
+        });
 
         return { success: true };
       } catch (err) {

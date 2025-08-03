@@ -435,22 +435,45 @@ import { authFetch } from '../services/apiClient';
       color: white;
       padding: 12px 16px;
       border-radius: 4px;
-      z-index: 10000;
+      z-index: 99999;
       max-width: 300px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
       animation: slideIn 0.3s ease-out;
+      pointer-events: none;
+      user-select: none;
     `;
 
     document.body.appendChild(notification);
 
-    setTimeout(() => {
-      notification.style.animation = 'slideOut 0.3s ease-in';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
+    // Store timeout reference for potential cleanup
+    const timeoutId = setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        const removeTimeout = setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+        notification._removeTimeout = removeTimeout;
+      }
     }, 3000);
+    
+    notification._timeoutId = timeoutId;
+
+    // Add click handler to manually dismiss
+    notification.style.pointerEvents = 'auto';
+    notification.style.cursor = 'pointer';
+    notification.addEventListener('click', () => {
+      if (notification._timeoutId) {
+        clearTimeout(notification._timeoutId);
+      }
+      if (notification._removeTimeout) {
+        clearTimeout(notification._removeTimeout);
+      }
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    });
   }
 
   function showUpdateAvailableNotification() {
