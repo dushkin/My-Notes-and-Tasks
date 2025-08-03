@@ -395,12 +395,33 @@ const Tree = ({
           const hasError = isRenaming && (localRenameError || uiError);
 
           return (
-            <li
-              key={item.id}
-              data-item-id={item.id}
-              className={`group relative text-base md:text-sm ${
-                isBeingDragged ? "opacity-40" : ""
-              }`}
+            <>
+              {/* Simple drag test element */}
+              {item.id === 'c8db10b5-6a43-4f26-9d74-5fe723328030' && (
+                <div
+                  draggable="true"
+                  onDragStart={(e) => {
+                    console.log('🧪 TEST DRAG START');
+                    e.dataTransfer.setData('text/plain', 'test');
+                  }}
+                  onDragEnd={() => console.log('🧪 TEST DRAG END')}
+                  style={{ 
+                    padding: '8px', 
+                    margin: '4px', 
+                    backgroundColor: 'yellow',
+                    border: '2px solid red',
+                    cursor: 'grab'
+                  }}
+                >
+                  TEST DRAG ME - Simple Element
+                </div>
+              )}
+              <li
+                key={item.id}
+                data-item-id={item.id}
+                className={`group relative text-base md:text-sm ${
+                  isBeingDragged ? "opacity-40" : ""
+                }`}
               onDragOver={(e) => {
                 e.preventDefault();
                 console.log('🔄 Simple dragOver on:', item.id);
@@ -651,6 +672,7 @@ const Tree = ({
                 expandedFolders[item.id] &&
                 renderItems(item.children, depth + 1)}
             </li>
+            </>
           );
         })}
       </ul>
