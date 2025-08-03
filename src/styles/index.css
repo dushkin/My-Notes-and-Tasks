@@ -31,15 +31,13 @@
     cursor: grabbing;
   }
   
-  /* Ensure child elements don't interfere with drag */
-  [draggable="true"] * {
+  /* More selective child element handling during drag */
+  [draggable="true"]:active * {
     pointer-events: none;
   }
   
-  /* Re-enable pointer events for specific interactive elements */
-  [draggable="true"] button,
-  [draggable="true"] input,
-  [draggable="true"] select {
+  /* Always allow buttons to be interactive */
+  [draggable="true"] button {
     pointer-events: auto;
   }
   .custom-scrollbar::-webkit-scrollbar {

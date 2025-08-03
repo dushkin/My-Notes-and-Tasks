@@ -437,10 +437,7 @@ const Tree = ({
                 draggable={!isRenaming}
                 onMouseDown={(e) => {
                   console.log('🖱️ mouseDown on tree item div:', item.id);
-                  // Prevent text selection that might interfere with drag
-                  if (!isMobile) {
-                    e.preventDefault();
-                  }
+                  // Don't prevent default - let browser handle drag initiation
                 }}
                 onDragStart={(e) => {
                   console.log('🔄 Tree div onDragStart:', { itemId: item.id, isRenaming, draggable: !isRenaming });
