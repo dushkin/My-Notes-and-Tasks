@@ -401,9 +401,21 @@ const Tree = ({
               className={`group relative text-base md:text-sm ${
                 isBeingDragged ? "opacity-40" : ""
               }`}
-              onDragOver={(e) => handleDragOver(e, item)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                console.log('🔄 Simple dragOver on:', item.id);
+                handleDragOver(e, item);
+              }}
               onDragLeave={handleDragLeave}
-              onDrop={(e) => handleItemDrop(e, item)}
+              onDrop={(e) => {
+                e.preventDefault();
+                console.log('🎯 Simple DROP on:', item.id);
+                handleItemDrop(e, item);
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                console.log('📥 dragEnter on:', item.id);
+              }}
               onContextMenu={(e) => {
                 if (draggedId || isRenaming) {
                   e.preventDefault();
@@ -448,9 +460,19 @@ const Tree = ({
                     return;
                   }
                   
-                  // Simple setup - let the parent handle the rest
-                  console.log('🎯 Calling parent onDragStart only');
-                  onDragStart(e, item.id);
+                  // Minimal setup directly here - no parent call for now
+                  e.dataTransfer.setData('text/plain', item.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                  console.log('🎯 Minimal drag setup complete');
+                  
+                  // Set draggedId directly without parent call
+                  setTimeout(() => {
+                    console.log('🎯 Setting draggedId directly');
+                    if (typeof onDragStart === 'function') {
+                      // Just set the state, don't call the full handler
+                      // onDragStart(e, item.id);
+                    }
+                  }, 1);
                 }}
                 onDragEnd={(e) => {
                   console.log('🏁 Drag ended for item:', item.id);
