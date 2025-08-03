@@ -402,6 +402,18 @@ const Tree = ({
                   draggable="true"
                   onDragStart={(e) => {
                     console.log('🧪 TEST DRAG START');
+                    console.log('🌐 Full environment info:', {
+                      userAgent: navigator.userAgent,
+                      platform: navigator.platform,
+                      touchSupport: 'ontouchstart' in window,
+                      pointerEvents: !!window.PointerEvent,
+                      dragSupport: 'draggable' in document.createElement('div'),
+                      fileAPI: !!window.FileReader,
+                      isWebView: /wv|WebView/i.test(navigator.userAgent),
+                      isCapacitor: !!window.Capacitor,
+                      windowLocation: window.location.href,
+                      documentOrigin: document.location.origin
+                    });
                     e.dataTransfer.setData('text/plain', 'test');
                   }}
                   onDragEnd={() => console.log('🧪 TEST DRAG END')}
