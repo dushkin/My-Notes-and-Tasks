@@ -328,7 +328,8 @@ const Tree = ({
         return;
       }
 
-      e.stopPropagation();
+      // Don't stop propagation immediately for potential drag operations
+      // e.stopPropagation();
 
       if (isMobile) {
         // Mobile: Always just select - no rename on click
@@ -394,19 +395,9 @@ const Tree = ({
               className={`group relative text-base md:text-sm ${
                 isBeingDragged ? "opacity-40" : ""
               }`}
-              draggable={!isRenaming}
-              onDragStart={(e) => {
-                if (isRenaming) {
-                  e.preventDefault();
-                  return;
-                }
-                e.stopPropagation();
-                onDragStart(e, item.id);
-              }}
               onDragOver={(e) => handleDragOver(e, item)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleItemDrop(e, item)}
-              onDragEnd={onDragEnd}
               onContextMenu={(e) => {
                 if (draggedId || isRenaming) {
                   e.preventDefault();
@@ -437,6 +428,21 @@ const Tree = ({
                 style={{
                   paddingLeft: `${depth * INDENT_SIZE + (depth > 0 ? 4 : 0)}px`,
                 }}
+                draggable={!isRenaming}
+                onMouseDown={(e) => {
+                  console.log('🖱️ mouseDown on tree item div:', item.id);
+                }}
+                onDragStart={(e) => {
+                  console.log('🔄 Tree div onDragStart:', { itemId: item.id, isRenaming, draggable: !isRenaming });
+                  if (isRenaming) {
+                    e.preventDefault();
+                    console.log('🚫 Tree drag prevented - isRenaming');
+                    return;
+                  }
+                  console.log('🎯 Calling onDragStart from Tree div component');
+                  onDragStart(e, item.id);
+                }}
+                onDragEnd={onDragEnd}
                 onClick={(e) => handleItemClick(e, item)}
                 onDoubleClick={(e) => handleDoubleClick(e, item)}
               >

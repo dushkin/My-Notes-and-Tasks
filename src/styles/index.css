@@ -17,6 +17,19 @@
 }
 
 @layer utilities {
+  /* Drag and drop support */
+  [draggable="true"] {
+    -webkit-user-drag: element;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: grab;
+  }
+  
+  [draggable="true"]:active {
+    cursor: grabbing;
+  }
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
   }

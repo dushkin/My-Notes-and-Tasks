@@ -2572,12 +2572,16 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     onToggleTask={handleToggleTask}
                     draggedId={draggedId}
                     onDragStart={(e, id) => {
+                      console.log('🖱️ onDragStart called:', { id, inlineRenameId });
                       if (inlineRenameId) {
                         e.preventDefault();
+                        console.log('🚫 Drag prevented due to inline rename');
                       } else {
+                        console.log('✅ Setting up drag operation');
                         e.dataTransfer.setData('text/plain', id);
                         e.dataTransfer.effectAllowed = 'move';
                         setDraggedId(id);
+                        console.log('🎯 Drag started for item:', id);
                       }
                     }}
                     onDrop={(targetId) => handleDrop(targetId, draggedId)}
@@ -2761,12 +2765,16 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         onToggleTask={handleToggleTask}
                         draggedId={draggedId}
                         onDragStart={(e, id) => {
+                          console.log('🖱️ onDragStart called (search):', { id, inlineRenameId });
                           if (inlineRenameId) {
                             e.preventDefault();
+                            console.log('🚫 Drag prevented due to inline rename');
                           } else {
+                            console.log('✅ Setting up drag operation (search)');
                             e.dataTransfer.setData('text/plain', id);
                             e.dataTransfer.effectAllowed = 'move';
                             setDraggedId(id);
+                            console.log('🎯 Drag started for item (search):', id);
                           }
                         }}
                         onDrop={(targetId) => handleDrop(targetId, draggedId)}
