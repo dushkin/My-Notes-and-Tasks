@@ -33,6 +33,14 @@ const Tree = ({
     typeof window !== "undefined" &&
       (window.innerWidth < 640 || /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent))
   );
+  
+  // Mouse drag state for desktop fallback
+  const [mouseDragState, setMouseDragState] = useState({
+    isDragging: false,
+    draggedItem: null,
+    startPos: { x: 0, y: 0 },
+    currentPos: { x: 0, y: 0 }
+  });
   const [dragOverId, setDragOverId] = useState(null);
   const [localRenameError, setLocalRenameError] = useState("");
   const [lastClickTime, setLastClickTime] = useState(0);
@@ -439,11 +447,25 @@ const Tree = ({
                 console.log('🔄 Simple dragOver on:', item.id);
                 handleDragOver(e, item);
               }}
+              onMouseEnter={(e) => {
+                // Handle mouse-based drag over for desktop
+                if (!isMobile && mouseDragState.isDragging) {
+                  console.log('🔄 Mouse dragOver on:', item.id);
+                  handleDragOver(e, item);
+                }
+              }}
               onDragLeave={handleDragLeave}
               onDrop={(e) => {
                 e.preventDefault();
                 console.log('🎯 Simple DROP on:', item.id);
                 handleItemDrop(e, item);
+              }}
+              onMouseUp={(e) => {
+                // Handle mouse-based drop for desktop
+                if (!isMobile && mouseDragState.isDragging) {
+                  console.log('🎯 Mouse DROP on:', item.id);
+                  handleItemDrop(e, item);
+                }
               }}
               onDragEnter={(e) => {
                 e.preventDefault();
@@ -482,7 +504,50 @@ const Tree = ({
                 draggable={!isRenaming}
                 onMouseDown={(e) => {
                   console.log('🖱️ mouseDown on tree item div:', item.id);
-                  // Don't prevent default - let browser handle drag initiation
+                  
+                  // Start mouse drag tracking for desktop
+                  if (!isMobile && e.button === 0 && !isRenaming) {
+                    setMouseDragState({
+                      isDragging: false, // Not dragging yet, just tracking
+                      draggedItem: item,
+                      startPos: { x: e.clientX, y: e.clientY },
+                      currentPos: { x: e.clientX, y: e.clientY }
+                    });
+                    
+                    // Add document-level mouse listeners
+                    const handleMouseMove = (moveEvent) => {
+                      const dx = moveEvent.clientX - e.clientX;
+                      const dy = moveEvent.clientY - e.clientY;
+                      const distance = Math.sqrt(dx * dx + dy * dy);
+                      
+                      // Start drag if moved more than 5 pixels
+                      if (distance > 5) {
+                        console.log('🎯 Starting mouse drag simulation');
+                        setMouseDragState(prev => ({
+                          ...prev,
+                          isDragging: true,
+                          currentPos: { x: moveEvent.clientX, y: moveEvent.clientY }
+                        }));
+                        onDragStart(moveEvent, item.id);
+                      }
+                    };
+                    
+                    const handleMouseUp = () => {
+                      console.log('🏁 Mouse drag ended');
+                      setMouseDragState({
+                        isDragging: false,
+                        draggedItem: null,
+                        startPos: { x: 0, y: 0 },
+                        currentPos: { x: 0, y: 0 }
+                      });
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                      onDragEnd(e);
+                    };
+                    
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }
                 }}
                 onDragStart={(e) => {
                   console.log('🔄 Tree div onDragStart:', { itemId: item.id, isRenaming, draggable: !isRenaming });
