@@ -441,11 +441,6 @@ const Tree = ({
                 }}
                 onDragStart={(e) => {
                   console.log('🔄 Tree div onDragStart:', { itemId: item.id, isRenaming, draggable: !isRenaming });
-                  console.log('🔍 Browser/Platform info:', {
-                    userAgent: navigator.userAgent,
-                    touch: 'ontouchstart' in window,
-                    pointer: window.PointerEvent !== undefined
-                  });
                   
                   if (isRenaming) {
                     e.preventDefault();
@@ -453,29 +448,8 @@ const Tree = ({
                     return;
                   }
                   
-                  // Ensure we have dataTransfer
-                  if (!e.dataTransfer) {
-                    console.error('❌ No dataTransfer object available');
-                    return;
-                  }
-                  
-                  console.log('📋 dataTransfer available:', !!e.dataTransfer);
-                  
-                  // Don't call the parent handler yet - let's see if browser drag starts
-                  console.log('🎯 Setting up browser drag...');
-                  e.dataTransfer.effectAllowed = 'move';
-                  e.dataTransfer.setData('text/plain', item.id);
-                  
-                  // Simple drag image
-                  const dragImg = document.createElement('div');
-                  dragImg.innerHTML = item.label || 'Dragging item';
-                  dragImg.style.cssText = 'position: absolute; top: -1000px; padding: 8px; background: #007acc; color: white; border-radius: 4px;';
-                  document.body.appendChild(dragImg);
-                  e.dataTransfer.setDragImage(dragImg, 10, 10);
-                  
-                  setTimeout(() => document.body.removeChild(dragImg), 100);
-                  
-                  console.log('🎯 Now calling parent onDragStart');
+                  // Simple setup - let the parent handle the rest
+                  console.log('🎯 Calling parent onDragStart only');
                   onDragStart(e, item.id);
                 }}
                 onDragEnd={(e) => {

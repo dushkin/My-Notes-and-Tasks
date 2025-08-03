@@ -2578,10 +2578,22 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         console.log('🚫 Drag prevented due to inline rename');
                       } else {
                         console.log('✅ Setting up drag operation');
+                        // Set drag data
                         e.dataTransfer.setData('text/plain', id);
                         e.dataTransfer.effectAllowed = 'move';
-                        setDraggedId(id);
-                        console.log('🎯 Drag started for item:', id);
+                        
+                        // Create a simple but visible drag image
+                        const dragElement = e.target.closest('[data-item-id]');
+                        if (dragElement) {
+                          const rect = dragElement.getBoundingClientRect();
+                          e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
+                        }
+                        
+                        // Set drag state after a tiny delay to ensure drag starts
+                        setTimeout(() => {
+                          setDraggedId(id);
+                          console.log('🎯 Drag state set for item:', id);
+                        }, 10);
                       }
                     }}
                     onDrop={(targetId) => handleDrop(targetId, draggedId)}
@@ -2771,10 +2783,22 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                             console.log('🚫 Drag prevented due to inline rename');
                           } else {
                             console.log('✅ Setting up drag operation (search)');
+                            // Set drag data
                             e.dataTransfer.setData('text/plain', id);
                             e.dataTransfer.effectAllowed = 'move';
-                            setDraggedId(id);
-                            console.log('🎯 Drag started for item (search):', id);
+                            
+                            // Create a simple but visible drag image
+                            const dragElement = e.target.closest('[data-item-id]');
+                            if (dragElement) {
+                              const rect = dragElement.getBoundingClientRect();
+                              e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
+                            }
+                            
+                            // Set drag state after a tiny delay to ensure drag starts
+                            setTimeout(() => {
+                              setDraggedId(id);
+                              console.log('🎯 Drag state set for item (search):', id);
+                            }, 10);
                           }
                         }}
                         onDrop={(targetId) => handleDrop(targetId, draggedId)}
