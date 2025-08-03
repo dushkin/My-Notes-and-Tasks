@@ -233,6 +233,7 @@ const Tree = ({
 
   const handleDragOver = useCallback(
     (e, item) => {
+      console.log('🔄 dragOver on:', item.id, 'draggedId:', draggedId);
       e.preventDefault();
       e.stopPropagation();
       if (
@@ -240,10 +241,12 @@ const Tree = ({
         item.id !== draggedId &&
         !isSelfOrDescendant(items, draggedId, item.id)
       ) {
+        console.log('✅ Valid drop target:', item.id);
         setDragOverId(item.id);
         // Allow the drop by setting dropEffect
         e.dataTransfer.dropEffect = "move";
       } else {
+        console.log('❌ Invalid drop target:', item.id);
         setDragOverId(null);
         e.dataTransfer.dropEffect = "none";
       }
@@ -263,6 +266,7 @@ const Tree = ({
 
   const handleItemDrop = useCallback(
     (e, targetItem) => {
+      console.log('🎯 DROP EVENT on:', targetItem.id, 'draggedId:', draggedId);
       e.preventDefault();
       e.stopPropagation();
       setDragOverId(null);
@@ -273,10 +277,10 @@ const Tree = ({
         targetItem.id !== draggedId &&
         !isSelfOrDescendant(items, draggedId, targetItem.id)
       ) {
-        console.log('Dropping item', draggedId, 'into folder', targetItem.id);
+        console.log('✅ Executing drop: item', draggedId, 'into folder', targetItem.id);
         onDrop(targetItem.id);
       } else {
-        console.log('Drop blocked:', {
+        console.log('❌ Drop blocked:', {
           targetType: targetItem?.type,
           targetId: targetItem?.id,
           draggedId,
@@ -439,6 +443,21 @@ const Tree = ({
                     console.log('🚫 Tree drag prevented - isRenaming');
                     return;
                   }
+                  
+                  // Create custom drag image for better visual feedback
+                  const dragImage = e.currentTarget.cloneNode(true);
+                  dragImage.style.transform = 'rotate(5deg)';
+                  dragImage.style.opacity = '0.8';
+                  document.body.appendChild(dragImage);
+                  e.dataTransfer.setDragImage(dragImage, 0, 0);
+                  
+                  // Clean up drag image after a short delay
+                  setTimeout(() => {
+                    if (document.body.contains(dragImage)) {
+                      document.body.removeChild(dragImage);
+                    }
+                  }, 100);
+                  
                   console.log('🎯 Calling onDragStart from Tree div component');
                   onDragStart(e, item.id);
                 }}
