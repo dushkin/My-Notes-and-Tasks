@@ -438,30 +438,47 @@ const Tree = ({
                 }}
                 onDragStart={(e) => {
                   console.log('🔄 Tree div onDragStart:', { itemId: item.id, isRenaming, draggable: !isRenaming });
+                  console.log('🔍 Browser/Platform info:', {
+                    userAgent: navigator.userAgent,
+                    touch: 'ontouchstart' in window,
+                    pointer: window.PointerEvent !== undefined
+                  });
+                  
                   if (isRenaming) {
                     e.preventDefault();
                     console.log('🚫 Tree drag prevented - isRenaming');
                     return;
                   }
                   
-                  // Create custom drag image for better visual feedback
-                  const dragImage = e.currentTarget.cloneNode(true);
-                  dragImage.style.transform = 'rotate(5deg)';
-                  dragImage.style.opacity = '0.8';
-                  document.body.appendChild(dragImage);
-                  e.dataTransfer.setDragImage(dragImage, 0, 0);
+                  // Ensure we have dataTransfer
+                  if (!e.dataTransfer) {
+                    console.error('❌ No dataTransfer object available');
+                    return;
+                  }
                   
-                  // Clean up drag image after a short delay
-                  setTimeout(() => {
-                    if (document.body.contains(dragImage)) {
-                      document.body.removeChild(dragImage);
-                    }
-                  }, 100);
+                  console.log('📋 dataTransfer available:', !!e.dataTransfer);
                   
-                  console.log('🎯 Calling onDragStart from Tree div component');
+                  // Don't call the parent handler yet - let's see if browser drag starts
+                  console.log('🎯 Setting up browser drag...');
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', item.id);
+                  
+                  // Simple drag image
+                  const dragImg = document.createElement('div');
+                  dragImg.innerHTML = item.label || 'Dragging item';
+                  dragImg.style.cssText = 'position: absolute; top: -1000px; padding: 8px; background: #007acc; color: white; border-radius: 4px;';
+                  document.body.appendChild(dragImg);
+                  e.dataTransfer.setDragImage(dragImg, 10, 10);
+                  
+                  setTimeout(() => document.body.removeChild(dragImg), 100);
+                  
+                  console.log('🎯 Now calling parent onDragStart');
                   onDragStart(e, item.id);
                 }}
-                onDragEnd={onDragEnd}
+                onDragEnd={(e) => {
+                  console.log('🏁 Drag ended for item:', item.id);
+                  onDragEnd(e);
+                }}
                 onClick={(e) => handleItemClick(e, item)}
                 onDoubleClick={(e) => handleDoubleClick(e, item)}
               >
