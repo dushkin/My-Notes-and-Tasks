@@ -6,6 +6,7 @@ import { useTree } from "../../hooks/useTree";
 import { findItemById } from "../../utils/treeUtils";
 import { getAccessToken } from "../../services/authService";
 import { authFetch } from "../../services/apiClient";
+import { setupAndroidBackHandler, cleanupAndroidBackHandler } from "../../utils/androidBackHandler";
 
 export default function EditorPage() {
   const { id } = useParams();
@@ -45,6 +46,10 @@ export default function EditorPage() {
 
   // Handle browser back button/gesture to go back to tree
   useEffect(() => {
+    // Setup Android back button handler for EditorPage
+    // Since EditorPage is a separate route, we always want to go back to main app
+    setupAndroidBackHandler(true, "content", () => {}, navigate);
+
     const handlePopState = (event) => {
       // Navigate back to main app tree view
       navigate("/");
@@ -52,6 +57,7 @@ export default function EditorPage() {
 
     window.addEventListener("popstate", handlePopState);
     return () => {
+      cleanupAndroidBackHandler();
       window.removeEventListener("popstate", handlePopState);
     };
   }, [navigate]);
@@ -148,7 +154,7 @@ export default function EditorPage() {
               <button
                 className="toolbar-toggle-button px-3 py-1 rounded bg-slate-500 text-white hover:bg-slate-600"
                 onClick={toggleToolbar}
-                style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 99999 }}
+                style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 60 }}
               >
                 {showToolbar ? "Hide Toolbar" : "Show Toolbar"}
               </button>

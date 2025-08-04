@@ -38,6 +38,7 @@ import { subscribeToPushNotifications } from "./utils/pushSubscriptionUtil";
 import { useTree } from "./hooks/useTree.jsx";
 import { useSettings } from "./contexts/SettingsContext";
 import { useIsMobile } from "./hooks/useIsMobile";
+import { setupAndroidBackHandler, cleanupAndroidBackHandler } from "./utils/androidBackHandler";
 import {
   findItemById,
   findParentAndSiblings,
@@ -449,6 +450,7 @@ const handleDragEnter = () => {};
 const handleDragOver = () => {};
 const handleDragLeave = () => {};
 const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
+  const navigate = useNavigate();
   const {
     tree,
     setTreeWithUndo,
@@ -819,7 +821,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         <button
           className="toolbar-toggle-button px-3 py-1 rounded bg-slate-500 text-white hover:bg-slate-600"
           onClick={toggleToolbar}
-          style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 99999 }}
+          style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 60 }}
         >
           {showToolbar ? "Hide Toolbar" : "Show Toolbar"}
         </button>
@@ -2015,11 +2017,15 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   useEffect(() => {
     if (!isMobile) return;
 
+    // Setup Android back button handler
+    setupAndroidBackHandler(isMobile, mobileViewMode, setMobileViewMode, navigate);
+
+    // Also keep web browser back button support
     const handlePopState = (event) => {
       // If we're in content view mode, go back to tree view
       if (mobileViewMode === "content") {
         setMobileViewMode("tree");
-        // Push a new state to maintain proper history stack
+        // Push a new state to maintain proper history stack  
         window.history.pushState(
           { viewMode: "tree" },
           "",
@@ -2028,13 +2034,14 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       }
     };
 
-    // Listen for back button events
+    // Listen for web browser back button events
     window.addEventListener("popstate", handlePopState);
 
     return () => {
+      cleanupAndroidBackHandler();
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [isMobile, mobileViewMode]);
+  }, [isMobile, mobileViewMode, navigate]);
   const handleAccountDisplayClick = () => {
     setAccountMenuOpen((prev) => !prev);
     setTopMenuOpen(false);
@@ -2606,7 +2613,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
               // Content view remains the same
               <div className="flex-grow flex flex-col">
                 {/* Add back button for mobile content view */}
-                <div className="flex items-center p-2 bg-white dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 md:hidden">
+                <div className="flex items-center p-2 bg-white dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 md:hidden relative z-50">
                   <button
                     onClick={() => {
                       console.log("🔙 Back button pressed");
