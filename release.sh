@@ -50,25 +50,37 @@ fi
 
 # Commit the version update and APK files
 echo "💾 Committing version update and APK files"
-git add package.json public/notask-android*.apk
-git commit -m "Release v$VERSION
+git add package.json package-lock.json public/
+if ! git commit -m "Release v$VERSION
 
 ✨ Features in this release:
 - Production APK build included
 - Version: $VERSION
-- APK files: notask-android.apk, notask-android-v$VERSION.apk"
+- APK files: notask-android.apk, notask-android-v$VERSION.apk"; then
+    echo "❌ Git commit failed! Release cancelled."
+    exit 1
+fi
 
 # Create and push tag
 echo "🏷️  Creating tag v$VERSION"
-git tag "v$VERSION"
+if ! git tag "v$VERSION"; then
+    echo "❌ Git tag creation failed! Release cancelled."
+    exit 1
+fi
 
 # Push dev to main
 echo "⬆️  Pushing dev to main"
-git push origin dev:main
+if ! git push origin dev:main; then
+    echo "❌ Git push to main failed! Release cancelled."
+    exit 1
+fi
 
 # Push the new tag
 echo "🏷️  Pushing tag to origin"
-git push origin "v$VERSION"
+if ! git push origin "v$VERSION"; then
+    echo "❌ Git tag push failed! Release cancelled."
+    exit 1
+fi
 
 echo "✅ Release $VERSION completed successfully!"
 echo "🎉 Production is now running version $VERSION"
