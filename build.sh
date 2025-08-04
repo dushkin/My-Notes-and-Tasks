@@ -21,22 +21,25 @@ if [ -z "$GOOGLE_API_KEY" ]; then
   # Generate a smart commit message based on file changes
   CHANGED_FILES=$(git diff --cached --name-only)
   
-  # Analyze what type of changes were made (prioritize code changes over version bumps)
-  if echo "$CHANGED_FILES" | grep -q "icon\|favicon\|logo\|png$\|jpg$\|jpeg$\|svg$"; then
-    COMMIT_MESSAGE="feat: update app icons and images"
-  elif echo "$CHANGED_FILES" | grep -q "\.tsx$\|\.jsx$\|\.ts$\|\.js$"; then
+  # Analyze what type of changes were made (prioritize actual code changes over version bumps)
+  if echo "$CHANGED_FILES" | grep -q "\.tsx$\|\.jsx$\|\.ts$\|\.js$"; then
     COMMIT_MESSAGE="feat: update components and functionality"
+  elif echo "$CHANGED_FILES" | grep -q "icon\|favicon\|logo\|png$\|jpg$\|jpeg$\|svg$"; then
+    COMMIT_MESSAGE="feat: update app icons and images"
   elif echo "$CHANGED_FILES" | grep -q "\.css$\|\.scss$\|style"; then
     COMMIT_MESSAGE="style: update styling and appearance"
   elif echo "$CHANGED_FILES" | grep -q "test\|spec"; then
     COMMIT_MESSAGE="test: update tests"
   elif echo "$CHANGED_FILES" | grep -q "README\|doc\|\.md$"; then
     COMMIT_MESSAGE="docs: update documentation"
-  elif echo "$CHANGED_FILES" | grep -q "package.json\|version"; then
+  elif echo "$CHANGED_FILES" | grep -q "\.sh$\|script"; then
+    COMMIT_MESSAGE="build: update build scripts and tools"
+  elif echo "$CHANGED_FILES" | grep -q "package.json\|package-lock.json" && [ $(echo "$CHANGED_FILES" | wc -l) -le 2 ]; then
+    # Only use version message if ONLY package files changed (no other meaningful changes)
     VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "unknown")
     COMMIT_MESSAGE="chore(release): v$VERSION"
   else
-    # Fallback to file-based message
+    # Fallback to meaningful message based on changed files
     FIRST_FILES=$(echo "$CHANGED_FILES" | head -3 | tr '\n' ', ' | sed 's/,$//')
     COMMIT_MESSAGE="chore: update $FIRST_FILES"
   fi
@@ -67,11 +70,14 @@ printf '{\n  "contents": [{\n    "parts": [{\n      "text": %s\n    }]\n  }]\n}'
 
 IMPORTANT GUIDELINES:
 - PRIORITIZE actual code/functionality changes over version bumps
-- If components (.jsx/.tsx/.js/.ts) are changed, use 'feat: update components and functionality'
-- If styles (.css/.scss) are changed, use 'style: update styling and appearance'  
+- FIRST PRIORITY: If components (.jsx/.tsx/.js/.ts) are changed, use 'feat: update components and functionality'
 - If icons/images are changed, use 'feat: update app icons and images'
-- If it's ONLY version changes with no code changes, use 'chore(release): vX.X.X'
-- If it's bug fixes, use 'fix: description'
+- If styles (.css/.scss) are changed, use 'style: update styling and appearance'  
+- If build scripts (.sh) are changed, use 'build: update build scripts and tools'
+- If tests are changed, use 'test: update tests'
+- If docs are changed, use 'docs: update documentation'
+- ONLY use 'chore(release): vX.X.X' if ONLY package.json/package-lock.json changed with no other meaningful changes
+- If it's bug fixes, use 'fix: description'  
 - Keep under 72 characters
 - Focus on WHAT the code changes do, not just which files changed
 
@@ -98,22 +104,25 @@ if [ -z "$COMMIT_MESSAGE" ]; then
   # Generate a smart commit message based on file changes
   CHANGED_FILES=$(git diff --cached --name-only)
   
-  # Analyze what type of changes were made (prioritize code changes over version bumps)
-  if echo "$CHANGED_FILES" | grep -q "icon\|favicon\|logo\|png$\|jpg$\|jpeg$\|svg$"; then
-    COMMIT_MESSAGE="feat: update app icons and images"
-  elif echo "$CHANGED_FILES" | grep -q "\.tsx$\|\.jsx$\|\.ts$\|\.js$"; then
+  # Analyze what type of changes were made (prioritize actual code changes over version bumps)
+  if echo "$CHANGED_FILES" | grep -q "\.tsx$\|\.jsx$\|\.ts$\|\.js$"; then
     COMMIT_MESSAGE="feat: update components and functionality"
+  elif echo "$CHANGED_FILES" | grep -q "icon\|favicon\|logo\|png$\|jpg$\|jpeg$\|svg$"; then
+    COMMIT_MESSAGE="feat: update app icons and images"
   elif echo "$CHANGED_FILES" | grep -q "\.css$\|\.scss$\|style"; then
     COMMIT_MESSAGE="style: update styling and appearance"
   elif echo "$CHANGED_FILES" | grep -q "test\|spec"; then
     COMMIT_MESSAGE="test: update tests"
   elif echo "$CHANGED_FILES" | grep -q "README\|doc\|\.md$"; then
     COMMIT_MESSAGE="docs: update documentation"
-  elif echo "$CHANGED_FILES" | grep -q "package.json\|version"; then
+  elif echo "$CHANGED_FILES" | grep -q "\.sh$\|script"; then
+    COMMIT_MESSAGE="build: update build scripts and tools"
+  elif echo "$CHANGED_FILES" | grep -q "package.json\|package-lock.json" && [ $(echo "$CHANGED_FILES" | wc -l) -le 2 ]; then
+    # Only use version message if ONLY package files changed (no other meaningful changes)
     VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "unknown")
     COMMIT_MESSAGE="chore(release): v$VERSION"
   else
-    # Final fallback to file-based message
+    # Final fallback to meaningful message based on changed files
     FIRST_FILES=$(echo "$CHANGED_FILES" | head -3 | tr '\n' ', ' | sed 's/,$//')
     COMMIT_MESSAGE="chore: update $FIRST_FILES"
   fi
