@@ -2018,9 +2018,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     const handlePopState = (event) => {
       // If we're in content view mode, go back to tree view
       if (mobileViewMode === "content") {
-        event.preventDefault();
         setMobileViewMode("tree");
-        // Push a new state to prevent the browser from actually navigating back
+        // Push a new state to maintain proper history stack
         window.history.pushState(
           { viewMode: "tree" },
           "",

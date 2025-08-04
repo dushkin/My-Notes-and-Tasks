@@ -43,6 +43,19 @@ export default function EditorPage() {
     checkAuth();
   }, [navigate]);
 
+  // Handle browser back button/gesture to go back to tree
+  useEffect(() => {
+    const handlePopState = (event) => {
+      // Navigate back to main app tree view
+      navigate("/");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [navigate]);
+
   // Get tree data and handlers
   const { tree, updateNoteContent, updateTask } = useTree(currentUser);
 
@@ -106,7 +119,7 @@ export default function EditorPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between m-2">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/")}
           className="px-3 py-2 bg-blue-500 text-white rounded-md"
         >
           ← Back to Tree
