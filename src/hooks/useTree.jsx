@@ -176,6 +176,7 @@ export const useTree = (currentUser) => {
     state: tree,
     setState: setTreeWithUndo,
     resetState: resetTreeHistory,
+    updatePresentOnly: updateTreePresentOnly,
     undo: undoTreeChange,
     redo: redoTreeChange,
     canUndo: canUndoTree,
@@ -1059,6 +1060,24 @@ export const useTree = (currentUser) => {
 
       const newIndex = targetChildren.length; // Simple append
 
+      // Perform optimistic update - create undo entry here
+      const removeItemFromTree = (items, idToRemove) => {
+        return items
+          .filter(item => item.id !== idToRemove)
+          .map(item => {
+            if (item.children && Array.isArray(item.children)) {
+              return { ...item, children: removeItemFromTree(item.children, idToRemove) };
+            }
+            return item;
+          });
+      };
+
+      const optimisticTree = removeItemFromTree(tree, currentDraggedId);
+      const finalOptimisticTree = insertItemRecursive(optimisticTree, targetFolderId, itemToDrop);
+      
+      // Single undo entry for the entire operation
+      setTreeWithUndo(finalOptimisticTree);
+
       try {
         const response = await authFetch(`/items/${currentDraggedId}/move`, {
           method: "PATCH",
@@ -1071,15 +1090,17 @@ export const useTree = (currentUser) => {
           );
         }
 
-        // Get the updated tree from server and use setTreeWithUndo for undo/redo support
+        // Server succeeded - fetch fresh data but preserve undo history
         const treeResponse = await authFetch(`/items`, { cache: "no-store" });
         if (treeResponse.ok) {
           const treeData = await treeResponse.json();
           if (treeData && Array.isArray(treeData.notesTree)) {
-            setTreeWithUndo(treeData.notesTree);
+            // Update present state directly without creating new undo entry
+            // This preserves the undo entry created by the optimistic update
+            updateTreePresentOnly(treeData.notesTree);
           }
         } else {
-          // Fallback to fetchUserTree if direct fetch fails, preserving undo history
+          // Fallback to fetchUserTree with preserveHistory=true to maintain undo
           await fetchUserTree(true);
         }
 
@@ -1096,14 +1117,15 @@ export const useTree = (currentUser) => {
         return { success: true };
       } catch (err) {
         console.error("Move (handleDrop) API error:", err);
-        await fetchUserTree(true);
+        // Revert optimistic update on error - use undo to go back to previous state
+        undoTreeChange();
         return {
           success: false,
           error: err.message || "A network error occurred during the move.",
         };
       }
     },
-    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo]
+    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo, undoTreeChange, updateTreePresentOnly]
   );
   const copyItem = useCallback(
     (itemId) => {

@@ -45,6 +45,8 @@ const Tree = ({
   const [localRenameError, setLocalRenameError] = useState("");
   const [lastClickTime, setLastClickTime] = useState(0);
   const [lastClickedItem, setLastClickedItem] = useState(null);
+  const [dropExecuted, setDropExecuted] = useState(false);
+  const dropExecutedRef = useRef(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -55,6 +57,38 @@ const Tree = ({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Global mouseup handler to end drag if mouse is released anywhere
+  useEffect(() => {
+    const handleGlobalMouseUp = (e) => {
+      if (mouseDragState.isDragging) {
+        // Only trigger global cleanup if this isn't a drop on a tree item
+        const isTreeItem = e.target.closest('[data-item-id]');
+        if (!isTreeItem) {
+          setMouseDragState({
+            isDragging: false,
+            draggedItem: null,
+            startPos: { x: 0, y: 0 },
+            currentPos: { x: 0, y: 0 }
+          });
+          setDragOverId(null);
+          dropExecutedRef.current = false; // Reset for next drag
+          if (draggedId) {
+            const mockEvent = {
+              preventDefault: () => {},
+              stopPropagation: () => {}
+            };
+            onDragEnd(mockEvent);
+          }
+        }
+      }
+    };
+
+    if (mouseDragState.isDragging) {
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+    }
+  }, [mouseDragState.isDragging, draggedId, onDragEnd]);
 
   // Render empty-tree placeholder or items
   const renderContent = () => {
@@ -241,7 +275,7 @@ const Tree = ({
 
   const handleDragOver = useCallback(
     (e, item) => {
-      console.log('🔄 dragOver on:', item.id, 'draggedId:', draggedId);
+      console.log('🔄 DRAG OVER:', item.id, 'draggedId:', draggedId);
       e.preventDefault();
       e.stopPropagation();
       if (
@@ -249,14 +283,16 @@ const Tree = ({
         item.id !== draggedId &&
         !isSelfOrDescendant(items, draggedId, item.id)
       ) {
-        console.log('✅ Valid drop target:', item.id);
         setDragOverId(item.id);
-        // Allow the drop by setting dropEffect
-        e.dataTransfer.dropEffect = "move";
+        // Allow the drop by setting dropEffect (only if dataTransfer exists)
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = "move";
+        }
       } else {
-        console.log('❌ Invalid drop target:', item.id);
         setDragOverId(null);
-        e.dataTransfer.dropEffect = "none";
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = "none";
+        }
       }
     },
     [draggedId, items]
@@ -274,10 +310,16 @@ const Tree = ({
 
   const handleItemDrop = useCallback(
     (e, targetItem) => {
-      console.log('🎯 DROP EVENT on:', targetItem.id, 'draggedId:', draggedId);
+      console.log('🎯 DROP EVENT:', targetItem.id, 'draggedId:', draggedId);
       e.preventDefault();
       e.stopPropagation();
       setDragOverId(null);
+      
+      // Prevent multiple drops in the same drag operation using ref for immediate check
+      if (dropExecutedRef.current) {
+        console.log('❌ Drop already executed');
+        return;
+      }
       
       // Allow drop if target is a valid folder and not the dragged item itself
       if (
@@ -285,14 +327,19 @@ const Tree = ({
         targetItem.id !== draggedId &&
         !isSelfOrDescendant(items, draggedId, targetItem.id)
       ) {
-        console.log('✅ Executing drop: item', draggedId, 'into folder', targetItem.id);
-        onDrop(targetItem.id);
+        console.log('✅ Valid drop - executing');
+        dropExecutedRef.current = true; // Set ref immediately
+        setDropExecuted(true);
+        
+        // Use setTimeout to ensure the drop action happens after the current event loop
+        // This prevents race conditions with multiple event handlers
+        setTimeout(() => {
+          onDrop(targetItem.id);
+        }, 0);
       } else {
-        console.log('❌ Drop blocked:', {
+        console.log('❌ Invalid drop:', {
           targetType: targetItem?.type,
-          targetId: targetItem?.id,
-          draggedId,
-          isSelf: targetItem.id === draggedId,
+          isSameItem: targetItem.id === draggedId,
           isSelfOrDesc: isSelfOrDescendant(items, draggedId, targetItem.id)
         });
       }
@@ -401,75 +448,59 @@ const Tree = ({
           const isSelected = item.id === selectedItemId;
           const isRenaming = item.id === inlineRenameId;
           const hasError = isRenaming && (localRenameError || uiError);
+          const isMouseDragging = !isMobile && mouseDragState.isDragging && isBeingDragged;
 
           return (
-            <>
-              {/* Simple drag test element */}
-              {item.id === 'c8db10b5-6a43-4f26-9d74-5fe723328030' && (
-                <div
-                  draggable="true"
-                  onDragStart={(e) => {
-                    console.log('🧪 TEST DRAG START');
-                    console.log('🌐 Full environment info:', {
-                      userAgent: navigator.userAgent,
-                      platform: navigator.platform,
-                      touchSupport: 'ontouchstart' in window,
-                      pointerEvents: !!window.PointerEvent,
-                      dragSupport: 'draggable' in document.createElement('div'),
-                      fileAPI: !!window.FileReader,
-                      isWebView: /wv|WebView/i.test(navigator.userAgent),
-                      isCapacitor: !!window.Capacitor,
-                      windowLocation: window.location.href,
-                      documentOrigin: document.location.origin
-                    });
-                    e.dataTransfer.setData('text/plain', 'test');
-                  }}
-                  onDragEnd={() => console.log('🧪 TEST DRAG END')}
-                  style={{ 
-                    padding: '8px', 
-                    margin: '4px', 
-                    backgroundColor: 'yellow',
-                    border: '2px solid red',
-                    cursor: 'grab'
-                  }}
-                >
-                  TEST DRAG ME - Simple Element
-                </div>
-              )}
-              <li
-                key={item.id}
+            <li
+              key={item.id}
                 data-item-id={item.id}
                 className={`group relative text-base md:text-sm ${
-                  isBeingDragged ? "opacity-40" : ""
-                }`}
+                  isBeingDragged || isMouseDragging ? "opacity-40" : ""
+                } ${isMouseDragging ? "cursor-grabbing" : ""}`}
               onDragOver={(e) => {
                 e.preventDefault();
-                console.log('🔄 Simple dragOver on:', item.id);
                 handleDragOver(e, item);
               }}
               onMouseEnter={(e) => {
                 // Handle mouse-based drag over for desktop
                 if (!isMobile && mouseDragState.isDragging) {
-                  console.log('🔄 Mouse dragOver on:', item.id);
-                  handleDragOver(e, item);
+                  // Create a mock event for mouse drag over
+                  const mockEvent = {
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                    dataTransfer: null // No dataTransfer for mouse events
+                  };
+                  handleDragOver(mockEvent, item);
                 }
               }}
               onDragLeave={handleDragLeave}
               onDrop={(e) => {
                 e.preventDefault();
-                console.log('🎯 Simple DROP on:', item.id);
                 handleItemDrop(e, item);
               }}
               onMouseUp={(e) => {
                 // Handle mouse-based drop for desktop
-                if (!isMobile && mouseDragState.isDragging) {
-                  console.log('🎯 Mouse DROP on:', item.id);
-                  handleItemDrop(e, item);
+                if (!isMobile && mouseDragState.isDragging && draggedId && !dropExecutedRef.current) {
+                  // Create a mock event for mouse drop
+                  const mockEvent = {
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                    dataTransfer: null // No dataTransfer for mouse events
+                  };
+                  handleItemDrop(mockEvent, item);
+                  
+                  // Immediately reset drag state to prevent multiple drops
+                  setMouseDragState({
+                    isDragging: false,
+                    draggedItem: null,
+                    startPos: { x: 0, y: 0 },
+                    currentPos: { x: 0, y: 0 }
+                  });
+                  setDragOverId(null);
                 }
               }}
               onDragEnter={(e) => {
                 e.preventDefault();
-                console.log('📥 dragEnter on:', item.id);
               }}
               onContextMenu={(e) => {
                 if (draggedId || isRenaming) {
@@ -503,8 +534,7 @@ const Tree = ({
                 }}
                 draggable={!isRenaming}
                 onMouseDown={(e) => {
-                  console.log('🖱️ mouseDown on tree item div:', item.id);
-                  
+                  console.log('🖱️ MOUSE DOWN:', item.id, 'isMobile:', isMobile, 'button:', e.button, 'isRenaming:', isRenaming);
                   // Start mouse drag tracking for desktop
                   if (!isMobile && e.button === 0 && !isRenaming) {
                     setMouseDragState({
@@ -515,34 +545,64 @@ const Tree = ({
                     });
                     
                     // Add document-level mouse listeners
+                    let dragStartCalled = false;
                     const handleMouseMove = (moveEvent) => {
                       const dx = moveEvent.clientX - e.clientX;
                       const dy = moveEvent.clientY - e.clientY;
                       const distance = Math.sqrt(dx * dx + dy * dy);
                       
-                      // Start drag if moved more than 5 pixels
-                      if (distance > 5) {
-                        console.log('🎯 Starting mouse drag simulation');
+                      // Start drag if moved more than 5 pixels and not already called
+                      if (distance > 5 && !dragStartCalled) {
+                        dragStartCalled = true;
+                        setDropExecuted(false); // Reset drop flag for new drag operation
+                        dropExecutedRef.current = false; // Reset ref immediately
                         setMouseDragState(prev => ({
                           ...prev,
                           isDragging: true,
+                          draggedItem: item,
                           currentPos: { x: moveEvent.clientX, y: moveEvent.clientY }
                         }));
-                        onDragStart(moveEvent, item.id);
+                        
+                        // Find the draggable element for the mock event
+                        const draggableElement = e.target.closest('[data-item-id]') || e.target;
+                        
+                        // Use the parent's onDragStart callback to set draggedId
+                        const mockDragEvent = {
+                          preventDefault: () => {},
+                          stopPropagation: () => {},
+                          target: draggableElement,
+                          dataTransfer: {
+                            setData: () => {},
+                            setDragImage: () => {},
+                            effectAllowed: 'move'
+                          }
+                        };
+                        onDragStart(mockDragEvent, item.id);
+                      } else if (dragStartCalled) {
+                        // Update mouse position during drag
+                        setMouseDragState(prev => ({
+                          ...prev,
+                          currentPos: { x: moveEvent.clientX, y: moveEvent.clientY }
+                        }));
                       }
                     };
                     
                     const handleMouseUp = () => {
-                      console.log('🏁 Mouse drag ended');
                       setMouseDragState({
                         isDragging: false,
                         draggedItem: null,
                         startPos: { x: 0, y: 0 },
                         currentPos: { x: 0, y: 0 }
                       });
+                      dropExecutedRef.current = false; // Reset for next drag
                       document.removeEventListener('mousemove', handleMouseMove);
                       document.removeEventListener('mouseup', handleMouseUp);
-                      onDragEnd(e);
+                      // Create a mock event for drag end
+                      const mockEvent = {
+                        preventDefault: () => {},
+                        stopPropagation: () => {}
+                      };
+                      onDragEnd(mockEvent);
                     };
                     
                     document.addEventListener('mousemove', handleMouseMove);
@@ -550,36 +610,37 @@ const Tree = ({
                   }
                 }}
                 onDragStart={(e) => {
-                  console.log('🔄 Tree div onDragStart:', { itemId: item.id, isRenaming, draggable: !isRenaming });
-                  
+                  console.log('🚀 DRAG START:', item.id, 'isRenaming:', isRenaming);
                   if (isRenaming) {
                     e.preventDefault();
-                    console.log('🚫 Tree drag prevented - isRenaming');
+                    console.log('❌ Drag prevented - renaming');
                     return;
                   }
                   
-                  // Minimal setup directly here - no parent call for now
+                  // Reset drop executed flag for new drag operation
+                  dropExecutedRef.current = false;
+                  setDropExecuted(false);
+                  console.log('🔄 Reset drop flags');
+                  
+                  // Set up drag data directly here
                   e.dataTransfer.setData('text/plain', item.id);
                   e.dataTransfer.effectAllowed = 'move';
-                  console.log('🎯 Minimal drag setup complete');
+                  console.log('📦 Drag data set in Tree');
                   
-                  // Set draggedId directly without parent call
-                  setTimeout(() => {
-                    console.log('🎯 Setting draggedId directly');
-                    if (typeof onDragStart === 'function') {
-                      // Just set the state, don't call the full handler
-                      // onDragStart(e, item.id);
-                    }
-                  }, 1);
+                  // Set draggedId immediately - no delay needed
+                  console.log('📞 Setting draggedId directly');
+                  onDragStart?.(e, item.id);
                 }}
                 onDragEnd={(e) => {
-                  console.log('🏁 Drag ended for item:', item.id);
+                  console.log('🏁 DRAG END - resetting flags');
+                  // Reset drop flags when drag ends
+                  dropExecutedRef.current = false;
+                  setDropExecuted(false);
                   onDragEnd(e);
                 }}
                 onClick={(e) => {
                   // Don't handle click if this was part of a drag operation
                   if (draggedId) {
-                    console.log('🚫 Ignoring click during drag operation');
                     return;
                   }
                   handleItemClick(e, item);
@@ -749,7 +810,6 @@ const Tree = ({
                 expandedFolders[item.id] &&
                 renderItems(item.children, depth + 1)}
             </li>
-            </>
           );
         })}
       </ul>
@@ -788,16 +848,32 @@ const Tree = ({
   );
 
   return (
-    <nav
-      ref={navRef}
-      className="overflow-auto h-full p-1.5 sm:p-1 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      onContextMenu={handleNavContextMenu}
-      aria-label="Notes and Tasks Tree"
-    >
-      {renderContent()}
-    </nav>
+    <>
+      <nav
+        ref={navRef}
+        className="overflow-auto h-full p-1.5 sm:p-1 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onContextMenu={handleNavContextMenu}
+        aria-label="Notes and Tasks Tree"
+      >
+        {renderContent()}
+      </nav>
+      
+      {/* Visual drag indicator for mouse drag */}
+      {!isMobile && mouseDragState.isDragging && mouseDragState.draggedItem && (
+        <div
+          className="fixed pointer-events-none z-50 bg-blue-500 text-white px-2 py-1 rounded shadow-lg text-sm"
+          style={{
+            left: mouseDragState.currentPos.x + 10,
+            top: mouseDragState.currentPos.y - 10,
+            transform: 'translate(0, 0)'
+          }}
+        >
+          📝 {mouseDragState.draggedItem.label}
+        </div>
+      )}
+    </>
   );
 };
 

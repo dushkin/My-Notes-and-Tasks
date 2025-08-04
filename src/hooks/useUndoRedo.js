@@ -76,11 +76,20 @@ export const useUndoRedo = (initialPresent) => {
         });
     }, []);
 
+    // Update present state without creating undo entry (useful for server sync)
+    const updatePresentOnly = useCallback((newPresent) => {
+        setHistory(h => ({
+            ...h,
+            present: typeof newPresent === 'function' ? newPresent(h.present) : newPresent
+        }));
+    }, []);
+
 
     return {
         state: history.present,
         setState: setPresentState, // Renamed for clarity when using the hook
         resetState: resetHistory, // For initializing or resetting the state entirely
+        updatePresentOnly, // Update present without creating undo entry
         undo,
         redo,
         canUndo,

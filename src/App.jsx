@@ -2572,12 +2572,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     onToggleTask={handleToggleTask}
                     draggedId={draggedId}
                     onDragStart={(e, id) => {
-                      console.log('🖱️ onDragStart called:', { id, inlineRenameId });
                       if (inlineRenameId) {
                         e.preventDefault();
-                        console.log('🚫 Drag prevented due to inline rename');
                       } else {
-                        console.log('✅ Setting up drag operation');
                         // Set drag data
                         e.dataTransfer.setData('text/plain', id);
                         e.dataTransfer.effectAllowed = 'move';
@@ -2589,11 +2586,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                           e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
                         }
                         
-                        // Set drag state after a tiny delay to ensure drag starts
-                        setTimeout(() => {
-                          setDraggedId(id);
-                          console.log('🎯 Drag state set for item:', id);
-                        }, 10);
+                        // Set drag state immediately
+                        console.log('🎯 Setting draggedId:', id);
+                        setDraggedId(id);
                       }
                     }}
                     onDrop={(targetId) => handleDrop(targetId, draggedId)}
@@ -2777,12 +2772,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         onToggleTask={handleToggleTask}
                         draggedId={draggedId}
                         onDragStart={(e, id) => {
-                          console.log('🖱️ onDragStart called (search):', { id, inlineRenameId });
                           if (inlineRenameId) {
                             e.preventDefault();
-                            console.log('🚫 Drag prevented due to inline rename');
                           } else {
-                            console.log('✅ Setting up drag operation (search)');
                             // Set drag data
                             e.dataTransfer.setData('text/plain', id);
                             e.dataTransfer.effectAllowed = 'move';
@@ -2794,11 +2786,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                               e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
                             }
                             
-                            // Set drag state after a tiny delay to ensure drag starts
-                            setTimeout(() => {
-                              setDraggedId(id);
-                              console.log('🎯 Drag state set for item (search):', id);
-                            }, 10);
+                            // Set drag state immediately
+                            console.log('🎯 Setting draggedId (search):', id);
+                            setDraggedId(id);
                           }
                         }}
                         onDrop={(targetId) => handleDrop(targetId, draggedId)}
