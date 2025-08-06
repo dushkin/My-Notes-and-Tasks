@@ -1,0 +1,69 @@
+{
+  "cookies": [
+    {
+      "name": "_ga_CF3PJ7CVQY",
+      "value": "GS2.1.s1754471462$o1$g0$t1754471462$j60$l0$h0",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1789031462.178553,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.1.88030945.1754471462",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1789031462.184832,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_04KHSW4LBT",
+      "value": "GS2.1.s1754471462$o1$g0$t1754471462$j60$l0$h0",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1789031462.323979,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "eruda-entry-button",
+          "value": "{\"rememberPos\":true,\"pos\":{\"x\":1230,\"y\":670}}"
+        },
+        {
+          "name": "eruda-dev-tools",
+          "value": "{\"transparency\":1,\"displaySize\":80,\"theme\":\"System preference\"}"
+        },
+        {
+          "name": "eruda-console",
+          "value": "{\"asyncRender\":true,\"catchGlobalErr\":true,\"jsExecution\":true,\"overrideConsole\":true,\"displayExtraInfo\":false,\"displayUnenumerable\":true,\"displayGetterVal\":true,\"lazyEvaluation\":true,\"displayIfErr\":false,\"maxLogNum\":\"infinite\"}"
+        },
+        {
+          "name": "eruda-resources",
+          "value": "{\"hideErudaSetting\":true,\"observeElement\":true}"
+        },
+        {
+          "name": "eruda-elements",
+          "value": "{\"overrideEventTarget\":true}"
+        },
+        {
+          "name": "appSettings",
+          "value": "{\"reminderSoundEnabled\":true,\"reminderVibrationEnabled\":true,\"reminderDisplayDoneButton\":true,\"theme\":\"system\",\"autoExpandNewFolders\":true,\"editorFontFamily\":\"Arial\",\"editorFontSize\":\"3\",\"defaultExportFormat\":\"json\",\"autoExportEnabled\":false,\"autoExportIntervalMinutes\":30}"
+        },
+        {
+          "name": "eruda-sources",
+          "value": "{\"showLineNum\":true}"
+        }
+      ]
+    }
+  ]
+}
