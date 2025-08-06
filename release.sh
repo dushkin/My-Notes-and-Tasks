@@ -5,6 +5,9 @@
 
 set -e  # Exit on any error
 
+# Disable git pager to prevent interactive prompts
+export GIT_PAGER=cat
+
 # Check if version argument is provided
 if [ -z "$1" ]; then
     echo "❌ Error: Please provide a version number"
@@ -88,4 +91,4 @@ echo "🎉 Production is now running version $VERSION"
 # Optional: Show the tag info
 echo ""
 echo "📋 Release info:"
-git show --stat "v$VERSION"
+git --no-pager show --stat "v$VERSION"
