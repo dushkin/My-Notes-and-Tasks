@@ -25,6 +25,28 @@ async function globalSetup() {
   const page = await browser.newPage();
   
   try {
+    // Add Capacitor mocks for testing
+    await page.addInitScript(() => {
+      // Mock Capacitor for web testing
+      if (!window.Capacitor) {
+        window.Capacitor = {
+          isNativePlatform: () => false,
+          getPlatform: () => 'web',
+          Plugins: {
+            App: {
+              addListener: () => ({ remove: () => {} }),
+              minimizeApp: () => Promise.resolve(),
+              exitApp: () => Promise.resolve()
+            },
+            StatusBar: {
+              setStyle: () => Promise.resolve(),
+              setBackgroundColor: () => Promise.resolve()
+            }
+          }
+        };
+      }
+    });
+    
     // Navigate to login page
     await page.goto('/');
     

@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "14.10.2",
+  "version": "14.10.3",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -19,12 +19,19 @@
     "test:e2e:firefox": "playwright test --project=firefox",
     "test:e2e:safari": "playwright test --project=webkit",
     "test:e2e:mobile": "playwright test --project=mobile-chrome --project=mobile-safari",
+    "test:e2e:android": "playwright test --project=android-webview --project=android-tablet --project=android-small-screen",
+    "test:e2e:android:webview": "playwright test --project=android-webview",
+    "test:e2e:android:tablet": "playwright test --project=android-tablet",
+    "test:e2e:android:small": "playwright test --project=android-small-screen",
+    "test:e2e:capacitor": "playwright test tests/e2e/capacitor-*.spec.js",
     "test:e2e:parallel": "playwright test --workers=4",
     "test:e2e:slow": "playwright test --timeout=60000",
     "test:install": "playwright install",
     "test:install-deps": "playwright install-deps",
     "codegen": "playwright codegen http://localhost:5173",
     "codegen:mobile": "playwright codegen --device='iPhone 12' http://localhost:5173",
+    "codegen:android": "playwright codegen --device='Pixel 5' http://localhost:5173",
+    "test:android:full": "node tests/utils/android-test-runner.js run",
     "audit:contrast": "node contrast-audit.cjs"
   },
   "dependencies": {

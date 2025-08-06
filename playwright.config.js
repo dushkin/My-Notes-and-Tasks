@@ -158,6 +158,49 @@ export default defineConfig({
       dependencies: ['setup'],
     },
 
+    /* Android-specific testing */
+    {
+      name: 'android-webview',
+      use: {
+        ...devices['Pixel 5'],
+        // Simulate Capacitor WebView environment
+        userAgent: 'Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.0.0 Mobile Safari/537.36 wv',
+        viewport: { width: 393, height: 851 },
+        deviceScaleFactor: 3,
+        isMobile: true,
+        hasTouch: true,
+      },
+      dependencies: ['setup'],
+    },
+
+    {
+      name: 'android-tablet',
+      use: {
+        ...devices['Galaxy Tab S4'],
+        // Android tablet WebView
+        userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-T835) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.0.0 Safari/537.36 wv',
+        viewport: { width: 712, height: 1138 },
+        deviceScaleFactor: 2.25,
+        isMobile: true,
+        hasTouch: true,
+      },
+      dependencies: ['setup'],
+    },
+
+    {
+      name: 'android-small-screen',
+      use: {
+        ...devices['Pixel 4a (5G)'],
+        // Smaller Android device
+        userAgent: 'Mozilla/5.0 (Linux; Android 11; Pixel 4a (5G)) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.0.0 Mobile Safari/537.36 wv',
+        viewport: { width: 353, height: 745 },
+        deviceScaleFactor: 2.75,
+        isMobile: true,
+        hasTouch: true,
+      },
+      dependencies: ['setup'],
+    },
+
     /* Tablet browsers */
     {
       name: 'tablet-chrome',
