@@ -56,20 +56,20 @@ if [ -f "$APK_PATH" ]; then
     
     # Copy APK to public directory with versioned name for website download
     echo "📱 Updating website download file..."
-    VERSIONED_APK_NAME="notask-android-v${VERSION}.apk"
+    VERSIONED_APK_NAME="notask-v${VERSION}.apk"
     cp "$APK_PATH" "public/$VERSIONED_APK_NAME"
     
     # Also create a generic symlink/copy for the landing page
-    cp "$APK_PATH" "public/notask-android.apk"
+    cp "$APK_PATH" "public/notask.apk"
     
     echo "✅ APK copied to public/$VERSIONED_APK_NAME for website download"
-    echo "✅ Generic copy created at public/notask-android.apk"
+    echo "✅ Generic copy created at public/notask.apk"
     echo ""
     
     echo "🚀 This is a production-ready APK (unsigned)"
     echo "📝 To publish on Play Store, you'll need to sign it with your keystore"
     echo "🌐 Users can download it from your website at:"
-    echo "   📱 Latest: /notask-android.apk"
+    echo "   📱 Latest: /notask.apk"
     echo "   📱 Versioned: /$VERSIONED_APK_NAME"
 else
     echo "❌ APK not found at expected location!"

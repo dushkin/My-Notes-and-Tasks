@@ -198,20 +198,20 @@ if [ -f "$DEBUG_APK_PATH" ]; then
     
     # Copy debug APK to public directory with versioned name
     echo "📱 Updating debug APK file..."
-    DEBUG_VERSIONED_APK_NAME="notask-android-debug-v${VERSION}.apk"
+    DEBUG_VERSIONED_APK_NAME="notask-debug-v${VERSION}.apk"
     cp "$DEBUG_APK_PATH" "public/$DEBUG_VERSIONED_APK_NAME"
     
     # Also create a generic debug copy
-    cp "$DEBUG_APK_PATH" "public/notask-android-debug.apk"
+    cp "$DEBUG_APK_PATH" "public/notask-debug.apk"
     
     echo "✅ Debug APK copied to public/$DEBUG_VERSIONED_APK_NAME"
-    echo "✅ Generic debug copy created at public/notask-android-debug.apk"
+    echo "✅ Generic debug copy created at public/notask-debug.apk"
     echo ""
     
     echo "🔧 This is a debug APK - suitable for testing and development"
     echo "🚀 Debug APKs are automatically signed and ready to install"
     echo "🌐 Debug APK available at:"
-    echo "   🔧 Latest debug: /notask-android-debug.apk"
+    echo "   🔧 Latest debug: /notask-debug.apk"
     echo "   🔧 Versioned debug: /$DEBUG_VERSIONED_APK_NAME"
 else
     echo "❌ Debug APK not found at expected location!"

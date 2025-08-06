@@ -56,7 +56,7 @@ if ! git commit -m "Release v$VERSION
 ✨ Features in this release:
 - Production APK build included
 - Version: $VERSION
-- APK files: notask-android.apk, notask-android-v$VERSION.apk"; then
+- APK files: notask.apk, notask-v$VERSION.apk"; then
     echo "❌ Git commit failed! Release cancelled."
     exit 1
 fi

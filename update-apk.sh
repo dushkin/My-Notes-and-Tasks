@@ -7,8 +7,8 @@ VERSION=$(node -p "require('./package.json').version")
 echo "📦 App version: $VERSION"
 
 APK_SOURCE="android/app/build/outputs/apk/release/app-release-unsigned.apk"
-APK_DEST="public/notask-android.apk"
-VERSIONED_APK_NAME="notask-android-v${VERSION}.apk"
+APK_DEST="public/notask.apk"
+VERSIONED_APK_NAME="notask-v${VERSION}.apk"
 VERSIONED_APK_DEST="public/$VERSIONED_APK_NAME"
 
 if [ -f "$APK_SOURCE" ]; then
@@ -22,7 +22,7 @@ if [ -f "$APK_SOURCE" ]; then
     echo "📍 Versioned: $VERSIONED_APK_DEST"
     echo "📊 Size: $APK_SIZE"
     echo "🌐 Will be available at:"
-    echo "   📱 Latest: /notask-android.apk"
+    echo "   📱 Latest: /notask.apk"
     echo "   📱 Versioned: /$VERSIONED_APK_NAME"
 else
     echo "❌ APK not found at $APK_SOURCE"

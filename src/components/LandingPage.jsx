@@ -528,8 +528,8 @@ export default function LandingPage({ onLogin, onSignup, currentUser }) {
                     viewport={{ once: true }}
                   >
                     <a
-                      href={`/notask-android-v${packageInfo.version}.apk`}
-                      download={`notask-android-v${packageInfo.version}.apk`}
+                      href={`/notask-v${packageInfo.version}.apk`}
+                      download={`notask-v${packageInfo.version}.apk`}
                       className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 group"
                     >
                       <svg className="w-6 h-6 mr-3 group-hover:animate-bounce" fill="currentColor" viewBox="0 0 20 20">

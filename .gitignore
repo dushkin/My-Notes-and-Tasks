@@ -164,8 +164,8 @@ android/capacitor-cordova-android-plugins/build/
 *.aab
 
 # Allow specific APK download files (must come after *.apk rule)
-!public/notask-android.apk
-!public/notask-android-v*.apk
+!public/notask.apk
+!public/notask-v*.apk
 
 # Capacitor
 .capacitor/
