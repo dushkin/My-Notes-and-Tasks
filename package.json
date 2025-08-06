@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "14.10.1",
+  "version": "14.10.2",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -13,7 +13,18 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:chrome": "playwright test --project=chromium",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:safari": "playwright test --project=webkit",
+    "test:e2e:mobile": "playwright test --project=mobile-chrome --project=mobile-safari",
+    "test:e2e:parallel": "playwright test --workers=4",
+    "test:e2e:slow": "playwright test --timeout=60000",
+    "test:install": "playwright install",
+    "test:install-deps": "playwright install-deps",
     "codegen": "playwright codegen http://localhost:5173",
+    "codegen:mobile": "playwright codegen --device='iPhone 12' http://localhost:5173",
     "audit:contrast": "node contrast-audit.cjs"
   },
   "dependencies": {
@@ -59,6 +70,8 @@
     "@babel/preset-env": "^7.27.2",
     "@babel/preset-react": "^7.27.1",
     "@playwright/test": "^1.44.0",
+    "@axe-core/playwright": "^4.8.5",
+    "allure-playwright": "^2.15.1",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",

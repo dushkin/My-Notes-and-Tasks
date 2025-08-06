@@ -120,10 +120,21 @@ test-results/**/*.png
 test-results/**/*.webm
 test-results/**/*.mp4
 
-# Preserve actual app assets
-!src/**/*.png
-!public/**/*.png
-!assets/**/*.png
+# Build artifacts and generated PNGs
+android/app/build/**/*.png
+android/app/src/main/assets/**/*.png
+dist/**/*.png
+
+# Exclude all PNG files by default
+*.png
+
+# But preserve essential app assets
+!src/assets/*.png
+!public/favicon*.png
+!public/apple-touch-icon.png
+!public/favicon-*.png
+# Android app resources (essential for mobile app)
+!android/app/src/main/res/**/*.png
 
 # APK download files are now allowed below after the *.apk rule
 
