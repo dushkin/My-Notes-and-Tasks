@@ -117,6 +117,29 @@ const ContentEditor = memo(
       }
     }, [item?.id, resetAutoSave]);
 
+    // Force save when switching away from an item with unsaved changes
+    const previousItemIdRef = useRef();
+    useEffect(() => {
+      const currentItemId = item?.id;
+      const previousItemId = previousItemIdRef.current;
+      
+      console.log('🔄 Item switch check:', { 
+        from: previousItemId, 
+        to: currentItemId, 
+        hasUnsavedChanges, 
+        switching: previousItemId && previousItemId !== currentItemId 
+      });
+      
+      // If switching from one item to another (not initial load)
+      if (previousItemId && previousItemId !== currentItemId && hasUnsavedChanges) {
+        console.log('💾 Force saving before switching items:', { from: previousItemId, to: currentItemId });
+        forceSave();
+      }
+      
+      // Update the ref with current item ID
+      previousItemIdRef.current = currentItemId;
+    }, [item?.id, hasUnsavedChanges, forceSave]);
+
     // Initialize direction based on title and content
     useEffect(() => {
       if (item) {

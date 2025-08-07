@@ -692,11 +692,43 @@ export const useTree = (currentUser) => {
             };
             
             // Try direct sync first
-            await window.MyNotesApp.syncManager.syncUpdateContent({
+            const updatedItemFromServer = await window.MyNotesApp.syncManager.syncUpdateContent({
               id: itemId,
               content: stringContent,
               direction
             });
+            
+            // Update React state after successful SyncManager save
+            if (updatedItemFromServer) {
+              // Ensure server response content is properly handled
+              const safeServerUpdate = { ...updatedItemFromServer };
+              if (safeServerUpdate.content && typeof safeServerUpdate.content !== 'string') {
+                console.warn('⚠️ SyncManager response contained non-string content:', typeof safeServerUpdate.content, safeServerUpdate.content);
+                safeServerUpdate.content = safeStringify(safeServerUpdate.content);
+              }
+              
+              const mapRecursiveUpdate = (items, id, serverUpdates) =>
+                items.map((i) =>
+                  i.id === id
+                    ? { ...i, ...serverUpdates }
+                    : Array.isArray(i.children)
+                    ? {
+                        ...i,
+                        children: mapRecursiveUpdate(i.children, id, serverUpdates),
+                      }
+                    : i
+                );
+              
+              const updatedTree = mapRecursiveUpdate(tree, itemId, safeServerUpdate);
+              setTreeWithUndo(updatedTree);
+
+              // Emit to other devices for real-time sync
+              emitToOtherDevices('itemUpdated', {
+                id: itemId,
+                item: updatedItemFromServer,
+                type: 'content'
+              });
+            }
             
             console.log('📝 Content updated via SyncManager:', itemId);
             return { success: true };
