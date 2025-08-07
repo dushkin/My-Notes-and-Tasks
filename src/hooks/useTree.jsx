@@ -427,7 +427,57 @@ export const useTree = (currentUser) => {
     }
   }, [fetchUserTree]);
 
-  const selectItemById = useCallback((id) => setSelectedItemId(id), []);
+  const selectItemById = useCallback(async (id) => {
+    setSelectedItemId(id);
+    
+    // If no id, nothing to fetch
+    if (!id) return;
+    
+    // Check if the item already has content loaded
+    const existingItem = findItemById(tree, id);
+    if (existingItem && existingItem.content && existingItem.content.trim()) {
+      // Content already loaded, no need to fetch
+      return;
+    }
+    
+    try {
+      // Fetch full item content from API
+      const response = await authFetch(`/items/${id}`);
+      if (!response.ok) {
+        console.error(`Failed to fetch content for item ${id}:`, response.status);
+        return;
+      }
+      
+      const itemWithContent = await response.json();
+      
+      // Update the tree with the fetched content
+      const updateItemInTree = (items) => {
+        return items.map(item => {
+          if (item.id === id) {
+            return {
+              ...item,
+              content: safeStringify(itemWithContent.content),
+              direction: itemWithContent.direction || item.direction
+            };
+          }
+          if (item.children && Array.isArray(item.children)) {
+            return {
+              ...item,
+              children: updateItemInTree(item.children)
+            };
+          }
+          return item;
+        });
+      };
+      
+      const updatedTree = updateItemInTree(tree);
+      setTreeWithUndo(updatedTree);
+      
+      console.log('📥 Fetched and loaded content for item:', id);
+    } catch (error) {
+      console.error('Failed to fetch item content:', error);
+    }
+  }, [tree, setTreeWithUndo]);
 
   const replaceTree = useCallback(
     (newTreeData) => {
