@@ -1,5 +1,7 @@
 #!/bin/bash
 
+clear
+
 # Stage all changes first
 echo "📋 Staging all changes..."
 git add .

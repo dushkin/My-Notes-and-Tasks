@@ -280,11 +280,39 @@ export const useTree = (currentUser) => {
     }
   }, [setTreeWithUndo]);
 
+  const handleItemCreatedFromSocket = useCallback((data) => {
+    if (!data || !data.newItem) return;
+    
+    const { newItem, parentId } = data;
+    console.log('📡 Item created from real-time sync:', { itemId: newItem.id, parentId, type: newItem.type });
+    
+    // Check if item already exists (avoid duplicates from optimistic updates)
+    const existingItem = findItemById(tree, newItem.id);
+    if (existingItem) {
+      console.log('📡 Item already exists locally, skipping duplicate creation:', newItem.id);
+      return;
+    }
+    
+    // Ensure content is properly handled
+    const safeNewItem = { ...newItem };
+    if (safeNewItem.content && typeof safeNewItem.content !== 'string') {
+      console.warn('⚠️ Socket creation contained non-string content:', typeof safeNewItem.content, safeNewItem.content);
+      safeNewItem.content = safeStringify(safeNewItem.content);
+    }
+    
+    // Insert the item into the tree
+    const newTreeState = insertItemRecursive(tree, parentId, safeNewItem);
+    setTreeWithUndo(newTreeState);
+    
+    console.log('📡 Item created and added to tree from real-time sync:', newItem.id);
+  }, [tree, setTreeWithUndo]);
+
   // Initialize real-time sync
   const { emitToOtherDevices, isConnected: isSocketConnected } = useRealTimeSync(
     handleItemUpdatedFromSocket,
     handleItemDeletedFromSocket,
     handleTreeUpdatedFromSocket,
+    handleItemCreatedFromSocket,
     true // enabled
   );
 
@@ -623,33 +651,39 @@ export const useTree = (currentUser) => {
       try {
         const endpoint = parentId ? `/items/${parentId}` : `/items`;
         const response = await authFetch(endpoint, {
-          method: "POST",
-          body: JSON.stringify(payload),
+        method: "POST",
+        body: JSON.stringify(payload),
         });
         const createdItemFromServer = await response.json();
-        if (!response.ok)
-          return {
-            success: false,
-            error:
-              createdItemFromServer.error ||
-              `Failed to add item: ${response.status}`,
+        
+        if (!response.ok) {
+        return {
+        success: false,
+        error:
+        createdItemFromServer.error ||
+            `Failed to add item: ${response.status}`,
           };
-        const newTreeState = insertItemRecursive(
-          tree,
-          parentId,
-          createdItemFromServer
-        );
+        }
+
+        // CRITICAL FIX: Insert the server-returned item immediately to prevent UI flicker
+        const newTreeState = insertItemRecursive(tree, parentId, createdItemFromServer);
         setTreeWithUndo(newTreeState);
+        
+        // Handle auto-expansion
         if (parentId && settings.autoExpandNewFolders) {
-          setTimeout(() => expandFolderPath(parentId), 0);
+        setTimeout(() => expandFolderPath(parentId), 0);
         } else if (
-          !parentId &&
+        !parentId &&
           createdItemFromServer.type === "folder" &&
-          settings.autoExpandNewFolders
+        settings.autoExpandNewFolders
         ) {
           setTimeout(() => expandFolderPath(createdItemFromServer.id), 0);
-        }
-        return { success: true, item: createdItemFromServer };
+      }
+
+      // Note: Server will emit itemCreated event to other clients, but we don't emit here
+      // since we're the originating client and already have the item
+      
+      return { success: true, item: createdItemFromServer };
       } catch (error) {
         console.error("addItem API error:", error);
         if (error && error.message) {
