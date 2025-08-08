@@ -93,6 +93,9 @@ import { initApiClient, authFetch } from "./services/apiClient";
 import EditorPage from "./components/pages/EditorPage.jsx";
 import logo from "./assets/logo_dual_32x32.png";
 
+// Import version manager for auto-updates
+// import './utils/versionManager.js';
+
 function getTimestampedFilename(baseName = "tree-export", extension = "json") {
   const now = new Date();
   const year = now.getFullYear();

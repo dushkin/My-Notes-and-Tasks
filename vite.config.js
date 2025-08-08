@@ -5,6 +5,9 @@ import path from 'path';
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
   base: './', // Use relative paths for assets in production builds
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '14.14.0'),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

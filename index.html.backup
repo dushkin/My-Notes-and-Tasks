@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Eruda mobile console. -->
+    <script src="//cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      eruda.init();
+    </script>
+
+    <!-- Google Tag Manager -->
+    <script>
+      (function (w, d, s, l, i) {
+        w[l] = w[l] || [];
+        w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+        var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s),
+          dl = l != "dataLayer" ? "&l=" + l : "";
+        j.async = true;
+        j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+        f.parentNode.insertBefore(j, f);
+      })(window, document, "script", "dataLayer", "GTM-TT66LPJ9");
+    </script>
+    <!-- End Google Tag Manager -->
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Notes & Tasks App</title>
+
+    <!-- Enhanced Favicon Support -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="/favicon-192x192.png"
+    />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Fallback for older browsers -->
+    <link rel="shortcut icon" href="/favicon.ico" />
+
+    <!-- For better caching, add version parameter -->
+    <link rel="icon" href="/favicon.ico?v=1.0" />
+
+    <!-- Meta tags for better SEO and PWA support -->
+    <meta
+      name="description"
+      content="Organize Your Digital Life & To-Dos - A powerful, intuitive platform for notes, tasks, and knowledge management"
+    />
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Notes & Tasks" />
+
+    <!-- Paddle SDK -->
+    <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  </head>
+  <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript
+      ><iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-TT66LPJ9"
+        height="0"
+        width="0"
+        style="display: none; visibility: hidden"
+      ></iframe
+    ></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only px-2 py-1 bg-blue-600 text-white"
+      >Skip to main content</a
+    >
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx?v=14.14.1"></script>
+
+    <script type="module" src="/src/utils/SyncManager.js?v=14.14.1"></script>
+    <script type="module" src="/src/utils/clientInit.js?v=14.14.1"></script>
+  </body>
+</html>

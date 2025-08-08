@@ -13,3 +13,27 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </SettingsProvider>
   </React.StrictMode>
 );
+
+// Service Worker registration with cache busting
+if ('serviceWorker' in navigator) {
+  const version = __APP_VERSION__; // Injected at build time
+  navigator.serviceWorker.register(`/sw.js?v=${version}`)
+    .then(registration => {
+      console.log('SW registered:', registration);
+      
+      // Check for updates
+      registration.addEventListener('updatefound', () => {
+        console.log('New SW version found, updating...');
+        const newWorker = registration.installing;
+        
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version ready, prompt user or auto-update
+            console.log('New version available, reloading...');
+            window.location.reload();
+          }
+        });
+      });
+    })
+    .catch(error => console.log('SW registration failed:', error));
+}

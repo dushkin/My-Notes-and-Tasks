@@ -1,4 +1,4 @@
-const CACHE_NAME = 'notes-tasks-v1.2.0';
+const CACHE_NAME = `notes-tasks-v${self.location.search.includes('v=') ? new URLSearchParams(self.location.search).get('v') : '14.14.1'}`;
 const STATIC_CACHE_URLS = [
   '/',
   '/app',

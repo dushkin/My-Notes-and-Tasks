@@ -1,13 +1,15 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "14.14.0",
+  "version": "14.14.1",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
     "dev": "vite",
+    "prebuild-disabled": "node update-version.js",
     "build": "vite build",
     "preview": "vite preview",
+    "update-version": "node update-version.js",
     "test:unit": "jest",
     "test": "jest",
     "test:e2e": "playwright test",
