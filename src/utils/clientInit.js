@@ -234,6 +234,12 @@ import { authFetch } from '../services/apiClient';
 
   // Register service worker
   async function registerServiceWorker() {
+    // Skip service worker registration in native app (Capacitor) environment
+    if (window.Capacitor || window.Ionic || navigator.userAgent.includes('CapacitorWebView')) {
+      console.log('📱 Running in native app - skipping service worker registration');
+      return;
+    }
+    
     if (!('serviceWorker' in navigator)) {
       console.warn('⚠️ Service workers not supported');
       return;
@@ -248,7 +254,8 @@ import { authFetch } from '../services/apiClient';
       }
 
       // Register new service worker
-      const registration = await navigator.serviceWorker.register('/sw.js', {
+      const verParam = (window.APP_VERSION || new Date().toISOString().slice(0,10));
+      const registration = await navigator.serviceWorker.register(`/sw.js?v=${verParam}`, {
         updateViaCache: 'none' // Force fresh download
       });
       console.log('✅ Service Worker registered:', registration);

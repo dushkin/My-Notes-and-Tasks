@@ -1,4 +1,5 @@
-const CACHE_NAME = `notes-tasks-v${self.location.search.includes('v=') ? new URLSearchParams(self.location.search).get('v') : '14.14.1'}`;
+const VERSION = (new URL(self.location.href)).searchParams.get('v') || '1';
+const CACHE_NAME = `notes-tasks-v${VERSION}`;
 const STATIC_CACHE_URLS = [
   '/',
   '/app',
@@ -8,6 +9,8 @@ const STATIC_CACHE_URLS = [
   '/favicon-48x48.png',
   '/site.webmanifest'
 ];
+
+const NAV_SKIP_CACHE = ['/login', '/register', '/logout'];
 
 const SYNC_TAGS = {
   DATA_SYNC: 'data-sync',
@@ -122,6 +125,11 @@ self.addEventListener('fetch', (event) => {
         }
 
         if (event.request.mode === 'navigate') {
+          const url = new URL(event.request.url);
+          if (NAV_SKIP_CACHE.some(p => url.pathname.startsWith(p))) {
+            // Always network-fetch auth routes; do not cache
+            return fetch(event.request).catch(() => caches.match('/') );
+          }
           return fetch(event.request)
             .then(response => {
               if (response && response.status === 200) {
@@ -135,7 +143,7 @@ self.addEventListener('fetch', (event) => {
             .catch(() => {
               return caches.match('/app') || caches.match('/') ||
                 new Response(
-                  '<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>You are offline</h1><p>Please check your internet connection.</p></body></html>',
+                  '<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>Offline</h1><p>Please check your internet connection.</p></body></html>',
                   { headers: { 'Content-Type': 'text/html' } }
                 );
             });
