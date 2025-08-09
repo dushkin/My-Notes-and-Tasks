@@ -234,6 +234,12 @@ export const requestNotificationPermission = async () => {
  * @returns {Promise<ServiceWorkerRegistration|null>} The registration or null if failed.
  */
 export const registerServiceWorker = async () => {
+  // Skip service worker registration in native app (Capacitor) environment
+  if (window.Capacitor || window.Ionic || navigator.userAgent.includes('CapacitorWebView')) {
+    console.log('📱 Running in native app - skipping service worker registration (reminderUtils)');
+    return null;
+  }
+  
   if (!("serviceWorker" in navigator)) {
     console.warn("Service workers are not supported.");
     return null;

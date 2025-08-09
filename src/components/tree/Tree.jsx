@@ -90,6 +90,24 @@ const Tree = ({
     }
   }, [mouseDragState.isDragging, draggedId, onDragEnd]);
 
+  
+  // Document-level cleanup to ensure ghost/overlay is cleared after any drop
+  useEffect(() => {
+    const clearDragUI = () => {
+      dropExecutedRef.current = false;
+      setDropExecuted(false);
+      setMouseDragState({ isDragging: false, draggedItem: null, startPos: { x: 0, y: 0 }, currentPos: { x: 0, y: 0 } });
+      setDragOverId(null);
+    };
+    document.addEventListener('dragend', clearDragUI);
+    document.addEventListener('drop', clearDragUI);
+    return () => {
+      document.removeEventListener('dragend', clearDragUI);
+      document.removeEventListener('drop', clearDragUI);
+    };
+  }, []);
+
+
   // Render empty-tree placeholder or items
   const renderContent = () => {
     if (!items || items.length === 0) {
@@ -345,6 +363,9 @@ const Tree = ({
         setTimeout(() => {
           onDrop(targetItem.id);
         }, 0);
+        // Clear any mouse-based drag overlay immediately after drop
+        setMouseDragState({ isDragging: false, draggedItem: null, startPos: { x: 0, y: 0 }, currentPos: { x: 0, y: 0 } });
+        setDragOverId(null);
       } else {
         console.log('❌ Invalid drop:', {
           targetType: targetItem?.type,
@@ -544,6 +565,11 @@ const Tree = ({
                 draggable={!isRenaming}
                 onMouseDown={(e) => {
                   console.log('🖱️ MOUSE DOWN:', item.id, 'isMobile:', isMobile, 'button:', e.button, 'isRenaming:', isRenaming);
+                  // Skip custom mouse drag if native HTML5 drag is available and working
+                  if (!isMobile && e.button === 0 && !isRenaming && e.currentTarget.draggable) {
+                    console.log('🚫 Skipping custom mouse drag - using native HTML5 drag');
+                    return;
+                  }
                   // Start mouse drag tracking for desktop
                   if (!isMobile && e.button === 0 && !isRenaming) {
                     setMouseDragState({
@@ -625,18 +651,17 @@ const Tree = ({
                     console.log('❌ Drag prevented - renaming');
                     return;
                   }
-                  
                   // Reset drop executed flag for new drag operation
                   dropExecutedRef.current = false;
                   setDropExecuted(false);
                   console.log('🔄 Reset drop flags');
                   
-                  // Set up drag data directly here
+                  // Set up drag data
                   e.dataTransfer.setData('text/plain', item.id);
                   e.dataTransfer.effectAllowed = 'move';
                   console.log('📦 Drag data set in Tree');
                   
-                  // Set draggedId immediately - no delay needed
+                  // Set draggedId
                   console.log('📞 Setting draggedId directly');
                   onDragStart?.(e, item.id);
                 }}
@@ -645,6 +670,9 @@ const Tree = ({
                   // Reset drop flags when drag ends
                   dropExecutedRef.current = false;
                   setDropExecuted(false);
+                  // Clear any mouse-based drag overlay
+                  setMouseDragState({ isDragging: false, draggedItem: null, startPos: { x: 0, y: 0 }, currentPos: { x: 0, y: 0 } });
+                  setDragOverId(null);
                   onDragEnd(e);
                 }}
                 onClick={(e) => {
