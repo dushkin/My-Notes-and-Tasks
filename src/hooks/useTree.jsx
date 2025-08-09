@@ -176,6 +176,7 @@ export const useTree = (currentUser) => {
     state: tree,
     setState: setTreeWithUndo,
     resetState: resetTreeHistory,
+    updatePresentOnly: updateTreePresentOnly,
     undo: undoTreeChange,
     redo: redoTreeChange,
     canUndo: canUndoTree,
@@ -279,11 +280,39 @@ export const useTree = (currentUser) => {
     }
   }, [setTreeWithUndo]);
 
+  const handleItemCreatedFromSocket = useCallback((data) => {
+    if (!data || !data.newItem) return;
+    
+    const { newItem, parentId } = data;
+    console.log('📡 Item created from real-time sync:', { itemId: newItem.id, parentId, type: newItem.type });
+    
+    // Check if item already exists (avoid duplicates from optimistic updates)
+    const existingItem = findItemById(tree, newItem.id);
+    if (existingItem) {
+      console.log('📡 Item already exists locally, skipping duplicate creation:', newItem.id);
+      return;
+    }
+    
+    // Ensure content is properly handled
+    const safeNewItem = { ...newItem };
+    if (safeNewItem.content && typeof safeNewItem.content !== 'string') {
+      console.warn('⚠️ Socket creation contained non-string content:', typeof safeNewItem.content, safeNewItem.content);
+      safeNewItem.content = safeStringify(safeNewItem.content);
+    }
+    
+    // Insert the item into the tree
+    const newTreeState = insertItemRecursive(tree, parentId, safeNewItem);
+    setTreeWithUndo(newTreeState);
+    
+    console.log('📡 Item created and added to tree from real-time sync:', newItem.id);
+  }, [tree, setTreeWithUndo]);
+
   // Initialize real-time sync
   const { emitToOtherDevices, isConnected: isSocketConnected } = useRealTimeSync(
     handleItemUpdatedFromSocket,
     handleItemDeletedFromSocket,
     handleTreeUpdatedFromSocket,
+    handleItemCreatedFromSocket,
     true // enabled
   );
 
@@ -314,15 +343,7 @@ export const useTree = (currentUser) => {
                 ...item,
                 content: safeStringify(item.content)
               };
-              
-              // Debug log for problematic items
-              if (item.content !== normalizedItem.content) {
-                console.warn(`🔧 Normalized content for item ${item.id}:`, {
-                  original: typeof item.content,
-                  normalized: typeof normalizedItem.content
-                });
-              }
-              
+
               // Recursively normalize children
               if (normalizedItem.children && Array.isArray(normalizedItem.children)) {
                 normalizedItem.children = normalizeTreeData(normalizedItem.children);
@@ -580,33 +601,39 @@ export const useTree = (currentUser) => {
       try {
         const endpoint = parentId ? `/items/${parentId}` : `/items`;
         const response = await authFetch(endpoint, {
-          method: "POST",
-          body: JSON.stringify(payload),
+        method: "POST",
+        body: JSON.stringify(payload),
         });
         const createdItemFromServer = await response.json();
-        if (!response.ok)
-          return {
-            success: false,
-            error:
-              createdItemFromServer.error ||
-              `Failed to add item: ${response.status}`,
+        
+        if (!response.ok) {
+        return {
+        success: false,
+        error:
+        createdItemFromServer.error ||
+            `Failed to add item: ${response.status}`,
           };
-        const newTreeState = insertItemRecursive(
-          tree,
-          parentId,
-          createdItemFromServer
-        );
+        }
+
+        // CRITICAL FIX: Insert the server-returned item immediately to prevent UI flicker
+        const newTreeState = insertItemRecursive(tree, parentId, createdItemFromServer);
         setTreeWithUndo(newTreeState);
+        
+        // Handle auto-expansion
         if (parentId && settings.autoExpandNewFolders) {
-          setTimeout(() => expandFolderPath(parentId), 0);
+        setTimeout(() => expandFolderPath(parentId), 0);
         } else if (
-          !parentId &&
+        !parentId &&
           createdItemFromServer.type === "folder" &&
-          settings.autoExpandNewFolders
+        settings.autoExpandNewFolders
         ) {
           setTimeout(() => expandFolderPath(createdItemFromServer.id), 0);
-        }
-        return { success: true, item: createdItemFromServer };
+      }
+
+      // Note: Server will emit itemCreated event to other clients, but we don't emit here
+      // since we're the originating client and already have the item
+      
+      return { success: true, item: createdItemFromServer };
       } catch (error) {
         console.error("addItem API error:", error);
         if (error && error.message) {
@@ -649,11 +676,43 @@ export const useTree = (currentUser) => {
             };
             
             // Try direct sync first
-            await window.MyNotesApp.syncManager.syncUpdateContent({
+            const updatedItemFromServer = await window.MyNotesApp.syncManager.syncUpdateContent({
               id: itemId,
               content: stringContent,
               direction
             });
+            
+            // Update React state after successful SyncManager save
+            if (updatedItemFromServer) {
+              // Ensure server response content is properly handled
+              const safeServerUpdate = { ...updatedItemFromServer };
+              if (safeServerUpdate.content && typeof safeServerUpdate.content !== 'string') {
+                console.warn('⚠️ SyncManager response contained non-string content:', typeof safeServerUpdate.content, safeServerUpdate.content);
+                safeServerUpdate.content = safeStringify(safeServerUpdate.content);
+              }
+              
+              const mapRecursiveUpdate = (items, id, serverUpdates) =>
+                items.map((i) =>
+                  i.id === id
+                    ? { ...i, ...serverUpdates }
+                    : Array.isArray(i.children)
+                    ? {
+                        ...i,
+                        children: mapRecursiveUpdate(i.children, id, serverUpdates),
+                      }
+                    : i
+                );
+              
+              const updatedTree = mapRecursiveUpdate(tree, itemId, safeServerUpdate);
+              setTreeWithUndo(updatedTree);
+
+              // Emit to other devices for real-time sync
+              emitToOtherDevices('itemUpdated', {
+                id: itemId,
+                item: updatedItemFromServer,
+                type: 'content'
+              });
+            }
             
             console.log('📝 Content updated via SyncManager:', itemId);
             return { success: true };
@@ -710,6 +769,13 @@ export const useTree = (currentUser) => {
         
         const updatedTree = mapRecursiveUpdate(tree, itemId, safeServerUpdate);
         setTreeWithUndo(updatedTree);
+
+        // Emit to other devices for real-time sync
+        emitToOtherDevices('itemUpdated', {
+          id: itemId,
+          item: updatedItemFromServer,
+          type: 'content'
+        });
 
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
@@ -788,6 +854,13 @@ export const useTree = (currentUser) => {
           updatedItemFromServer
         );
         setTreeWithUndo(finalTreeState);
+
+        // Emit to other devices for real-time sync
+        emitToOtherDevices('itemUpdated', {
+          id: taskId,
+          item: updatedItemFromServer,
+          type: 'task'
+        });
 
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
@@ -1053,6 +1126,24 @@ export const useTree = (currentUser) => {
 
       const newIndex = targetChildren.length; // Simple append
 
+      // Perform optimistic update - create undo entry here
+      const removeItemFromTree = (items, idToRemove) => {
+        return items
+          .filter(item => item.id !== idToRemove)
+          .map(item => {
+            if (item.children && Array.isArray(item.children)) {
+              return { ...item, children: removeItemFromTree(item.children, idToRemove) };
+            }
+            return item;
+          });
+      };
+
+      const optimisticTree = removeItemFromTree(tree, currentDraggedId);
+      const finalOptimisticTree = insertItemRecursive(optimisticTree, targetFolderId, itemToDrop);
+      
+      // Single undo entry for the entire operation
+      setTreeWithUndo(finalOptimisticTree);
+
       try {
         const response = await authFetch(`/items/${currentDraggedId}/move`, {
           method: "PATCH",
@@ -1065,15 +1156,17 @@ export const useTree = (currentUser) => {
           );
         }
 
-        // Get the updated tree from server and use setTreeWithUndo for undo/redo support
+        // Server succeeded - fetch fresh data but preserve undo history
         const treeResponse = await authFetch(`/items`, { cache: "no-store" });
         if (treeResponse.ok) {
           const treeData = await treeResponse.json();
           if (treeData && Array.isArray(treeData.notesTree)) {
-            setTreeWithUndo(treeData.notesTree);
+            // Update present state directly without creating new undo entry
+            // This preserves the undo entry created by the optimistic update
+            updateTreePresentOnly(treeData.notesTree);
           }
         } else {
-          // Fallback to fetchUserTree if direct fetch fails, preserving undo history
+          // Fallback to fetchUserTree with preserveHistory=true to maintain undo
           await fetchUserTree(true);
         }
 
@@ -1081,17 +1174,24 @@ export const useTree = (currentUser) => {
           expandFolderPath(targetFolderId);
         }
 
+        // Emit to other devices for real-time sync
+        emitToOtherDevices('itemMoved', {
+          id: currentDraggedId,
+          newParentId: targetFolderId
+        });
+
         return { success: true };
       } catch (err) {
         console.error("Move (handleDrop) API error:", err);
-        await fetchUserTree(true);
+        // Revert optimistic update on error - use undo to go back to previous state
+        undoTreeChange();
         return {
           success: false,
           error: err.message || "A network error occurred during the move.",
         };
       }
     },
-    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo]
+    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo, undoTreeChange, updateTreePresentOnly]
   );
   const copyItem = useCallback(
     (itemId) => {
