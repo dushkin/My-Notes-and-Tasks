@@ -275,6 +275,12 @@ const Tree = ({
 
   const handleDragOver = useCallback(
     (e, item) => {
+      // Ignore drag over events if no active drag operation
+      if (!draggedId) {
+        e.preventDefault();
+        return;
+      }
+      
       // Reduced logging for drag over events
       if (item.id !== draggedId) {
         console.log('🔄 DRAG OVER:', item.id, 'draggedId:', draggedId);

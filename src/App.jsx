@@ -1627,7 +1627,16 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     setMobileReminderPopup(prev => ({ ...prev, isVisible: false }));
   }, [mobileReminderPopup]);
 
-  const handleDragEnd = useCallback(() => setDraggedId(null), [setDraggedId]);
+  const handleDragEnd = useCallback(() => {
+    console.log('🏁 handleDragEnd called - clearing draggedId');
+    setDraggedId(null);
+    
+    // Force clear any lingering drag effects
+    setTimeout(() => {
+      setDraggedId(null);
+      console.log('🧹 Forced drag cleanup after timeout');
+    }, 100);
+  }, [setDraggedId]);
 
   const openExportDialog = useCallback(
     (context) => {
