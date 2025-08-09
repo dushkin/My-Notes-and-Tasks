@@ -275,7 +275,10 @@ const Tree = ({
 
   const handleDragOver = useCallback(
     (e, item) => {
-      console.log('🔄 DRAG OVER:', item.id, 'draggedId:', draggedId);
+      // Reduced logging for drag over events
+      if (item.id !== draggedId) {
+        console.log('🔄 DRAG OVER:', item.id, 'draggedId:', draggedId);
+      }
       e.preventDefault();
       e.stopPropagation();
       if (

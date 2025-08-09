@@ -265,6 +265,10 @@ const LandingPageRoute = () => {
     return <LoadingSpinner variant="overlay" text="Loading..." />;
   }
 
+  if (currentUser) {
+    return <Navigate to="/app" replace />;
+  }
+
   return (
     <>
       <BetaBanner variant="landing" />
@@ -2583,22 +2587,30 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     onDragStart={(e, id) => {
                       if (inlineRenameId) {
                         e.preventDefault();
-                      } else {
-                        // Set drag data
-                        e.dataTransfer.setData('text/plain', id);
-                        e.dataTransfer.effectAllowed = 'move';
-                        
-                        // Create a simple but visible drag image
-                        const dragElement = e.target.closest('[data-item-id]');
-                        if (dragElement) {
-                          const rect = dragElement.getBoundingClientRect();
-                          e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
-                        }
-                        
-                        // Set drag state immediately
-                        console.log('🎯 Setting draggedId:', id);
-                        setDraggedId(id);
+                        return;
                       }
+                      
+                      // Prevent drag if already dragging something
+                      if (draggedId) {
+                        console.log('❌ Preventing drag start - already dragging:', draggedId);
+                        e.preventDefault();
+                        return;
+                      }
+                      
+                      // Set drag data
+                      e.dataTransfer.setData('text/plain', id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      
+                      // Create a simple but visible drag image
+                      const dragElement = e.target.closest('[data-item-id]');
+                      if (dragElement) {
+                        const rect = dragElement.getBoundingClientRect();
+                        e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
+                      }
+                      
+                      // Set drag state immediately
+                      console.log('🎯 Setting draggedId:', id);
+                      setDraggedId(id);
                     }}
                     onDrop={(targetId) => handleDrop(targetId, draggedId)}
                     onDragEnd={handleDragEnd}
@@ -2783,22 +2795,30 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         onDragStart={(e, id) => {
                           if (inlineRenameId) {
                             e.preventDefault();
-                          } else {
-                            // Set drag data
-                            e.dataTransfer.setData('text/plain', id);
-                            e.dataTransfer.effectAllowed = 'move';
-                            
-                            // Create a simple but visible drag image
-                            const dragElement = e.target.closest('[data-item-id]');
-                            if (dragElement) {
-                              const rect = dragElement.getBoundingClientRect();
-                              e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
-                            }
-                            
-                            // Set drag state immediately
-                            console.log('🎯 Setting draggedId (search):', id);
-                            setDraggedId(id);
+                            return;
                           }
+                          
+                          // Prevent drag if already dragging something
+                          if (draggedId) {
+                            console.log('❌ Preventing drag start - already dragging:', draggedId);
+                            e.preventDefault();
+                            return;
+                          }
+                          
+                          // Set drag data
+                          e.dataTransfer.setData('text/plain', id);
+                          e.dataTransfer.effectAllowed = 'move';
+                          
+                          // Create a simple but visible drag image
+                          const dragElement = e.target.closest('[data-item-id]');
+                          if (dragElement) {
+                            const rect = dragElement.getBoundingClientRect();
+                            e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
+                          }
+                          
+                          // Set drag state immediately
+                          console.log('🎯 Setting draggedId (search):', id);
+                          setDraggedId(id);
                         }}
                         onDrop={(targetId) => handleDrop(targetId, draggedId)}
                         onDragEnd={handleDragEnd}
