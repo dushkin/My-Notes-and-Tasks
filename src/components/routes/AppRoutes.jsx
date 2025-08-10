@@ -11,6 +11,7 @@ import { getAccessToken, clearTokens } from "../../services/authService";
 import { authFetch } from "../../services/apiClient";
 
 export const LandingPageRoute = () => {
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -48,8 +49,8 @@ export const LandingPageRoute = () => {
     <>
       <BetaBanner variant="landing" />
       <LandingPage
-        onLogin={() => (window.location.href = "/login")}
-        onSignup={() => (window.location.href = "/register")}
+        onLogin={() => navigate("/login")}
+        onSignup={() => navigate("/register")}
         currentUser={currentUser}
       />
     </>
@@ -122,6 +123,7 @@ export const LoginRoute = () => {
 };
 
 export const RegisterRoute = () => {
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -156,7 +158,7 @@ export const RegisterRoute = () => {
   }
 
   const handleRegisterSuccess = () => {
-    window.location.href = "/login";
+    navigate("/login");
   };
   
   return (
@@ -164,13 +166,14 @@ export const RegisterRoute = () => {
       <BetaBanner variant="auth" />
       <Register
         onRegisterSuccess={handleRegisterSuccess}
-        onSwitchToLogin={() => (window.location.href = "/login")}
+        onSwitchToLogin={() => navigate("/login")}
       />
     </>
   );
 };
 
 export const ProtectedAppRoute = () => {
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState(null);
   const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
@@ -196,7 +199,7 @@ export const ProtectedAppRoute = () => {
         }
       }
       clearTokens();
-      window.location.href = "/";
+      navigate("/", { replace: true });
     };
 
     checkAuth();
