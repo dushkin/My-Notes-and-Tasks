@@ -47,7 +47,6 @@ if [ -z "$GOOGLE_API_KEY" ]; then
   fi
   
   git commit -m "$COMMIT_MESSAGE"
-  exit 0
 fi
 
 # Write the diff to a temporary file (to handle large diffs)
