@@ -25,10 +25,18 @@ export const LandingPageRoute = () => {
             const data = await response.json();
             if (data.valid && data.user) {
               setCurrentUser(data.user);
+            } else {
+              // Token exists but is invalid, clear it
+              clearTokens();
             }
+          } else {
+            // Auth verification failed, clear invalid tokens
+            clearTokens();
           }
         } catch (error) {
           console.log("Auth check failed:", error);
+          // Clear tokens on network/auth errors
+          clearTokens();
         }
       }
       setIsCheckingAuth(false);
@@ -75,10 +83,18 @@ export const LoginRoute = () => {
               if (typeof window.subscribeAfterLogin === "function") {
                 window.subscribeAfterLogin();
               }
+            } else {
+              // Token exists but is invalid, clear it
+              clearTokens();
             }
+          } else {
+            // Auth verification failed, clear invalid tokens
+            clearTokens();
           }
         } catch (error) {
           console.log("Auth check failed:", error);
+          // Clear tokens on network/auth errors
+          clearTokens();
         }
       }
       setIsCheckingAuth(false);
@@ -137,10 +153,18 @@ export const RegisterRoute = () => {
             const data = await response.json();
             if (data.valid && data.user) {
               setCurrentUser(data.user);
+            } else {
+              // Token exists but is invalid, clear it
+              clearTokens();
             }
+          } else {
+            // Auth verification failed, clear invalid tokens
+            clearTokens();
           }
         } catch (error) {
           console.log("Auth check failed:", error);
+          // Clear tokens on network/auth errors
+          clearTokens();
         }
       }
       setIsCheckingAuth(false);

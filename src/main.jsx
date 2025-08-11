@@ -16,10 +16,18 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
 // Service Worker registration with cache busting
 // Skip service worker registration in native app (Capacitor) environment
-if ('serviceWorker' in navigator && 
-    !window.Capacitor && 
-    !window.Ionic && 
-    !navigator.userAgent.includes('CapacitorWebView')) {
+const isNative = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ||
+                 window.Ionic || 
+                 navigator.userAgent.includes('CapacitorWebView');
+
+console.log('🔍 SW Registration Check (main.jsx):', {
+  hasCapacitor: !!window.Capacitor,
+  isNativePlatform: window.Capacitor?.isNativePlatform?.(),
+  isNative,
+  swSupported: 'serviceWorker' in navigator
+});
+
+if ('serviceWorker' in navigator && !isNative) {
   const version = __APP_VERSION__; // Injected at build time
   navigator.serviceWorker.register(`/sw.js?v=${version}`)
     .then(registration => {

@@ -6,10 +6,23 @@ import { authFetch } from '../services/apiClient';
   'use strict';
 
   // ---------- Environment detection ----------
+  const capacitorPlatform = window?.Capacitor?.isNativePlatform?.();
+  const capacitorNative = window?.Capacitor?.isNative;
+  const userAgentMatch = /\bCapacitor(WebView)?\b/.test(navigator.userAgent);
+  
+  console.log('🔍 Environment Detection Debug:', {
+    capacitorExists: !!window.Capacitor,
+    capacitorPlatform,
+    capacitorNative,
+    userAgent: navigator.userAgent,
+    userAgentMatch,
+    href: window.location.href
+  });
+  
   const isNative =
-    !!(window?.Capacitor?.isNativePlatform?.()) ||
-    !!window?.Capacitor?.isNative ||
-    /\bCapacitor(WebView)?\b/.test(navigator.userAgent);
+    !!capacitorPlatform ||
+    !!capacitorNative ||
+    userAgentMatch;
 
   const swSupported =
     typeof navigator !== 'undefined' && !!navigator.serviceWorker;
@@ -298,29 +311,17 @@ import { authFetch } from '../services/apiClient';
       console.warn('⚠️ Push messaging not supported');
       return;
     }
-    if (!window.MyNotesApp.swRegistration) {
-      console.warn('⚠️ No SW registration available for push; skipping');
-      return;
-    }
 
+    // Just request notification permission during init, but don't subscribe yet
     try {
       const permission = await Notification.requestPermission();
-      console.log('📱 Notification permission:', permission);
-      if (permission !== 'granted') return;
-
-      // Wait for service worker to be ready
-      const registration = await navigator.serviceWorker.ready;
-
-      // Subscribe to push notifications
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: await getVapidKey()
-      });
-
-      console.log('✅ Push subscription created');
-      await sendSubscriptionToServer(subscription);
+      console.log('🌐 Web notification permissions:', permission);
+      console.log('🔔 Notification service initialized, permission granted:', permission === 'granted');
+      
+      // Store permission status for later use
+      window.MyNotesApp.notificationPermission = permission;
     } catch (error) {
-      console.error('❌ Push notification setup failed:', error);
+      console.error('❌ Failed to request notification permission:', error);
     }
   }
 
@@ -654,15 +655,65 @@ import { authFetch } from '../services/apiClient';
 
   async function sendSubscriptionToServer(subscription) {
     try {
+      const subscriptionData = subscription.toJSON();
+      console.log('📤 Sending subscription to server:', {
+        endpoint: subscriptionData.endpoint?.substring(0, 50) + '...',
+        hasKeys: !!subscriptionData.keys,
+        hasP256dh: !!subscriptionData.keys?.p256dh,
+        hasAuth: !!subscriptionData.keys?.auth
+      });
+      
       await authFetch('/push/subscribe', {
         method: 'POST',
-        body: subscription.toJSON()
+        body: subscriptionData  // Send object directly, authFetch will JSON.stringify it
       });
       console.log('✅ Push subscription sent to server successfully');
     } catch (error) {
       console.error('Failed to send subscription to server:', error);
     }
   }
+
+  // Function to be called after user authentication
+  async function subscribeToAuthenticatedPushNotifications() {
+    if (isNative) return; // native/Capacitor: use platform channels instead
+
+    if (!window.MyNotesApp.swRegistration) {
+      console.warn('⚠️ No SW registration available for push; skipping');
+      return;
+    }
+
+    if (window.MyNotesApp.notificationPermission !== 'granted') {
+      console.warn('⚠️ Notification permission not granted; skipping push subscription');
+      return;
+    }
+
+    try {
+      // Wait for service worker to be ready
+      const registration = await navigator.serviceWorker.ready;
+
+      // Check if already subscribed
+      const existingSubscription = await registration.pushManager.getSubscription();
+      if (existingSubscription) {
+        console.log('✅ Push subscription already exists');
+        return;
+      }
+
+      // Subscribe to push notifications
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: await getVapidKey()
+      });
+
+      console.log('✅ Push subscription created');
+      await sendSubscriptionToServer(subscription);
+    } catch (error) {
+      console.error('❌ Push notification subscription failed:', error);
+    }
+  }
+
+  // Expose the function globally so it can be called after login
+  window.subscribeToAuthenticatedPushNotifications = subscribeToAuthenticatedPushNotifications;
+  window.subscribeAfterLogin = subscribeToAuthenticatedPushNotifications;
 
   // ---------- Touch helpers ----------
   function setupTouchEvents() {

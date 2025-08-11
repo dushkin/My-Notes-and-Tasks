@@ -84,7 +84,15 @@ self.addEventListener('activate', (event) => {
       }),
       // Register device and sync
       registerDeviceAndSync()
-    ]).then(() => self.clients.claim())
+    ]).then(() => {
+      // Only claim clients if this service worker is active
+      if (self.registration.active === self) {
+        return self.clients.claim();
+      } else {
+        console.log('Service Worker not active yet, skipping claim');
+        return Promise.resolve();
+      }
+    })
   );
 });
 
