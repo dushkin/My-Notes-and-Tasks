@@ -167,6 +167,39 @@ fi
 
 # Sync with Capacitor
 echo "🔄 Syncing with Capacitor..."
+# --- Keep Android version in sync with package.json ---
+echo "🔄 Syncing Android versionName/versionCode with package.json..."
+VERSION_CODE=$(node -e "const v=require('./package.json').version.split('.').map(Number); if(v.length!==3||v.some(isNaN)){process.exit(2)}; console.log(v[0]*100000+v[1]*1000+v[2]);" 2>/dev/null)
+if [ -z "$VERSION_CODE" ]; then
+  echo "⚠️  Could not compute versionCode from package.json; leaving Gradle as-is."
+else
+  GRADLE_FILE="android/app/build.gradle"
+  if [ -f "$GRADLE_FILE" ]; then
+    echo "   • Updating $GRADLE_FILE -> versionName \"$VERSION\"; versionCode $VERSION_CODE"
+    # Update versionName
+    if grep -qE '^[[:space:]]*versionName[[:space:]]+"[^"]+"' "$GRADLE_FILE"; then
+      sed -i.bak -E "s/^[[:space:]]*versionName[[:space:]]+\"[^\"]+\"/        versionName \"$VERSION\"/" "$GRADLE_FILE"
+    else
+      # Insert under defaultConfig { ... }
+      sed -i.bak -E "/defaultConfig[[:space:]]*\{/a\        versionName \"$VERSION\"" "$GRADLE_FILE"
+    fi
+    # Update versionCode (monotonic bump if needed)
+    CURRENT_CODE=$(grep -E '^[[:space:]]*versionCode[[:space:]]+[0-9]+' "$GRADLE_FILE" | head -1 | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+    if [ -n "$CURRENT_CODE" ] && [ "$VERSION_CODE" -le "$CURRENT_CODE" ]; then
+      VERSION_CODE=$((CURRENT_CODE + 1))
+      echo "   • Computed versionCode was <= current; bumped to $VERSION_CODE to keep installs monotonic"
+    fi
+    if grep -qE '^[[:space:]]*versionCode[[:space:]]+[0-9]+' "$GRADLE_FILE"; then
+      sed -i.bak -E "s/^[[:space:]]*versionCode[[:space:]]+[0-9]+/        versionCode $VERSION_CODE/" "$GRADLE_FILE"
+    else
+      sed -i.bak -E "/defaultConfig[[:space:]]*\{/a\        versionCode $VERSION_CODE" "$GRADLE_FILE"
+    fi
+  else
+    echo "⚠️  $GRADLE_FILE not found; skipping Gradle version sync."
+  fi
+fi
+# --- End version sync ---
+
 npx cap sync android
 
 if [ $? -ne 0 ]; then

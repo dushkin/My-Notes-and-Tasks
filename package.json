@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "14.15.6",
+  "version": "14.15.7",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -10,6 +10,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "update-version": "node update-version.js",
+
+    "version": "node scripts/sync-version.js",
+    "ver:patch": "npm version patch && npx cap sync android",
+    "ver:minor": "npm version minor && npx cap sync android",
+    "ver:major": "npm version major && npx cap sync android",
+
     "test:unit": "jest",
     "test": "jest",
     "test:e2e": "playwright test",
