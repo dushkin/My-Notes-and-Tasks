@@ -5,7 +5,7 @@
   "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https",
-    "hostname": "notask.co"
+    "hostname": "localhost"
   },
   "plugins": {
     "LocalNotifications": {
