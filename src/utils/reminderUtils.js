@@ -235,7 +235,18 @@ export const requestNotificationPermission = async () => {
  */
 export const registerServiceWorker = async () => {
   // Skip service worker registration in native app (Capacitor) environment
-  if (window.Capacitor || window.Ionic || navigator.userAgent.includes('CapacitorWebView')) {
+  const isNative = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ||
+                   window.Ionic || 
+                   navigator.userAgent.includes('CapacitorWebView');
+  
+  console.log('🔍 SW Registration Check:', {
+    hasCapacitor: !!window.Capacitor,
+    isNativePlatform: window.Capacitor?.isNativePlatform?.(),
+    isNative,
+    userAgent: navigator.userAgent
+  });
+  
+  if (isNative) {
     console.log('📱 Running in native app - skipping service worker registration (reminderUtils)');
     return null;
   }
