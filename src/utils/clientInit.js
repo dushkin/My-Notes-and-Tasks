@@ -5,11 +5,21 @@ import { authFetch } from '../services/apiClient';
 (function () {
   'use strict';
 
-  // Global app state
+  // ---------- Environment detection ----------
+  const isNative =
+    !!(window?.Capacitor?.isNativePlatform?.()) ||
+    !!window?.Capacitor?.isNative ||
+    /\bCapacitor(WebView)?\b/.test(navigator.userAgent);
+
+  const swSupported =
+    typeof navigator !== 'undefined' && !!navigator.serviceWorker;
+
+  // ---------- Global app state ----------
   window.MyNotesApp = {
     syncManager: null,
     notificationManager: null,
     isInitialized: false,
+    swRegistration: undefined,
     config: {
       apiBaseUrl: '/api',
       syncInterval: 30000,
@@ -18,10 +28,13 @@ import { authFetch } from '../services/apiClient';
     }
   };
 
-  // Initialize the application
+  // ---------- Bootstrap ----------
   async function initializeApp() {
     try {
-      console.log('🚀 Initializing My Notes & Tasks App...');
+      console.log('🚀 Initializing My Notes & Tasks App...', {
+        isNative,
+        swSupported
+      });
 
       // Check if we're in a supported environment
       if (!checkBrowserSupport()) {
@@ -37,10 +50,10 @@ import { authFetch } from '../services/apiClient';
       // Initialize UI components
       initializeUI();
 
-      // Register service worker
+      // Register service worker (skip on native or when unsupported)
       await registerServiceWorker();
 
-      // Setup push notifications
+      // Setup push notifications (skips on native automatically)
       await initializePushNotifications();
 
       // Load initial data
@@ -53,28 +66,30 @@ import { authFetch } from '../services/apiClient';
 
       // Dispatch initialization complete event
       window.dispatchEvent(new CustomEvent('appInitialized'));
-
     } catch (error) {
       console.error('❌ Failed to initialize app:', error);
       showErrorMessage('Failed to initialize the application. Please refresh the page.');
     }
   }
 
-  // Check browser support for required features
+  // ---------- Support checks ----------
   function checkBrowserSupport() {
-    const requiredFeatures = [
-      'localStorage',
-      'indexedDB',
-      'serviceWorker',
-      'fetch',
-      'Promise'
-    ];
+    // Service Worker is required only for web, not for native/Capacitor
+    const requiredFeaturesWeb = ['localStorage', 'indexedDB', 'fetch', 'Promise'];
+    const requiredFeaturesNative = ['localStorage', 'indexedDB', 'fetch', 'Promise'];
 
-    for (const feature of requiredFeatures) {
+    const required = isNative ? requiredFeaturesNative : requiredFeaturesWeb;
+
+    for (const feature of required) {
       if (!isSupported(feature)) {
         console.error(`❌ Feature not supported: ${feature}`);
         return false;
       }
+    }
+
+    // On web, we do a soft check for SW (not hard-fail)
+    if (!isNative && !swSupported) {
+      console.warn('⚠️ Service Worker not supported in this browser; continuing without it.');
     }
 
     return true;
@@ -86,8 +101,6 @@ import { authFetch } from '../services/apiClient';
         return typeof Storage !== 'undefined';
       case 'indexedDB':
         return 'indexedDB' in window;
-      case 'serviceWorker':
-        return 'serviceWorker' in navigator;
       case 'fetch':
         return 'fetch' in window;
       case 'Promise':
@@ -97,7 +110,7 @@ import { authFetch } from '../services/apiClient';
     }
   }
 
-  // Initialize core services
+  // ---------- Core services ----------
   async function initializeServices() {
     console.log('📡 Initializing services...');
 
@@ -118,7 +131,6 @@ import { authFetch } from '../services/apiClient';
     console.log('✅ IndexedDB initialized');
   }
 
-  // Initialize IndexedDB for offline storage
   async function initializeIndexedDB() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open('MyNotesDB', 1);
@@ -160,7 +172,7 @@ import { authFetch } from '../services/apiClient';
     });
   }
 
-  // Setup global event listeners
+  // ---------- Global listeners ----------
   function setupEventListeners() {
     console.log('👂 Setting up event listeners...');
 
@@ -188,7 +200,7 @@ import { authFetch } from '../services/apiClient';
     console.log('✅ Event listeners set up');
   }
 
-  // Initialize UI components
+  // ---------- UI ----------
   function initializeUI() {
     console.log('🎨 Initializing UI...');
 
@@ -215,7 +227,6 @@ import { authFetch } from '../services/apiClient';
     console.log('✅ UI initialized');
   }
 
-  // Theme management
   function initializeTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -232,85 +243,88 @@ import { authFetch } from '../services/apiClient';
     }
   }
 
-  // Register service worker
+  // ---------- Service Worker (web only) ----------
   async function registerServiceWorker() {
-    // Skip service worker registration in native app (Capacitor) environment
-    if (window.Capacitor || window.Ionic || navigator.userAgent.includes('CapacitorWebView')) {
-      console.log('📱 Running in native app - skipping service worker registration');
-      return;
-    }
-    
-    if (!('serviceWorker' in navigator)) {
-      console.warn('⚠️ Service workers not supported');
+    // Skip on native or if unsupported
+    if (isNative || !swSupported) {
+      console.log('📱 Skipping Service Worker (native/unsupported environment)');
       return;
     }
 
     try {
-      // Unregister old service worker first
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (let registration of registrations) {
-        await registration.unregister();
-        console.log('🗑️ Unregistered old service worker');
+      // OPTIONAL: Unregister old service workers to ensure a clean state
+      if (navigator.serviceWorker?.getRegistrations) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          try {
+            await reg.unregister();
+            console.log('🗑️ Unregistered old service worker');
+          } catch {}
+        }
       }
 
       // Register new service worker
-      const verParam = (window.APP_VERSION || new Date().toISOString().slice(0,10));
+      const verParam = (window.APP_VERSION || new Date().toISOString().slice(0, 10));
       const registration = await navigator.serviceWorker.register(`/sw.js?v=${verParam}`, {
-        updateViaCache: 'none' // Force fresh download
+        // Do not set updateViaCache on older WebViews/browsers unless needed
+        // updateViaCache: 'none'
       });
+      window.MyNotesApp.swRegistration = registration;
       console.log('✅ Service Worker registered:', registration);
 
-      // Listen for updates
-      registration.addEventListener('updatefound', () => {
+      // Listen for updates, guard registration
+      registration?.addEventListener?.('updatefound', () => {
         const newWorker = registration.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        newWorker?.addEventListener?.('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker?.controller) {
             showUpdateAvailableNotification();
           }
         });
       });
-
-      window.MyNotesApp.swRegistration = registration;
     } catch (error) {
       console.error('❌ Service Worker registration failed:', error);
     }
   }
 
-  // Initialize push notifications
+  // ---------- Push Notifications (web only) ----------
   async function initializePushNotifications() {
+    if (isNative) return; // native/Capacitor: use platform channels instead
+
     if (!('Notification' in window)) {
       console.warn('⚠️ Notifications not supported');
       return;
     }
-
     if (!('PushManager' in window)) {
       console.warn('⚠️ Push messaging not supported');
       return;
     }
+    if (!window.MyNotesApp.swRegistration) {
+      console.warn('⚠️ No SW registration available for push; skipping');
+      return;
+    }
 
     try {
-      // Request notification permission
       const permission = await Notification.requestPermission();
       console.log('📱 Notification permission:', permission);
+      if (permission !== 'granted') return;
 
-      if (permission === 'granted' && window.MyNotesApp.swRegistration) {
-        // Wait for service worker to be ready
-        const registration = await navigator.serviceWorker.ready;
+      // Wait for service worker to be ready
+      const registration = await navigator.serviceWorker.ready;
 
-        // Subscribe to push notifications
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: await getVapidKey()
-        });
+      // Subscribe to push notifications
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: await getVapidKey()
+      });
 
-        console.log('✅ Push subscription created');
-      }
+      console.log('✅ Push subscription created');
+      await sendSubscriptionToServer(subscription);
     } catch (error) {
       console.error('❌ Push notification setup failed:', error);
     }
   }
 
-  // Load initial data
+  // ---------- Initial data ----------
   async function loadInitialData() {
     console.log('📊 Loading initial data...');
 
@@ -332,24 +346,19 @@ import { authFetch } from '../services/apiClient';
     }
   }
 
-  // Event handlers
-  function handleBeforeUnload(event) {
-    // Save any pending changes
+  // ---------- Event handlers ----------
+  function handleBeforeUnload() {
     savePendingChanges();
-
-    // Don't show confirmation dialog for normal operation
     return undefined;
   }
 
   function handleWindowFocus() {
-    // Resume sync operations
     if (window.MyNotesApp.syncManager) {
       window.MyNotesApp.syncManager.processSyncQueue();
     }
   }
 
   function handleWindowBlur() {
-    // Save current state
     savePendingChanges();
   }
 
@@ -395,7 +404,7 @@ import { authFetch } from '../services/apiClient';
     showConflictResolutionDialog(event.detail.conflict, event.detail.resolve);
   }
 
-  // Utility functions
+  // ---------- UI helpers ----------
   function showErrorMessage(message) {
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
@@ -452,34 +461,25 @@ import { authFetch } from '../services/apiClient';
 
     document.body.appendChild(notification);
 
-    // Store timeout reference for potential cleanup
-    const timeoutId = setTimeout(() => {
+    const remove = () => {
       if (notification.parentNode) {
         notification.style.animation = 'slideOut 0.3s ease-in';
-        const removeTimeout = setTimeout(() => {
+        setTimeout(() => {
           if (notification.parentNode) {
             notification.parentNode.removeChild(notification);
           }
         }, 300);
-        notification._removeTimeout = removeTimeout;
       }
-    }, 3000);
-    
-    notification._timeoutId = timeoutId;
+    };
 
-    // Add click handler to manually dismiss
+    const timeoutId = setTimeout(remove, 3000);
+
+    // Allow manual dismiss
     notification.style.pointerEvents = 'auto';
     notification.style.cursor = 'pointer';
     notification.addEventListener('click', () => {
-      if (notification._timeoutId) {
-        clearTimeout(notification._timeoutId);
-      }
-      if (notification._removeTimeout) {
-        clearTimeout(notification._removeTimeout);
-      }
-      if (notification.parentNode) {
-        notification.parentNode.removeChild(notification);
-      }
+      clearTimeout(timeoutId);
+      remove();
     });
   }
 
@@ -521,7 +521,6 @@ import { authFetch } from '../services/apiClient';
 
     document.body.appendChild(updateDiv);
 
-    // Add proper event listeners
     const updateNowBtn = updateDiv.querySelector('#update-now-btn');
     const updateLaterBtn = updateDiv.querySelector('#update-later-btn');
 
@@ -529,32 +528,28 @@ import { authFetch } from '../services/apiClient';
       console.log('🔄 Update Now clicked - triggering service worker update...');
 
       try {
-        // Get the service worker registration
-        const registration = window.MyNotesApp.swRegistration || await navigator.serviceWorker.getRegistration();
+        const registration =
+          window.MyNotesApp.swRegistration ||
+          (swSupported ? await navigator.serviceWorker.getRegistration() : undefined);
 
-        if (registration && registration.waiting) {
+        if (registration?.waiting) {
           console.log('🔄 Found waiting service worker, sending SKIP_WAITING message...');
+          registration.waiting.postMessage?.({ type: 'SKIP_WAITING' });
 
-          // Tell the waiting service worker to skip waiting
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-          // Listen for the controller change (new SW taking over)
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
+          // Guard controllerchange (navigator.serviceWorker may not exist on some platforms)
+          navigator.serviceWorker?.addEventListener?.('controllerchange', () => {
             console.log('🔄 Controller changed, reloading page...');
             window.location.reload();
           }, { once: true });
 
-          // Show loading message
           updateNowBtn.textContent = 'Updating...';
           updateNowBtn.disabled = true;
-
         } else {
           console.log('🔄 No waiting service worker found, forcing page reload...');
           window.location.reload();
         }
       } catch (error) {
         console.error('❌ Error during update:', error);
-        // Fallback to simple reload
         window.location.reload();
       }
     });
@@ -564,14 +559,14 @@ import { authFetch } from '../services/apiClient';
     });
   }
 
-  // App-specific utility functions
+  // ---------- App-specific utils ----------
   function createNewNote() {
     const event = new CustomEvent('createNewNote');
     window.dispatchEvent(event);
   }
 
   function saveCurrentItem() {
-    const event = new CustomEvent('saveCurrentItem');
+    const event = new CustomEvent('savePendingChanges');
     window.dispatchEvent(event);
   }
 
@@ -590,7 +585,6 @@ import { authFetch } from '../services/apiClient';
   function loadUserPreferences() {
     const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
 
-    // Apply preferences
     if (preferences.fontSize) {
       document.documentElement.style.fontSize = preferences.fontSize;
     }
@@ -605,21 +599,17 @@ import { authFetch } from '../services/apiClient';
   }
 
   async function loadOfflineData() {
-    // Load from localStorage first (faster)
     const notes = JSON.parse(localStorage.getItem('notes') || '[]');
     const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
 
-    // Dispatch events to update UI
     window.dispatchEvent(new CustomEvent('notesLoaded', { detail: notes }));
     window.dispatchEvent(new CustomEvent('tasksLoaded', { detail: tasks }));
 
-    // Load from IndexedDB if available
     if (window.MyNotesApp.db) {
       try {
         const dbNotes = await getFromIndexedDB('notes');
         const dbTasks = await getFromIndexedDB('tasks');
 
-        // Merge with localStorage data (IndexedDB is more reliable)
         if (dbNotes.length > 0) {
           localStorage.setItem('notes', JSON.stringify(dbNotes));
           window.dispatchEvent(new CustomEvent('notesLoaded', { detail: dbNotes }));
@@ -651,7 +641,6 @@ import { authFetch } from '../services/apiClient';
       const endpointURL = '/push/vapid-public-key';
       console.log('🔑 Fetching VAPID key from:', endpointURL);
 
-      // Use authFetch and get the raw response to parse it
       const response = await authFetch(endpointURL);
       const data = await response.json();
 
@@ -665,21 +654,17 @@ import { authFetch } from '../services/apiClient';
 
   async function sendSubscriptionToServer(subscription) {
     try {
-      console.log('🔍 sendSubscriptionToServer called!');
-      console.trace('🔍 Call stack:');
-      console.log('✅ Sending push subscription to server...');
       await authFetch('/push/subscribe', {
         method: 'POST',
         body: subscription.toJSON()
       });
-
       console.log('✅ Push subscription sent to server successfully');
     } catch (error) {
       console.error('Failed to send subscription to server:', error);
     }
   }
 
-  // Touch events for mobile
+  // ---------- Touch helpers ----------
   function setupTouchEvents() {
     let touchStartY = 0;
     let touchStartTime = 0;
@@ -714,9 +699,8 @@ import { authFetch } from '../services/apiClient';
     }
   }
 
-  // Additional UI initialization functions
+  // ---------- Misc UI ----------
   function initializeTooltips() {
-    // Simple tooltip implementation
     document.querySelectorAll('[data-tooltip]').forEach(element => {
       element.addEventListener('mouseenter', showTooltip);
       element.addEventListener('mouseleave', hideTooltip);
@@ -782,14 +766,12 @@ import { authFetch } from '../services/apiClient';
   }
 
   function initializeModals() {
-    // Close modals when clicking outside
     document.addEventListener('click', (event) => {
       if (event.target.classList.contains('modal-overlay')) {
         closeModal(event.target.querySelector('.modal'));
       }
     });
 
-    // Close modals with escape key
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         const openModal = document.querySelector('.modal.open');
@@ -833,12 +815,10 @@ import { authFetch } from '../services/apiClient';
   }
 
   function initializeDragDrop() {
-    // This would set up drag and drop functionality
     console.log('🖱️ Drag and drop initialized');
   }
 
   function showConflictResolutionDialog(conflict, resolveCallback) {
-    // Create and show a modal for conflict resolution
     const modal = document.createElement('div');
     modal.className = 'modal-overlay open';
     modal.innerHTML = `
@@ -859,23 +839,19 @@ import { authFetch } from '../services/apiClient';
 
     document.body.appendChild(modal);
 
-    // Store the resolve callback
     window._currentConflictResolve = resolveCallback;
     window._currentConflict = conflict;
   }
 
-  // Global conflict resolution function
   window.resolveConflict = function (strategy) {
     if (window._currentConflictResolve && window._currentConflict) {
       const resolver = new ConflictResolver();
       const resolved = resolver.resolve(window._currentConflict, strategy);
       window._currentConflictResolve(resolved);
 
-      // Clean up
       delete window._currentConflictResolve;
       delete window._currentConflict;
 
-      // Close modal
       const modal = document.querySelector('.conflict-resolution-modal');
       if (modal) {
         modal.parentElement.remove();
@@ -883,14 +859,12 @@ import { authFetch } from '../services/apiClient';
     }
   };
 
-  // Notification Manager Class
+  // ---------- Notifications manager ----------
   class NotificationManager {
     constructor() {
       this.queue = [];
       this.isProcessing = false;
     }
-
-
 
     show(message, type = 'info', duration = 3000) {
       this.queue.push({ message, type, duration });
@@ -905,7 +879,7 @@ import { authFetch } from '../services/apiClient';
       while (this.queue.length > 0) {
         const notification = this.queue.shift();
         showNotification(notification.message, notification.type);
-        await this.delay(notification.duration + 500); // Add delay between notifications
+        await this.delay(notification.duration + 500);
       }
 
       this.isProcessing = false;
@@ -916,7 +890,7 @@ import { authFetch } from '../services/apiClient';
     }
   }
 
-  // CSS animations
+  // ---------- CSS helpers ----------
   const style = document.createElement('style');
   style.textContent = `
     @keyframes slideIn {
@@ -944,7 +918,7 @@ import { authFetch } from '../services/apiClient';
   `;
   document.head.appendChild(style);
 
-  // Initialize when DOM is ready
+  // ---------- DOM ready ----------
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
   } else {
@@ -953,5 +927,4 @@ import { authFetch } from '../services/apiClient';
 
   // Export initialization function for manual calling if needed
   window.initializeApp = initializeApp;
-
 })();

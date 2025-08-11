@@ -1,10 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Eruda mobile console. -->
-    <script src="//cdn.jsdelivr.net/npm/eruda"></script>
+    <!-- SW native hard-disable: must be before any other JS -->
     <script>
-      eruda.init();
+      (function () {
+        try {
+          var isNative =
+            !!(
+              window.Capacitor &&
+              window.Capacitor.isNativePlatform &&
+              window.Capacitor.isNativePlatform()
+            ) ||
+            navigator.userAgent.indexOf("Capacitor") > -1 ||
+            navigator.userAgent.indexOf("CapacitorWebView") > -1;
+          if (isNative && "serviceWorker" in navigator) {
+            if (navigator.serviceWorker.getRegistrations) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (r) {
+                  try {
+                    r.unregister();
+                  } catch (e) {}
+                });
+              });
+            }
+            navigator.serviceWorker.register = function () {
+              return Promise.reject(
+                new Error("SW disabled in native (index.html)")
+              );
+            };
+            console.log(
+              "🛑 Disabled Service Worker in native environment (index.html)"
+            );
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <!-- Eruda mobile console. -->
+    <script>
+      (function () {
+        var ua = navigator.userAgent || "";
+        var isNative = !!(
+          window.Capacitor &&
+          window.Capacitor.isNativePlatform &&
+          window.Capacitor.isNativePlatform()
+        );
+        var isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+        var isSmallViewport =
+          Math.min(window.innerWidth, window.innerHeight) <= 900; // coarse filter
+        var enableEruda = isNative || (isMobileUA && isSmallViewport);
+
+        if (!enableEruda) return;
+
+        var s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/eruda";
+        s.defer = true;
+        s.onload = function () {
+          try {
+            eruda.init();
+          } catch (e) {}
+        };
+        document.head.appendChild(s);
+      })();
     </script>
 
     <!-- Google Tag Manager -->
@@ -23,7 +80,10 @@
     <!-- End Google Tag Manager -->
 
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>Notes & Tasks App</title>
 
     <!-- Enhanced Favicon Support -->

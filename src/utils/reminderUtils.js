@@ -245,7 +245,7 @@ export const registerServiceWorker = async () => {
     return null;
   }
   try {
-    const registration = await navigator.serviceWorker.register("/sw.js");
+    const registration = await // SW registration removed for native
     console.log("Service Worker registered:", registration);
     return registration;
   } catch (error) {
