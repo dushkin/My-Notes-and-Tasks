@@ -3,6 +3,17 @@
 import { authFetch } from '../services/apiClient';
 
 (function () {
+  const __IS_NATIVE__ = !!(window?.Capacitor?.isNativePlatform?.() || navigator.userAgent.includes('Capacitor') || navigator.userAgent.includes('CapacitorWebView'));
+  if (__IS_NATIVE__ && 'serviceWorker' in navigator) {
+    try {
+      if (navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => { try{ r.unregister(); } catch(e){} }));
+      }
+      try { Object.defineProperty(navigator, 'serviceWorker', { get(){ return undefined; } }); } catch(e) {}
+      console.log('🛑 SW disabled (clientInit)');
+    } catch(e) {}
+  }
+
   'use strict';
 
   // Global app state
@@ -37,8 +48,8 @@ import { authFetch } from '../services/apiClient';
       // Initialize UI components
       initializeUI();
 
-      // Register service worker
-      await registerServiceWorker();
+      // Register service worker (skip on native)
+      if (!__IS_NATIVE__) { await registerServiceWorker(); }
 
       // Setup push notifications
       await initializePushNotifications();
@@ -279,6 +290,7 @@ import { authFetch } from '../services/apiClient';
 
   // Initialize push notifications
   async function initializePushNotifications() {
+    if (__IS_NATIVE__) { return; }
     if (!('Notification' in window)) {
       console.warn('⚠️ Notifications not supported');
       return;

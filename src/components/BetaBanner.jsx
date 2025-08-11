@@ -12,6 +12,7 @@ export default function BetaBanner({ variant }) {
   const bannerRef = useRef(null);
 
   useEffect(() => {
+    try { if (Capacitor?.isNativePlatform?.()) { CapacitorApp.getInfo().then(info => { if (info?.version) setAppVersion(info.version); }).catch(()=>{}); } } catch {}
     try {
       if (Capacitor?.isNativePlatform?.()) {
         CapacitorApp.getInfo().then(info => { if (info?.version) setAppVersion(info.version); }).catch(() => {});
@@ -50,6 +51,7 @@ export default function BetaBanner({ variant }) {
 
   // Set CSS variable for banner height based on actual banner height
   useEffect(() => {
+    try { if (Capacitor?.isNativePlatform?.()) { CapacitorApp.getInfo().then(info => { if (info?.version) setAppVersion(info.version); }).catch(()=>{}); } } catch {}
     try {
       if (Capacitor?.isNativePlatform?.()) {
         CapacitorApp.getInfo().then(info => { if (info?.version) setAppVersion(info.version); }).catch(() => {});

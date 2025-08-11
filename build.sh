@@ -25,7 +25,9 @@ if [ -z "$GOOGLE_API_KEY" ]; then
   
   # Analyze what type of changes were made (prioritize actual code changes over version bumps)
   if echo "$CHANGED_FILES" | grep -q "\.tsx$\|\.jsx$\|\.ts$\|\.js$"; then
-    COMMIT_MESSAGE="feat: update components and functionality"
+    # Get more specific info about the changes
+    COMPONENT_CHANGES=$(echo "$CHANGED_FILES" | grep -E "\.tsx$|\.jsx$|\.ts$|\.js$" | head -3 | sed 's/.*\///; s/\.[^.]*$//' | tr '\n' ', ' | sed 's/,$//')
+    COMMIT_MESSAGE="feat: update $COMPONENT_CHANGES components"
   elif echo "$CHANGED_FILES" | grep -q "icon\|favicon\|logo\|png$\|jpg$\|jpeg$\|svg$"; then
     COMMIT_MESSAGE="feat: update app icons and images"
   elif echo "$CHANGED_FILES" | grep -q "\.css$\|\.scss$\|style"; then
@@ -107,7 +109,9 @@ if [ -z "$COMMIT_MESSAGE" ]; then
   
   # Analyze what type of changes were made (prioritize actual code changes over version bumps)
   if echo "$CHANGED_FILES" | grep -q "\.tsx$\|\.jsx$\|\.ts$\|\.js$"; then
-    COMMIT_MESSAGE="feat: update components and functionality"
+    # Get more specific info about the changes
+    COMPONENT_CHANGES=$(echo "$CHANGED_FILES" | grep -E "\.tsx$|\.jsx$|\.ts$|\.js$" | head -3 | sed 's/.*\///; s/\.[^.]*$//' | tr '\n' ', ' | sed 's/,$//')
+    COMMIT_MESSAGE="feat: update $COMPONENT_CHANGES components"
   elif echo "$CHANGED_FILES" | grep -q "icon\|favicon\|logo\|png$\|jpg$\|jpeg$\|svg$"; then
     COMMIT_MESSAGE="feat: update app icons and images"
   elif echo "$CHANGED_FILES" | grep -q "\.css$\|\.scss$\|style"; then
