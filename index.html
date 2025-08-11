@@ -1,6 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- SW native hard-disable: must be before any other JS -->
+    <script>
+      (function(){
+        try {
+          var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || navigator.userAgent.indexOf('Capacitor')>-1 || navigator.userAgent.indexOf('CapacitorWebView')>-1;
+          if (isNative && 'serviceWorker' in navigator) {
+            if (navigator.serviceWorker.getRegistrations) {
+              navigator.serviceWorker.getRegistrations().then(function(regs){ regs.forEach(function(r){ try{r.unregister()}catch(e){} }); });
+            }
+            navigator.serviceWorker.register = function(){ return Promise.reject(new Error('SW disabled in native (index.html)')); };
+            console.log('🛑 Disabled Service Worker in native environment (index.html)');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Eruda mobile console. -->
     <script src="//cdn.jsdelivr.net/npm/eruda"></script>
     <script>

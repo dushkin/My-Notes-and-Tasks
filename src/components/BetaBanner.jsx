@@ -1,14 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { authFetch } from '../services/apiClient'; // 👈 IMPORT apiClient
 import '../styles/BetaBanner.css';
 import packageJson from '../../package.json';
 
 export default function BetaBanner({ variant }) {
+  const [appVersion, setAppVersion] = useState(packageJson?.version || window.APP_VERSION || '0.0.0');
   const [betaStatus, setBetaStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const bannerRef = useRef(null);
 
   useEffect(() => {
+    try {
+      if (Capacitor?.isNativePlatform?.()) {
+        CapacitorApp.getInfo().then(info => { if (info?.version) setAppVersion(info.version); }).catch(() => {});
+      }
+    } catch {}
+
+    // Prefer native app version when running inside Capacitor
+    try {
+      if (Capacitor?.isNativePlatform?.()) {
+        CapacitorApp.getInfo().then(info => {
+          if (info?.version) setAppVersion(info.version);
+        }).catch(() => {});
+      }
+    } catch {}
+
     const fetchBetaStatus = async () => {
       try {
         // 👇 USE authFetch, which handles the URL and /api prefix
@@ -32,6 +50,21 @@ export default function BetaBanner({ variant }) {
 
   // Set CSS variable for banner height based on actual banner height
   useEffect(() => {
+    try {
+      if (Capacitor?.isNativePlatform?.()) {
+        CapacitorApp.getInfo().then(info => { if (info?.version) setAppVersion(info.version); }).catch(() => {});
+      }
+    } catch {}
+
+    // Prefer native app version when running inside Capacitor
+    try {
+      if (Capacitor?.isNativePlatform?.()) {
+        CapacitorApp.getInfo().then(info => {
+          if (info?.version) setAppVersion(info.version);
+        }).catch(() => {});
+      }
+    } catch {}
+
     if (!isLoading && betaStatus?.betaEnabled && bannerRef.current) {
       // Measure the actual height of the banner
       const bannerHeight = bannerRef.current.offsetHeight;
@@ -51,8 +84,6 @@ export default function BetaBanner({ variant }) {
   if (isLoading || !betaStatus?.betaEnabled) {
     return null;
   }
-
-  const appVersion = packageJson.version;
   const isFull = betaStatus.userCount >= betaStatus.limit;
 
   let statusText = '';
