@@ -655,9 +655,17 @@ import { authFetch } from '../services/apiClient';
 
   async function sendSubscriptionToServer(subscription) {
     try {
+      const subscriptionData = subscription.toJSON();
+      console.log('📤 Sending subscription to server:', {
+        endpoint: subscriptionData.endpoint?.substring(0, 50) + '...',
+        hasKeys: !!subscriptionData.keys,
+        hasP256dh: !!subscriptionData.keys?.p256dh,
+        hasAuth: !!subscriptionData.keys?.auth
+      });
+      
       await authFetch('/push/subscribe', {
         method: 'POST',
-        body: subscription.toJSON()
+        body: subscriptionData  // Send object directly, authFetch will JSON.stringify it
       });
       console.log('✅ Push subscription sent to server successfully');
     } catch (error) {
