@@ -10,8 +10,8 @@
  *   3) Bump with:  npm version 14.15.6   (or patch/minor/major)
  *   4) Build Android: the banner will show the same version as package.json.
  */
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 const ROOT = process.cwd();
 const pkgPath = path.join(ROOT, 'package.json');
