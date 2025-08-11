@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "14.15.12",
+  "version": "14.16.0",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -12,12 +12,10 @@
     "build:debug": "vite build --mode debug",
     "preview": "vite preview",
     "update-version": "node update-version.js",
-
-    "version": "node scripts/sync-version.js",
+    "version": "node src/scripts/sync-version.js",
     "ver:patch": "npm version patch && npx cap sync android",
     "ver:minor": "npm version minor && npx cap sync android",
     "ver:major": "npm version major && npx cap sync android",
-
     "test:unit": "jest",
     "test": "jest",
     "test:e2e": "playwright test",
@@ -43,7 +41,6 @@
     "codegen:android": "playwright codegen --device='Pixel 5' http://localhost:5173",
     "test:android:full": "node tests/utils/android-test-runner.js run",
     "audit:contrast": "node contrast-audit.cjs",
-    
     "android:sync": "cap sync android",
     "android:open": "cap open android",
     "android:copy": "cap copy android"
