@@ -61,7 +61,12 @@ const App = () => {
 
 function AppWithErrorBoundary() {
   useEffect(() => {
-    initApiClient();
+    // Initialize API client with a minimal logout handler
+    // This will be properly initialized later in MainApp.jsx with the full handler
+    initApiClient(() => {
+      console.log('Early logout triggered, redirecting to login...');
+      window.location.href = '/login';
+    });
   }, []);
 
   return (
