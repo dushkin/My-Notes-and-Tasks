@@ -155,7 +155,6 @@ dist/**/*.png
 local.properties
 .idea/
 android/build/
-android/.gradle/
 android/app/build/
 android/capacitor-cordova-android-plugins/build/
 *.apk
@@ -169,7 +168,6 @@ android/capacitor-cordova-android-plugins/build/
 
 # Capacitor
 .capacitor/
-capacitor.config.json.bak
 
 # Additional Android/Mobile development
 *.keystore
@@ -178,3 +176,5 @@ google-services.json
 
 # PgLite debug files
 *.pglite-debug.log
+
+*.bak
