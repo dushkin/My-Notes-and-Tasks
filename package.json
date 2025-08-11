@@ -1,13 +1,15 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "14.15.8",
+  "version": "14.15.9",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
     "dev": "vite",
+    "dev:debug": "vite --mode debug",
     "prebuild-disabled": "node update-version.js",
-    "build": "vite build",
+    "build": "vite build --mode production",
+    "build:debug": "vite build --mode debug",
     "preview": "vite preview",
     "update-version": "node update-version.js",
 
@@ -40,7 +42,11 @@
     "codegen:mobile": "playwright codegen --device='iPhone 12' http://localhost:5173",
     "codegen:android": "playwright codegen --device='Pixel 5' http://localhost:5173",
     "test:android:full": "node tests/utils/android-test-runner.js run",
-    "audit:contrast": "node contrast-audit.cjs"
+    "audit:contrast": "node contrast-audit.cjs",
+    
+    "android:sync": "cap sync android",
+    "android:open": "cap open android",
+    "android:copy": "cap copy android"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.2",

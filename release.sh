@@ -1,94 +1,108 @@
 #!/bin/bash
 
-# Release script - promotes dev to main with major version
+# Release script - promotes dev to main with explicit PRODUCTION build
 # Usage: ./release.sh 2.0.0
+# This script builds web assets with --mode production (loads .env.production)
 
-set -e  # Exit on any error
-
-# Disable git pager to prevent interactive prompts
+set -e
 export GIT_PAGER=cat
 
-# Check if version argument is provided
 if [ -z "$1" ]; then
-    echo "❌ Error: Please provide a version number"
-    echo "Usage: ./release.sh <version>"
-    echo "Example: ./release.sh 2.0.0"
-    exit 1
+  echo "❌ Error: Please provide a version number"
+  echo "Usage: ./release.sh <version>"
+  exit 1
 fi
 
-VERSION=$1
+VERSION="$1"
 echo "🚀 Starting release process for version $VERSION"
 
-# Confirm we're on dev branch
+# Ensure on dev (warn if not)
 CURRENT_BRANCH=$(git branch --show-current)
 if [ "$CURRENT_BRANCH" != "dev" ]; then
-    echo "⚠️  Warning: You're not on dev branch (currently on $CURRENT_BRANCH)"
-    read -p "Continue anyway? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "❌ Release cancelled"
-        exit 1
-    fi
+  echo "⚠️  You're on '$CURRENT_BRANCH', not 'dev'"
+  read -p "Continue anyway? (y/N): " -n 1 -r
+  echo
+  [[ $REPLY =~ ^[Yy]$ ]] || { echo "❌ Release cancelled"; exit 1; }
 fi
 
-# Check for uncommitted changes
+# Ensure clean working tree
 if ! git diff-index --quiet HEAD --; then
-    echo "❌ Error: You have uncommitted changes. Please commit or stash them first."
-    git status --porcelain
-    exit 1
+  echo "❌ Uncommitted changes present. Commit or stash first."
+  git status --porcelain
+  exit 1
 fi
 
-# Update package.json version
-echo "📝 Updating package.json to version $VERSION"
-npm version $VERSION --no-git-tag-version
+# Bump package.json version (no tag yet)
+echo "📝 Setting package.json to $VERSION"
+npm version "$VERSION" --no-git-tag-version
 
-# Build production APK with new version
-echo "🤖 Building production APK for v$VERSION"
-./apk.sh
+# -----------------------------
+# 1) Build web (PRODUCTION env)
+# -----------------------------
+echo "📦 Building web assets in PRODUCTION mode (loads .env.production)..."
+npx vite build --mode production
 
-if [ $? -ne 0 ]; then
-    echo "❌ APK build failed! Release cancelled."
-    exit 1
+# -----------------------------
+# 2) Capacitor sync
+# -----------------------------
+echo "🔄 Syncing Android project..."
+npx cap sync android
+
+# -----------------------------
+# 3) Build RELEASE APK
+# -----------------------------
+echo "🤖 Building RELEASE APK..."
+pushd android > /dev/null
+
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+  ./gradlew.bat assembleRelease
+else
+  ./gradlew assembleRelease
 fi
 
-# Commit the version update and APK files
-echo "💾 Committing version update and APK files"
+popd > /dev/null
+
+# Determine APK path (signed/unsigned)
+APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+if [ ! -f "$APK_PATH" ]; then
+  APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+fi
+
+if [ ! -f "$APK_PATH" ]; then
+  echo "❌ Release APK not found!"
+  exit 1
+fi
+
+# Copy APK to public
+mkdir -p public
+VERSIONED_APK_NAME="notask-v${VERSION}.apk"
+cp "$APK_PATH" "public/$VERSIONED_APK_NAME"
+cp "$APK_PATH" "public/notask.apk"
+
+APK_SIZE=$(du -h "public/notask.apk" | cut -f1)
+echo "✅ Release APK ready:"
+echo "   📍 public/$VERSIONED_APK_NAME"
+echo "   📍 public/notask.apk"
+echo "   📊 $APK_SIZE"
+
+# -----------------------------
+# 4) Commit, tag, push
+# -----------------------------
+echo "💾 Committing version and APK files…"
 git add package.json package-lock.json public/
-if ! git commit -m "Release v$VERSION
+git commit -m "Release v$VERSION
 
-✨ Features in this release:
-- Production APK build included
-- Version: $VERSION
-- APK files: notask.apk, notask-v$VERSION.apk"; then
-    echo "❌ Git commit failed! Release cancelled."
-    exit 1
-fi
+- Production build (.env.production)
+- APK: notask.apk, notask-v$VERSION.apk"
 
-# Create and push tag
-echo "🏷️  Creating tag v$VERSION"
-if ! git tag "v$VERSION"; then
-    echo "❌ Git tag creation failed! Release cancelled."
-    exit 1
-fi
+echo "🏷️  Tagging v$VERSION"
+git tag "v$VERSION" || true
 
-# Push dev to main
-echo "⬆️  Pushing dev to main"
-if ! git push origin dev:main; then
-    echo "❌ Git push to main failed! Release cancelled."
-    exit 1
-fi
+echo "⬆️  Pushing dev → main"
+git push origin dev:main
 
-# Push the new tag
-echo "🏷️  Pushing tag to origin"
-if ! git push origin "v$VERSION"; then
-    echo "❌ Git tag push failed! Release cancelled."
-    exit 1
-fi
+echo "⬆️  Pushing tag"
+git push origin "v$VERSION"
 
-echo "✅ Release $VERSION completed successfully!"
-echo "🎉 Production is now running version $VERSION"
-
-# Optional: Show the tag info
-echo ""
-echo "📋 Release info:"
-git --no-pager show --stat "v$VERSION"
+echo "✅ Release $VERSION complete (PRODUCTION env)."
+git --no-pager show --stat "v$VERSION" || true
