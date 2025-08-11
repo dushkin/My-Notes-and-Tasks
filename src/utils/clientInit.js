@@ -6,10 +6,23 @@ import { authFetch } from '../services/apiClient';
   'use strict';
 
   // ---------- Environment detection ----------
+  const capacitorPlatform = window?.Capacitor?.isNativePlatform?.();
+  const capacitorNative = window?.Capacitor?.isNative;
+  const userAgentMatch = /\bCapacitor(WebView)?\b/.test(navigator.userAgent);
+  
+  console.log('🔍 Environment Detection Debug:', {
+    capacitorExists: !!window.Capacitor,
+    capacitorPlatform,
+    capacitorNative,
+    userAgent: navigator.userAgent,
+    userAgentMatch,
+    href: window.location.href
+  });
+  
   const isNative =
-    !!(window?.Capacitor?.isNativePlatform?.()) ||
-    !!window?.Capacitor?.isNative ||
-    /\bCapacitor(WebView)?\b/.test(navigator.userAgent);
+    !!capacitorPlatform ||
+    !!capacitorNative ||
+    userAgentMatch;
 
   const swSupported =
     typeof navigator !== 'undefined' && !!navigator.serviceWorker;
