@@ -314,7 +314,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       socket.off("reminder:trigger", handleReminderTriggered);
       socket.off("connect_error");
       socket.off("disconnect");
-      disconnectSocket();
+      // Don't disconnect socket here - it should persist across tabs/navigation
+      // Only disconnect on logout (handled in Login.jsx)
     };
   }, [
     currentUser?._id,
@@ -616,6 +617,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     setTopMenuOpen(false);
     setMobileMenuOpen(false);
     setIsLoggingOut(false);
+    // Disconnect socket on logout
+    disconnectSocket();
     window.location.href = "/";
   }, [resetTreeHistory, setCurrentUser]);
   useEffect(() => {

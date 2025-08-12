@@ -9,8 +9,13 @@ let socket;
  * @returns {Socket} The socket instance.
  */
 export function initSocket(token) {
-  if (socket) {
+  if (socket && socket.connected) {
     return socket;
+  }
+
+  // Disconnect existing socket if it exists but is not connected or has wrong token
+  if (socket) {
+    socket.disconnect();
   }
 
   const serverUrl = import.meta.env.VITE_API_BASE_URL || "https://my-notes-and-tasks-backend.onrender.com";
