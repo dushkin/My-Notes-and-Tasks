@@ -276,6 +276,21 @@ export const subscribePush = async (registration) => {
     return null;
   }
   try {
+    // Wait for service worker to be active
+    if (registration.installing) {
+      console.log("Service Worker installing, waiting for activation...");
+      await new Promise(resolve => {
+        registration.installing.addEventListener('statechange', function() {
+          if (this.state === 'activated') {
+            resolve();
+          }
+        });
+      });
+    } else if (!registration.active) {
+      console.warn("No active service worker found");
+      return null;
+    }
+
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
       return subscription;

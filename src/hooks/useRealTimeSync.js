@@ -7,6 +7,7 @@ import { getSocket } from '../services/socketClient';
  * @param {Function} onItemDeleted - Callback when an item is deleted from another device  
  * @param {Function} onTreeUpdated - Callback when tree structure is updated from another device
  * @param {Function} onItemCreated - Callback when an item is created from another device
+ * @param {Function} onItemMoved - Callback when an item is moved from another device
  * @param {boolean} enabled - Whether real-time sync is enabled
  */
 export const useRealTimeSync = (
@@ -14,13 +15,15 @@ export const useRealTimeSync = (
   onItemDeleted,
   onTreeUpdated,
   onItemCreated,
+  onItemMoved,
   enabled = true
 ) => {
   const callbacksRef = useRef({
     onItemUpdated,
     onItemDeleted,
     onTreeUpdated,
-    onItemCreated
+    onItemCreated,
+    onItemMoved
   });
 
   // Update callbacks ref when they change
@@ -29,9 +32,10 @@ export const useRealTimeSync = (
       onItemUpdated,
       onItemDeleted,
       onTreeUpdated,
-      onItemCreated
+      onItemCreated,
+      onItemMoved
     };
-  }, [onItemUpdated, onItemDeleted, onTreeUpdated, onItemCreated]);
+  }, [onItemUpdated, onItemDeleted, onTreeUpdated, onItemCreated, onItemMoved]);
 
   // Handle item created from another device/session
   const handleItemCreated = useCallback((data) => {
@@ -69,6 +73,15 @@ export const useRealTimeSync = (
     }
   }, []);
 
+  // Handle item moved from another device
+  const handleItemMoved = useCallback((data) => {
+    console.log('📡 Real-time item move received:', data);
+    
+    if (callbacksRef.current.onItemMoved) {
+      callbacksRef.current.onItemMoved(data);
+    }
+  }, []);
+
   // Extract socket listener setup into a separate function
   const setupSocketListeners = useCallback((socket) => {
     console.log('📡 Setting up real-time sync listeners', {
@@ -81,6 +94,7 @@ export const useRealTimeSync = (
     socket.on('itemCreated', handleItemCreated);
     socket.on('itemUpdated', handleItemUpdated);
     socket.on('itemDeleted', handleItemDeleted);
+    socket.on('itemMoved', handleItemMoved);
     socket.on('treeReplaced', handleTreeUpdated);
 
     console.log('📡 Real-time sync listeners registered (including itemCreated)');
@@ -99,13 +113,14 @@ export const useRealTimeSync = (
       socket.off('itemCreated', handleItemCreated);
       socket.off('itemUpdated', handleItemUpdated);
       socket.off('itemDeleted', handleItemDeleted);
+      socket.off('itemMoved', handleItemMoved);
       socket.off('treeReplaced', handleTreeUpdated);
       socket.off('connect');
       socket.off('disconnect');
       
       console.log('📡 Real-time sync listeners removed');
     };
-  }, [enabled, handleItemCreated, handleItemUpdated, handleItemDeleted, handleTreeUpdated]);
+  }, [enabled, handleItemCreated, handleItemUpdated, handleItemDeleted, handleItemMoved, handleTreeUpdated]);
 
   // Set up socket event listeners
   useEffect(() => {
@@ -148,7 +163,7 @@ export const useRealTimeSync = (
 
     const cleanup = setupSocketListeners(socket);
     return cleanup;
-  }, [enabled, handleItemCreated, handleItemUpdated, handleItemDeleted, handleTreeUpdated, setupSocketListeners]);
+  }, [enabled, handleItemCreated, handleItemUpdated, handleItemDeleted, handleItemMoved, handleTreeUpdated, setupSocketListeners]);
 
   // Helper function to emit events to other devices
   const emitToOtherDevices = useCallback((eventName, data) => {

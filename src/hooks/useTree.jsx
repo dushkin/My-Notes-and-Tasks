@@ -307,12 +307,25 @@ export const useTree = (currentUser) => {
     console.log('📡 Item created and added to tree from real-time sync:', newItem.id);
   }, [tree, setTreeWithUndo]);
 
+  // Handle item moved from another device via socket
+  const handleItemMovedFromSocket = useCallback((data) => {
+    if (!data || !data.itemId) return;
+    
+    const { itemId, newParentId } = data;
+    console.log('📡 Item moved from real-time sync:', { itemId, newParentId });
+    
+    // For now, just log the event. We can implement actual move handling later
+    // or refresh the tree periodically to pick up changes
+    console.log('📡 Item move event received, tree will sync on next refresh');
+  }, []);
+
   // Initialize real-time sync
   const { emitToOtherDevices, isConnected: isSocketConnected } = useRealTimeSync(
     handleItemUpdatedFromSocket,
     handleItemDeletedFromSocket,
     handleTreeUpdatedFromSocket,
     handleItemCreatedFromSocket,
+    handleItemMovedFromSocket,
     true // enabled
   );
 
