@@ -26,6 +26,21 @@ export function initSocket(token) {
 
   socket.on("connect", () => {
     console.log("✅ WebSocket connected:", socket.id);
+    console.log("🔍 Socket connection debug:", { socketExists: !!socket, socketId: socket.id, connected: socket.connected });
+    
+    // Notify any listeners that socket is now available
+    window.dispatchEvent(new CustomEvent('socketConnected', { detail: { socketId: socket.id } }));
+    
+    // Debug: Check if getSocket() works right after connection
+    setTimeout(() => {
+      const retrievedSocket = getSocket();
+      console.log("🔍 getSocket() check after connection:", { 
+        retrievedSocketExists: !!retrievedSocket, 
+        retrievedSocketId: retrievedSocket?.id,
+        originalSocketStillExists: !!socket,
+        originalSocketId: socket?.id
+      });
+    }, 100);
   });
 
   // ✨ Error handler to catch connection failures
@@ -61,6 +76,8 @@ export function getSocket() {
  */
 export function disconnectSocket() {
   if (socket) {
+    console.log("🔌 Disconnecting socket:", socket.id);
+    console.trace("🔍 disconnectSocket() called from:");
     socket.disconnect();
     socket = null;
   }

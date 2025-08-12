@@ -69,16 +69,8 @@ export const useRealTimeSync = (
     }
   }, []);
 
-  // Set up socket event listeners
-  useEffect(() => {
-    if (!enabled) return;
-
-    const socket = getSocket();
-    if (!socket) {
-      console.warn('📡 Socket not available for real-time sync');
-      return;
-    }
-
+  // Extract socket listener setup into a separate function
+  const setupSocketListeners = useCallback((socket) => {
     console.log('📡 Setting up real-time sync listeners', {
       socketId: socket.id,
       connected: socket.connected,
@@ -102,7 +94,7 @@ export const useRealTimeSync = (
       console.warn('📡 Socket disconnected in useRealTimeSync:', reason);
     });
 
-    // Cleanup function
+    // Return cleanup function
     return () => {
       socket.off('itemCreated', handleItemCreated);
       socket.off('itemUpdated', handleItemUpdated);
@@ -114,6 +106,49 @@ export const useRealTimeSync = (
       console.log('📡 Real-time sync listeners removed');
     };
   }, [enabled, handleItemCreated, handleItemUpdated, handleItemDeleted, handleTreeUpdated]);
+
+  // Set up socket event listeners
+  useEffect(() => {
+    if (!enabled) return;
+
+    const socket = getSocket();
+    if (!socket) {
+      console.warn('📡 Socket not available for real-time sync');
+      
+      // Listen for socket connection event
+      const handleSocketConnected = (event) => {
+        console.log('📡 Socket connection event received:', event.detail);
+        const retrySocket = getSocket();
+        if (retrySocket) {
+          console.log('📡 Socket became available via event, setting up listeners');
+          setupSocketListeners(retrySocket);
+        } else {
+          console.warn('📡 Socket still not available even after connection event');
+        }
+      };
+      
+      window.addEventListener('socketConnected', handleSocketConnected);
+      
+      // Also keep the timeout retry as backup
+      const retryTimeout = setTimeout(() => {
+        const retrySocket = getSocket();
+        if (retrySocket) {
+          console.log('📡 Socket became available on retry, setting up listeners');
+          setupSocketListeners(retrySocket);
+        } else {
+          console.warn('📡 Socket still not available after retry');
+        }
+      }, 2000); // Increased to 2 seconds
+      
+      return () => {
+        window.removeEventListener('socketConnected', handleSocketConnected);
+        clearTimeout(retryTimeout);
+      };
+    }
+
+    const cleanup = setupSocketListeners(socket);
+    return cleanup;
+  }, [enabled, handleItemCreated, handleItemUpdated, handleItemDeleted, handleTreeUpdated, setupSocketListeners]);
 
   // Helper function to emit events to other devices
   const emitToOtherDevices = useCallback((eventName, data) => {
