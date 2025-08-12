@@ -187,8 +187,17 @@ else
   echo -e "📄 Generated Commit Message:\n---\n$COMMIT_MSG\n---"
 
   git commit -m "$COMMIT_MSG"
-  echo "⬆️  Pushing to origin dev"
-  git push origin dev
+  
+  # Get current branch name
+  CURRENT_BRANCH=$(git branch --show-current)
+  
+  echo "⬆️  Pushing to origin $CURRENT_BRANCH"
+  git push origin "$CURRENT_BRANCH"
+  
+  # Create and push the tag
+  echo "🏷️  Creating and pushing tag v$VERSION"
+  git tag -a "v$VERSION" -m "Release v$VERSION" || echo "⚠️  Tag v$VERSION might already exist"
+  git push origin "v$VERSION" || echo "⚠️  Failed to push tag v$VERSION"
 fi
 
 echo
