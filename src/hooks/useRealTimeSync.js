@@ -75,9 +75,15 @@ export const useRealTimeSync = (
 
     const socket = getSocket();
     if (!socket) {
-      console.warn('Socket not available for real-time sync');
+      console.warn('📡 Socket not available for real-time sync');
       return;
     }
+
+    console.log('📡 Setting up real-time sync listeners', {
+      socketId: socket.id,
+      connected: socket.connected,
+      enabled
+    });
 
     // Register event listeners
     socket.on('itemCreated', handleItemCreated);
@@ -87,12 +93,23 @@ export const useRealTimeSync = (
 
     console.log('📡 Real-time sync listeners registered (including itemCreated)');
 
+    // Add connection status logging
+    socket.on('connect', () => {
+      console.log('📡 Socket reconnected in useRealTimeSync:', socket.id);
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.warn('📡 Socket disconnected in useRealTimeSync:', reason);
+    });
+
     // Cleanup function
     return () => {
       socket.off('itemCreated', handleItemCreated);
       socket.off('itemUpdated', handleItemUpdated);
       socket.off('itemDeleted', handleItemDeleted);
       socket.off('treeReplaced', handleTreeUpdated);
+      socket.off('connect');
+      socket.off('disconnect');
       
       console.log('📡 Real-time sync listeners removed');
     };
@@ -104,6 +121,9 @@ export const useRealTimeSync = (
     if (socket && enabled) {
       socket.emit(eventName, data);
       console.log(`📡 Emitted ${eventName} to other devices:`, data);
+      console.log(`📡 Socket status - Connected: ${socket.connected}, ID: ${socket.id}`);
+    } else {
+      console.warn(`📡 Failed to emit ${eventName} - Socket: ${!!socket}, Enabled: ${enabled}, Connected: ${socket?.connected}`);
     }
   }, [enabled]);
 
