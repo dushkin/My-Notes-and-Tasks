@@ -102,13 +102,13 @@ fi
 
 # 7) Commit AFTER all edits (push ALL changes with AI-generated message)
 echo
-echo "💾 Committing ALL changes and build files"
-git add . 2>/dev/null || true
+echo "💾 Preparing to commit ALL changes and build files"
 
-if git diff --cached --quiet; then
-  echo "ℹ️  No staged changes to commit."
+# Check if there are any changes to commit (without staging yet)
+if git diff --quiet && git diff --cached --quiet; then
+  echo "ℹ️  No changes to commit."
 else
-  # --- AI Commit Message Generation ---
+  # --- AI Commit Message Generation BEFORE staging ---
   if [ -z "$GOOGLE_API_KEY" ]; then
       echo "❌ Error: GOOGLE_API_KEY environment variable is not set."
       echo "Please export your Google API key before running this script:"
@@ -116,18 +116,18 @@ else
       exit 1
   fi
 
-  # Get the staged diff with size limit to avoid "Argument list too long"
-  STAGED_DIFF=$(git diff --staged --stat)
-  STAGED_DIFF_SAMPLE=$(git diff --staged | head -n 200)
+  # Get the diff that WOULD BE staged (but don't stage yet)
+  STAGED_DIFF=$(git diff --stat)
+  STAGED_DIFF_SAMPLE=$(git diff | head -n 200)
 
   echo "🤖 Asking the AI to generate a commit message..."
 
   # Create a summary of changes for the AI, excluding version-only changes
-  CHANGED_FILES=$(git diff --cached --name-only | tr '\n' ', ' | sed 's/,$//')
+  CHANGED_FILES=$(git diff --name-only | tr '\n' ', ' | sed 's/,$//')
   
-  # Get diff excluding version/build files to focus on meaningful changes
-  MEANINGFUL_DIFF=$(git diff --staged -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | head -n 150)
-  VERSION_DIFF=$(git diff --staged -- 'package.json' 'android/app/build.gradle' | head -n 50)
+  # Get diff excluding version/build files to focus on meaningful changes  
+  MEANINGFUL_DIFF=$(git diff -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | head -n 150)
+  VERSION_DIFF=$(git diff -- 'package.json' 'android/app/build.gradle' | head -n 50)
   
   # Check if we have meaningful changes beyond version bumps
   if [ -n "$MEANINGFUL_DIFF" ]; then
@@ -171,10 +171,15 @@ else
   if [ "$COMMIT_MSG" == "null" ] || [ -z "$COMMIT_MSG" ] || echo "$API_RESPONSE" | grep -q "error"; then
       echo "❌ Error: Failed to generate AI commit message."
       echo "API Response: $API_RESPONSE"
+      echo "⚠️  Exiting without staging files to avoid leaving them in staged state."
       exit 1
   fi
 
   echo -e "📄 Generated Commit Message:\n---\n$COMMIT_MSG\n---"
+
+  # NOW stage the files since AI commit message generation succeeded
+  echo "📦 Staging all changes for commit..."
+  git add . 2>/dev/null || true
 
   git commit -m "$COMMIT_MSG"
   
