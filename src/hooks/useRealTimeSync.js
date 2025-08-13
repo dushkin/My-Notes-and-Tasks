@@ -94,6 +94,18 @@ export const useRealTimeSync = (
       enabled
     });
 
+    // Add debug listener for ANY event to confirm socket is working
+    const originalEmit = socket.emit;
+    const originalOnevent = socket.onevent;
+    
+    // Log all incoming events for debugging
+    socket.onevent = function(packet) {
+      console.log('🔍 [DEBUG] Socket event received:', packet.data);
+      if (originalOnevent) {
+        return originalOnevent.call(this, packet);
+      }
+    };
+
     // Register event listeners
     socket.on('itemCreated', handleItemCreated);
     socket.on('itemUpdated', handleItemUpdated);
@@ -115,6 +127,11 @@ export const useRealTimeSync = (
 
     // Return cleanup function
     return () => {
+      // Restore original onevent if we modified it
+      if (originalOnevent) {
+        socket.onevent = originalOnevent;
+      }
+      
       socket.off('itemCreated', handleItemCreated);
       socket.off('itemUpdated', handleItemUpdated);
       socket.off('itemDeleted', handleItemDeleted);

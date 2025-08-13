@@ -22,7 +22,9 @@ const JITTER_FACTOR = 0.1; // Add 10% random jitter to prevent thundering herd
  * @returns {Socket} The socket instance.
  */
 export function initSocket(token) {
+  console.log('🔌 initSocket called with token:', !!token);
   if (socket && socket.connected) {
+    console.log('🔌 Using existing connected socket:', socket.id);
     return socket;
   }
 
