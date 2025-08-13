@@ -49,9 +49,13 @@ export const useRealTimeSync = (
   // Handle item updated from another device
   const handleItemUpdated = useCallback((data) => {
     console.log('📡 Real-time item update received:', data);
+    console.log('📡 handleItemUpdated called with data:', JSON.stringify(data, null, 2));
     
     if (callbacksRef.current.onItemUpdated) {
+      console.log('📡 Calling onItemUpdated callback');
       callbacksRef.current.onItemUpdated(data);
+    } else {
+      console.warn('📡 No onItemUpdated callback available');
     }
   }, []);
 
@@ -98,6 +102,7 @@ export const useRealTimeSync = (
     socket.on('treeReplaced', handleTreeUpdated);
 
     console.log('📡 Real-time sync listeners registered (including itemCreated)');
+    console.log('📡 Registered listeners for socket:', socket.id, 'eventNames:', socket.eventNames());
 
     // Add connection status logging
     socket.on('connect', () => {
