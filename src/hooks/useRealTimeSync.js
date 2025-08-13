@@ -151,6 +151,7 @@ export const useRealTimeSync = (
     const socket = getSocket();
     if (!socket) {
       console.warn('📡 Socket not available for real-time sync');
+      console.log('📡 Setting up socketConnected event listener...');
       
       // Listen for socket connection event
       const handleSocketConnected = (event) => {
@@ -166,6 +167,7 @@ export const useRealTimeSync = (
       };
       
       window.addEventListener('socketConnected', handleSocketConnected);
+      console.log('📡 socketConnected event listener registered');
       
       // Also keep the timeout retry as backup
       const retryTimeout = setTimeout(() => {
