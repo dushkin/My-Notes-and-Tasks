@@ -32,6 +32,7 @@ import SettingsDialog from "./dialogs/SettingsDialog.jsx";
 import ConfirmDialog from "./dialogs/ConfirmDialog.jsx";
 import LoadingSpinner from "./ui/LoadingSpinner.jsx";
 import LoadingButton from "./ui/LoadingButton.jsx";
+import ConnectionStatus from "./ConnectionStatus.jsx";
 import LandingPage from "./LandingPage";
 import DeletionStatusPage from "./DeletionStatusPage";
 import { subscribeToPushNotifications } from "../utils/pushSubscriptionUtil";
@@ -2880,6 +2881,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           onClose={() => removeFeedbackNotification(notification.id)}
         />
       ))}
+
+      {/* Connection Status Indicator */}
+      <ConnectionStatus position="bottom-right" />
     </div>
   );
 };

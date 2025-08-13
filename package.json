@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "14.19.4",
+  "version": "14.19.5",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
