@@ -188,9 +188,9 @@ export const useRealTimeSync = (
         }
       };
       
-      // Try every 500ms for 5 seconds
-      for (let i = 1; i <= 10; i++) {
-        const timeout = setTimeout(() => trySetupSocket(i), i * 500);
+      // Try every 100ms for 5 seconds (more frequent polling)
+      for (let i = 1; i <= 50; i++) {
+        const timeout = setTimeout(() => trySetupSocket(i), i * 100);
         retryTimeouts.push(timeout);
       }
       
@@ -203,7 +203,7 @@ export const useRealTimeSync = (
     console.log('📡 Socket is available, setting up listeners directly');
     const cleanup = setupSocketListeners(socket);
     return cleanup;
-  }, [enabled]); // Simplified dependencies
+  }, [enabled, getSocket()]); // Add socket as dependency to re-run when socket becomes available
 
   // Helper function to emit events to other devices
   const emitToOtherDevices = useCallback((eventName, data) => {
