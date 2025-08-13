@@ -151,8 +151,8 @@ export const useRealTimeSync = (
     const socket = getSocket();
     console.log('📡 useRealTimeSync useEffect - socket check:', { socketExists: !!socket, socketId: socket?.id, connected: socket?.connected });
     
-    if (!socket) {
-      console.warn('📡 Socket not available for real-time sync');
+    if (!socket || !socket.connected) {
+      console.warn('📡 Socket not available or not connected for real-time sync');
       console.log('📡 Setting up socketConnected event listener...');
       
       // Listen for socket connection event
@@ -208,7 +208,7 @@ export const useRealTimeSync = (
     console.log('📡 Socket is available, setting up listeners directly');
     const cleanup = setupSocketListeners(socket);
     return cleanup;
-  }, [enabled, getSocket()]); // Add socket as dependency to re-run when socket becomes available
+  }, [enabled]); // Keep simple dependencies to avoid re-renders
 
   // Helper function to emit events to other devices
   const emitToOtherDevices = useCallback((eventName, data) => {
