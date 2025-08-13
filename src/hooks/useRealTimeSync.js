@@ -149,6 +149,8 @@ export const useRealTimeSync = (
     if (!enabled) return;
 
     const socket = getSocket();
+    console.log('📡 useRealTimeSync useEffect - socket check:', { socketExists: !!socket, socketId: socket?.id, connected: socket?.connected });
+    
     if (!socket) {
       console.warn('📡 Socket not available for real-time sync');
       console.log('📡 Setting up socketConnected event listener...');
@@ -169,26 +171,39 @@ export const useRealTimeSync = (
       window.addEventListener('socketConnected', handleSocketConnected);
       console.log('📡 socketConnected event listener registered');
       
-      // Also keep the timeout retry as backup
-      const retryTimeout = setTimeout(() => {
+      // Also keep the timeout retry as backup - try multiple times
+      const retryTimeouts = [];
+      
+      const trySetupSocket = (attempt) => {
         const retrySocket = getSocket();
         if (retrySocket) {
-          console.log('📡 Socket became available on retry, setting up listeners');
+          console.log(`📡 Socket became available on retry attempt ${attempt}, setting up listeners`);
           setupSocketListeners(retrySocket);
+          // Clear any remaining timeouts
+          retryTimeouts.forEach(clearTimeout);
+          return true;
         } else {
-          console.warn('📡 Socket still not available after retry');
+          console.warn(`📡 Socket still not available after retry attempt ${attempt}`);
+          return false;
         }
-      }, 2000); // Increased to 2 seconds
+      };
+      
+      // Try every 500ms for 5 seconds
+      for (let i = 1; i <= 10; i++) {
+        const timeout = setTimeout(() => trySetupSocket(i), i * 500);
+        retryTimeouts.push(timeout);
+      }
       
       return () => {
         window.removeEventListener('socketConnected', handleSocketConnected);
-        clearTimeout(retryTimeout);
+        retryTimeouts.forEach(clearTimeout);
       };
     }
 
+    console.log('📡 Socket is available, setting up listeners directly');
     const cleanup = setupSocketListeners(socket);
     return cleanup;
-  }, [enabled, handleItemCreated, handleItemUpdated, handleItemDeleted, handleItemMoved, handleTreeUpdated, setupSocketListeners]);
+  }, [enabled]); // Simplified dependencies
 
   // Helper function to emit events to other devices
   const emitToOtherDevices = useCallback((eventName, data) => {
