@@ -102,7 +102,7 @@ export const useRealTimeSync = (
     socket.on('treeReplaced', handleTreeUpdated);
 
     console.log('📡 Real-time sync listeners registered (including itemCreated)');
-    console.log('📡 Registered listeners for socket:', socket.id, 'eventNames:', socket.eventNames());
+    console.log('📡 Registered listeners for socket:', socket.id);
 
     // Add connection status logging
     socket.on('connect', () => {
