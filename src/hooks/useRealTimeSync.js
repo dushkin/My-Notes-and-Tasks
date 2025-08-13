@@ -176,14 +176,19 @@ export const useRealTimeSync = (
       
       const trySetupSocket = (attempt) => {
         const retrySocket = getSocket();
-        if (retrySocket) {
+        console.log(`📡 Retry attempt ${attempt}:`, { 
+          socketExists: !!retrySocket, 
+          socketId: retrySocket?.id, 
+          connected: retrySocket?.connected 
+        });
+        
+        if (retrySocket && retrySocket.connected) {
           console.log(`📡 Socket became available on retry attempt ${attempt}, setting up listeners`);
           setupSocketListeners(retrySocket);
           // Clear any remaining timeouts
           retryTimeouts.forEach(clearTimeout);
           return true;
         } else {
-          console.warn(`📡 Socket still not available after retry attempt ${attempt}`);
           return false;
         }
       };

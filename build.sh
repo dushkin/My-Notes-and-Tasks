@@ -17,14 +17,31 @@ echo " Notask • DEBUG APK Build"
 echo "==============================="
 echo
 
-# 1) Build web with Vite in DEBUG mode (.env.debug)
+# 1) Auto-increment version in package.json
+echo "📈 Auto-incrementing version in package.json"
+CURRENT_VERSION=$(node -p "require('./package.json').version")
+echo "   Current version: $CURRENT_VERSION"
+
+# Increment patch version (x.y.z -> x.y.z+1)
+NEW_VERSION=$(node -e "
+  const fs = require('fs');
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  const [major, minor, patch] = pkg.version.split('.').map(Number);
+  pkg.version = \`\${major}.\${minor}.\${patch + 1}\`;
+  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+  console.log(pkg.version);
+")
+echo "   New version: $NEW_VERSION"
+
+# 2) Build web with Vite in DEBUG mode (.env.debug)
+echo
 echo "📦 Building web assets (Vite --mode debug => loads .env.debug)"
 npx vite build --mode debug
 
-# 2) Update Android versionName/versionCode from package.json
+# 3) Update Android versionName/versionCode from package.json
 echo
 echo "📝 Syncing Android versionName/versionCode from package.json"
-VERSION=$(node -p "require('./package.json').version")
+VERSION=$NEW_VERSION
 if [[ -z "${VERSION}" ]]; then
   echo "❌ Could not read version from package.json"
   exit 1
@@ -58,12 +75,12 @@ else
   echo "⚠️  $GRADLE_FILE not found; skipping Gradle version sync."
 fi
 
-# 3) Capacitor sync
+# 4) Capacitor sync
 echo
 echo "🔄 Running: npx cap sync android"
 npx cap sync android
 
-# 4) Build DEBUG APK
+# 5) Build DEBUG APK
 echo
 echo "🤖 Building DEBUG APK via Gradle"
 pushd android >/dev/null
@@ -80,7 +97,7 @@ if [[ ! -f "$DEBUG_APK_PATH" ]]; then
   exit 1
 fi
 
-# 5) Copy APKs into public (not committed)
+# 6) Copy APKs into public (not committed)
 echo
 echo "📁 Copying APK to ./public (not committed)"
 mkdir -p public
@@ -92,7 +109,7 @@ echo "✅ APKs:"
 echo "   • public/$DEBUG_VERSIONED_APK_NAME"
 echo "   • public/notask-debug.apk  (${APK_SIZE})"
 
-# 6) Clean up backup gradle file
+# 7) Clean up backup gradle file
 if [[ -f "${GRADLE_FILE}.bak" ]]; then
   echo "🧹 Removing ${GRADLE_FILE}.bak"
   # If ever tracked, untrack it (ignore errors)
@@ -100,7 +117,7 @@ if [[ -f "${GRADLE_FILE}.bak" ]]; then
   rm -f "${GRADLE_FILE}.bak"
 fi
 
-# 7) Commit AFTER all edits (push ALL changes with AI-generated message)
+# 8) Commit AFTER all edits (push ALL changes with AI-generated message)
 echo
 echo "💾 Preparing to commit ALL changes and build files"
 
