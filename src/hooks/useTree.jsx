@@ -226,13 +226,17 @@ export const useTree = (currentUser) => {
   }, [tree, selectedItemId]);
 
   // Real-time sync handlers
-  const handleItemUpdatedFromSocket = useCallback((updatedItem) => {
-    if (!updatedItem || !updatedItem.id) return;
+  const handleItemUpdatedFromSocket = useCallback((data) => {
+    if (!data || !data.id) return;
     
-    console.log('📡 Full socket event data:', updatedItem);
+    console.log('📡 Full socket event data:', data);
+    
+    // Handle both data formats: direct item data or wrapped {id, item, type} format
+    const actualItem = data.item || data;
+    const itemId = data.id;
     
     // Ensure content is properly handled
-    const safeUpdatedItem = { ...updatedItem };
+    const safeUpdatedItem = { ...actualItem };
     if (safeUpdatedItem.content && typeof safeUpdatedItem.content !== 'string') {
       console.warn('⚠️ Socket update contained non-string content:', typeof safeUpdatedItem.content, safeUpdatedItem.content);
       safeUpdatedItem.content = safeStringify(safeUpdatedItem.content);
@@ -253,10 +257,10 @@ export const useTree = (currentUser) => {
           : i
       );
     
-    const updatedTree = mapRecursiveUpdate(tree, updatedItem.id, safeUpdatedItem);
+    const updatedTree = mapRecursiveUpdate(tree, itemId, safeUpdatedItem);
     setTreeWithUndo(updatedTree);
     
-    console.log('📡 Item updated from real-time sync:', updatedItem.id);
+    console.log('📡 Item updated from real-time sync:', itemId);
   }, [tree, setTreeWithUndo]);
 
   const handleItemDeletedFromSocket = useCallback((data) => {
