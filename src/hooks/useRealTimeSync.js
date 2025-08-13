@@ -158,6 +158,7 @@ export const useRealTimeSync = (
         const retrySocket = getSocket();
         if (retrySocket) {
           console.log('📡 Socket became available via event, setting up listeners');
+          console.log('📡 Socket details:', { id: retrySocket.id, connected: retrySocket.connected });
           setupSocketListeners(retrySocket);
         } else {
           console.warn('📡 Socket still not available even after connection event');
