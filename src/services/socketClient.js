@@ -2,13 +2,18 @@ import { io } from "socket.io-client";
 
 let socket;
 let heartbeatInterval;
+let reconnectTimeout;
 let reconnectAttempts = 0;
 let connectionStatus = 'disconnected'; // 'connected', 'connecting', 'disconnected', 'reconnecting'
+let currentToken; // Store token for reconnection attempts
 
 // Configuration constants
 const HEARTBEAT_INTERVAL = 25000; // 25 seconds (slightly less than server's 30s)
-const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_RECONNECT_ATTEMPTS = 10; // Increased for better reliability
 const RECONNECT_DELAY_BASE = 1000; // 1 second base delay
+const RECONNECT_DELAY_MAX = 30000; // 30 seconds max delay
+const EXPONENTIAL_BACKOFF_MULTIPLIER = 2; // Doubles delay each attempt
+const JITTER_FACTOR = 0.1; // Add 10% random jitter to prevent thundering herd
 
 /**
  * Initializes and returns a single socket instance.
@@ -20,6 +25,9 @@ export function initSocket(token) {
   if (socket && socket.connected) {
     return socket;
   }
+
+  // Store token for reconnection attempts
+  currentToken = token;
 
   // Disconnect existing socket if it exists but is not connected or has wrong token
   if (socket) {
@@ -34,11 +42,7 @@ export function initSocket(token) {
   socket = io(serverUrl, {
     auth: { token },
     timeout: 10000, // 10 second connection timeout
-    reconnection: true,
-    reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
-    reconnectionDelay: RECONNECT_DELAY_BASE,
-    reconnectionDelayMax: 5000,
-    randomizationFactor: 0.5,
+    reconnection: false, // Disable built-in reconnection to use custom exponential backoff
   });
 
   socket.on("connect", () => {
@@ -84,6 +88,9 @@ export function initSocket(token) {
       return;
     }
     
+    // Attempt custom exponential backoff reconnection
+    attemptReconnection();
+    
     notifyConnectionStatusChange('connection_error');
   });
 
@@ -94,21 +101,13 @@ export function initSocket(token) {
     // Stop heartbeat
     stopHeartbeat();
     
+    // Only attempt reconnection for certain disconnect reasons
+    if (reason !== 'io server disconnect' && reason !== 'io client disconnect') {
+      attemptReconnection();
+    }
+    
     // Notify connection status change
     notifyConnectionStatusChange('disconnected', reason);
-  });
-
-  socket.on("reconnect_attempt", (attemptNumber) => {
-    console.log(`🔄 Reconnection attempt #${attemptNumber}`);
-    connectionStatus = 'reconnecting';
-    reconnectAttempts = attemptNumber;
-    notifyConnectionStatusChange('reconnecting', attemptNumber);
-  });
-
-  socket.on("reconnect_failed", () => {
-    console.error("❌ Failed to reconnect after maximum attempts");
-    connectionStatus = 'failed';
-    notifyConnectionStatusChange('reconnect_failed');
   });
 
   // Heartbeat handlers
@@ -160,24 +159,112 @@ export function getConnectionStatus() {
  * Force reconnection (useful for manual retry)
  */
 export function forceReconnect() {
-  if (socket && !socket.connected) {
-    console.log("🔄 Forcing manual reconnection...");
-    socket.connect();
+  console.log("🔄 Forcing manual reconnection...");
+  
+  // Clear any pending reconnection attempts
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+  
+  // Reset reconnection attempts for manual retry
+  reconnectAttempts = 0;
+  
+  if (currentToken) {
+    // Clean up existing socket and create new one
+    cleanupSocket();
+    initSocket(currentToken);
+  } else {
+    console.error("❌ Cannot force reconnect: no token available");
   }
 }
 
+/**
+ * Attempt reconnection with exponential backoff
+ */
+function attemptReconnection() {
+  // Clear any existing reconnection timeout
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+
+  // Check if we've exceeded maximum attempts
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error(`❌ Failed to reconnect after ${MAX_RECONNECT_ATTEMPTS} attempts`);
+    connectionStatus = 'failed';
+    notifyConnectionStatusChange('reconnect_failed');
+    return;
+  }
+
+  connectionStatus = 'reconnecting';
+  const currentAttempt = reconnectAttempts;
+  reconnectAttempts++;
+  
+  console.log(`🔄 Reconnection attempt #${reconnectAttempts} of ${MAX_RECONNECT_ATTEMPTS}`);
+  notifyConnectionStatusChange('reconnecting', reconnectAttempts);
+
+  const delay = calculateExponentialBackoffDelay(currentAttempt);
+  
+  reconnectTimeout = setTimeout(() => {
+    reconnectTimeout = null;
+    
+    if (!currentToken) {
+      console.error("❌ Cannot reconnect: no token available");
+      connectionStatus = 'failed';
+      notifyConnectionStatusChange('reconnect_failed');
+      return;
+    }
+
+    console.log(`🔄 Attempting to reconnect... (attempt ${reconnectAttempts})`);
+    
+    // Create new socket with exponential backoff
+    initSocket(currentToken);
+  }, delay);
+}
+
 // Helper Functions
+
+/**
+ * Calculate exponential backoff delay with jitter
+ * @param {number} attempt - Current attempt number (0-based)
+ * @returns {number} Delay in milliseconds
+ */
+function calculateExponentialBackoffDelay(attempt) {
+  // Calculate base exponential delay
+  const exponentialDelay = RECONNECT_DELAY_BASE * Math.pow(EXPONENTIAL_BACKOFF_MULTIPLIER, attempt);
+  
+  // Cap at maximum delay
+  const cappedDelay = Math.min(exponentialDelay, RECONNECT_DELAY_MAX);
+  
+  // Add jitter to prevent thundering herd problem
+  const jitter = cappedDelay * JITTER_FACTOR * Math.random();
+  const finalDelay = cappedDelay + jitter;
+  
+  console.log(`🔄 Exponential backoff: attempt ${attempt + 1}, delay: ${Math.round(finalDelay)}ms`);
+  
+  return Math.round(finalDelay);
+}
 
 /**
  * Cleanup socket and timers
  */
 function cleanupSocket() {
   stopHeartbeat();
+  
+  // Clear reconnection timeout
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+  
   if (socket) {
     socket.disconnect();
     socket = null;
   }
+  
   connectionStatus = 'disconnected';
+  reconnectAttempts = 0; // Reset reconnection attempts on cleanup
 }
 
 /**
@@ -225,4 +312,32 @@ function notifyConnectionStatusChange(status, details = null) {
       socketId: socket?.id
     }
   }));
+}
+
+/**
+ * Test function to verify exponential backoff delays (for development/debugging)
+ * Can be called from browser console: window.testExponentialBackoff()
+ */
+export function testExponentialBackoff() {
+  console.log("🧪 Testing exponential backoff delays:");
+  console.log("Configuration:", {
+    RECONNECT_DELAY_BASE,
+    RECONNECT_DELAY_MAX,
+    EXPONENTIAL_BACKOFF_MULTIPLIER,
+    JITTER_FACTOR,
+    MAX_RECONNECT_ATTEMPTS
+  });
+  
+  for (let i = 0; i < MAX_RECONNECT_ATTEMPTS; i++) {
+    const delay = calculateExponentialBackoffDelay(i);
+    const baseDelay = RECONNECT_DELAY_BASE * Math.pow(EXPONENTIAL_BACKOFF_MULTIPLIER, i);
+    const cappedDelay = Math.min(baseDelay, RECONNECT_DELAY_MAX);
+    
+    console.log(`Attempt ${i + 1}: ${delay}ms (base: ${baseDelay}ms, capped: ${cappedDelay}ms)`);
+  }
+}
+
+// Expose test function for browser console debugging
+if (typeof window !== 'undefined') {
+  window.testExponentialBackoff = testExponentialBackoff;
 }

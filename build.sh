@@ -122,18 +122,30 @@ else
 
   echo "🤖 Asking the AI to generate a commit message..."
 
-  # Create a summary of changes for the AI
+  # Create a summary of changes for the AI, excluding version-only changes
   CHANGED_FILES=$(git diff --cached --name-only | tr '\n' ', ' | sed 's/,$//')
-  CHANGES_SUMMARY="Files changed: $CHANGED_FILES\n\nDiff sample (first 200 lines):\n$STAGED_DIFF_SAMPLE\n\nDiff stats:\n$STAGED_DIFF"
+  
+  # Get diff excluding version/build files to focus on meaningful changes
+  MEANINGFUL_DIFF=$(git diff --staged -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | head -n 150)
+  VERSION_DIFF=$(git diff --staged -- 'package.json' 'android/app/build.gradle' | head -n 50)
+  
+  # Check if we have meaningful changes beyond version bumps
+  if [ -n "$MEANINGFUL_DIFF" ]; then
+    CHANGES_SUMMARY="Files changed: $CHANGED_FILES\n\nMeaningful code changes (excluding version files):\n$MEANINGFUL_DIFF\n\nVersion/build changes:\n$VERSION_DIFF\n\nDiff stats:\n$STAGED_DIFF"
+    PRIORITY_INSTRUCTION="IMPORTANT: Focus on the meaningful code changes (new features, bug fixes, improvements) rather than version number updates. The version changes are secondary."
+  else
+    CHANGES_SUMMARY="Files changed: $CHANGED_FILES\n\nChanges (mainly version/build updates):\n$STAGED_DIFF_SAMPLE\n\nDiff stats:\n$STAGED_DIFF"
+    PRIORITY_INSTRUCTION="This appears to be primarily a version/build update with no significant code changes."
+  fi
 
   # Create the JSON payload for the Gemini API
-  JSON_PAYLOAD=$(jq -n --arg changes "$CHANGES_SUMMARY" \
+  JSON_PAYLOAD=$(jq -n --arg changes "$CHANGES_SUMMARY" --arg priority "$PRIORITY_INSTRUCTION" \
     '{
       "contents": [
         {
           "parts": [
             {
-              "text": "Based on the following git changes summary, suggest a concise commit message in the conventional commit format (e.g., feat: summary). The message should have a subject line and an optional, brief body if needed.\n\n\($changes)"
+              "text": "Based on the following git changes summary, suggest a concise commit message in the conventional commit format (e.g., feat: summary, fix: summary, chore: summary).\n\n\($priority)\n\nThe message should have a subject line and an optional, brief body if needed. Prioritize the most important functional changes over version number updates.\n\n\($changes)"
             }
           ]
         }

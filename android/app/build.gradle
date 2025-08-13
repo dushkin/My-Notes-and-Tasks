@@ -7,8 +7,8 @@ android {
         applicationId "com.notask.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1419009
-        versionName "14.19.6"
+        versionCode 1419010
+        versionName "14.19.7"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
