@@ -58,7 +58,6 @@ export function initSocket(token) {
     startHeartbeat();
     
     // Notify any listeners that socket is now available
-    console.log('📡 Dispatching socketConnected event for socket:', socket.id);
     window.dispatchEvent(new CustomEvent('socketConnected', { detail: { socketId: socket.id } }));
     notifyConnectionStatusChange('connected');
     

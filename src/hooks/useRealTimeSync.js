@@ -149,11 +149,9 @@ export const useRealTimeSync = (
     if (!enabled) return;
 
     const socket = getSocket();
-    console.log('📡 useRealTimeSync useEffect - socket check:', { socketExists: !!socket, socketId: socket?.id, connected: socket?.connected });
     
     if (!socket || !socket.connected) {
-      console.warn('📡 Socket not available or not connected for real-time sync');
-      console.log('📡 Setting up socketConnected event listener...');
+      console.log('📡 Socket not ready, setting up listeners for when it connects...');
       
       // Listen for socket connection event
       const handleSocketConnected = (event) => {
@@ -169,7 +167,6 @@ export const useRealTimeSync = (
       };
       
       window.addEventListener('socketConnected', handleSocketConnected);
-      console.log('📡 socketConnected event listener registered');
       
       // Also keep the timeout retry as backup - try multiple times
       const retryTimeouts = [];
