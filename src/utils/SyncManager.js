@@ -1,4 +1,5 @@
 import { authFetch } from '../services/apiClient.js';
+import storageManager from './storageManager.js';
 
 // Safe content conversion that prevents [object Object]
 const safeStringify = (value) => {
@@ -21,40 +22,85 @@ class SyncManager {
   constructor() {
     this.isOnline = navigator.onLine;
     this.syncQueue = [];
-    this.lastSyncTime = localStorage.getItem('lastSyncTime') || 0;
+    this.lastSyncTime = 0;
     this.conflictResolver = new ConflictResolver();
     this.retryAttempts = 3;
     this.retryDelay = 1000; // 1 second base delay
+    this.initialized = false;
     
     this.init();
   }
 
-  init() {
-    // Listen for online/offline events
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      this.processSyncQueue();
-    });
+  async init() {
+    try {
+      // Initialize storage
+      await storageManager.init();
+      
+      // Load sync data from storage
+      await this.loadFromStorage();
+      
+      // Listen for online/offline events
+      window.addEventListener('online', () => {
+        this.isOnline = true;
+        this.processSyncQueue();
+      });
 
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-    });
+      window.addEventListener('offline', () => {
+        this.isOnline = false;
+      });
 
-    // Process sync queue on startup if online
-    if (this.isOnline) {
-      this.processSyncQueue();
-    }
-
-    // Periodic sync every 30 seconds when online
-    setInterval(() => {
+      // Process sync queue on startup if online
       if (this.isOnline) {
         this.processSyncQueue();
       }
-    }, 30000);
+
+      // Periodic sync every 30 seconds when online
+      setInterval(() => {
+        if (this.isOnline) {
+          this.processSyncQueue();
+        }
+      }, 30000);
+      
+      this.initialized = true;
+      console.log('✅ SyncManager initialized with IndexedDB storage');
+    } catch (error) {
+      console.error('❌ SyncManager initialization failed:', error);
+      // Continue without storage - will work in memory only
+      this.initialized = true;
+    }
+  }
+
+  // Load sync data from storage
+  async loadFromStorage() {
+    try {
+      // Load sync queue
+      const savedQueue = await storageManager.get('syncQueue', 'queue', []);
+      if (Array.isArray(savedQueue)) {
+        this.syncQueue = savedQueue;
+      }
+      
+      // Load last sync time
+      this.lastSyncTime = await storageManager.get('syncQueue', 'lastSyncTime', 0);
+      
+      console.log(`📦 Loaded ${this.syncQueue.length} sync items from storage`);
+    } catch (error) {
+      console.warn('Failed to load sync data from storage:', error);
+      this.syncQueue = [];
+      this.lastSyncTime = 0;
+    }
+  }
+
+  // Ensure initialization before operations
+  async ensureInitialized() {
+    if (!this.initialized) {
+      await this.init();
+    }
   }
 
   // Add operation to sync queue
-  addToSyncQueue(operation) {
+  async addToSyncQueue(operation) {
+    await this.ensureInitialized();
+    
     const syncItem = {
       id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
       timestamp: Date.now(),
@@ -64,7 +110,7 @@ class SyncManager {
     };
 
     this.syncQueue.push(syncItem);
-    this.saveSyncQueue();
+    await this.saveSyncQueue();
 
     // Try to sync immediately if online
     if (this.isOnline) {
@@ -76,6 +122,8 @@ class SyncManager {
 
   // Process all pending sync operations
   async processSyncQueue() {
+    await this.ensureInitialized();
+    
     if (!this.isOnline || this.syncQueue.length === 0) {
       return;
     }
@@ -94,15 +142,15 @@ class SyncManager {
         if (item.attempts >= item.maxAttempts) {
           console.error('Max retry attempts reached for sync item:', item.id);
           // Move to failed items or handle differently
-          this.handleFailedSync(item);
+          await this.handleFailedSync(item);
           this.syncQueue = this.syncQueue.filter(qItem => qItem.id !== item.id);
         }
       }
     }
 
-    this.saveSyncQueue();
+    await this.saveSyncQueue();
     this.lastSyncTime = Date.now();
-    localStorage.setItem('lastSyncTime', this.lastSyncTime.toString());
+    await storageManager.set('syncQueue', 'lastSyncTime', this.lastSyncTime);
   }
 
   // Process individual sync item
@@ -207,7 +255,7 @@ class SyncManager {
     
     // Update local tree data if available
     try {
-      const treeData = JSON.parse(localStorage.getItem('notes_tree') || '[]');
+      const treeData = await storageManager.get('treeData', 'notes_tree', []);
       if (Array.isArray(treeData)) {
         const updateItemInTree = (items) => {
           return items.map(item => {
@@ -215,7 +263,7 @@ class SyncManager {
               const safeUpdatedItem = { ...updatedItem };
               // Ensure content is always a string
               if (safeUpdatedItem.content && typeof safeUpdatedItem.content !== 'string') {
-                console.warn('⚠️ SyncManager localStorage update contained non-string content:', typeof safeUpdatedItem.content);
+                console.warn('⚠️ SyncManager storage update contained non-string content:', typeof safeUpdatedItem.content);
                 safeUpdatedItem.content = safeStringify(safeUpdatedItem.content);
               }
               return { ...item, ...safeUpdatedItem };
@@ -228,7 +276,7 @@ class SyncManager {
         };
         
         const updatedTree = updateItemInTree(treeData);
-        localStorage.setItem('notes_tree', JSON.stringify(updatedTree));
+        await storageManager.set('treeData', 'notes_tree', updatedTree);
       }
     } catch (error) {
       console.warn('Failed to update local tree cache:', error);
@@ -321,38 +369,49 @@ class SyncManager {
   }
 
   // Handle failed sync operations
-  handleFailedSync(item) {
-    const failedSyncs = JSON.parse(localStorage.getItem('failedSyncs') || '[]');
-    failedSyncs.push({
-      ...item,
-      failedAt: Date.now()
-    });
-    localStorage.setItem('failedSyncs', JSON.stringify(failedSyncs));
+  async handleFailedSync(item) {
+    try {
+      const failedSyncs = await storageManager.get('failedSyncs', 'items', []);
+      failedSyncs.push({
+        ...item,
+        failedAt: Date.now()
+      });
+      await storageManager.set('failedSyncs', 'items', failedSyncs);
 
-    // Notify user about sync failure
-    this.notifyUser('Sync failed for some items. Will retry when connection improves.');
+      // Notify user about sync failure
+      this.notifyUser('Sync failed for some items. Will retry when connection improves.');
+    } catch (error) {
+      console.error('Failed to save failed sync item:', error);
+    }
   }
 
-  // Save sync queue to localStorage
-  saveSyncQueue() {
-    localStorage.setItem('syncQueue', JSON.stringify(this.syncQueue));
-  }
-
-  // Load sync queue from localStorage
-  loadSyncQueue() {
-    const saved = localStorage.getItem('syncQueue');
-    if (saved) {
-      this.syncQueue = JSON.parse(saved);
+  // Save sync queue to storage
+  async saveSyncQueue() {
+    try {
+      await storageManager.set('syncQueue', 'queue', this.syncQueue);
+    } catch (error) {
+      console.error('Failed to save sync queue:', error);
     }
   }
 
   // Get sync status
-  getSyncStatus() {
+  async getSyncStatus() {
+    await this.ensureInitialized();
+    
+    let failedSyncsCount = 0;
+    try {
+      const failedSyncs = await storageManager.get('failedSyncs', 'items', []);
+      failedSyncsCount = failedSyncs.length;
+    } catch (error) {
+      console.warn('Failed to get failed syncs count:', error);
+    }
+
     return {
       isOnline: this.isOnline,
       queueLength: this.syncQueue.length,
       lastSyncTime: this.lastSyncTime,
-      failedSyncs: JSON.parse(localStorage.getItem('failedSyncs') || '[]').length
+      failedSyncs: failedSyncsCount,
+      usingIndexedDB: await storageManager.isUsingIndexedDB()
     };
   }
 
@@ -441,13 +500,22 @@ class SyncManager {
   }
 
   // Cleanup old sync data
-  cleanup() {
-    const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    
-    // Clean up failed syncs older than a week
-    const failedSyncs = JSON.parse(localStorage.getItem('failedSyncs') || '[]');
-    const recentFailedSyncs = failedSyncs.filter(item => item.failedAt > oneWeekAgo);
-    localStorage.setItem('failedSyncs', JSON.stringify(recentFailedSyncs));
+  async cleanup() {
+    try {
+      const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      
+      // Clean up failed syncs older than a week
+      const failedSyncs = await storageManager.get('failedSyncs', 'items', []);
+      const recentFailedSyncs = failedSyncs.filter(item => item.failedAt > oneWeekAgo);
+      await storageManager.set('failedSyncs', 'items', recentFailedSyncs);
+      
+      const cleanedCount = failedSyncs.length - recentFailedSyncs.length;
+      if (cleanedCount > 0) {
+        console.log(`🧹 Cleaned up ${cleanedCount} old failed syncs`);
+      }
+    } catch (error) {
+      console.warn('Failed to cleanup old sync data:', error);
+    }
   }
 }
 
