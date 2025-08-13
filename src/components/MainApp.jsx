@@ -32,6 +32,7 @@ import SettingsDialog from "./dialogs/SettingsDialog.jsx";
 import ConfirmDialog from "./dialogs/ConfirmDialog.jsx";
 import LoadingSpinner from "./ui/LoadingSpinner.jsx";
 import LoadingButton from "./ui/LoadingButton.jsx";
+import ConnectionStatus from "./ConnectionStatus.jsx";
 import LandingPage from "./LandingPage";
 import DeletionStatusPage from "./DeletionStatusPage";
 import { subscribeToPushNotifications } from "../utils/pushSubscriptionUtil";
@@ -314,7 +315,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       socket.off("reminder:trigger", handleReminderTriggered);
       socket.off("connect_error");
       socket.off("disconnect");
-      disconnectSocket();
+      // Don't disconnect socket here - it should persist across tabs/navigation
+      // Only disconnect on logout (handled in Login.jsx)
     };
   }, [
     currentUser?._id,
@@ -616,6 +618,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     setTopMenuOpen(false);
     setMobileMenuOpen(false);
     setIsLoggingOut(false);
+    // Disconnect socket on logout
+    disconnectSocket();
     window.location.href = "/";
   }, [resetTreeHistory, setCurrentUser]);
   useEffect(() => {
@@ -2877,6 +2881,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           onClose={() => removeFeedbackNotification(notification.id)}
         />
       ))}
+
+      {/* Connection Status Indicator */}
+      <ConnectionStatus position="bottom-right" />
     </div>
   );
 };
