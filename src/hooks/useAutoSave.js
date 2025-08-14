@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { AdaptiveDebounce } from '../utils/adaptiveDebounce.js';
 
 /**
  * Enhanced auto-save hook optimized for large content with better error handling
@@ -19,6 +20,19 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
   const pendingDataRef = useRef(null);
   const currentSaveRef = useRef(null); // Track current save operation
   const lastSaveTimeRef = useRef(0); // Track last successful save time
+  const adaptiveDebounceRef = useRef(null); // Smart debouncing system
+
+  // Initialize adaptive debounce system
+  useEffect(() => {
+    if (!adaptiveDebounceRef.current) {
+      adaptiveDebounceRef.current = new AdaptiveDebounce(delay, {
+        minDelay: 500,
+        maxDelay: 10000,
+        enableLearning: true,
+        debugMode: process.env.NODE_ENV === 'development'
+      });
+    }
+  }, [delay]);
 
   // Update save function ref when it changes
   useEffect(() => {
@@ -34,6 +48,10 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
       // Cancel any ongoing save operation
       if (currentSaveRef.current) {
         currentSaveRef.current.cancelled = true;
+      }
+      // Cancel adaptive debounce
+      if (adaptiveDebounceRef.current) {
+        adaptiveDebounceRef.current.cancel();
       }
     };
   }, []);
@@ -156,39 +174,50 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
     }
   }, [enabled, saveAttempts]);
 
-  // Enhanced debounced save with content size adaptation
-  const debouncedSave = useCallback((data) => {
-    if (!enabled || !data) return;
+  // Enhanced smart debounced save with behavioral analysis
+  const debouncedSave = useCallback((data, editInfo = {}) => {
+    if (!enabled || !data || !adaptiveDebounceRef.current) return;
 
     // Store the latest data for saving
     pendingDataRef.current = data;
     setHasUnsavedChanges(true);
     setSaveError(null);
 
-    // Clear existing timeout
+    // Record edit event for behavioral analysis
+    const { 
+      editType = 'unknown', 
+      cursorPosition = 0, 
+      changeLength = 0 
+    } = editInfo;
+    
+    adaptiveDebounceRef.current.recordEdit(
+      editType, 
+      cursorPosition, 
+      changeLength, 
+      data.content || ''
+    );
+
+    // Clear existing timeout (legacy fallback)
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
 
-    // Adaptive delay based on content size
-    const contentLength = data.content?.length || 0;
-    let adaptiveDelay = delay;
-    
-    if (contentLength > 50000) { // Large content (>50KB)
-      adaptiveDelay = Math.max(delay, 3000); // Minimum 3s delay
-    } else if (contentLength > 20000) { // Medium content (>20KB)
-      adaptiveDelay = Math.max(delay, 2500); // Minimum 2.5s delay
-    }
-
-    console.log('⏱️ Setting save timeout:', adaptiveDelay + 'ms for content length:', contentLength);
-
-    // Set new timeout with adaptive delay
-    timeoutRef.current = setTimeout(() => {
+    // Use smart adaptive debouncing
+    adaptiveDebounceRef.current.execute(() => {
       if (pendingDataRef.current && !currentSaveRef.current) {
+        const debugInfo = adaptiveDebounceRef.current.getStatus();
+        console.log('🧠 Smart save executed:', {
+          delay: debugInfo.currentDelay,
+          reason: debugInfo.recommendations?.reason,
+          pattern: debugInfo.typingPattern,
+          confidence: debugInfo.confidence
+        });
+        
         performSave(pendingDataRef.current);
       }
-    }, adaptiveDelay);
-  }, [delay, enabled, performSave]);
+    });
+  }, [enabled, performSave]);
 
   // Enhanced force save with cancellation of pending operations
   const forceSave = useCallback(async () => {
@@ -196,6 +225,11 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+
+    // Cancel adaptive debounce
+    if (adaptiveDebounceRef.current) {
+      adaptiveDebounceRef.current.cancel();
     }
 
     // Cancel any ongoing save to prevent conflicts
@@ -206,6 +240,14 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
 
     if (pendingDataRef.current && enabled) {
       console.log('🚀 Force saving content immediately');
+      
+      // Record immediate execution for learning
+      if (adaptiveDebounceRef.current) {
+        adaptiveDebounceRef.current.executeImmediate(() => {
+          // This will be executed immediately
+        });
+      }
+      
       await performSave(pendingDataRef.current);
     }
   }, [enabled, performSave]);
@@ -215,6 +257,11 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+    
+    // Reset adaptive debounce system
+    if (adaptiveDebounceRef.current) {
+      adaptiveDebounceRef.current.reset();
     }
     
     if (currentSaveRef.current) {
@@ -281,6 +328,38 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
     return 'idle';
   }, [isSaving, saveError, hasUnsavedChanges, lastSaved]);
 
+  // Get smart debouncing status and analytics
+  const getSmartDebounceStatus = useCallback(() => {
+    if (!adaptiveDebounceRef.current) {
+      return {
+        enabled: false,
+        currentDelay: delay,
+        pattern: 'unknown',
+        confidence: 0
+      };
+    }
+
+    const status = adaptiveDebounceRef.current.getStatus();
+    return {
+      enabled: true,
+      currentDelay: status.currentDelay,
+      baseDelay: status.baseDelay,
+      userPattern: status.userPattern,
+      typingPattern: status.typingPattern,
+      confidence: status.confidence,
+      isPending: status.isPending,
+      executionCount: status.executionCount,
+      recommendations: status.recommendations
+    };
+  }, [delay]);
+
+  // Manually trigger learning mode for testing
+  const toggleDebugMode = useCallback((enabled) => {
+    if (adaptiveDebounceRef.current) {
+      adaptiveDebounceRef.current.setDebugMode(enabled);
+    }
+  }, []);
+
   return {
     // State
     isSaving,
@@ -298,13 +377,18 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
     acceptServerVersion,
     forceClientVersion,
     
+    // Smart Debouncing
+    getSmartDebounceStatus,
+    toggleDebugMode,
+    
     // Utils
     isOnline: navigator.onLine,
     
     // Debug info
     contentLength: pendingDataRef.current?.content?.length || 0,
     isLargeContent: (pendingDataRef.current?.content?.length || 0) > 20000,
-    hasVersionConflict: !!versionConflict
+    hasVersionConflict: !!versionConflict,
+    smartDebounceEnabled: !!adaptiveDebounceRef.current
   };
 };
 
