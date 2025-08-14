@@ -1,3 +1,6 @@
+// ============================================================================
+// REACT AND CORE LIBRARIES
+// ============================================================================
 import React, {
   useState,
   useRef,
@@ -5,7 +8,6 @@ import React, {
   useMemo,
   useEffect,
 } from "react";
-import ErrorBoundary from "../ErrorBoundary.jsx";
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,55 +15,12 @@ import {
   useNavigate,
   Navigate,
 } from "react-router-dom";
-import BetaBanner from "./BetaBanner";
-import {
-  initSocket,
-  getSocket,
-  disconnectSocket,
-} from "../services/socketClient";
-import Tree from "./tree/Tree";
-import AccountPlanStatus from "./tree/AccountPlanStatus.jsx";
-import FolderContents from "./rpane/FolderContents";
-import ContentEditor from "./rpane/ContentEditor";
-import ContextMenu from "./tree/ContextMenu.jsx";
-import AddDialog from "./dialogs/AddDialog.jsx";
-import AboutDialog from "./dialogs/AboutDialog.jsx";
-import ExportDialog from "./dialogs/ExportDialog.jsx";
-import ImportDialog from "./dialogs/ImportDialog.jsx";
-import SettingsDialog from "./dialogs/SettingsDialog.jsx";
-import ConfirmDialog from "./dialogs/ConfirmDialog.jsx";
-import LoadingSpinner from "./ui/LoadingSpinner.jsx";
-import LoadingButton from "./ui/LoadingButton.jsx";
-import ConnectionStatus from "./ConnectionStatus.jsx";
-import LandingPage from "./LandingPage";
-import DeletionStatusPage from "./DeletionStatusPage";
-import { subscribeToPushNotifications } from "../utils/pushSubscriptionUtil";
-import { useTree } from "../hooks/useTree.jsx";
-import { useSettings } from "../contexts/SettingsContext";
-import { useIsMobile } from "../hooks/useIsMobile";
-import { setupAndroidBackHandler, cleanupAndroidBackHandler } from "../utils/androidBackHandler";
-import {
-  findItemById,
-  findParentAndSiblings,
-  insertItemRecursive,
-  deleteItemRecursive,
-} from "../utils/treeUtils";
-import {
-  registerServiceWorker,
-  requestNotificationPermission,
-  subscribePush,
-  getReminders,
-  clearReminder,
-} from "../utils/reminderUtils";
-import reminderMonitor from "./reminders/reminderMonitor.js";
-import SnoozeDialog from "./reminders/SnoozeDialog";
-import SetReminderDialog from "./reminders/SetReminderDialog.jsx";
-import MobileReminderPopup from "./reminders/MobileReminderPopup.jsx";
-import FeedbackNotification from "./FeedbackNotification";
-// Import notificationService so we can cancel high‑importance notifications and
-// schedule low‑importance drawer entries when reminders fire in the foreground.
-import notificationService from "../services/notificationService.js";
+
+// ============================================================================
+// THIRD-PARTY LIBRARIES
+// ============================================================================
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Sheet } from "react-modal-sheet";
 import {
   Search as SearchIcon,
   Info,
@@ -81,18 +40,108 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import SearchResultsPane from "./search/SearchResultsPane.jsx";
-import { matchText } from "../utils/searchUtils";
-import { Sheet } from "react-modal-sheet";
+
+// ============================================================================
+// COMPONENTS - CORE
+// ============================================================================
+import ErrorBoundary from "../ErrorBoundary.jsx";
+import BetaBanner from "./BetaBanner";
+import ConnectionStatus from "./ConnectionStatus.jsx";
+import FeedbackNotification from "./FeedbackNotification";
+import LandingPage from "./LandingPage";
+import DeletionStatusPage from "./DeletionStatusPage";
+
+// ============================================================================
+// COMPONENTS - TREE
+// ============================================================================
+import Tree from "./tree/Tree";
+import AccountPlanStatus from "./tree/AccountPlanStatus.jsx";
+import ContextMenu from "./tree/ContextMenu.jsx";
+
+// ============================================================================
+// COMPONENTS - RIGHT PANE
+// ============================================================================
+import FolderContents from "./rpane/FolderContents";
+import ContentEditor from "./rpane/ContentEditor";
+
+// ============================================================================
+// COMPONENTS - DIALOGS
+// ============================================================================
+import AddDialog from "./dialogs/AddDialog.jsx";
+import AboutDialog from "./dialogs/AboutDialog.jsx";
+import ExportDialog from "./dialogs/ExportDialog.jsx";
+import ImportDialog from "./dialogs/ImportDialog.jsx";
+import SettingsDialog from "./dialogs/SettingsDialog.jsx";
+import ConfirmDialog from "./dialogs/ConfirmDialog.jsx";
 import Login from "./dialogs/Login";
 import Register from "./dialogs/Register";
+
+// ============================================================================
+// COMPONENTS - REMINDERS
+// ============================================================================
+import SnoozeDialog from "./reminders/SnoozeDialog";
+import SetReminderDialog from "./reminders/SetReminderDialog.jsx";
+import MobileReminderPopup from "./reminders/MobileReminderPopup.jsx";
+import reminderMonitor from "./reminders/reminderMonitor.js";
+
+// ============================================================================
+// COMPONENTS - UI
+// ============================================================================
+import LoadingSpinner from "./ui/LoadingSpinner.jsx";
+import LoadingButton from "./ui/LoadingButton.jsx";
+
+// ============================================================================
+// COMPONENTS - PAGES AND SEARCH
+// ============================================================================
+import EditorPage from "./pages/EditorPage.jsx";
+import SearchResultsPane from "./search/SearchResultsPane.jsx";
+
+// ============================================================================
+// SERVICES
+// ============================================================================
+import {
+  initSocket,
+  getSocket,
+  disconnectSocket,
+} from "../services/socketClient";
+import notificationService from "../services/notificationService.js";
 import {
   getAccessToken,
   getRefreshToken,
   clearTokens,
 } from "../services/authService";
 import { initApiClient, authFetch } from "../services/apiClient";
-import EditorPage from "./pages/EditorPage.jsx";
+
+// ============================================================================
+// HOOKS AND CONTEXTS
+// ============================================================================
+import { useTree } from "../hooks/useTree.jsx";
+import { useSettings } from "../contexts/SettingsContext";
+import { useIsMobile } from "../hooks/useIsMobile";
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+import { subscribeToPushNotifications } from "../utils/pushSubscriptionUtil";
+import { setupAndroidBackHandler, cleanupAndroidBackHandler } from "../utils/androidBackHandler";
+import {
+  findItemById,
+  findParentAndSiblings,
+  insertItemRecursive,
+  deleteItemRecursive,
+} from "../utils/treeUtils";
+import {
+  registerServiceWorker,
+  requestNotificationPermission,
+  subscribePush,
+  getReminders,
+  clearReminder,
+} from "../utils/reminderUtils";
+import { matchText } from "../utils/searchUtils";
+
+// ============================================================================
+// ASSETS
+// ============================================================================
 import logo from "../assets/logo_dual_32x32.png";
 
 // Import version manager for auto-updates

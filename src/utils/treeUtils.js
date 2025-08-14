@@ -1,31 +1,57 @@
-// src/utils/treeUtils.js
+// ============================================================================
+// FRONTEND TREE UTILITIES
+// ============================================================================
+// Utilities for tree operations on the frontend/client side
+
+// ============================================================================
+// ITEM TYPE CONSTANTS
+// ============================================================================
+const ITEM_TYPES = {
+  FOLDER: 'folder',
+  NOTE: 'note',
+  TASK: 'task'
+};
+
+// ============================================================================
+// SORTING UTILITIES
+// ============================================================================
 
 /**
  * Sorts items: folders first, then notes, then tasks, then alphabetically by label.
  * Returns a new sorted array (the original array is not mutated).
+ * @param {Array} items - Array of tree items to sort
+ * @returns {Array} New sorted array
  */
 export const sortItems = (items) => {
   if (!Array.isArray(items)) return [];
-  // Return empty array if input is not an array
+  
   // Create a shallow copy before sorting to avoid mutating the original array
-  return [...items].sort((a, b) => {
-    // Basic type checks to prevent errors if items lack 'type' or 'label'
-    const typeA = a?.type ?? '';
-    const typeB = b?.type ?? '';
-    const labelA = a?.label ?? '';
-    const labelB = b?.label ?? '';
+  return [...items].sort(compareTreeItems);
+};
 
-    // Sort folders before notes/tasks
-    if (typeA === "folder" && typeB !== "folder") return -1;
-    if (typeA !== "folder" && typeB === "folder") return 1;
+/**
+ * Compare function for sorting tree items
+ * @param {object} a - First item to compare
+ * @param {object} b - Second item to compare
+ * @returns {number} Sort comparison result
+ */
+const compareTreeItems = (a, b) => {
+  // Basic type checks to prevent errors if items lack 'type' or 'label'
+  const typeA = a?.type ?? '';
+  const typeB = b?.type ?? '';
+  const labelA = a?.label ?? '';
+  const labelB = b?.label ?? '';
 
-    // Sort notes before tasks (if types are not folders)
-    if (typeA === "note" && typeB === "task") return -1;
-    if (typeA === "task" && typeB === "note") return 1;
+  // Sort folders before notes/tasks
+  if (typeA === ITEM_TYPES.FOLDER && typeB !== ITEM_TYPES.FOLDER) return -1;
+  if (typeA !== ITEM_TYPES.FOLDER && typeB === ITEM_TYPES.FOLDER) return 1;
 
-    // If types are the same (or both not folder/note/task), sort by label (case-insensitive)
-    return labelA.localeCompare(labelB, undefined, { sensitivity: "base" });
-  });
+  // Sort notes before tasks (if types are not folders)
+  if (typeA === ITEM_TYPES.NOTE && typeB === ITEM_TYPES.TASK) return -1;
+  if (typeA === ITEM_TYPES.TASK && typeB === ITEM_TYPES.NOTE) return 1;
+
+  // If types are the same (or both not folder/note/task), sort by label (case-insensitive)
+  return labelA.localeCompare(labelB, undefined, { sensitivity: "base" });
 };
 
 /**

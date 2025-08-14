@@ -12,7 +12,8 @@ import { formatRemainingTime } from "../../utils/reminderUtils";
 import { useLiveCountdown } from "../../hooks/useLiveCountdown";
 import SetReminderDialog from "../reminders/SetReminderDialog"; // Import the dialog
 import { setReminder, getReminder } from "../../utils/reminderUtils"; // Import utilities
-import { useAutoSave } from "../../hooks/useAutoSave";
+import { useIntentBasedSave } from "../../hooks/useIntentBasedSave";
+import VersionConflictDialog from "../ui/VersionConflictDialog";
 
 // Safe content conversion that prevents [object Object]
 const safeStringify = (value) => {
@@ -75,6 +76,7 @@ const ContentEditor = memo(
     const [showToolbar, setShowToolbar] = useState(false); // State for toolbar visibility - default to false on mobile for better UX
     const [dir, setDir] = useState("ltr"); // RTL/LTR state
     const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false); // State for dialog visibility
+    const [showConflictDialog, setShowConflictDialog] = useState(false);
 
     // FIX: Use the reminder prop for the live countdown
     const liveCountdown = useLiveCountdown(reminder?.timestamp);
@@ -99,12 +101,18 @@ const ContentEditor = memo(
       lastSaved,
       hasUnsavedChanges,
       saveError,
-      debouncedSave,
+      versionConflict,
+      recordContentChange,
+      saveOnIntent,
       forceSave,
-      reset: resetAutoSave
-    } = useAutoSave(saveFunction, 1500, !!item);
+      reset: resetSave,
+      acceptServerVersion,
+      forceClientVersion,
+      hasVersionConflict,
+      getSaveStatus
+    } = useIntentBasedSave(saveFunction, !!item);
 
-    // Reset auto-save when item changes
+    // Save previous item and reset when item changes
     useEffect(() => {
       if (item) {
         console.log('🔄 ContentEditor received new item:', {
@@ -113,11 +121,11 @@ const ContentEditor = memo(
           contentValue: item.content,
           contentPreview: typeof item.content === 'string' ? item.content.substring(0, 100) : 'NON-STRING'
         });
-        resetAutoSave();
+        resetSave();
       }
-    }, [item?.id, resetAutoSave]);
+    }, [item?.id, resetSave]);
 
-    // Force save when switching away from an item with unsaved changes
+    // Save when switching away from an item with unsaved changes
     const previousItemIdRef = useRef();
     useEffect(() => {
       const currentItemId = item?.id;
@@ -132,13 +140,13 @@ const ContentEditor = memo(
       
       // If switching from one item to another (not initial load)
       if (previousItemId && previousItemId !== currentItemId && hasUnsavedChanges) {
-        console.log('💾 Force saving before switching items:', { from: previousItemId, to: currentItemId });
-        forceSave();
+        console.log('💾 Saving on item switch (intent-based):', { from: previousItemId, to: currentItemId });
+        saveOnIntent('node-switch');
       }
       
       // Update the ref with current item ID
       previousItemIdRef.current = currentItemId;
-    }, [item?.id, hasUnsavedChanges, forceSave]);
+    }, [item?.id, hasUnsavedChanges, saveOnIntent]);
 
     // Initialize direction based on title and content
     useEffect(() => {
@@ -158,6 +166,24 @@ const ContentEditor = memo(
       }
     }, [item?.id, item?.title, item?.content, item?.direction]);
 
+    // Show conflict dialog when version conflict is detected
+    useEffect(() => {
+      if (hasVersionConflict && versionConflict) {
+        setShowConflictDialog(true);
+      }
+    }, [hasVersionConflict, versionConflict]);
+
+    // Handle version conflict resolution
+    const handleConflictResolve = useCallback((resolution) => {
+      setShowConflictDialog(false);
+      
+      if (resolution === 'server') {
+        acceptServerVersion();
+      } else if (resolution === 'client') {
+        forceClientVersion();
+      }
+    }, [acceptServerVersion, forceClientVersion]);
+
     const handleSetReminder = (id, timestamp, repeatOptions) => {
       setReminder(id, timestamp, repeatOptions);
       // Optionally update local state or trigger re-render
@@ -173,20 +199,21 @@ const ContentEditor = memo(
     }, [resizeListener]);
 
     useEffect(() => {
-      // Force save on unmount to ensure no data loss
+      // Save on unmount to ensure no data loss
       return () => {
         if (hasUnsavedChanges) {
-          forceSave();
+          console.log('🔄 Component unmounting - saving on intent');
+          saveOnIntent('component-unmount');
         }
       };
-    }, [hasUnsavedChanges, forceSave]);
+    }, [hasUnsavedChanges, saveOnIntent]);
 
     // Toggle toolbar
     const toggleToolbar = () => setShowToolbar((prev) => !prev);
 
     const finalShowToolbar = !isMobile || showToolbar;
 
-    // Handle content updates with auto-save
+    // Handle content updates with intent-based save
     const handleContentUpdate = useCallback((content, direction) => {
       if (!item) return;
       
@@ -200,20 +227,22 @@ const ContentEditor = memo(
       const newDir = direction || (isRTLText(safeContent) ? "rtl" : "ltr");
       setDir(newDir);
       
-      // Trigger debounced auto-save
-      debouncedSave({
+      // Record content change (no immediate save)
+      recordContentChange({
         id: item.id,
         content: safeContent,
-        direction: newDir
+        direction: newDir,
+        expectedVersion: item.version || 1
       });
-    }, [item, debouncedSave]);
+    }, [item, recordContentChange]);
 
-    // Handle blur events - force save immediately
+    // Handle blur events - save on editor blur (intent-based)
     const handleEditorBlur = useCallback(() => {
       if (hasUnsavedChanges) {
-        forceSave();
+        console.log('📝 Editor blur detected - saving on intent');
+        saveOnIntent('editor-blur');
       }
-    }, [hasUnsavedChanges, forceSave]);
+    }, [hasUnsavedChanges, saveOnIntent]);
 
     if (!item) {
       return (
@@ -294,8 +323,8 @@ const ContentEditor = memo(
               </div>
             )}
             {hasUnsavedChanges && !isSaving && (
-              <span className="text-xs text-orange-600 dark:text-orange-400">
-                Unsaved changes
+              <span className="text-xs text-blue-600 dark:text-blue-400" title="Changes will be saved when you switch items, tabs, or press Ctrl+S">
+                ✏️ Draft
               </span>
             )}
             {lastSaved && !hasUnsavedChanges && !isSaving && (
@@ -303,9 +332,14 @@ const ContentEditor = memo(
                 ✓ Saved {formatTimestamp(lastSaved.toISOString())}
               </span>
             )}
-            {saveError && (
+            {saveError && !hasVersionConflict && (
               <span className="text-xs text-red-600 dark:text-red-400" title={saveError}>
                 ⚠ Save failed
+              </span>
+            )}
+            {hasVersionConflict && (
+              <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                ⚠ Version conflict - needs resolution
               </span>
             )}
             {!navigator.onLine && (
@@ -316,7 +350,11 @@ const ContentEditor = memo(
           </div>
         </div>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 space-y-0.5">
-          {/* Additional content */}
+          {process.env.NODE_ENV === 'development' && hasUnsavedChanges && (
+            <div className="text-xs text-blue-600 dark:text-blue-400 italic">
+              💡 Auto-saves on: item switch, tab change, Ctrl+S, window blur, 30s inactivity, or 2min maximum
+            </div>
+          )}
         </div>
         {/* TipTapEditor */}
         <div className="flex-1 flex flex-col min-h-0">
@@ -341,6 +379,15 @@ const ContentEditor = memo(
           onSetReminder={handleSetReminder}
           item={item}
         />
+        
+        {/* Version Conflict Dialog */}
+        <VersionConflictDialog
+          isOpen={showConflictDialog}
+          conflict={versionConflict}
+          onResolve={handleConflictResolve}
+          onCancel={() => setShowConflictDialog(false)}
+        />
+        
       </div>
     );
   }

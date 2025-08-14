@@ -1,37 +1,61 @@
+// ============================================================================
+// IMPORTS
+// ============================================================================
 import { getAccessToken, getRefreshToken, storeTokens, clearTokens } from "./authService";
 import { Capacitor } from '@capacitor/core';
 
-// The base URL must NOT include /api. This client will add it.
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://my-notes-and-tasks-backend.onrender.com";
 
+// Request configuration constants
+const REQUEST_CONFIG = {
+  DEFAULT_TIMEOUT: 30000,
+  REFRESH_TIMEOUT: 10000,
+  MAX_RETRIES: 2,
+  RETRY_DELAY_BASE: 1000,
+  RETRY_DELAY_MULTIPLIER: 2
+};
+
+// Public endpoints that don't require authentication
+const PUBLIC_ENDPOINTS = ['/auth/beta-status', '/push/vapid-public-key'];
+
+// ============================================================================
+// STATE MANAGEMENT
+// ============================================================================
 let onLogoutCallback = () => {
-  console.warn("onLogoutCallback not initialized in apiClient. Call apiClient.init() in App.jsx.");
+  console.warn("onLogoutCallback not initialized in apiClient. Call initApiClient() in App.jsx.");
   window.location.href = '/login'; // Fallback
 };
 
 let isRefreshing = false;
 let refreshSubscribers = [];
 
+// ============================================================================
+// TOKEN REFRESH SUBSCRIBER MANAGEMENT
+// ============================================================================
 const addRefreshSubscriber = (callback) => {
   refreshSubscribers.push(callback);
 };
 
-const onRefreshed = (newAccessToken) => {
-  refreshSubscribers.map(callback => callback(newAccessToken));
+const notifyRefreshSubscribers = (newAccessToken, error = null) => {
+  refreshSubscribers.forEach(callback => callback(newAccessToken, error));
   refreshSubscribers = [];
 };
 
-const onRefreshFailed = (error) => {
-  refreshSubscribers.map(callback => callback(null, error));
-  refreshSubscribers = [];
-};
-
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
 export const initApiClient = (logoutHandler) => {
   if (typeof logoutHandler === 'function') {
     onLogoutCallback = logoutHandler;
   }
 };
 
+// ============================================================================
+// ERROR HANDLING UTILITIES
+// ============================================================================
 const createApiError = (message, status = null, originalError = null) => {
   const error = new Error(message);
   error.status = status;
@@ -62,6 +86,13 @@ const shouldTriggerLogout = (status, errorMessage = '') => {
     authErrorPatterns.some(pattern => errorMessage.toLowerCase().includes(pattern));
 };
 
+const isPublicEndpoint = (url) => {
+  return PUBLIC_ENDPOINTS.some(path => url.includes(path));
+};
+
+// ============================================================================
+// TOKEN REFRESH FLOW
+// ============================================================================
 const refreshTokenFlow = async () => {
   const currentRefreshToken = getRefreshToken();
   if (!currentRefreshToken) {
@@ -71,60 +102,90 @@ const refreshTokenFlow = async () => {
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch(`${API_BASE_URL}/api/auth/refresh-token`, {
-      credentials: 'include',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: currentRefreshToken }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      let errorData;
-      try { errorData = await response.json(); }
-      catch (parseError) { errorData = { error: `Server error (${response.status})` }; }
-      console.error("Refresh token failed:", response.status, errorData);
-      clearTokens();
-      const errorMessage = errorData.error || "Session expired. Please login again.";
-      const error = createApiError(errorMessage, response.status);
-      onLogoutCallback();
-      return Promise.reject(error);
-    }
-
-    const data = await response.json();
+    const response = await performRefreshRequest(currentRefreshToken);
+    const data = await handleRefreshResponse(response);
+    
     if (data.accessToken && data.refreshToken) {
       storeTokens(data.accessToken, data.refreshToken);
       return data.accessToken;
     } else {
-      clearTokens();
-      const error = createApiError("Invalid token refresh response.", 422);
-      onLogoutCallback();
-      return Promise.reject(error);
+      throw createApiError("Invalid token refresh response.", 422);
     }
   } catch (error) {
     console.error("Error during token refresh:", error);
     clearTokens();
-    let errorMessage;
-    let status = null;
-    if (isNetworkError(error)) {
-      errorMessage = "Network error during authentication. Please check your connection and try again.";
-    } else if (isTimeoutError(error)) {
-      errorMessage = "Authentication request timed out. Please try again.";
-    } else if (error.isApiError) {
+    
+    if (error.isApiError) {
       onLogoutCallback();
       return Promise.reject(error);
-    } else {
-      errorMessage = "Authentication failed. Please login again.";
     }
-    const apiError = createApiError(errorMessage, status, error);
+    
+    const apiError = createRefreshError(error);
     onLogoutCallback();
     return Promise.reject(apiError);
   }
+};
+
+/**
+ * Perform the actual refresh token request
+ */
+const performRefreshRequest = async (refreshToken) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_CONFIG.REFRESH_TIMEOUT);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh-token`, {
+      credentials: 'include',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: refreshToken }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
+
+/**
+ * Handle refresh token response
+ */
+const handleRefreshResponse = async (response) => {
+  if (!response.ok) {
+    let errorData;
+    try { 
+      errorData = await response.json(); 
+    } catch (parseError) { 
+      errorData = { error: `Server error (${response.status})` }; 
+    }
+    
+    console.error("Refresh token failed:", response.status, errorData);
+    const errorMessage = errorData.error || "Session expired. Please login again.";
+    throw createApiError(errorMessage, response.status);
+  }
+
+  return await response.json();
+};
+
+/**
+ * Create error for token refresh failures
+ */
+const createRefreshError = (error) => {
+  let errorMessage;
+  let status = null;
+  
+  if (isNetworkError(error)) {
+    errorMessage = "Network error during authentication. Please check your connection and try again.";
+  } else if (isTimeoutError(error)) {
+    errorMessage = "Authentication request timed out. Please try again.";
+  } else {
+    errorMessage = "Authentication failed. Please login again.";
+  }
+  
+  return createApiError(errorMessage, status, error);
 };
 
 const broadcastTreeUpdate = (method, url) => {
@@ -252,6 +313,17 @@ export const authFetch = async (url, options = {}) => {
         } catch {
           errorData = { error: `Server error (${response.status})` };
         }
+        
+        // Handle version conflicts specially
+        if (response.status === 409 && errorData.conflict) {
+          const conflictError = createApiError(
+            errorData.error || 'Version conflict detected', 
+            response.status
+          );
+          conflictError.conflict = errorData.conflict;
+          throw conflictError;
+        }
+        
         const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
         throw createApiError(errorMessage, response.status);
       }

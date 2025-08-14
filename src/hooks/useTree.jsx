@@ -1,5 +1,29 @@
-// src/hooks/useTree.jsx
+// ============================================================================
+// REACT AND HOOKS
+// ============================================================================
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+
+// ============================================================================
+// THIRD-PARTY LIBRARIES
+// ============================================================================
+import { jsPDF } from "jspdf";
+import { resolve, reorder } from "unicode-bidirectional";
+
+// ============================================================================
+// INTERNAL HOOKS AND CONTEXTS
+// ============================================================================
+import { useSettings } from "../contexts/SettingsContext";
+import { useUndoRedo } from "./useUndoRedo";
+import { useRealTimeSync } from "./useRealTimeSync";
+
+// ============================================================================
+// SERVICES AND API
+// ============================================================================
+import { authFetch, API_BASE_URL } from "../services/apiClient";
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
 import { LOCAL_STORAGE_KEY } from "../utils/constants";
 import {
   sortItems,
@@ -12,16 +36,13 @@ import {
   hasSiblingWithName,
   getItemPath,
 } from "../utils/treeUtils";
-import { jsPDF } from "jspdf";
-import { resolve, reorder } from "unicode-bidirectional";
-import { notoSansHebrewBase64 } from "../fonts/NotoSansHebrewBase64";
-import { useSettings } from "../contexts/SettingsContext";
 import { itemMatches } from "../utils/searchUtils";
-import { useUndoRedo } from "./useUndoRedo";
-import { authFetch } from "../services/apiClient";
-import { API_BASE_URL } from '../services/apiClient.js';
 import { htmlToPlainText } from "../utils/htmlUtils";
-import { useRealTimeSync } from "./useRealTimeSync";
+
+// ============================================================================
+// ASSETS AND FONTS
+// ============================================================================
+import { notoSansHebrewBase64 } from "../fonts/NotoSansHebrewBase64";
 
 // Decode HTML entities if they exist
 const decodeHtmlEntities = (str) => {

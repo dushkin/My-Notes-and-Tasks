@@ -1,49 +1,63 @@
 import { io } from "socket.io-client";
 
+// Socket instance and state management
 let socket;
-let heartbeatInterval;
-let reconnectTimeout;
-let reconnectAttempts = 0;
-let connectionStatus = 'disconnected'; // 'connected', 'connecting', 'disconnected', 'reconnecting'
-let currentToken; // Store token for reconnection attempts
+let heartbeatTimer;
+let reconnectionTimer;
+let currentReconnectAttempts = 0;
+let connectionState = 'disconnected';
+let storedAuthToken; 
+
+// Connection status constants
+const CONNECTION_STATES = {
+  CONNECTED: 'connected',
+  CONNECTING: 'connecting', 
+  DISCONNECTED: 'disconnected',
+  RECONNECTING: 'reconnecting',
+  FAILED: 'failed',
+  AUTH_ERROR: 'auth_error'
+};
 
 // Configuration constants
-const HEARTBEAT_INTERVAL = 25000; // 25 seconds (slightly less than server's 30s)
-const MAX_RECONNECT_ATTEMPTS = 10; // Increased for better reliability
-const RECONNECT_DELAY_BASE = 1000; // 1 second base delay
-const RECONNECT_DELAY_MAX = 30000; // 30 seconds max delay
-const EXPONENTIAL_BACKOFF_MULTIPLIER = 2; // Doubles delay each attempt
-const JITTER_FACTOR = 0.1; // Add 10% random jitter to prevent thundering herd
+const SOCKET_CONFIG = {
+  HEARTBEAT_INTERVAL: 25000, // 25 seconds (slightly less than server's 30s)
+  CONNECTION_TIMEOUT: 10000, // 10 second connection timeout
+  MAX_RECONNECT_ATTEMPTS: 10, // Increased for better reliability
+  RECONNECT_DELAY_BASE: 1000, // 1 second base delay
+  RECONNECT_DELAY_MAX: 30000, // 30 seconds max delay
+  EXPONENTIAL_BACKOFF_MULTIPLIER: 2, // Doubles delay each attempt
+  JITTER_FACTOR: 0.1 // Add 10% random jitter to prevent thundering herd
+};
 
 /**
  * Initializes and returns a single socket instance.
  * Does not create a new socket if one already exists.
- * @param {string} token - The user's JWT for authentication.
+ * @param {string} authToken - The user's JWT for authentication.
  * @returns {Socket} The socket instance.
  */
-export function initSocket(token) {
-  console.log('🔌 initSocket called with token:', !!token);
-  if (socket && socket.connected) {
+export function initializeSocket(authToken) {
+  console.log('🔌 Initializing socket with token:', !!authToken);
+  
+  if (isSocketConnected()) {
     console.log('🔌 Using existing connected socket:', socket.id);
     return socket;
   }
 
   // Store token for reconnection attempts
-  currentToken = token;
+  storedAuthToken = authToken;
 
-  // Disconnect existing socket if it exists but is not connected or has wrong token
+  // Disconnect existing socket if it exists but is not connected
   if (socket) {
-    cleanupSocket();
+    performSocketCleanup();
   }
 
   const serverUrl = import.meta.env.VITE_API_BASE_URL || "https://my-notes-and-tasks-backend.onrender.com";
 
-  connectionStatus = 'connecting';
-  notifyConnectionStatusChange('connecting');
+  updateConnectionState(CONNECTION_STATES.CONNECTING);
 
   socket = io(serverUrl, {
-    auth: { token },
-    timeout: 10000, // 10 second connection timeout
+    auth: { token: authToken },
+    timeout: SOCKET_CONFIG.CONNECTION_TIMEOUT,
     reconnection: false, // Disable built-in reconnection to use custom exponential backoff
   });
 
@@ -51,19 +65,18 @@ export function initSocket(token) {
     console.log("✅ WebSocket connected:", socket.id);
     console.log("🔍 Socket connection debug:", { socketExists: !!socket, socketId: socket.id, connected: socket.connected });
     
-    connectionStatus = 'connected';
-    reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+    updateConnectionState(CONNECTION_STATES.CONNECTED);
+    currentReconnectAttempts = 0; // Reset reconnect attempts on successful connection
     
     // Start heartbeat monitoring
-    startHeartbeat();
+    startClientHeartbeat();
     
     // Notify any listeners that socket is now available
-    window.dispatchEvent(new CustomEvent('socketConnected', { detail: { socketId: socket.id } }));
-    notifyConnectionStatusChange('connected');
+    dispatchSocketEvent('socketConnected', { socketId: socket.id });
     
     // Debug: Check if getSocket() works right after connection
     setTimeout(() => {
-      const retrievedSocket = getSocket();
+      const retrievedSocket = getActiveSocket();
       console.log("🔍 getSocket() check after connection:", { 
         retrievedSocketExists: !!retrievedSocket, 
         retrievedSocketId: retrievedSocket?.id,
@@ -76,40 +89,46 @@ export function initSocket(token) {
   // Error handler to catch connection failures
   socket.on("connect_error", (err) => {
     console.error("WebSocket connection error:", err.message);
-    connectionStatus = 'disconnected';
+    updateConnectionState(CONNECTION_STATES.DISCONNECTED);
     
     // Stop heartbeat on connection error
-    stopHeartbeat();
+    stopClientHeartbeat();
     
     // Handle authentication failures
-    if (err.message === "Invalid token" || err.message === "No token" || err.message === "unauthorized") {
+    if (isAuthenticationError(err)) {
       console.error("🔐 Authentication error - token may be expired");
-      notifyConnectionStatusChange('auth_error');
+      updateConnectionState(CONNECTION_STATES.AUTH_ERROR);
       disconnectSocket();
       // Don't attempt to reconnect on auth errors
       return;
     }
     
     // Attempt custom exponential backoff reconnection
-    attemptReconnection();
+    scheduleReconnectionAttempt();
     
-    notifyConnectionStatusChange('connection_error');
+    updateConnectionState('connection_error');
   });
 
   socket.on("disconnect", (reason) => {
     console.log("🔌 WebSocket disconnected:", reason);
-    connectionStatus = 'disconnected';
+    updateConnectionState(CONNECTION_STATES.DISCONNECTED);
     
     // Stop heartbeat
-    stopHeartbeat();
+    stopClientHeartbeat();
     
     // Only attempt reconnection for certain disconnect reasons
-    if (reason !== 'io server disconnect' && reason !== 'io client disconnect') {
-      attemptReconnection();
+    if (shouldAttemptReconnection(reason)) {
+      scheduleReconnectionAttempt();
     }
     
     // Notify connection status change
-    notifyConnectionStatusChange('disconnected', reason);
+    dispatchSocketEvent('socketStatusChange', {
+      status: CONNECTION_STATES.DISCONNECTED,
+      details: reason,
+      timestamp: Date.now(),
+      reconnectAttempts: currentReconnectAttempts,
+      socketId: socket?.id
+    });
   });
 
   // Heartbeat handlers
@@ -129,7 +148,7 @@ export function initSocket(token) {
  * Returns the active socket instance.
  * @returns {Socket|undefined} The socket instance or undefined if not initialized.
  */
-export function getSocket() {
+export function getActiveSocket() {
   return socket;
 }
 
@@ -140,18 +159,18 @@ export function disconnectSocket() {
   if (socket) {
     console.log("🔌 Disconnecting socket:", socket.id);
     console.trace("🔍 disconnectSocket() called from:");
-    cleanupSocket();
+    performSocketCleanup();
   }
 }
 
 /**
  * Get current connection status
- * @returns {string} Current connection status
+ * @returns {object} Current connection status information
  */
 export function getConnectionStatus() {
   return {
-    status: connectionStatus,
-    reconnectAttempts,
+    status: connectionState,
+    reconnectAttempts: currentReconnectAttempts,
     isConnected: socket?.connected || false,
     socketId: socket?.id
   };
@@ -160,72 +179,125 @@ export function getConnectionStatus() {
 /**
  * Force reconnection (useful for manual retry)
  */
-export function forceReconnect() {
+export function forceReconnection() {
   console.log("🔄 Forcing manual reconnection...");
   
   // Clear any pending reconnection attempts
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout);
-    reconnectTimeout = null;
-  }
+  clearReconnectionTimer();
   
   // Reset reconnection attempts for manual retry
-  reconnectAttempts = 0;
+  currentReconnectAttempts = 0;
   
-  if (currentToken) {
+  if (storedAuthToken) {
     // Clean up existing socket and create new one
-    cleanupSocket();
-    initSocket(currentToken);
+    performSocketCleanup();
+    initializeSocket(storedAuthToken);
   } else {
     console.error("❌ Cannot force reconnect: no token available");
   }
 }
 
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
 /**
- * Attempt reconnection with exponential backoff
+ * Checks if socket is connected
+ * @returns {boolean} True if socket exists and is connected
  */
-function attemptReconnection() {
-  // Clear any existing reconnection timeout
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout);
-    reconnectTimeout = null;
+function isSocketConnected() {
+  return socket && socket.connected;
+}
+
+/**
+ * Checks if an error is an authentication error
+ * @param {Error} error - The error to check
+ * @returns {boolean} True if it's an authentication error
+ */
+function isAuthenticationError(error) {
+  const authErrorMessages = ["Invalid token", "No token", "unauthorized"];
+  return authErrorMessages.includes(error.message);
+}
+
+/**
+ * Determines if reconnection should be attempted based on disconnect reason
+ * @param {string} reason - The disconnect reason
+ * @returns {boolean} True if reconnection should be attempted
+ */
+function shouldAttemptReconnection(reason) {
+  const noReconnectReasons = ['io server disconnect', 'io client disconnect'];
+  return !noReconnectReasons.includes(reason);
+}
+
+/**
+ * Updates connection state and notifies listeners
+ * @param {string} newState - The new connection state
+ */
+function updateConnectionState(newState) {
+  connectionState = newState;
+  dispatchSocketEvent('socketStatusChange', {
+    status: newState,
+    timestamp: Date.now(),
+    reconnectAttempts: currentReconnectAttempts,
+    socketId: socket?.id
+  });
+}
+
+/**
+ * Dispatches a socket-related event
+ * @param {string} eventName - The event name
+ * @param {object} eventData - The event data
+ */
+function dispatchSocketEvent(eventName, eventData) {
+  window.dispatchEvent(new CustomEvent(eventName, { detail: eventData }));
+}
+
+/**
+ * Clears the reconnection timer
+ */
+function clearReconnectionTimer() {
+  if (reconnectionTimer) {
+    clearTimeout(reconnectionTimer);
+    reconnectionTimer = null;
   }
+}
+
+/**
+ * Schedules a reconnection attempt with exponential backoff
+ */
+function scheduleReconnectionAttempt() {
+  clearReconnectionTimer();
 
   // Check if we've exceeded maximum attempts
-  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error(`❌ Failed to reconnect after ${MAX_RECONNECT_ATTEMPTS} attempts`);
-    connectionStatus = 'failed';
-    notifyConnectionStatusChange('reconnect_failed');
+  if (currentReconnectAttempts >= SOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS) {
+    console.error(`❌ Failed to reconnect after ${SOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS} attempts`);
+    updateConnectionState(CONNECTION_STATES.FAILED);
     return;
   }
 
-  connectionStatus = 'reconnecting';
-  const currentAttempt = reconnectAttempts;
-  reconnectAttempts++;
+  updateConnectionState(CONNECTION_STATES.RECONNECTING);
+  const currentAttempt = currentReconnectAttempts;
+  currentReconnectAttempts++;
   
-  console.log(`🔄 Reconnection attempt #${reconnectAttempts} of ${MAX_RECONNECT_ATTEMPTS}`);
-  notifyConnectionStatusChange('reconnecting', reconnectAttempts);
+  console.log(`🔄 Reconnection attempt #${currentReconnectAttempts} of ${SOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS}`);
 
   const delay = calculateExponentialBackoffDelay(currentAttempt);
   
-  reconnectTimeout = setTimeout(() => {
-    reconnectTimeout = null;
+  reconnectionTimer = setTimeout(() => {
+    reconnectionTimer = null;
     
-    if (!currentToken) {
+    if (!storedAuthToken) {
       console.error("❌ Cannot reconnect: no token available");
-      connectionStatus = 'failed';
-      notifyConnectionStatusChange('reconnect_failed');
+      updateConnectionState(CONNECTION_STATES.FAILED);
       return;
     }
 
-    console.log(`🔄 Attempting to reconnect... (attempt ${reconnectAttempts})`);
+    console.log(`🔄 Attempting to reconnect... (attempt ${currentReconnectAttempts})`);
     
     // Create new socket with exponential backoff
-    initSocket(currentToken);
+    initializeSocket(storedAuthToken);
   }, delay);
 }
-
-// Helper Functions
 
 /**
  * Calculate exponential backoff delay with jitter
@@ -234,13 +306,14 @@ function attemptReconnection() {
  */
 function calculateExponentialBackoffDelay(attempt) {
   // Calculate base exponential delay
-  const exponentialDelay = RECONNECT_DELAY_BASE * Math.pow(EXPONENTIAL_BACKOFF_MULTIPLIER, attempt);
+  const exponentialDelay = SOCKET_CONFIG.RECONNECT_DELAY_BASE * 
+    Math.pow(SOCKET_CONFIG.EXPONENTIAL_BACKOFF_MULTIPLIER, attempt);
   
   // Cap at maximum delay
-  const cappedDelay = Math.min(exponentialDelay, RECONNECT_DELAY_MAX);
+  const cappedDelay = Math.min(exponentialDelay, SOCKET_CONFIG.RECONNECT_DELAY_MAX);
   
   // Add jitter to prevent thundering herd problem
-  const jitter = cappedDelay * JITTER_FACTOR * Math.random();
+  const jitter = cappedDelay * SOCKET_CONFIG.JITTER_FACTOR * Math.random();
   const finalDelay = cappedDelay + jitter;
   
   console.log(`🔄 Exponential backoff: attempt ${attempt + 1}, delay: ${Math.round(finalDelay)}ms`);
@@ -251,70 +324,61 @@ function calculateExponentialBackoffDelay(attempt) {
 /**
  * Cleanup socket and timers
  */
-function cleanupSocket() {
-  stopHeartbeat();
-  
-  // Clear reconnection timeout
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout);
-    reconnectTimeout = null;
-  }
+function performSocketCleanup() {
+  stopClientHeartbeat();
+  clearReconnectionTimer();
   
   if (socket) {
     socket.disconnect();
     socket = null;
   }
   
-  connectionStatus = 'disconnected';
-  reconnectAttempts = 0; // Reset reconnection attempts on cleanup
+  updateConnectionState(CONNECTION_STATES.DISCONNECTED);
+  currentReconnectAttempts = 0; // Reset reconnection attempts on cleanup
 }
 
 /**
  * Start client-side heartbeat
  */
-function startHeartbeat() {
-  stopHeartbeat(); // Clear any existing heartbeat
+function startClientHeartbeat() {
+  stopClientHeartbeat(); // Clear any existing heartbeat
   
-  heartbeatInterval = setInterval(() => {
-    if (socket && socket.connected) {
+  heartbeatTimer = setInterval(() => {
+    if (isSocketConnected()) {
       console.log('💓 Sending ping to server');
       socket.emit('ping');
     } else {
       console.warn('💔 Cannot send heartbeat - socket not connected');
-      stopHeartbeat();
+      stopClientHeartbeat();
     }
-  }, HEARTBEAT_INTERVAL);
+  }, SOCKET_CONFIG.HEARTBEAT_INTERVAL);
   
-  console.log(`💓 Started client heartbeat (interval: ${HEARTBEAT_INTERVAL}ms)`);
+  console.log(`💓 Started client heartbeat (interval: ${SOCKET_CONFIG.HEARTBEAT_INTERVAL}ms)`);
 }
 
 /**
  * Stop client-side heartbeat
  */
-function stopHeartbeat() {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
+function stopClientHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
     console.log('💔 Stopped client heartbeat');
   }
 }
 
-/**
- * Notify about connection status changes
- * @param {string} status - New connection status
- * @param {*} details - Additional details
- */
-function notifyConnectionStatusChange(status, details = null) {
-  window.dispatchEvent(new CustomEvent('socketStatusChange', {
-    detail: {
-      status,
-      details,
-      timestamp: Date.now(),
-      reconnectAttempts,
-      socketId: socket?.id
-    }
-  }));
-}
+// ============================================================================
+// LEGACY FUNCTION EXPORTS (for backward compatibility)
+// ============================================================================
+
+// Export original function names for backward compatibility
+export const initSocket = initializeSocket;
+export const getSocket = getActiveSocket;
+export const forceReconnect = forceReconnection;
+
+// ============================================================================
+// TESTING AND DEBUG UTILITIES
+// ============================================================================
 
 /**
  * Test function to verify exponential backoff delays (for development/debugging)
@@ -322,18 +386,13 @@ function notifyConnectionStatusChange(status, details = null) {
  */
 export function testExponentialBackoff() {
   console.log("🧪 Testing exponential backoff delays:");
-  console.log("Configuration:", {
-    RECONNECT_DELAY_BASE,
-    RECONNECT_DELAY_MAX,
-    EXPONENTIAL_BACKOFF_MULTIPLIER,
-    JITTER_FACTOR,
-    MAX_RECONNECT_ATTEMPTS
-  });
+  console.log("Configuration:", SOCKET_CONFIG);
   
-  for (let i = 0; i < MAX_RECONNECT_ATTEMPTS; i++) {
+  for (let i = 0; i < SOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS; i++) {
     const delay = calculateExponentialBackoffDelay(i);
-    const baseDelay = RECONNECT_DELAY_BASE * Math.pow(EXPONENTIAL_BACKOFF_MULTIPLIER, i);
-    const cappedDelay = Math.min(baseDelay, RECONNECT_DELAY_MAX);
+    const baseDelay = SOCKET_CONFIG.RECONNECT_DELAY_BASE * 
+      Math.pow(SOCKET_CONFIG.EXPONENTIAL_BACKOFF_MULTIPLIER, i);
+    const cappedDelay = Math.min(baseDelay, SOCKET_CONFIG.RECONNECT_DELAY_MAX);
     
     console.log(`Attempt ${i + 1}: ${delay}ms (base: ${baseDelay}ms, capped: ${cappedDelay}ms)`);
   }
