@@ -184,10 +184,14 @@ else
   # Parse the response to get the commit message text and clean it up
   COMMIT_MSG=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null | sed 's/`//g')
 
-  # Check if the commit message was generated successfully
-  if [ "$COMMIT_MSG" == "null" ] || [ -z "$COMMIT_MSG" ] || echo "$API_RESPONSE" | grep -q "error"; then
+  # Check if the commit message was generated successfully by looking for actual API errors
+  API_ERROR=$(echo "$API_RESPONSE" | jq -r '.error.message' 2>/dev/null)
+  if [ "$COMMIT_MSG" == "null" ] || [ -z "$COMMIT_MSG" ] || [ "$API_ERROR" != "null" ]; then
       echo "❌ Error: Failed to generate AI commit message."
-      echo "API Response: $API_RESPONSE"
+      if [ "$API_ERROR" != "null" ]; then
+          echo "API Error: $API_ERROR"
+      fi
+      echo "Full API Response: $API_RESPONSE"
       echo "⚠️  Exiting without staging files to avoid leaving them in staged state."
       exit 1
   fi
