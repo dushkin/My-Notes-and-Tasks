@@ -157,8 +157,6 @@ export const useIntentBasedSave = (saveFunction, enabled = true) => {
           performSave(pendingDataRef.current, 'inactivity');
         }
       }, 30 * 1000); // 30 seconds
-      
-      console.log('📝 Content change recorded for item:', data.id, 'Length:', data.content?.length || 0);
     }
   }, [enabled, hasUnsavedChanges, performSave]);
 

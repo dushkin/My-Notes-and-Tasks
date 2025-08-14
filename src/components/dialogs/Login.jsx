@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { storeTokens } from "../../services/authService";
 import LoadingButton from "../ui/LoadingButton";
+import KeyboardAware from "../ui/KeyboardAware";
 import { API_BASE_URL } from '../../services/apiClient.js';
 
 const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
@@ -100,8 +101,9 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900">
-      <div className="p-8 bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-md">
+    <KeyboardAware>
+      <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900">
+        <div className="p-8 bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-md">
         <h2 className="text-2xl font-semibold text-center text-zinc-900 dark:text-white mb-6">
           Login to Notes & Tasks
         </h2>
@@ -200,8 +202,9 @@ const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
             </button>
           )}
         </p>
+        </div>
       </div>
-    </div>
+    </KeyboardAware>
   );
 };
 

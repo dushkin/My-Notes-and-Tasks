@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import LoadingButton from "../ui/LoadingButton";
+import KeyboardAware from "../ui/KeyboardAware";
 import { API_BASE_URL } from '../../services/apiClient.js';
 
 const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
@@ -161,8 +162,9 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
 
   return (
     <>
-      <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900">
-        <div className="p-8 bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-md">
+      <KeyboardAware>
+        <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-900">
+          <div className="p-8 bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-md">
           <h2 className="text-2xl font-semibold text-center text-zinc-900 dark:text-white mb-6">
             Create Account
           </h2>
@@ -271,8 +273,9 @@ const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
               Log In
             </button>
           </p>
+          </div>
         </div>
-      </div>
+      </KeyboardAware>
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}
