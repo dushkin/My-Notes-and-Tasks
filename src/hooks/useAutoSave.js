@@ -12,6 +12,7 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [saveAttempts, setSaveAttempts] = useState(0);
+  const [versionConflict, setVersionConflict] = useState(null);
 
   const timeoutRef = useRef(null);
   const saveFunctionRef = useRef(saveFunction);
@@ -94,6 +95,14 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
       if (saveOperation.cancelled) {
         console.log('💾 Save operation was cancelled during error handling');
         return;
+      }
+      
+      // Handle version conflicts differently from other errors
+      if (error.status === 409 && error.conflict) {
+        console.warn('🔄 Version conflict detected:', error.conflict);
+        setVersionConflict(error.conflict);
+        setSaveError('Content has been modified by another client. Please resolve the conflict.');
+        return; // Don't retry version conflicts automatically
       }
       
       console.error('❌ Auto-save failed:', error);
@@ -219,8 +228,49 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
     setIsSaving(false);
     setLastSaved(null);
     setSaveAttempts(0);
+    setVersionConflict(null);
     lastSaveTimeRef.current = 0;
   }, []);
+
+  // Resolve version conflict by accepting server version
+  const acceptServerVersion = useCallback(async () => {
+    if (!versionConflict) return;
+    
+    console.log('🔄 Accepting server version for conflict resolution');
+    setVersionConflict(null);
+    setSaveError(null);
+    setHasUnsavedChanges(false);
+    
+    // Dispatch event to notify UI to refresh the item
+    window.dispatchEvent(new CustomEvent('versionConflictResolved', {
+      detail: { 
+        itemId: versionConflict.itemId,
+        resolution: 'server',
+        serverItem: versionConflict.serverItem
+      }
+    }));
+  }, [versionConflict]);
+
+  // Resolve version conflict by forcing client version
+  const forceClientVersion = useCallback(async () => {
+    if (!versionConflict || !pendingDataRef.current) return;
+    
+    console.log('🔄 Forcing client version for conflict resolution');
+    
+    try {
+      // Force save with server version as expected version
+      const dataWithCorrectVersion = {
+        ...pendingDataRef.current,
+        expectedVersion: versionConflict.serverVersion
+      };
+      
+      await performSave(dataWithCorrectVersion);
+      setVersionConflict(null);
+    } catch (error) {
+      console.error('❌ Failed to force client version:', error);
+      setSaveError('Failed to resolve conflict. Please try again.');
+    }
+  }, [versionConflict, performSave]);
 
   // Enhanced status reporting
   const getSaveStatus = useCallback(() => {
@@ -238,19 +288,23 @@ export const useAutoSave = (saveFunction, delay = 2000, enabled = true) => {
     hasUnsavedChanges,
     saveError,
     saveAttempts,
+    versionConflict,
     
     // Functions
     debouncedSave,
     forceSave,
     reset,
     getSaveStatus,
+    acceptServerVersion,
+    forceClientVersion,
     
     // Utils
     isOnline: navigator.onLine,
     
     // Debug info
     contentLength: pendingDataRef.current?.content?.length || 0,
-    isLargeContent: (pendingDataRef.current?.content?.length || 0) > 20000
+    isLargeContent: (pendingDataRef.current?.content?.length || 0) > 20000,
+    hasVersionConflict: !!versionConflict
   };
 };
 

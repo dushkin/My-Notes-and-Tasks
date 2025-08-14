@@ -13,6 +13,7 @@ import { useLiveCountdown } from "../../hooks/useLiveCountdown";
 import SetReminderDialog from "../reminders/SetReminderDialog"; // Import the dialog
 import { setReminder, getReminder } from "../../utils/reminderUtils"; // Import utilities
 import { useAutoSave } from "../../hooks/useAutoSave";
+import VersionConflictDialog from "../ui/VersionConflictDialog";
 
 // Safe content conversion that prevents [object Object]
 const safeStringify = (value) => {
@@ -75,6 +76,7 @@ const ContentEditor = memo(
     const [showToolbar, setShowToolbar] = useState(false); // State for toolbar visibility - default to false on mobile for better UX
     const [dir, setDir] = useState("ltr"); // RTL/LTR state
     const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false); // State for dialog visibility
+    const [showConflictDialog, setShowConflictDialog] = useState(false);
 
     // FIX: Use the reminder prop for the live countdown
     const liveCountdown = useLiveCountdown(reminder?.timestamp);
@@ -99,9 +101,13 @@ const ContentEditor = memo(
       lastSaved,
       hasUnsavedChanges,
       saveError,
+      versionConflict,
       debouncedSave,
       forceSave,
-      reset: resetAutoSave
+      reset: resetAutoSave,
+      acceptServerVersion,
+      forceClientVersion,
+      hasVersionConflict
     } = useAutoSave(saveFunction, 1500, !!item);
 
     // Reset auto-save when item changes
@@ -158,6 +164,24 @@ const ContentEditor = memo(
       }
     }, [item?.id, item?.title, item?.content, item?.direction]);
 
+    // Show conflict dialog when version conflict is detected
+    useEffect(() => {
+      if (hasVersionConflict && versionConflict) {
+        setShowConflictDialog(true);
+      }
+    }, [hasVersionConflict, versionConflict]);
+
+    // Handle version conflict resolution
+    const handleConflictResolve = useCallback((resolution) => {
+      setShowConflictDialog(false);
+      
+      if (resolution === 'server') {
+        acceptServerVersion();
+      } else if (resolution === 'client') {
+        forceClientVersion();
+      }
+    }, [acceptServerVersion, forceClientVersion]);
+
     const handleSetReminder = (id, timestamp, repeatOptions) => {
       setReminder(id, timestamp, repeatOptions);
       // Optionally update local state or trigger re-render
@@ -200,11 +224,12 @@ const ContentEditor = memo(
       const newDir = direction || (isRTLText(safeContent) ? "rtl" : "ltr");
       setDir(newDir);
       
-      // Trigger debounced auto-save
+      // Trigger debounced auto-save with version information
       debouncedSave({
         id: item.id,
         content: safeContent,
-        direction: newDir
+        direction: newDir,
+        expectedVersion: item.version || 1
       });
     }, [item, debouncedSave]);
 
@@ -303,9 +328,14 @@ const ContentEditor = memo(
                 ✓ Saved {formatTimestamp(lastSaved.toISOString())}
               </span>
             )}
-            {saveError && (
+            {saveError && !hasVersionConflict && (
               <span className="text-xs text-red-600 dark:text-red-400" title={saveError}>
                 ⚠ Save failed
+              </span>
+            )}
+            {hasVersionConflict && (
+              <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                ⚠ Version conflict - needs resolution
               </span>
             )}
             {!navigator.onLine && (
@@ -340,6 +370,14 @@ const ContentEditor = memo(
           onClose={() => setIsReminderDialogOpen(false)}
           onSetReminder={handleSetReminder}
           item={item}
+        />
+        
+        {/* Version Conflict Dialog */}
+        <VersionConflictDialog
+          isOpen={showConflictDialog}
+          conflict={versionConflict}
+          onResolve={handleConflictResolve}
+          onCancel={() => setShowConflictDialog(false)}
         />
       </div>
     );

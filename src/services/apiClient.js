@@ -313,6 +313,17 @@ export const authFetch = async (url, options = {}) => {
         } catch {
           errorData = { error: `Server error (${response.status})` };
         }
+        
+        // Handle version conflicts specially
+        if (response.status === 409 && errorData.conflict) {
+          const conflictError = createApiError(
+            errorData.error || 'Version conflict detected', 
+            response.status
+          );
+          conflictError.conflict = errorData.conflict;
+          throw conflictError;
+        }
+        
         const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
         throw createApiError(errorMessage, response.status);
       }

@@ -429,7 +429,7 @@ class SyncManager {
    * @returns {Promise<object>} Updated item data
    */
   async syncUpdateContent(contentData) {
-    const { id, content, direction } = contentData;
+    const { id, content, direction, expectedVersion } = contentData;
     
     // Ensure content is a string
     const stringContent = ensureStringContent(content);
@@ -439,14 +439,30 @@ class SyncManager {
     if (direction) {
       updates.direction = direction;
     }
+    if (expectedVersion !== undefined) {
+      updates.expectedVersion = expectedVersion;
+    }
 
-    const updatedItem = await this.performSyncRequest(`/items/${id}`, 'PATCH', updates);
-    console.log('📥 SyncManager received response:', updatedItem);
-    
-    // Update local tree data if available
-    await this.updateLocalTreeCache(id, updatedItem);
-
-    return updatedItem;
+    try {
+      const updatedItem = await this.performSyncRequest(`/items/${id}`, 'PATCH', updates);
+      console.log('📥 SyncManager received response:', updatedItem);
+      
+      // Update local tree cache
+      await this.updateLocalTreeCache(id, updatedItem);
+      
+      return updatedItem;
+    } catch (error) {
+      // Handle version conflicts specially
+      if (error.status === 409 && error.conflict) {
+        console.warn('🔄 SyncManager detected version conflict:', error.conflict);
+        // Re-throw with additional context
+        const conflictError = new Error('Version conflict detected');
+        conflictError.status = 409;
+        conflictError.conflict = error.conflict;
+        throw conflictError;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -481,6 +497,10 @@ class SyncManager {
         if (safeUpdatedItem.content && typeof safeUpdatedItem.content !== 'string') {
           console.warn('⚠️ SyncManager storage update contained non-string content:', typeof safeUpdatedItem.content);
           safeUpdatedItem.content = ensureStringContent(safeUpdatedItem.content);
+        }
+        // Ensure version field is present
+        if (safeUpdatedItem.version === undefined && item.version !== undefined) {
+          safeUpdatedItem.version = item.version;
         }
         return { ...item, ...safeUpdatedItem };
       }
