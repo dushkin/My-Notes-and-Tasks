@@ -308,3 +308,72 @@
 .app-notification.success { background: #28a745; }
 .app-notification.error { background: #dc3545; }
 .app-notification.info { background: #17a2b8; }
+
+/* Mobile system keyboard handling */
+@media (max-width: 768px) {
+  /* Use visual viewport units for better keyboard handling */
+  .keyboard-aware-container {
+    min-height: 100vh;
+    min-height: 100svh; /* Small viewport height - excludes keyboard */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Changed from center to flex-start */
+    overflow-y: auto;
+    padding: 1rem 1rem 8rem 1rem; /* Added large bottom padding for button */
+  }
+  
+  /* Ensure the form container is scrollable when keyboard appears */
+  .keyboard-aware-container > div {
+    flex-shrink: 0;
+    max-height: none; /* Remove max-height restriction */
+    overflow-y: visible;
+    padding-top: 2rem; /* Add top padding to center form */
+  }
+  
+  /* Improve input focus behavior on mobile */
+  input:focus, textarea:focus {
+    transform: translateZ(0); /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+  }
+  
+  /* Prevent zoom on input focus for iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Ensure login/register forms have proper spacing */
+  .keyboard-aware-container .flex.items-center.justify-center {
+    min-height: auto;
+    padding: 1rem 0 4rem 0; /* Extra bottom padding */
+    align-items: flex-start; /* Align to top instead of center */
+    padding-top: 10vh; /* Add some top spacing */
+  }
+  
+  /* Ensure buttons have enough bottom space */
+  .keyboard-aware-container form {
+    margin-bottom: 4rem; /* Increased bottom margin */
+  }
+  
+  /* Extra padding for the form container itself */
+  .keyboard-aware-container .rounded-lg.shadow-xl {
+    margin-bottom: 4rem; /* Extra space below the form card */
+  }
+  
+  /* Make sure the "Create account" / "Log in" text also has space */
+  .keyboard-aware-container p {
+    padding-bottom: 2rem;
+  }
+}
+
+/* Desktop - keep original behavior */
+@media (min-width: 769px) {
+  .keyboard-aware-container {
+    /* Normal behavior on desktop */
+  }
+}
