@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 
 /**
  * Intent-based save hook that saves only on specific user intent events
@@ -179,9 +181,12 @@ export const useIntentBasedSave = (saveFunction, enabled = true) => {
     }
   }, [enabled, performSave]);
 
-  // Setup browser/app event listeners
+  // Setup browser/app event listeners (cross-platform)
   useEffect(() => {
     if (!enabled) return;
+
+    let capacitorListeners = [];
+    const isNative = Capacitor?.isNativePlatform?.();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -216,6 +221,30 @@ export const useIntentBasedSave = (saveFunction, enabled = true) => {
       saveOnIntent('page-hide');
     };
 
+    const handleAppStateChange = () => {
+      // Additional mobile app state change handling
+      if (document.visibilityState === 'hidden') {
+        console.log('📱 App going to background - saving on intent');
+        saveOnIntent('app-background');
+      }
+    };
+
+    const handleOrientationChange = () => {
+      // Save on orientation change (common mobile interaction)
+      console.log('📱 Orientation changed - saving on intent');
+      saveOnIntent('orientation-change');
+    };
+
+    const handleTouchEnd = (event) => {
+      // Save when user taps outside editor (mobile equivalent of blur)
+      if (!event.target.closest('[contenteditable="true"]') && 
+          !event.target.closest('.ProseMirror') &&
+          hasUnsavedChanges) {
+        console.log('📱 Touch outside editor - saving on intent');
+        saveOnIntent('mobile-touch-outside');
+      }
+    };
+
     const handleKeyDown = (event) => {
       // Ctrl+S / Cmd+S
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
@@ -225,12 +254,50 @@ export const useIntentBasedSave = (saveFunction, enabled = true) => {
       }
     };
 
-    // Add event listeners
+    // Add event listeners for both desktop and mobile
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleWindowBlur);
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handlePageHide);
     document.addEventListener('keydown', handleKeyDown);
+    
+    // Mobile-specific event listeners
+    screen.orientation?.addEventListener('change', handleOrientationChange);
+    document.addEventListener('touchend', handleTouchEnd);
+    
+    // Additional mobile app lifecycle events
+    document.addEventListener('resume', handleAppStateChange);
+    document.addEventListener('pause', handleAppStateChange);
+
+    // Capacitor native app lifecycle events
+    if (isNative && CapacitorApp) {
+      // App state change listeners for mobile apps
+      const appStateListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          console.log('📱 Capacitor app going to background - saving on intent');
+          saveOnIntent('capacitor-background');
+        }
+      });
+      capacitorListeners.push(appStateListener);
+
+      // Back button listener (save before navigation)
+      const backButtonListener = CapacitorApp.addListener('backButton', () => {
+        if (hasUnsavedChanges) {
+          console.log('🔙 Android back button - saving on intent');
+          saveOnIntent('android-back');
+        }
+      });
+      capacitorListeners.push(backButtonListener);
+
+      // App URL open (save before handling URL)
+      const urlOpenListener = CapacitorApp.addListener('appUrlOpen', () => {
+        if (hasUnsavedChanges) {
+          console.log('🔗 App URL open - saving on intent');
+          saveOnIntent('app-url-open');
+        }
+      });
+      capacitorListeners.push(urlOpenListener);
+    }
 
     return () => {
       // Cleanup event listeners
@@ -239,6 +306,19 @@ export const useIntentBasedSave = (saveFunction, enabled = true) => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handlePageHide);
       document.removeEventListener('keydown', handleKeyDown);
+      
+      // Mobile cleanup
+      screen.orientation?.removeEventListener('change', handleOrientationChange);
+      document.removeEventListener('touchend', handleTouchEnd);
+      document.removeEventListener('resume', handleAppStateChange);
+      document.removeEventListener('pause', handleAppStateChange);
+
+      // Cleanup Capacitor listeners
+      capacitorListeners.forEach(listener => {
+        if (listener?.remove) {
+          listener.remove();
+        }
+      });
     };
   }, [enabled, hasUnsavedChanges, saveOnIntent, forceSave]);
 
