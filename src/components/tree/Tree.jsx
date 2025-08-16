@@ -47,6 +47,7 @@ const Tree = ({
   const [lastClickedItem, setLastClickedItem] = useState(null);
   const [dropExecuted, setDropExecuted] = useState(false);
   const dropExecutedRef = useRef(false);
+  const lastLoggedDragOverRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -299,9 +300,10 @@ const Tree = ({
         return;
       }
       
-      // Reduced logging for drag over events
-      if (item.id !== draggedId) {
+      // Throttled logging for drag over events (only log when target changes)
+      if (item.id !== draggedId && lastLoggedDragOverRef.current !== item.id) {
         console.log('🔄 DRAG OVER:', item.id, 'draggedId:', draggedId);
+        lastLoggedDragOverRef.current = item.id;
       }
       e.preventDefault();
       e.stopPropagation();
@@ -654,6 +656,7 @@ const Tree = ({
                   // Reset drop executed flag for new drag operation
                   dropExecutedRef.current = false;
                   setDropExecuted(false);
+                  lastLoggedDragOverRef.current = null;
                   console.log('🔄 Reset drop flags');
                   
                   // Set up drag data
@@ -670,6 +673,7 @@ const Tree = ({
                   // Reset drop flags when drag ends
                   dropExecutedRef.current = false;
                   setDropExecuted(false);
+                  lastLoggedDragOverRef.current = null;
                   // Clear any mouse-based drag overlay
                   setMouseDragState({ isDragging: false, draggedItem: null, startPos: { x: 0, y: 0 }, currentPos: { x: 0, y: 0 } });
                   setDragOverId(null);

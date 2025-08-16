@@ -1,7 +1,7 @@
 // ============================================================================
 // REACT AND HOOKS
 // ============================================================================
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 // ============================================================================
 // THIRD-PARTY LIBRARIES
@@ -332,9 +332,29 @@ export const useTree = (currentUser) => {
     console.log('📡 Item created and added to tree from real-time sync:', newItem.id);
   }, [tree, setTreeWithUndo]);
 
+  // Track recent undo operations to prevent socket conflicts
+  const recentUndoRef = useRef(false);
+
+  // Wrapped undo function that blocks socket updates temporarily
+  const wrappedUndoTreeChange = useCallback(() => {
+    recentUndoRef.current = true;
+    undoTreeChange();
+    
+    // Clear the flag after 2 seconds
+    setTimeout(() => {
+      recentUndoRef.current = false;
+    }, 2000);
+  }, [undoTreeChange]);
+
   // Handle item moved from another device via socket
   const handleItemMovedFromSocket = useCallback((data) => {
     if (!data || !data.itemId) return;
+    
+    // Ignore socket move events for 2 seconds after undo to prevent race conditions
+    if (recentUndoRef.current) {
+      console.log('📡 Ignoring socket move event due to recent undo operation');
+      return;
+    }
     
     const { itemId, newParentId } = data;
     console.log('📡 Item moved from real-time sync:', { itemId, newParentId });
@@ -1229,7 +1249,7 @@ export const useTree = (currentUser) => {
         };
       }
     },
-    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo, undoTreeChange, updateTreePresentOnly]
+    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo, wrappedUndoTreeChange, updateTreePresentOnly]
   );
   const copyItem = useCallback(
     (itemId) => {
@@ -1898,7 +1918,7 @@ export const useTree = (currentUser) => {
     searchItems,
     getItemPath,
     expandFolderPath,
-    undoTreeChange,
+    undoTreeChange: wrappedUndoTreeChange,
     redoTreeChange,
     canUndoTree,
     canRedoTree,
