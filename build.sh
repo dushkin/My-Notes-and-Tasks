@@ -130,8 +130,8 @@ else
   HAS_MEANINGFUL_CHANGES=$(git diff --name-only -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | wc -l)
   
   if [[ "$HAS_MEANINGFUL_CHANGES" -gt 0 ]]; then
-    # Get recent commit messages to describe what changed
-    RECENT_CHANGES=$(git log --oneline --since="1 week ago" --grep="feat\|fix\|refactor" --format="- %s" | head -5)
+    # Get recent commit messages to describe what changed (exclude build commits)
+    RECENT_CHANGES=$(git log --oneline --since="1 week ago" --format="- %s" | grep -E "^- (feat:|fix:|refactor:)" | grep -v "^- (feat: build|build:)" | head -5)
     if [[ -z "$RECENT_CHANGES" ]]; then
       RECENT_CHANGES="- Various application improvements and bug fixes"
     fi
