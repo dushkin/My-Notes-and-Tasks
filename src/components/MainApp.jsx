@@ -89,6 +89,7 @@ import reminderMonitor from "./reminders/reminderMonitor.js";
 // ============================================================================
 import LoadingSpinner from "./ui/LoadingSpinner.jsx";
 import LoadingButton from "./ui/LoadingButton.jsx";
+import ThemeToggle from "./ui/ThemeToggle.jsx";
 
 // ============================================================================
 // COMPONENTS - PAGES AND SEARCH
@@ -2026,7 +2027,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     <span className="text-sm font-medium">Redo</span>
                   </LoadingButton>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <LoadingButton
                     onClick={() => {
                       setSearchSheetOpen(true);
@@ -2055,6 +2056,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     <SettingsIcon className="w-4 h-4" />
                     <span className="text-sm font-medium">Settings</span>
                   </LoadingButton>
+                  <div className="flex items-center justify-center p-3 rounded-lg border bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600">
+                    <ThemeToggle size="small" showLabel={true} className="hover:bg-zinc-50 dark:hover:bg-zinc-600" />
+                  </div>
                 </div>
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 space-y-1">
                   <button
@@ -2191,6 +2195,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
               >
                 <SearchIcon className="w-5 h-5" />
               </LoadingButton>
+              <ThemeToggle size="medium" />
               <LoadingButton
                 onClick={() => setSettingsDialogOpen(true)}
                 className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"

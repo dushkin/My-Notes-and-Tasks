@@ -172,28 +172,61 @@ else
   # Debug: Check JSON payload size
   echo "Debug: JSON payload size: $(echo "$JSON_PAYLOAD" | wc -c) characters"
 
-  # Call the Gemini API using the 'gemini-1.5-flash' model
-  API_RESPONSE=$(curl -s -X POST \
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "$JSON_PAYLOAD")
+  # Retry logic for Gemini API calls
+  MAX_RETRIES=3
+  RETRY_COUNT=0
+  COMMIT_MSG=""
 
-  # Debug: Show API response
-  echo "Debug: API Response: $API_RESPONSE"
+  while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ -z "$COMMIT_MSG" ]; do
+      if [ $RETRY_COUNT -gt 0 ]; then
+          echo "🔄 Retry attempt $RETRY_COUNT of $MAX_RETRIES..."
+          sleep 2
+      fi
 
-  # Parse the response to get the commit message text and clean it up
-  COMMIT_MSG=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null | sed 's/`//g')
+      # Call the Gemini API using the 'gemini-1.5-flash' model
+      API_RESPONSE=$(curl -s -X POST \
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$JSON_PAYLOAD")
 
-  # Check if the commit message was generated successfully by looking for actual API errors
-  API_ERROR=$(echo "$API_RESPONSE" | jq -r '.error.message' 2>/dev/null)
-  if [ "$COMMIT_MSG" == "null" ] || [ -z "$COMMIT_MSG" ] || [ "$API_ERROR" != "null" ]; then
-      echo "❌ Error: Failed to generate AI commit message."
+      # Parse the response to get the commit message text and clean it up
+      COMMIT_MSG=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null | sed 's/`//g')
+
+      # Check if the commit message was generated successfully
+      API_ERROR=$(echo "$API_RESPONSE" | jq -r '.error.message' 2>/dev/null)
+      if [ "$COMMIT_MSG" != "null" ] && [ -n "$COMMIT_MSG" ] && [ "$API_ERROR" == "null" ]; then
+          break
+      fi
+
+      echo "⚠️  API call failed (attempt $((RETRY_COUNT + 1)))"
       if [ "$API_ERROR" != "null" ]; then
           echo "API Error: $API_ERROR"
       fi
-      echo "Full API Response: $API_RESPONSE"
-      echo "⚠️  Exiting without staging files to avoid leaving them in staged state."
-      exit 1
+      
+      RETRY_COUNT=$((RETRY_COUNT + 1))
+      COMMIT_MSG=""
+  done
+
+  # Check if all retries failed
+  if [ -z "$COMMIT_MSG" ] || [ "$COMMIT_MSG" == "null" ]; then
+      echo "❌ Error: Failed to generate AI commit message after $MAX_RETRIES attempts."
+      echo "⚠️  Falling back to simple commit message..."
+      
+      COMMIT_MSG="feat: build v${VERSION} with app improvements
+
+- Application functionality improvements and fixes
+- Built debug APK v${VERSION}
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+  else
+      # Add Claude Code attribution to AI-generated message
+      COMMIT_MSG="${COMMIT_MSG}
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
   fi
 
   echo -e "📄 Generated Commit Message:\n---\n$COMMIT_MSG\n---"

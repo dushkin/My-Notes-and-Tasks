@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# build-simple.sh — Debug APK builder (without AI commit messages)
+# build.sh — Debug APK builder (uses .env.debug via Vite --mode debug)
 # - Builds web assets in DEBUG mode (.env.debug)
 # - Syncs Capacitor Android project
 # - Updates android/app/build.gradle versionName/versionCode from package.json
 # - Builds the DEBUG APK
 # - Copies APK into ./public (not committed)
-# - Commits with simple conventional commit message
+# - Commits AFTER edits, pushing: build.sh, package.json, package-lock.json, android/app/build.gradle
 #
 set -euo pipefail
 
@@ -117,42 +117,124 @@ if [[ -f "${GRADLE_FILE}.bak" ]]; then
   rm -f "${GRADLE_FILE}.bak"
 fi
 
-# 8) Commit with simple conventional commit message
+# 8) Commit AFTER all edits (push ALL changes with AI-generated message)
 echo
 echo "💾 Preparing to commit ALL changes and build files"
 
-# Check if there are any changes to commit
+# Check if there are any changes to commit (without staging yet)
 if git diff --quiet && git diff --cached --quiet; then
   echo "ℹ️  No changes to commit."
 else
-  # Generate a simple conventional commit message
-  CHANGED_FILES=$(git diff --name-only | wc -l)
-  HAS_MEANINGFUL_CHANGES=$(git diff --name-only -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | wc -l)
-  
-  if [[ "$HAS_MEANINGFUL_CHANGES" -gt 0 ]]; then
-    # Get recent commit messages to describe what changed (exclude build commits)
-    RECENT_CHANGES=$(git log --oneline --since="1 week ago" --format="- %s" | grep -E "^- (feat:|fix:|refactor:)" | grep -v "^- (feat: build|build:)" | head -5)
-    if [[ -z "$RECENT_CHANGES" ]]; then
-      RECENT_CHANGES="- Various application improvements and bug fixes"
-    fi
-    
-    COMMIT_MSG="feat: build v${VERSION} with app improvements
-
-${RECENT_CHANGES}
-- Built debug APK v${VERSION}"
-  else
-    COMMIT_MSG="build: release v${VERSION}
-
-- Auto-increment version to ${VERSION}
-- Update Android versionName and versionCode
-- Build debug APK"
+  # --- AI Commit Message Generation BEFORE staging ---
+  if [ -z "$GOOGLE_API_KEY" ]; then
+      echo "❌ Error: GOOGLE_API_KEY environment variable is not set."
+      echo "Please export your Google API key before running this script:"
+      echo "export GOOGLE_API_KEY=\"YOUR_API_KEY_HERE\""
+      exit 1
   fi
 
-  echo -e "📄 Commit Message:\n---\n$COMMIT_MSG\n---"
+  # Get the diff that WOULD BE staged (but don't stage yet)
+  STAGED_DIFF=$(git diff --stat)
+  STAGED_DIFF_SAMPLE=$(git diff | head -n 200)
 
-  # Stage and commit
+  echo "🤖 Asking the AI to generate a commit message..."
+
+  # Create a summary of changes for the AI, excluding version-only changes
+  CHANGED_FILES=$(git diff --name-only | tr '\n' ', ' | sed 's/,$//')
+  
+  # Get diff excluding version/build files to focus on meaningful changes  
+  MEANINGFUL_DIFF=$(git diff -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | head -n 150)
+  VERSION_DIFF=$(git diff -- 'package.json' 'android/app/build.gradle' | head -n 50)
+  
+  # Check if we have meaningful changes beyond version bumps
+  if [ -n "$MEANINGFUL_DIFF" ]; then
+    CHANGES_SUMMARY="Files changed: $CHANGED_FILES\n\nMeaningful code changes (excluding version files):\n$MEANINGFUL_DIFF\n\nVersion/build changes:\n$VERSION_DIFF\n\nDiff stats:\n$STAGED_DIFF"
+    PRIORITY_INSTRUCTION="IMPORTANT: Focus on the meaningful code changes (new features, bug fixes, improvements) rather than version number updates. The version changes are secondary."
+  else
+    CHANGES_SUMMARY="Files changed: $CHANGED_FILES\n\nChanges (mainly version/build updates):\n$STAGED_DIFF_SAMPLE\n\nDiff stats:\n$STAGED_DIFF"
+    PRIORITY_INSTRUCTION="This appears to be primarily a version/build update with no significant code changes."
+  fi
+
+  # Create the JSON payload for the Gemini API
+  JSON_PAYLOAD=$(jq -n --arg changes "$CHANGES_SUMMARY" --arg priority "$PRIORITY_INSTRUCTION" \
+    '{
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "Based on the following git changes summary, suggest a concise commit message in the conventional commit format (e.g., feat: summary, fix: summary, chore: summary).\n\n\($priority)\n\nThe message should have a subject line and an optional, brief body if needed. Prioritize the most important functional changes over version number updates.\n\n\($changes)"
+            }
+          ]
+        }
+      ]
+    }')
+
+  # Debug: Check JSON payload size
+  echo "Debug: JSON payload size: $(echo "$JSON_PAYLOAD" | wc -c) characters"
+
+  # Retry logic for Gemini API calls
+  MAX_RETRIES=3
+  RETRY_COUNT=0
+  COMMIT_MSG=""
+
+  while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ -z "$COMMIT_MSG" ]; do
+      if [ $RETRY_COUNT -gt 0 ]; then
+          echo "🔄 Retry attempt $RETRY_COUNT of $MAX_RETRIES..."
+          sleep 2
+      fi
+
+      # Call the Gemini API using the 'gemini-1.5-flash' model
+      API_RESPONSE=$(curl -s -X POST \
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$JSON_PAYLOAD")
+
+      # Parse the response to get the commit message text and clean it up
+      COMMIT_MSG=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null | sed 's/`//g')
+
+      # Check if the commit message was generated successfully
+      API_ERROR=$(echo "$API_RESPONSE" | jq -r '.error.message' 2>/dev/null)
+      if [ "$COMMIT_MSG" != "null" ] && [ -n "$COMMIT_MSG" ] && [ "$API_ERROR" == "null" ]; then
+          break
+      fi
+
+      echo "⚠️  API call failed (attempt $((RETRY_COUNT + 1)))"
+      if [ "$API_ERROR" != "null" ]; then
+          echo "API Error: $API_ERROR"
+      fi
+      
+      RETRY_COUNT=$((RETRY_COUNT + 1))
+      COMMIT_MSG=""
+  done
+
+  # Check if all retries failed
+  if [ -z "$COMMIT_MSG" ] || [ "$COMMIT_MSG" == "null" ]; then
+      echo "❌ Error: Failed to generate AI commit message after $MAX_RETRIES attempts."
+      echo "⚠️  Falling back to simple commit message..."
+      
+      COMMIT_MSG="feat: build v${VERSION} with app improvements
+
+- Application functionality improvements and fixes
+- Built debug APK v${VERSION}
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+  else
+      # Add Claude Code attribution to AI-generated message
+      COMMIT_MSG="${COMMIT_MSG}
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+  fi
+
+  echo -e "📄 Generated Commit Message:\n---\n$COMMIT_MSG\n---"
+
+  # NOW stage the files since AI commit message generation succeeded
   echo "📦 Staging all changes for commit..."
   git add . 2>/dev/null || true
+
   git commit -m "$COMMIT_MSG"
   
   # Get current branch name

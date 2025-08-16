@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getTextAlignmentClasses, getTextDirection } from '../../utils/rtlUtils';
 
 const MOBILE_BREAKPOINT = 768; // px threshold for mobile
 
@@ -38,9 +39,10 @@ const TreeItem = ({
       {...props}
     >
       <span
-        className="tree-item-label flex-1"
+        className={`tree-item-label flex-1 ${getTextAlignmentClasses(label)}`}
         onClick={handleLabelClick}
         style={{ cursor: isMobile ? 'default' : 'pointer' }}
+        dir={getTextDirection(label)}
       >
         {label}
       </span>
