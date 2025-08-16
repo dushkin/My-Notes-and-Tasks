@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# build.sh — Debug APK builder (uses .env.debug via Vite --mode debug)
+# build-simple.sh — Debug APK builder (without AI commit messages)
 # - Builds web assets in DEBUG mode (.env.debug)
 # - Syncs Capacitor Android project
 # - Updates android/app/build.gradle versionName/versionCode from package.json
 # - Builds the DEBUG APK
 # - Copies APK into ./public (not committed)
-# - Commits AFTER edits, pushing: build.sh, package.json, package-lock.json, android/app/build.gradle
+# - Commits with simple conventional commit message
 #
 set -euo pipefail
 
@@ -117,91 +117,42 @@ if [[ -f "${GRADLE_FILE}.bak" ]]; then
   rm -f "${GRADLE_FILE}.bak"
 fi
 
-# 8) Commit AFTER all edits (push ALL changes with AI-generated message)
+# 8) Commit with simple conventional commit message
 echo
 echo "💾 Preparing to commit ALL changes and build files"
 
-# Check if there are any changes to commit (without staging yet)
+# Check if there are any changes to commit
 if git diff --quiet && git diff --cached --quiet; then
   echo "ℹ️  No changes to commit."
 else
-  # --- AI Commit Message Generation BEFORE staging ---
-  if [ -z "$GOOGLE_API_KEY" ]; then
-      echo "❌ Error: GOOGLE_API_KEY environment variable is not set."
-      echo "Please export your Google API key before running this script:"
-      echo "export GOOGLE_API_KEY=\"YOUR_API_KEY_HERE\""
-      exit 1
-  fi
-
-  # Get the diff that WOULD BE staged (but don't stage yet)
-  STAGED_DIFF=$(git diff --stat)
-  STAGED_DIFF_SAMPLE=$(git diff | head -n 200)
-
-  echo "🤖 Asking the AI to generate a commit message..."
-
-  # Create a summary of changes for the AI, excluding version-only changes
-  CHANGED_FILES=$(git diff --name-only | tr '\n' ', ' | sed 's/,$//')
+  # Generate a simple conventional commit message
+  CHANGED_FILES=$(git diff --name-only | wc -l)
+  HAS_MEANINGFUL_CHANGES=$(git diff --name-only -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | wc -l)
   
-  # Get diff excluding version/build files to focus on meaningful changes  
-  MEANINGFUL_DIFF=$(git diff -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | head -n 150)
-  VERSION_DIFF=$(git diff -- 'package.json' 'android/app/build.gradle' | head -n 50)
-  
-  # Check if we have meaningful changes beyond version bumps
-  if [ -n "$MEANINGFUL_DIFF" ]; then
-    CHANGES_SUMMARY="Files changed: $CHANGED_FILES\n\nMeaningful code changes (excluding version files):\n$MEANINGFUL_DIFF\n\nVersion/build changes:\n$VERSION_DIFF\n\nDiff stats:\n$STAGED_DIFF"
-    PRIORITY_INSTRUCTION="IMPORTANT: Focus on the meaningful code changes (new features, bug fixes, improvements) rather than version number updates. The version changes are secondary."
+  if [[ "$HAS_MEANINGFUL_CHANGES" -gt 0 ]]; then
+    # Get recent commit messages to describe what changed (exclude build commits)
+    RECENT_CHANGES=$(git log --oneline --since="1 week ago" --format="- %s" | grep -E "^- (feat:|fix:|refactor:)" | grep -v "^- (feat: build|build:)" | head -5)
+    if [[ -z "$RECENT_CHANGES" ]]; then
+      RECENT_CHANGES="- Various application improvements and bug fixes"
+    fi
+    
+    COMMIT_MSG="feat: build v${VERSION} with app improvements
+
+${RECENT_CHANGES}
+- Built debug APK v${VERSION}"
   else
-    CHANGES_SUMMARY="Files changed: $CHANGED_FILES\n\nChanges (mainly version/build updates):\n$STAGED_DIFF_SAMPLE\n\nDiff stats:\n$STAGED_DIFF"
-    PRIORITY_INSTRUCTION="This appears to be primarily a version/build update with no significant code changes."
+    COMMIT_MSG="build: release v${VERSION}
+
+- Auto-increment version to ${VERSION}
+- Update Android versionName and versionCode
+- Build debug APK"
   fi
 
-  # Create the JSON payload for the Gemini API
-  JSON_PAYLOAD=$(jq -n --arg changes "$CHANGES_SUMMARY" --arg priority "$PRIORITY_INSTRUCTION" \
-    '{
-      "contents": [
-        {
-          "parts": [
-            {
-              "text": "Based on the following git changes summary, suggest a concise commit message in the conventional commit format (e.g., feat: summary, fix: summary, chore: summary).\n\n\($priority)\n\nThe message should have a subject line and an optional, brief body if needed. Prioritize the most important functional changes over version number updates.\n\n\($changes)"
-            }
-          ]
-        }
-      ]
-    }')
+  echo -e "📄 Commit Message:\n---\n$COMMIT_MSG\n---"
 
-  # Debug: Check JSON payload size
-  echo "Debug: JSON payload size: $(echo "$JSON_PAYLOAD" | wc -c) characters"
-
-  # Call the Gemini API using the 'gemini-1.5-flash' model
-  API_RESPONSE=$(curl -s -X POST \
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "$JSON_PAYLOAD")
-
-  # Debug: Show API response
-  echo "Debug: API Response: $API_RESPONSE"
-
-  # Parse the response to get the commit message text and clean it up
-  COMMIT_MSG=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null | sed 's/`//g')
-
-  # Check if the commit message was generated successfully by looking for actual API errors
-  API_ERROR=$(echo "$API_RESPONSE" | jq -r '.error.message' 2>/dev/null)
-  if [ "$COMMIT_MSG" == "null" ] || [ -z "$COMMIT_MSG" ] || [ "$API_ERROR" != "null" ]; then
-      echo "❌ Error: Failed to generate AI commit message."
-      if [ "$API_ERROR" != "null" ]; then
-          echo "API Error: $API_ERROR"
-      fi
-      echo "Full API Response: $API_RESPONSE"
-      echo "⚠️  Exiting without staging files to avoid leaving them in staged state."
-      exit 1
-  fi
-
-  echo -e "📄 Generated Commit Message:\n---\n$COMMIT_MSG\n---"
-
-  # NOW stage the files since AI commit message generation succeeded
+  # Stage and commit
   echo "📦 Staging all changes for commit..."
   git add . 2>/dev/null || true
-
   git commit -m "$COMMIT_MSG"
   
   # Get current branch name

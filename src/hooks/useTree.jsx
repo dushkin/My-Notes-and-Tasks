@@ -1,7 +1,7 @@
 // ============================================================================
 // REACT AND HOOKS
 // ============================================================================
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 // ============================================================================
 // THIRD-PARTY LIBRARIES
@@ -332,9 +332,49 @@ export const useTree = (currentUser) => {
     console.log('📡 Item created and added to tree from real-time sync:', newItem.id);
   }, [tree, setTreeWithUndo]);
 
+  // Track recent user actions to prevent socket conflicts
+  const recentUserActionRef = useRef(false);
+  const userActionTimeoutRef = useRef(null);
+
+  // Helper to block socket updates temporarily after user actions
+  const blockSocketUpdatesTemporarily = useCallback(() => {
+    recentUserActionRef.current = true;
+    
+    // Clear any existing timeout and set a new one
+    if (userActionTimeoutRef.current) {
+      clearTimeout(userActionTimeoutRef.current);
+    }
+    
+    userActionTimeoutRef.current = setTimeout(() => {
+      recentUserActionRef.current = false;
+      userActionTimeoutRef.current = null;
+    }, 1000); // Short 1-second window
+  }, []);
+
+  // Wrapped undo function that blocks socket updates temporarily
+  const wrappedUndoTreeChange = useCallback(() => {
+    blockSocketUpdatesTemporarily();
+    undoTreeChange();
+  }, [undoTreeChange, blockSocketUpdatesTemporarily]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (userActionTimeoutRef.current) {
+        clearTimeout(userActionTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle item moved from another device via socket
   const handleItemMovedFromSocket = useCallback((data) => {
     if (!data || !data.itemId) return;
+    
+    // Ignore socket move events shortly after any user action
+    if (recentUserActionRef.current) {
+      console.log('📡 Ignoring socket move event due to recent user action');
+      return;
+    }
     
     const { itemId, newParentId } = data;
     console.log('📡 Item moved from real-time sync:', { itemId, newParentId });
@@ -1181,6 +1221,9 @@ export const useTree = (currentUser) => {
       
       // Single undo entry for the entire operation
       setTreeWithUndo(finalOptimisticTree);
+      
+      // Block socket updates temporarily after user-initiated move
+      blockSocketUpdatesTemporarily();
 
       try {
         const response = await authFetch(`/items/${currentDraggedId}/move`, {
@@ -1229,7 +1272,7 @@ export const useTree = (currentUser) => {
         };
       }
     },
-    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo, undoTreeChange, updateTreePresentOnly]
+    [draggedId, tree, fetchUserTree, expandFolderPath, setTreeWithUndo, wrappedUndoTreeChange, updateTreePresentOnly, blockSocketUpdatesTemporarily]
   );
   const copyItem = useCallback(
     (itemId) => {
@@ -1898,7 +1941,7 @@ export const useTree = (currentUser) => {
     searchItems,
     getItemPath,
     expandFolderPath,
-    undoTreeChange,
+    undoTreeChange: wrappedUndoTreeChange,
     redoTreeChange,
     canUndoTree,
     canRedoTree,
