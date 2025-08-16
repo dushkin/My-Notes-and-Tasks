@@ -19,49 +19,69 @@ export const AutoRTLAlignment = Extension.create({
   },
 
   addProseMirrorPlugins() {
+    const processAlignment = (state) => {
+      const tr = state.tr;
+      let modified = false;
+
+      // Walk through all nodes in the document
+      state.doc.descendants((node, pos) => {
+        // Only process supported node types
+        if (!this.options.types.includes(node.type.name)) {
+          return;
+        }
+
+        // Skip empty nodes or nodes shorter than minimum length
+        const textContent = node.textContent.trim();
+        if (!textContent || textContent.length < this.options.minLength) {
+          return;
+        }
+
+        // Detect if content is RTL or LTR
+        const shouldBeRTL = isRTLText(textContent);
+        const targetAlignment = shouldBeRTL ? 'right' : 'left';
+        
+        // Get current alignment
+        const currentAlignment = node.attrs.textAlign || 'left';
+        
+        // Only update if alignment needs to change
+        if (currentAlignment !== targetAlignment) {
+          tr.setNodeMarkup(pos, null, {
+            ...node.attrs,
+            textAlign: targetAlignment
+          });
+          modified = true;
+        }
+      });
+
+      return modified ? tr : null;
+    };
+
     return [
       new Plugin({
         key: new PluginKey('autoRTLAlignment'),
         
+        // Process alignment when editor content is set/loaded
+        state: {
+          init: (config, state) => {
+            // Process initial content alignment
+            setTimeout(() => {
+              const tr = processAlignment(state);
+              if (tr && this.editor?.view) {
+                this.editor.view.dispatch(tr);
+              }
+            }, 0);
+            return {};
+          },
+          apply: (tr, pluginState) => pluginState,
+        },
+
+        // Process alignment on content changes
         appendTransaction: (transactions, oldState, newState) => {
           // Only process if there was actual content change
           const hasContentChange = transactions.some(tr => tr.docChanged);
           if (!hasContentChange) return null;
 
-          const tr = newState.tr;
-          let modified = false;
-
-          // Walk through all nodes in the document
-          newState.doc.descendants((node, pos) => {
-            // Only process supported node types
-            if (!this.options.types.includes(node.type.name)) {
-              return;
-            }
-
-            // Skip empty nodes or nodes shorter than minimum length
-            const textContent = node.textContent.trim();
-            if (!textContent || textContent.length < this.options.minLength) {
-              return;
-            }
-
-            // Detect if content is RTL or LTR
-            const shouldBeRTL = isRTLText(textContent);
-            const targetAlignment = shouldBeRTL ? 'right' : 'left';
-            
-            // Get current alignment
-            const currentAlignment = node.attrs.textAlign || 'left';
-            
-            // Only update if alignment needs to change
-            if (currentAlignment !== targetAlignment) {
-              tr.setNodeMarkup(pos, null, {
-                ...node.attrs,
-                textAlign: targetAlignment
-              });
-              modified = true;
-            }
-          });
-
-          return modified ? tr : null;
+          return processAlignment(newState);
         },
       }),
     ];

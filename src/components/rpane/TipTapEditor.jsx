@@ -452,6 +452,39 @@ const TipTapEditor = ({
       if (safeContent !== currentHTML) {
         console.log('🔄 TipTap setting HTML content:', safeContent);
         editor.commands.setContent(safeContent, true); // true = parse as HTML
+        
+        // Trigger RTL alignment processing after content is set
+        setTimeout(() => {
+          if (editor.view) {
+            const state = editor.view.state;
+            const tr = state.tr;
+            let modified = false;
+
+            // Process alignment for all nodes
+            state.doc.descendants((node, pos) => {
+              if (!['paragraph', 'heading'].includes(node.type.name)) return;
+              
+              const textContent = node.textContent.trim();
+              if (!textContent || textContent.length < 1) return;
+
+              const shouldBeRTL = isRTLText(textContent);
+              const targetAlignment = shouldBeRTL ? 'right' : 'left';
+              const currentAlignment = node.attrs.textAlign || 'left';
+              
+              if (currentAlignment !== targetAlignment) {
+                tr.setNodeMarkup(pos, null, {
+                  ...node.attrs,
+                  textAlign: targetAlignment
+                });
+                modified = true;
+              }
+            });
+
+            if (modified) {
+              editor.view.dispatch(tr);
+            }
+          }
+        }, 50);
       }
 
       contentSetRef.current = true;
