@@ -130,11 +130,15 @@ else
   HAS_MEANINGFUL_CHANGES=$(git diff --name-only -- ':!package.json' ':!package-lock.json' ':!android/app/build.gradle' | wc -l)
   
   if [[ "$HAS_MEANINGFUL_CHANGES" -gt 0 ]]; then
+    # Get recent commit messages to describe what changed
+    RECENT_CHANGES=$(git log --oneline --since="1 week ago" --grep="feat\|fix\|refactor" --format="- %s" | head -5)
+    if [[ -z "$RECENT_CHANGES" ]]; then
+      RECENT_CHANGES="- Various application improvements and bug fixes"
+    fi
+    
     COMMIT_MSG="feat: build v${VERSION} with app improvements
 
-- Updated mobile keyboard handling for login forms
-- Improved system keyboard compatibility
-- Enhanced form accessibility on mobile devices
+${RECENT_CHANGES}
 - Built debug APK v${VERSION}"
   else
     COMMIT_MSG="build: release v${VERSION}
