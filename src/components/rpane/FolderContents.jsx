@@ -6,6 +6,7 @@ import SetReminderDialog from "../reminders/SetReminderDialog";
 import { setReminder } from "../../utils/reminderUtils";
 import ContextMenu from "../tree/ContextMenu"; // Ensure ContextMenu is imported if used here
 import { MoreVertical } from "lucide-react";
+import { getTextAlignmentClasses, getTextDirection } from "../../utils/rtlUtils";
 
 const FolderContents = ({
   folder,
@@ -155,7 +156,8 @@ const FolderContents = ({
                   child.type === "task" && child.completed
                     ? "line-through text-zinc-500 dark:text-zinc-400"
                     : ""
-                }`}
+                } ${getTextAlignmentClasses(child.label)}`}
+                dir={getTextDirection(child.label)}
               >
                 {child.label}
                 {reminder && (

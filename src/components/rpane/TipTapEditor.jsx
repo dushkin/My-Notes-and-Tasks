@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import { marked } from "marked";
 import { authFetch } from "../../services/apiClient";
+import { isRTLText } from "../../utils/rtlUtils";
+import AutoRTLAlignment from "../extensions/AutoRTLAlignment";
 
 // Decode HTML entities if they exist
 const decodeHtmlEntities = (str) => {
@@ -251,6 +253,7 @@ const TipTapEditor = ({
       }),
       Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      AutoRTLAlignment.configure({ types: ["paragraph", "heading"] }),
     ],
 
     content: safeStringify(content),
@@ -287,7 +290,7 @@ const TipTapEditor = ({
 
       attributes: {
         class:
-          "prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3",
+          `prose prose-base md:prose-sm dark:prose-invert max-w-none focus:outline-none p-3 ${editorDir === 'rtl' ? 'text-right' : 'text-left'}`,
         dir: editorDir,
       },
 
@@ -461,6 +464,7 @@ const TipTapEditor = ({
 
   useEffect(() => {
     const targetDir = dir || initialDirection;
+    
     if (
       editor &&
       targetDir &&
@@ -468,6 +472,11 @@ const TipTapEditor = ({
     ) {
       setEditorDir(targetDir);
       editor.view.dom.setAttribute("dir", targetDir);
+      
+      // Update CSS classes for RTL/LTR alignment
+      const editorElement = editor.view.dom;
+      editorElement.classList.remove('text-left', 'text-right');
+      editorElement.classList.add(targetDir === 'rtl' ? 'text-right' : 'text-left');
       
       // Auto-set text alignment when direction changes programmatically
       const alignment = targetDir === "rtl" ? "right" : "left";
@@ -485,6 +494,11 @@ const TipTapEditor = ({
     const newDir = editorDir === "ltr" ? "rtl" : "ltr";
     setEditorDir(newDir);
     editor.view.dom.setAttribute("dir", newDir);
+    
+    // Update CSS classes for RTL/LTR alignment
+    const editorElement = editor.view.dom;
+    editorElement.classList.remove('text-left', 'text-right');
+    editorElement.classList.add(newDir === 'rtl' ? 'text-right' : 'text-left');
     
     // Auto-set text alignment based on direction
     const alignment = newDir === "rtl" ? "right" : "left";

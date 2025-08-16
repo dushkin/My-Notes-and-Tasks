@@ -1,4 +1,5 @@
 import React from "react";
+import { getTextAlignmentClasses, getTextDirection } from "../../utils/rtlUtils";
 
 const TaskItem = ({ task, onToggle }) => {
   if (!task) return null;
@@ -11,7 +12,10 @@ const TaskItem = ({ task, onToggle }) => {
           onChange={e => onToggle(e.target.checked)}
           className="form-checkbox"
         />
-        <span className={task.completed ? "line-through text-gray-500" : ""}>
+        <span 
+          className={`${task.completed ? "line-through text-gray-500" : ""} ${getTextAlignmentClasses(task.label)}`}
+          dir={getTextDirection(task.label)}
+        >
           {task.label}
         </span>
       </label>

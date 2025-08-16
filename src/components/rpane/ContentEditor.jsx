@@ -14,6 +14,7 @@ import SetReminderDialog from "../reminders/SetReminderDialog"; // Import the di
 import { setReminder, getReminder } from "../../utils/reminderUtils"; // Import utilities
 import { useIntentBasedSave } from "../../hooks/useIntentBasedSave";
 import VersionConflictDialog from "../ui/VersionConflictDialog";
+import { isRTLText } from "../../utils/rtlUtils";
 
 // Safe content conversion that prevents [object Object]
 const safeStringify = (value) => {
@@ -45,22 +46,6 @@ const formatTimestamp = (isoString) => {
   }).format(date);
 };
 
-const isRTLText = (text) => {
-  if (!text) return false;
-  
-  // Enhanced RTL character detection - covers Hebrew, Arabic, Persian, etc.
-  const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
-  const rtlMatches = text.match(rtlChars) || [];
-  
-  // Remove spaces, numbers, punctuation, and English letters for better analysis
-  const textForAnalysis = text.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
-  
-  if (textForAnalysis.length === 0) return false;
-  
-  // Lower threshold for better RTL detection (30% instead of 75%)
-  const rtlRatio = rtlMatches.length / textForAnalysis.length;
-  return rtlRatio > 0.3;
-};
 
 const ContentEditor = memo(
   ({
@@ -158,9 +143,22 @@ const ContentEditor = memo(
           // Auto-detect direction from title and content
           const titleText = item.title || '';
           const contentText = safeStringify(item.content) || '';
-          const combinedText = titleText + ' ' + contentText;
           
-          const detectedDir = isRTLText(combinedText) ? "rtl" : "ltr";
+          // Prioritize content over title for direction detection
+          let detectedDir = "ltr";
+          if (isRTLText(contentText)) {
+            detectedDir = "rtl";
+          } else if (isRTLText(titleText)) {
+            detectedDir = "rtl";
+          }
+          
+          // Fallback: check combined text if both title and content are short
+          if (!detectedDir || detectedDir === "ltr") {
+            const combinedText = titleText + ' ' + contentText;
+            if (combinedText.length < 10 && isRTLText(combinedText)) {
+              detectedDir = "rtl";
+            }
+          }
           setDir(detectedDir);
         }
       }
@@ -255,20 +253,7 @@ const ContentEditor = memo(
     // Enhanced RTL detection for title
     const isRtlTitle = useMemo(() => {
       const titleText = item?.label || item?.title || '';
-      if (!titleText) return false;
-      
-      // Enhanced RTL character detection - covers Hebrew, Arabic, Persian, etc.
-      const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
-      const rtlMatches = titleText.match(rtlChars) || [];
-      
-      // Remove spaces, numbers, punctuation, and English letters for better analysis
-      const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
-      
-      if (textForAnalysis.length === 0) return false;
-      
-      // Lower threshold for better RTL detection (30% instead of 75%)
-      const rtlRatio = rtlMatches.length / textForAnalysis.length;
-      return rtlRatio > 0.3;
+      return isRTLText(titleText);
     }, [item?.label, item?.title]);
 
     return (
