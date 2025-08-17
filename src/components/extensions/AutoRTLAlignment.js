@@ -39,15 +39,18 @@ export const AutoRTLAlignment = Extension.create({
         // Detect if content is RTL or LTR
         const shouldBeRTL = isRTLText(textContent);
         const targetAlignment = shouldBeRTL ? 'right' : 'left';
+        const targetDirection = shouldBeRTL ? 'rtl' : 'ltr';
         
-        // Get current alignment
+        // Get current alignment and direction
         const currentAlignment = node.attrs.textAlign || 'left';
+        const currentDirection = node.attrs.dir || 'ltr';
         
-        // Only update if alignment needs to change
-        if (currentAlignment !== targetAlignment) {
+        // Only update if alignment or direction needs to change
+        if (currentAlignment !== targetAlignment || currentDirection !== targetDirection) {
           tr.setNodeMarkup(pos, null, {
             ...node.attrs,
-            textAlign: targetAlignment
+            textAlign: targetAlignment,
+            dir: targetDirection
           });
           modified = true;
         }

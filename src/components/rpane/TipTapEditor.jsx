@@ -11,6 +11,8 @@ import FontFamily from "@tiptap/extension-font-family";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
+import Paragraph from "@tiptap/extension-paragraph";
+import Heading from "@tiptap/extension-heading";
 import {
   Undo,
   Redo,
@@ -187,8 +189,43 @@ const TipTapEditor = ({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
+        heading: false, // We'll configure our own heading extension
+        paragraph: false, // We'll configure our own paragraph extension
         codeBlock: { languageClassPrefix: "language-" },
+      }),
+      // Custom paragraph extension with dir support
+      Paragraph.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            dir: {
+              default: null,
+              parseHTML: element => element.getAttribute('dir'),
+              renderHTML: attributes => {
+                if (!attributes.dir) return {};
+                return { dir: attributes.dir };
+              },
+            },
+          };
+        },
+      }),
+      // Custom heading extension with dir support
+      Heading.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            dir: {
+              default: null,
+              parseHTML: element => element.getAttribute('dir'),
+              renderHTML: attributes => {
+                if (!attributes.dir) return {};
+                return { dir: attributes.dir };
+              },
+            },
+          };
+        },
+      }).configure({
+        levels: [1, 2, 3],
       }),
       Link.configure({
         autolink: true,
