@@ -141,3 +141,88 @@
     text-align: left;
     direction: ltr;
 }
+
+/* RTL support for ordered list numbers positioning */
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] ol {
+    list-style: none !important;
+    counter-reset: rtl-counter;
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+}
+
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] ol li {
+    text-align: right !important;
+    direction: rtl !important;
+    counter-increment: rtl-counter;
+    position: relative !important;
+    padding-right: 2em !important;
+    padding-left: 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    list-style: none !important;
+}
+
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] ol li::before {
+    content: counter(rtl-counter) "." !important;
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+    width: 1.5em !important;
+    text-align: left !important;
+    direction: ltr !important;
+    display: block !important;
+}
+
+.tiptap-editor-content-area .ProseMirror[dir="ltr"] ol {
+    list-style-position: outside;
+    padding-left: 0;
+    margin-left: 0;
+}
+
+.tiptap-editor-content-area .ProseMirror[dir="ltr"] ol li {
+    text-align: left;
+    direction: ltr;
+}
+
+/* RTL support for unordered list bullets positioning */
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] ul {
+    list-style: none !important;
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+}
+
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] ul li {
+    text-align: right !important;
+    direction: rtl !important;
+    position: relative !important;
+    padding-right: 2em !important;
+    padding-left: 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    list-style: none !important;
+}
+
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] ul li::before {
+    content: "•" !important;
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+    width: 1.5em !important;
+    text-align: left !important;
+    display: block !important;
+}
+
+.tiptap-editor-content-area .ProseMirror[dir="ltr"] ul {
+    list-style-position: outside;
+    padding-left: 0;
+    margin-left: 0;
+}
+
+.tiptap-editor-content-area .ProseMirror[dir="ltr"] ul li {
+    text-align: left;
+    direction: ltr;
+}
