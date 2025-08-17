@@ -20,7 +20,7 @@ export const AutoRTLAlignment = Extension.create({
 
   addProseMirrorPlugins() {
     const processAlignment = (state) => {
-      const tr = state.tr;
+      let tr = null;
       let modified = false;
 
       // Walk through all nodes in the document
@@ -47,12 +47,22 @@ export const AutoRTLAlignment = Extension.create({
         
         // Only update if alignment or direction needs to change
         if (currentAlignment !== targetAlignment || currentDirection !== targetDirection) {
-          tr.setNodeMarkup(pos, null, {
-            ...node.attrs,
-            textAlign: targetAlignment,
-            dir: targetDirection
-          });
-          modified = true;
+          // Create transaction lazily only when needed
+          if (!tr) {
+            tr = state.tr;
+          }
+          
+          try {
+            tr.setNodeMarkup(pos, null, {
+              ...node.attrs,
+              textAlign: targetAlignment,
+              dir: targetDirection
+            });
+            modified = true;
+          } catch (error) {
+            console.warn('[AutoRTLAlignment] Failed to set node markup:', error);
+            return false; // Stop processing on error
+          }
         }
       });
 
@@ -63,28 +73,32 @@ export const AutoRTLAlignment = Extension.create({
       new Plugin({
         key: new PluginKey('autoRTLAlignment'),
         
-        // Process alignment when editor content is set/loaded
+        // Remove problematic init state handler
         state: {
-          init: (config, state) => {
-            // Process initial content alignment
-            setTimeout(() => {
-              const tr = processAlignment(state);
-              if (tr && this.editor?.view) {
-                this.editor.view.dispatch(tr);
-              }
-            }, 0);
-            return {};
-          },
+          init: () => ({}),
           apply: (tr, pluginState) => pluginState,
         },
 
-        // Process alignment on content changes
+        // Process alignment on content changes only
         appendTransaction: (transactions, oldState, newState) => {
-          // Only process if there was actual content change
-          const hasContentChange = transactions.some(tr => tr.docChanged);
+          // Skip if no content changes or if we're already processing RTL changes
+          const hasContentChange = transactions.some(tr => 
+            tr.docChanged && !tr.getMeta('autoRTLAlignment')
+          );
+          
           if (!hasContentChange) return null;
 
-          return processAlignment(newState);
+          try {
+            const tr = processAlignment(newState);
+            if (tr) {
+              // Mark this transaction to avoid infinite loops
+              tr.setMeta('autoRTLAlignment', true);
+            }
+            return tr;
+          } catch (error) {
+            console.warn('[AutoRTLAlignment] Transaction error:', error);
+            return null;
+          }
         },
       }),
     ];
