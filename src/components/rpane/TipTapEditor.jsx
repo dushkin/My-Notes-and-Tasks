@@ -582,35 +582,48 @@ const TipTapEditor = ({
         // Trigger RTL alignment processing after content is set
         setTimeout(() => {
           if (editor.view) {
-            const state = editor.view.state;
-            const tr = state.tr;
-            let modified = false;
+            try {
+              const state = editor.view.state;
+              let tr = state.tr;
+              let modified = false;
 
-            // Process alignment for all nodes
-            state.doc.descendants((node, pos) => {
-              if (!['paragraph', 'heading'].includes(node.type.name)) return;
-              
-              const textContent = node.textContent.trim();
-              if (!textContent || textContent.length < 1) return;
+              // Process alignment and direction for all nodes
+              state.doc.descendants((node, pos) => {
+                if (!['paragraph', 'heading'].includes(node.type.name)) return;
+                
+                const textContent = node.textContent.trim();
+                if (!textContent || textContent.length < 1) return;
 
-              const shouldBeRTL = isRTLText(textContent);
-              const targetAlignment = shouldBeRTL ? 'right' : 'left';
-              const currentAlignment = node.attrs.textAlign || 'left';
-              
-              if (currentAlignment !== targetAlignment) {
-                tr.setNodeMarkup(pos, null, {
-                  ...node.attrs,
-                  textAlign: targetAlignment
-                });
-                modified = true;
+                const shouldBeRTL = isRTLText(textContent);
+                const targetAlignment = shouldBeRTL ? 'right' : 'left';
+                const targetDirection = shouldBeRTL ? 'rtl' : 'ltr';
+                const currentAlignment = node.attrs.textAlign || 'left';
+                const currentDirection = node.attrs.dir || 'ltr';
+                
+                if (currentAlignment !== targetAlignment || currentDirection !== targetDirection) {
+                  try {
+                    tr.setNodeMarkup(pos, null, {
+                      ...node.attrs,
+                      textAlign: targetAlignment,
+                      dir: targetDirection
+                    });
+                    modified = true;
+                  } catch (error) {
+                    console.warn('Failed to set RTL markup on initial load:', error);
+                  }
+                }
+              });
+
+              if (modified) {
+                // Mark transaction to avoid conflicts with AutoRTLAlignment
+                tr.setMeta('autoRTLAlignment', true);
+                editor.view.dispatch(tr);
               }
-            });
-
-            if (modified) {
-              editor.view.dispatch(tr);
+            } catch (error) {
+              console.warn('Error processing initial RTL alignment:', error);
             }
           }
-        }, 50);
+        }, 100);
       }
 
       contentSetRef.current = true;
