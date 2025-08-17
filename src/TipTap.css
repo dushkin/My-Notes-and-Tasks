@@ -95,28 +95,36 @@
     direction: ltr;
 }
 
-/* Ensure paragraphs inherit the direction */
-.tiptap-editor-content-area .ProseMirror[dir="rtl"] p {
-    text-align: right;
+/* RTL support for individual paragraphs and headings */
+.tiptap-editor-content-area .ProseMirror p[dir="rtl"],
+.tiptap-editor-content-area .ProseMirror h1[dir="rtl"],
+.tiptap-editor-content-area .ProseMirror h2[dir="rtl"],
+.tiptap-editor-content-area .ProseMirror h3[dir="rtl"] {
     direction: rtl;
+    text-align: right;
 }
 
-.tiptap-editor-content-area .ProseMirror[dir="ltr"] p {
-    text-align: left;
+.tiptap-editor-content-area .ProseMirror p[dir="ltr"],
+.tiptap-editor-content-area .ProseMirror h1[dir="ltr"],
+.tiptap-editor-content-area .ProseMirror h2[dir="ltr"],
+.tiptap-editor-content-area .ProseMirror h3[dir="ltr"] {
     direction: ltr;
+    text-align: left;
 }
 
-/* RTL support for headings */
-.tiptap-editor-content-area .ProseMirror[dir="rtl"] h1,
-.tiptap-editor-content-area .ProseMirror[dir="rtl"] h2,
-.tiptap-editor-content-area .ProseMirror[dir="rtl"] h3 {
+/* Ensure paragraphs inherit the direction (fallback for older content) */
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] p:not([dir]),
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] h1:not([dir]),
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] h2:not([dir]),
+.tiptap-editor-content-area .ProseMirror[dir="rtl"] h3:not([dir]) {
     text-align: right;
     direction: rtl;
 }
 
-.tiptap-editor-content-area .ProseMirror[dir="ltr"] h1,
-.tiptap-editor-content-area .ProseMirror[dir="ltr"] h2,
-.tiptap-editor-content-area .ProseMirror[dir="ltr"] h3 {
+.tiptap-editor-content-area .ProseMirror[dir="ltr"] p:not([dir]),
+.tiptap-editor-content-area .ProseMirror[dir="ltr"] h1:not([dir]),
+.tiptap-editor-content-area .ProseMirror[dir="ltr"] h2:not([dir]),
+.tiptap-editor-content-area .ProseMirror[dir="ltr"] h3:not([dir]) {
     text-align: left;
     direction: ltr;
 }

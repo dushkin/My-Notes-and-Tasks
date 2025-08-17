@@ -2,30 +2,30 @@
   "cookies": [
     {
       "name": "_ga_CF3PJ7CVQY",
-      "value": "GS2.1.s1755292097$o1$g0$t1755292097$j60$l0$h0",
+      "value": "GS2.1.s1755430755$o1$g0$t1755430755$j60$l0$h0",
       "domain": "localhost",
       "path": "/",
-      "expires": 1789852097.341085,
+      "expires": 1789990755.194775,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "_ga",
-      "value": "GA1.1.2121060709.1755292097",
+      "value": "GA1.1.1399901763.1755430755",
       "domain": "localhost",
       "path": "/",
-      "expires": 1789852097.35414,
+      "expires": 1789990755.200882,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "_ga_04KHSW4LBT",
-      "value": "GS2.1.s1755292097$o1$g0$t1755292101$j56$l0$h0",
+      "value": "GS2.1.s1755430755$o1$g0$t1755430755$j60$l0$h0",
       "domain": "localhost",
       "path": "/",
-      "expires": 1789852101.069129,
+      "expires": 1789990755.918851,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -37,7 +37,7 @@
       "localStorage": [
         {
           "name": "indexeddb_migration_completed",
-          "value": "{\"completed\":true,\"timestamp\":1755292101014,\"migratedCount\":0}"
+          "value": "{\"completed\":true,\"timestamp\":1755430755061,\"migratedCount\":0}"
         },
         {
           "name": "appSettings",

@@ -4,13 +4,15 @@ import { DOMParser } from "prosemirror-model";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
-import ResizableImageNodeView from "../ResizableImageNodeView";
+import ResizableImageNodeView from "../ResizableImageNodeView.js";
 import TextStyle from "@tiptap/extension-text-style";
 import { Extension } from "@tiptap/core";
 import FontFamily from "@tiptap/extension-font-family";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
+import Paragraph from "@tiptap/extension-paragraph";
+import Heading from "@tiptap/extension-heading";
 import {
   Undo,
   Redo,
@@ -124,13 +126,18 @@ const FontSizeExtension = Extension.create({
 });
 
 const uploadImageToServer = async (file) => {
+  console.log("[TipTap] Uploading image to server:", { fileName: file.name, fileSize: file.size });
+  
   const formData = new FormData();
   formData.append("image", file);
+  
   try {
     const response = await authFetch(`/images/upload`, {
       method: "POST",
       body: formData,
     });
+
+    console.log("[TipTap] Upload response status:", response.status);
 
     if (!response.ok) {
       const errorData = await response
@@ -143,11 +150,16 @@ const uploadImageToServer = async (file) => {
     }
 
     const data = await response.json();
-    return data.url || null;
+    console.log("[TipTap] Upload response data:", data);
+    
+    if (!data.url) {
+      throw new Error("Server response did not include image URL");
+    }
+    
+    return data.url;
   } catch (error) {
     console.error("Image upload error:", error);
-    alert(`Image upload failed: ${error.message}`);
-    return null;
+    throw error; // Re-throw the error instead of returning null
   }
 };
 
@@ -177,8 +189,43 @@ const TipTapEditor = ({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
+        heading: false, // We'll configure our own heading extension
+        paragraph: false, // We'll configure our own paragraph extension
         codeBlock: { languageClassPrefix: "language-" },
+      }),
+      // Custom paragraph extension with dir support
+      Paragraph.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            dir: {
+              default: null,
+              parseHTML: element => element.getAttribute('dir'),
+              renderHTML: attributes => {
+                if (!attributes.dir) return {};
+                return { dir: attributes.dir };
+              },
+            },
+          };
+        },
+      }),
+      // Custom heading extension with dir support
+      Heading.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            dir: {
+              default: null,
+              parseHTML: element => element.getAttribute('dir'),
+              renderHTML: attributes => {
+                if (!attributes.dir) return {};
+                return { dir: attributes.dir };
+              },
+            },
+          };
+        },
+      }).configure({
+        levels: [1, 2, 3],
       }),
       Link.configure({
         autolink: true,
@@ -194,26 +241,39 @@ const TipTapEditor = ({
         group: "inline",
         inline: true,
         draggable: true,
+        selectable: true,
+        atom: true,
 
         addAttributes() {
           return {
-            ...this.parent?.(),
             src: {
               default: null,
               parseHTML: (element) => element.getAttribute("src"),
+              renderHTML: (attributes) => {
+                if (!attributes.src) return {};
+                return { src: attributes.src };
+              },
             },
             alt: {
               default: null,
               parseHTML: (element) => element.getAttribute("alt"),
+              renderHTML: (attributes) => {
+                if (!attributes.alt) return {};
+                return { alt: attributes.alt };
+              },
             },
             title: {
               default: null,
               parseHTML: (element) => element.getAttribute("title"),
+              renderHTML: (attributes) => {
+                if (!attributes.title) return {};
+                return { title: attributes.title };
+              },
             },
             width: {
-              default: null,
+              default: "auto",
               parseHTML: (element) =>
-                element.style.width || element.getAttribute("width"),
+                element.style.width || element.getAttribute("width") || "auto",
               renderHTML: (attributes) => {
                 const width = String(attributes.width || "auto").trim();
                 if (width === "auto" || !width || width === "null") {
@@ -225,7 +285,34 @@ const TipTapEditor = ({
                 return { style: "width: auto; max-width: 100%;" };
               },
             },
+            crossorigin: {
+              default: null,
+              parseHTML: (element) => element.getAttribute("crossorigin"),
+              renderHTML: (attributes) => {
+                if (!attributes.crossorigin) return {};
+                return { crossorigin: attributes.crossorigin };
+              },
+            },
           };
+        },
+
+        parseHTML() {
+          return [
+            {
+              tag: 'img[src]',
+              getAttrs: (dom) => ({
+                src: dom.getAttribute('src'),
+                alt: dom.getAttribute('alt'),
+                title: dom.getAttribute('title'),
+                width: dom.style.width || dom.getAttribute('width') || 'auto',
+                crossorigin: dom.getAttribute('crossorigin'),
+              }),
+            },
+          ];
+        },
+
+        renderHTML({ HTMLAttributes }) {
+          return ['img', HTMLAttributes];
         },
 
         addNodeView() {
@@ -236,6 +323,17 @@ const TipTapEditor = ({
               getPos,
               HTMLAttributes
             );
+          };
+        },
+
+        addCommands() {
+          return {
+            setImage: (options) => ({ commands }) => {
+              return commands.insertContent({
+                type: this.name,
+                attrs: options,
+              });
+            },
           };
         },
       }).configure({
@@ -295,26 +393,39 @@ const TipTapEditor = ({
       },
 
       handlePaste: (view, event, slice) => {
+        // Immediate check for file paths in text to prevent them from appearing
+        const text = event.clipboardData?.getData("text/plain");
+        const filePathPattern = /^[a-zA-Z]:[\\\/].*\.(png|jpg|jpeg|gif|bmp|webp)$/i;
+        
+        if (text && filePathPattern.test(text.trim())) {
+          console.log("[TipTap] Blocking file path paste:", text.trim());
+          event.preventDefault();
+          event.stopPropagation();
+          return true; // Block this paste completely
+        }
+        
         const items = event.clipboardData?.items;
-
+        
         if (items) {
+          // Look for any image items (including screenshots)
           for (let i = 0; i < items.length; i++) {
             const clipboardItem = items[i];
-            if (
-              clipboardItem.type.startsWith("image/") &&
-              clipboardItem.kind === "file"
-            ) {
+            
+            // Check for any image type
+            if (clipboardItem.type.startsWith("image/")) {
+              console.log("[TipTap] Image detected, processing...");
               event.preventDefault();
+              event.stopPropagation();
+              
               const file = clipboardItem.getAsFile();
               if (file) {
-                handleImageUpload(file, view);
+                handleImageUpload(file, view, null);
+                return true;
               }
-              return true;
             }
           }
         }
 
-        const text = event.clipboardData?.getData("text/plain");
         const html = event.clipboardData?.getData("text/html");
 
         const commonMarkdownPatterns =
@@ -370,72 +481,87 @@ const TipTapEditor = ({
     },
   });
 
+  const convertFileToDataURL = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleImageUpload = async (file, view, event = null) => {
+    console.log("[TipTap] Starting image upload:", { fileName: file.name, fileSize: file.size, fileType: file.type });
+    
     try {
-      const url = await uploadImageToServer(file);
-      if (url && view && view.editable) {
-        const img = new window.Image();
-        img.onload = () => {
-          const { naturalWidth } = img;
-          const { schema } = view.state;
+      if (!file.type.startsWith('image/')) {
+        console.error("[TipTap] Invalid file type:", file.type);
+        alert("Please select a valid image file.");
+        return;
+      }
 
-          let insertPos;
-          if (event) {
-            const coordinates = view.posAtCoords({
-              left: event.clientX,
-              top: event.clientY,
-            });
-            insertPos = coordinates?.pos;
-          } else {
-            insertPos = view.state.selection.from;
-          }
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        console.error("[TipTap] File too large:", file.size);
+        alert("Image file is too large. Please select an image smaller than 10MB.");
+        return;
+      }
 
-          if (insertPos !== undefined) {
-            const imageNode = schema.nodes.resizableImage.create({
-              src: url,
-              width: `${naturalWidth}px`,
-            });
-            const tr = view.state.tr.insert(insertPos, imageNode);
-            const spaceNode = schema.text(" ");
-            tr.insert(insertPos + imageNode.nodeSize, spaceNode);
-            view.dispatch(tr);
-            view.focus();
-          }
-        };
+      const { schema } = view.state;
 
-        img.onerror = () => {
-          const { schema } = view.state;
-          let insertPos;
+      // Check if schema has the resizableImage node
+      if (!schema.nodes.resizableImage) {
+        console.error("[TipTap] resizableImage node not found in schema. Available nodes:", Object.keys(schema.nodes));
+        alert("Image extension not properly configured.");
+        return;
+      }
 
-          if (event) {
-            const coordinates = view.posAtCoords({
-              left: event.clientX,
-              top: event.clientY,
-            });
-            insertPos = coordinates?.pos;
-          } else {
-            insertPos = view.state.selection.from;
-          }
-
-          if (insertPos !== undefined) {
-            const imageNode = schema.nodes.resizableImage.create({
-              src: url,
-              width: "300px",
-            });
-            const tr = view.state.tr.insert(insertPos, imageNode);
-            const spaceNode = schema.text(" ");
-            tr.insert(insertPos + imageNode.nodeSize, spaceNode);
-            view.dispatch(tr);
-            view.focus();
-          }
-        };
-
-        img.src = url;
+      // For paste events, always use current selection
+      // For drag events, we could use coordinates, but selection is more reliable
+      const { selection } = view.state;
+      console.log("[TipTap] Using current selection for insertion:", selection.from, "to:", selection.to);
+      
+      try {
+        // For smaller images (< 1MB), use data URL to avoid CORS issues
+        // For larger images, still try server upload
+        let imageSrc;
+        
+        if (file.size < 1024 * 1024) { // 1MB limit for data URLs
+          console.log("[TipTap] Converting to data URL to avoid CORS");
+          imageSrc = await convertFileToDataURL(file);
+          console.log("[TipTap] Data URL created, length:", imageSrc.length);
+        } else {
+          console.log("[TipTap] File too large for data URL, uploading to server");
+          imageSrc = await uploadImageToServer(file);
+          console.log("[TipTap] Upload successful, URL:", imageSrc);
+        }
+        
+        // Create image node with data URL or server URL
+        const imageNode = schema.nodes.resizableImage.create({
+          src: imageSrc,
+          width: "auto",
+          alt: file.name
+        });
+        
+        // Use the current selection for insertion
+        const tr = view.state.tr;
+        
+        // Insert the image at the current position
+        tr.replaceSelectionWith(imageNode);
+        
+        view.dispatch(tr);
+        view.focus();
+        
+        console.log("[TipTap] Image inserted successfully at selection:", selection.from, "to:", selection.to);
+      } catch (nodeError) {
+        console.error("[TipTap] Error creating image node:", nodeError);
+        alert("Failed to insert image into editor.");
       }
     } catch (err) {
       console.error("[TipTap] Error processing image:", err);
+      alert(`Image upload failed: ${err.message}`);
     }
   };
+
 
   useEffect(() => {
     if (editor && !contentSetRef.current) {
@@ -550,7 +676,7 @@ const TipTapEditor = ({
     input.onchange = async () => {
       if (input.files && input.files.length) {
         const file = input.files[0];
-        await handleImageUpload(file, editor.view);
+        await handleImageUpload(file, editor.view, null);
       }
     };
     input.click();
