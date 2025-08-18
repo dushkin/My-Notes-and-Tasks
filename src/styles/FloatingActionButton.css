@@ -1,0 +1,351 @@
+/* Floating Action Button Styles - Mobile-First Material Design */
+
+/* FAB Container */
+.fab-container {
+  pointer-events: none;
+}
+
+.fab-container * {
+  pointer-events: auto;
+}
+
+/* In-tree positioning for desktop */
+.fab-in-tree {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.fab-in-tree .fab-main {
+  position: relative;
+  z-index: 10;
+  /* Slightly smaller for in-tree positioning */
+  width: 3rem;
+  height: 3rem;
+}
+
+.fab-in-tree .fab-main svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Inline positioning for status bar integration */
+.fab-inline {
+  display: inline-flex;
+  align-items: center;
+  z-index: 50;
+  position: relative;
+}
+
+.fab-inline .fab-main {
+  position: relative;
+  z-index: 60;
+  /* Larger size for better usability */
+  width: 2.5rem;
+  height: 2.5rem;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.14);
+}
+
+.fab-inline .fab-main:hover {
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 2px 3px rgba(0, 0, 0, 0.14);
+}
+
+.fab-inline .fab-main svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.fab-inline .fab-menu {
+  min-width: 140px;
+  z-index: 100;
+  position: fixed !important;
+}
+
+/* Main FAB Button */
+.fab-main {
+  /* Material Design elevation */
+  box-shadow: 
+    0 3px 5px -1px rgba(0, 0, 0, 0.2),
+    0 6px 10px 0 rgba(0, 0, 0, 0.14),
+    0 1px 18px 0 rgba(0, 0, 0, 0.12);
+  
+  /* Ensure proper stacking */
+  position: relative;
+  z-index: 10;
+}
+
+.fab-main:hover {
+  box-shadow: 
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+}
+
+.fab-main:active {
+  box-shadow: 
+    0 7px 8px -4px rgba(0, 0, 0, 0.2),
+    0 12px 17px 2px rgba(0, 0, 0, 0.14),
+    0 5px 22px 4px rgba(0, 0, 0, 0.12);
+}
+
+.fab-main-expanded {
+  background-color: #ef4444 !important; /* red-500 */
+}
+
+.fab-main-expanded:hover {
+  background-color: #dc2626 !important; /* red-600 */
+}
+
+/* FAB Menu */
+.fab-menu {
+  min-width: 160px;
+  max-width: 220px;
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+  animation: fabMenuShow 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.fab-menu-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.fab-menu-entering {
+  animation: fabMenuShow 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* FAB Menu Items */
+.fab-menu-item {
+  opacity: 0;
+  transform: translateY(20px) scale(0.8);
+  box-shadow: 
+    0 2px 4px -1px rgba(0, 0, 0, 0.2),
+    0 4px 5px 0 rgba(0, 0, 0, 0.14),
+    0 1px 10px 0 rgba(0, 0, 0, 0.12);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.fab-menu-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fab-item-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.fab-item-entering {
+  animation: fabItemShow 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.fab-menu-item:hover {
+  box-shadow: 
+    0 3px 5px -1px rgba(0, 0, 0, 0.2),
+    0 6px 10px 0 rgba(0, 0, 0, 0.14),
+    0 1px 18px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* Backdrop */
+.fab-backdrop {
+  backdrop-filter: blur(2px);
+  animation: fadeIn 200ms ease-out forwards;
+}
+
+/* Animations */
+@keyframes fabMenuShow {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fabItemShow {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  .fab-container {
+    bottom: 5rem;
+    right: 1rem;
+  }
+  
+  .fab-main {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+  
+  .fab-menu {
+    bottom: 8rem;
+    min-width: 140px;
+  }
+  
+  .fab-menu-item {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Larger touch targets for mobile */
+  .fab-menu-item {
+    min-height: 48px;
+  }
+}
+
+/* Small mobile adjustments */
+@media (max-width: 480px) {
+  .fab-container {
+    bottom: 4.5rem;
+    right: 0.75rem;
+  }
+  
+  .fab-main {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .fab-menu {
+    bottom: 7.5rem;
+    min-width: 120px;
+  }
+  
+  .fab-menu-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* Large screen adjustments */
+@media (min-width: 1024px) {
+  .fab-container {
+    bottom: 2rem;
+    right: 2rem;
+  }
+  
+  .fab-main {
+    width: 4rem;
+    height: 4rem;
+  }
+  
+  .fab-menu {
+    bottom: 5rem;
+    min-width: 180px;
+  }
+  
+  .fab-menu-item {
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .fab-main {
+    border: 2px solid currentColor;
+  }
+  
+  .fab-menu-item {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .fab-main,
+  .fab-menu,
+  .fab-menu-item,
+  .fab-backdrop {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .fab-menu {
+    opacity: 1;
+    transform: none;
+  }
+  
+  .fab-menu-item {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Dark mode adjustments */
+.dark .fab-main {
+  background-color: #2563eb; /* blue-600 in dark mode */
+}
+
+.dark .fab-main:hover {
+  background-color: #1d4ed8; /* blue-700 in dark mode */
+}
+
+.dark .fab-main-expanded {
+  background-color: #ef4444 !important; /* red-500 */
+}
+
+.dark .fab-main-expanded:hover {
+  background-color: #dc2626 !important; /* red-600 */
+}
+
+/* Focus indicators */
+.fab-main:focus-visible,
+.fab-menu-item:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* RTL support */
+[dir="rtl"] .fab-container {
+  right: auto;
+  left: 1.5rem;
+}
+
+[dir="rtl"] .fab-menu {
+  right: auto;
+  left: 0;
+}
+
+@media (max-width: 768px) {
+  [dir="rtl"] .fab-container {
+    left: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  [dir="rtl"] .fab-container {
+    left: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  [dir="rtl"] .fab-container {
+    left: 2rem;
+  }
+}

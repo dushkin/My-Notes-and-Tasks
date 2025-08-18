@@ -5,6 +5,8 @@ import App from "./App.jsx";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import "./styles/index.css";
 import './TipTap.css';
+import './styles/FloatingActionButton.css';
+import './styles/AddDialog.css';
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

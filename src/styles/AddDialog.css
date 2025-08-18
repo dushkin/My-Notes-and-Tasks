@@ -1,0 +1,43 @@
+/* AddDialog Mobile Keyboard Support */
+
+/* Ensure mobile browsers use visual viewport */
+@supports (-webkit-appearance: none) {
+  .add-dialog-container {
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
+}
+
+/* Better scrolling on mobile */
+.reminder-section {
+  /* Ensure this section can be scrolled to when keyboard appears */
+  scroll-margin-bottom: 120px;
+  scroll-margin-top: 20px;
+}
+
+/* Smooth transitions when viewport changes */
+@media (max-width: 768px) {
+  .add-dialog-content {
+    transition: max-height 0.3s ease-out;
+  }
+  
+  /* Better spacing for mobile touch */
+  .reminder-section {
+    padding-bottom: 1rem;
+  }
+  
+  /* Ensure buttons stay accessible */
+  .dialog-buttons {
+    position: sticky;
+    bottom: 0;
+    background: inherit;
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* Handle different mobile keyboard behaviors */
+@supports (env(keyboard-inset-height)) {
+  .add-dialog-container {
+    padding-bottom: env(keyboard-inset-height);
+  }
+}

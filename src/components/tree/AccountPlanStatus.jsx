@@ -4,7 +4,7 @@ import { Gem, Crown, Infinity, Shield } from "lucide-react";
 
 const FREE_PLAN_ITEM_LIMIT = 100;
 
-const AccountPlanStatus = ({ user, currentItemCount }) => {
+const AccountPlanStatus = ({ user, currentItemCount, fabComponent = null }) => {
   if (!user) return null;
 
   const isAdmin = () => {
@@ -96,17 +96,24 @@ const AccountPlanStatus = ({ user, currentItemCount }) => {
     <div className="sticky bottom-0 bg-zinc-50 dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-600 p-3">
       <div className="space-y-2">
         {/* Plan Status */}
-        <div className="flex items-center gap-2">
-          {getPlanIcon()}
-          <span className={`text-sm font-medium ${
-            isAdmin()
-              ? "text-purple-700 dark:text-purple-400"
-              : isPaidPlan 
-                ? "text-yellow-700 dark:text-yellow-400" 
-                : "text-blue-700 dark:text-blue-400"
-          }`}>
-            {getPlanDisplayName()}
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {getPlanIcon()}
+            <span className={`text-sm font-medium ${
+              isAdmin()
+                ? "text-purple-700 dark:text-purple-400"
+                : isPaidPlan 
+                  ? "text-yellow-700 dark:text-yellow-400" 
+                  : "text-blue-700 dark:text-blue-400"
+            }`}>
+              {getPlanDisplayName()}
+            </span>
+          </div>
+          {fabComponent && (
+            <div className="fab-inline-container">
+              {fabComponent}
+            </div>
+          )}
         </div>
 
         {/* Item Count Display */}

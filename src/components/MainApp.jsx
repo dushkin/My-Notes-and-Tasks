@@ -72,6 +72,7 @@ import AboutDialog from "./dialogs/AboutDialog.jsx";
 import ExportDialog from "./dialogs/ExportDialog.jsx";
 import ImportDialog from "./dialogs/ImportDialog.jsx";
 import SettingsDialog from "./dialogs/SettingsDialog.jsx";
+import FloatingActionButton from "./ui/FloatingActionButton.jsx";
 import ConfirmDialog from "./dialogs/ConfirmDialog.jsx";
 import Login from "./dialogs/Login";
 import Register from "./dialogs/Register";
@@ -1180,6 +1181,42 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     },
     [showMessage, setContextMenu, isMobile]
   );
+
+  // Enhanced FAB handler with context-aware item creation
+  const handleFabCreateItem = useCallback((itemType) => {
+    console.log('🚀 handleFabCreateItem called with:', itemType, 'selectedItem:', selectedItem?.label);
+    
+    switch (itemType) {
+      case 'root-folder':
+        // Always create folders at root level
+        openAddDialog('folder', null);
+        break;
+        
+      case 'subfolder':
+        // Create subfolder in the currently selected folder
+        if (selectedItem && selectedItem.type === 'folder') {
+          openAddDialog('folder', selectedItem);
+        } else {
+          showMessage('Select a folder first to create a subfolder', 'error');
+        }
+        break;
+        
+      case 'note':
+      case 'task':
+        // Only allow creation if a folder is selected
+        if (selectedItem && selectedItem.type === 'folder') {
+          openAddDialog(itemType, selectedItem);
+        } else {
+          showMessage(`Select a folder first to create a ${itemType}`, 'error');
+        }
+        break;
+        
+      default:
+        console.warn('Unknown item type:', itemType);
+        break;
+    }
+  }, [openAddDialog, selectedItem, showMessage]);
+
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
     if (!trimmedLabel) {
@@ -2634,7 +2671,18 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       />
                       </div>
                     </div>
-                    <AccountPlanStatus user={currentUser} currentItemCount={currentItemCount} />
+                    <AccountPlanStatus 
+                      user={currentUser} 
+                      currentItemCount={currentItemCount}
+                      fabComponent={!isMobile ? (
+                        <FloatingActionButton 
+                          onCreateItem={handleFabCreateItem}
+                          selectedItem={selectedItem}
+                          disabled={!currentUser || currentUser.status === 'pending_deletion'}
+                          position="inline"
+                        />
+                      ) : null}
+                    />
                   </div>
                 </Panel>
                 <PanelResizeHandle className="w-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors" />
@@ -2935,6 +2983,16 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           onClose={() => removeFeedbackNotification(notification.id)}
         />
       ))}
+
+      {/* FAB for mobile - fixed position overlay */}
+      {isMobile && (
+        <FloatingActionButton 
+          onCreateItem={handleFabCreateItem}
+          selectedItem={selectedItem}
+          disabled={!currentUser || currentUser.status === 'pending_deletion'}
+          position="fixed"
+        />
+      )}
 
       {/* Connection Status Indicator */}
       <ConnectionStatus position="bottom-right" />
