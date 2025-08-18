@@ -124,9 +124,7 @@ const FloatingActionButton = ({
   };
 
   const handleItemCreate = (itemType) => {
-    console.log('🚀 FAB handleItemCreate called:', itemType);
     handleClose();
-    console.log('🚀 FAB calling onCreateItem:', itemType);
     onCreateItem(itemType);
   };
 
@@ -161,10 +159,7 @@ const FloatingActionButton = ({
         {itemTypes.map((item, index) => (
           <button
             key={item.type}
-            onClick={(e) => {
-              console.log('🚀 FAB menu button clicked:', item.type, e);
-              handleItemCreate(item.type);
-            }}
+            onClick={() => handleItemCreate(item.type)}
             className={`fab-menu-item group flex items-center gap-3 bg-white dark:bg-zinc-800 
                      text-zinc-900 dark:text-zinc-100 px-4 py-3 rounded-full shadow-lg 
                      border border-zinc-200 dark:border-zinc-700
