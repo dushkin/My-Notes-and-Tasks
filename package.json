@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-notes-and-tasks-modern",
-  "version": "15.6.4",
+  "version": "15.6.5",
   "private": true,
   "license": "Licensed CC BY-ND 4.0. No derivatives allowed.",
   "scripts": {
@@ -63,14 +63,10 @@
     "@tiptap/pm": "^2.12.0",
     "@tiptap/react": "^2.12.0",
     "@tiptap/starter-kit": "^2.12.0",
-    "bcrypt": "^6.0.0",
-    "bcryptjs": "^3.0.2",
-    "dotenv": "^17.0.0",
     "framer-motion": "^12.18.1",
     "jspdf": "^3.0.1",
     "lucide-react": "^0.503.0",
     "marked": "^15.0.12",
-    "mongoose": "^8.16.1",
     "prismjs": "^1.30.0",
     "react": "^18.3.1",
     "react-datepicker": "^8.4.0",

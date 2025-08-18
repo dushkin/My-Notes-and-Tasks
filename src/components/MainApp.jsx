@@ -1184,6 +1184,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
   // Enhanced FAB handler with context-aware item creation
   const handleFabCreateItem = useCallback((itemType) => {
+    console.log('🚀 handleFabCreateItem called with:', itemType, 'selectedItem:', selectedItem?.label);
+    
     switch (itemType) {
       case 'root-folder':
         // Always create folders at root level
@@ -1201,29 +1203,11 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         
       case 'note':
       case 'task':
+        // Only allow creation if a folder is selected
         if (selectedItem && selectedItem.type === 'folder') {
-          // Create in the selected folder
           openAddDialog(itemType, selectedItem);
         } else {
-          // No folder selected - find the first available folder or show message
-          const findFirstFolder = (items) => {
-            for (const item of items) {
-              if (item.type === 'folder') return item;
-              if (item.children) {
-                const found = findFirstFolder(item.children);
-                if (found) return found;
-              }
-            }
-            return null;
-          };
-          
-          const firstFolder = findFirstFolder(tree);
-          if (firstFolder) {
-            openAddDialog(itemType, firstFolder);
-            showMessage(`Adding ${itemType} to "${firstFolder.label}" folder`, 'info');
-          } else {
-            showMessage(`Create a root folder first to organize your ${itemType}s`, 'info');
-          }
+          showMessage(`Select a folder first to create a ${itemType}`, 'error');
         }
         break;
         
@@ -1231,7 +1215,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         console.warn('Unknown item type:', itemType);
         break;
     }
-  }, [openAddDialog, selectedItem, tree, showMessage]);
+  }, [openAddDialog, selectedItem, showMessage]);
 
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();

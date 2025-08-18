@@ -28,34 +28,30 @@ const FloatingActionButton = ({
       description: 'Create a new folder at root level'
     });
 
-    // If a folder is selected, allow subfolder creation
+    // Only show additional options if a folder is selected
     if (selectedItem && selectedItem.type === 'folder') {
+      // Allow subfolder creation
       baseTypes.push({
         type: 'subfolder',
         label: 'Subfolder',
         icon: '📂',
         description: `Create a subfolder in "${selectedItem.label}"`
       });
-    }
 
-    // If a folder is selected (or no selection), allow notes and tasks
-    if (!selectedItem || selectedItem.type === 'folder') {
+      // Allow note creation
       baseTypes.push({
         type: 'note',
         label: 'Note',
         icon: '📝',
-        description: selectedItem 
-          ? `Create a note in "${selectedItem.label}"`
-          : 'Create a note (will prompt for folder)'
+        description: `Create a note in "${selectedItem.label}"`
       });
       
+      // Allow task creation
       baseTypes.push({
         type: 'task',
         label: 'Task',
         icon: '✅',
-        description: selectedItem 
-          ? `Create a task in "${selectedItem.label}"`
-          : 'Create a task (will prompt for folder)'
+        description: `Create a task in "${selectedItem.label}"`
       });
     }
 
@@ -128,7 +124,9 @@ const FloatingActionButton = ({
   };
 
   const handleItemCreate = (itemType) => {
+    console.log('🚀 FAB handleItemCreate called:', itemType);
     handleClose();
+    console.log('🚀 FAB calling onCreateItem:', itemType);
     onCreateItem(itemType);
   };
 
@@ -155,11 +153,18 @@ const FloatingActionButton = ({
         } : {}}
         role="menu"
         aria-label="Item types"
+        // Prevent clicks inside the menu from closing it via the outside click handler,
+        // especially when using a portal.
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
         {itemTypes.map((item, index) => (
           <button
             key={item.type}
-            onClick={() => handleItemCreate(item.type)}
+            onClick={(e) => {
+              console.log('🚀 FAB menu button clicked:', item.type, e);
+              handleItemCreate(item.type);
+            }}
             className={`fab-menu-item group flex items-center gap-3 bg-white dark:bg-zinc-800 
                      text-zinc-900 dark:text-zinc-100 px-4 py-3 rounded-full shadow-lg 
                      border border-zinc-200 dark:border-zinc-700
