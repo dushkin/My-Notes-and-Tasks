@@ -194,7 +194,7 @@
 /* Mobile-specific adjustments */
 @media (max-width: 768px) {
   .fab-container {
-    bottom: 1rem;
+    bottom: 5rem;
     right: 1rem;
   }
   
@@ -204,7 +204,7 @@
   }
   
   .fab-menu {
-    bottom: 4rem;
+    bottom: 8rem;
     min-width: 140px;
   }
   
@@ -222,7 +222,7 @@
 /* Small mobile adjustments */
 @media (max-width: 480px) {
   .fab-container {
-    bottom: 0.75rem;
+    bottom: 4.5rem;
     right: 0.75rem;
   }
   
@@ -232,7 +232,7 @@
   }
   
   .fab-menu {
-    bottom: 3.5rem;
+    bottom: 7.5rem;
     min-width: 120px;
   }
   
