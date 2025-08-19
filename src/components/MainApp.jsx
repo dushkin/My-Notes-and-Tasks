@@ -125,7 +125,10 @@ import { useIsMobile } from "../hooks/useIsMobile";
 // UTILITIES
 // ============================================================================
 import { subscribeToPushNotifications } from "../utils/pushSubscriptionUtil";
-import { setupAndroidBackHandler, cleanupAndroidBackHandler } from "../utils/androidBackHandler";
+import {
+  setupAndroidBackHandler,
+  cleanupAndroidBackHandler,
+} from "../utils/androidBackHandler";
 import {
   findItemById,
   findParentAndSiblings,
@@ -196,6 +199,17 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
     }
   }, [message, currentUser]);
 
+  // Auto-clear after 5 seconds
+  useEffect(() => {
+    if (message && onClose) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [message, onClose]);
+
   if (!message) return null;
 
   const isSuccess = type === "success";
@@ -218,18 +232,15 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
 
   return (
     <div
-      className={`fixed top-0 left-0 right-0 z-50 ${bgColor} ${textColor} px-4 py-3 border-b ${borderColor} shadow-lg`}
-      style={{
-        marginTop: "var(--beta-banner-height, 0px)",
-      }}
+      className={`fixed top-4 right-4 z-[9999] w-auto max-w-sm ${bgColor} ${textColor} px-4 py-3 border ${borderColor} shadow-lg rounded-md`}
     >
-      <div className="container mx-auto max-w-7xl flex justify-between items-center">
+      <div className="flex justify-between items-center">
         <div className="flex-1 pr-4">
           <p className="text-sm font-medium">{message}</p>
         </div>
         <button
           onClick={onClose}
-          className={`flex-shrink-0 ml-2 p-1 rounded-full hover:bg-opacity-20 hover:bg-current transition-colors`}
+          className="flex-shrink-0 ml-2 p-1 rounded-full hover:bg-opacity-20 hover:bg-current transition-colors"
           aria-label="Close message"
         >
           <XCircle className="w-4 h-4" />
@@ -351,7 +362,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     };
 
     // Register only reminder-related socket listeners
-    // Tree-related events (treeReplaced, itemUpdated, itemMoved, itemDeleted, itemCreated) 
+    // Tree-related events (treeReplaced, itemUpdated, itemMoved, itemDeleted, itemCreated)
     // are handled by useRealTimeSync in useTree.jsx to avoid duplicate listeners
     socket.on("reminder:set", handleReminderSet);
     socket.on("reminder:clear", handleReminderClear);
@@ -436,22 +447,24 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     const detectSafari = () => {
       const userAgent = navigator.userAgent;
       const vendor = navigator.vendor;
-      
+
       // Check for Safari on all platforms (iOS, macOS, iPadOS)
-      const isSafari = /Safari/.test(userAgent) && 
-                       /Apple Computer/.test(vendor) && 
-                       !/Chrome|Chromium|CriOS|FxiOS|EdgiOS/.test(userAgent);
-      
+      const isSafari =
+        /Safari/.test(userAgent) &&
+        /Apple Computer/.test(vendor) &&
+        !/Chrome|Chromium|CriOS|FxiOS|EdgiOS/.test(userAgent);
+
       // Check for WebKit-based browsers on iOS that might have Safari-like behavior
-      const isIOSWebView = /iPhone|iPad|iPod/.test(userAgent) && 
-                           /WebKit/.test(userAgent) && 
-                           !/CriOS|FxiOS|EdgiOS/.test(userAgent);
-      
+      const isIOSWebView =
+        /iPhone|iPad|iPod/.test(userAgent) &&
+        /WebKit/.test(userAgent) &&
+        !/CriOS|FxiOS|EdgiOS/.test(userAgent);
+
       return isSafari || isIOSWebView;
     };
 
-    const hasShownWarning = localStorage.getItem('safari-warning-dismissed');
-    
+    const hasShownWarning = localStorage.getItem("safari-warning-dismissed");
+
     if (detectSafari() && !hasShownWarning) {
       setShowSafariWarning(true);
     }
@@ -495,15 +508,15 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   const [snoozeDialogOpen, setSnoozeDialogOpen] = useState(false);
   const [snoozeDialogData, setSnoozeDialogData] = useState(null);
   const [feedbackNotifications, setFeedbackNotifications] = useState([]);
-  
+
   // Mobile reminder popup state
   const [mobileReminderPopup, setMobileReminderPopup] = useState({
     isVisible: false,
-    title: '',
-    message: '',
+    title: "",
+    message: "",
     itemId: null,
     reminderId: null,
-    showDoneButton: true
+    showDoneButton: true,
   });
 
   // Reminder states
@@ -535,6 +548,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   );
   const showMessage = useCallback(
     (message, type = "error", duration = 8000) => {
+      console.log("📢 showMessage called:", { message, type, duration });
       setUiMessage(message);
       setUiMessageType(type);
     },
@@ -589,7 +603,11 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
       try {
         if (item.type === "note") {
-          result = await updateNoteContent(itemId, updates.content, updates.direction);
+          result = await updateNoteContent(
+            itemId,
+            updates.content,
+            updates.direction
+          );
         } else if (item.type === "task") {
           result = await updateTask(itemId, updates);
         }
@@ -618,7 +636,12 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         <button
           className="toolbar-toggle-button px-3 py-1 rounded bg-slate-500 text-white hover:bg-slate-600"
           onClick={toggleToolbar}
-          style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 60 }}
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            left: "20px",
+            zIndex: 60,
+          }}
         >
           {showToolbar ? "Hide Toolbar" : "Show Toolbar"}
         </button>
@@ -888,7 +911,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       // Some notifications (e.g. low‑importance drawer replacements) set skipPopup so the
       // in‑app popup is not displayed. Check for that flag and bail early.
       if (notificationData?.skipPopup) {
-        console.debug('🔕 Skipping in‑app popup for drawer‑only notification:', itemId);
+        console.debug(
+          "🔕 Skipping in‑app popup for drawer‑only notification:",
+          itemId
+        );
         return;
       }
 
@@ -901,7 +927,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       // Determine if app is currently visible (foreground). When in the foreground,
       // we cancel the system's heads‑up notification and schedule a low‑importance
       // notification in the drawer to avoid duplicate heads‑up alerts.
-      const isForeground = document.visibilityState === 'visible';
+      const isForeground = document.visibilityState === "visible";
       if (isForeground) {
         try {
           // Cancel the high‑priority notification so only our in‑app popup remains
@@ -911,23 +937,26 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           notificationService.scheduleDrawerNotification({
             itemId,
             timestamp: Date.now(),
-            itemTitle: itemTitle || 'Untitled',
-            originalReminder: notificationData?.originalReminder || null
+            itemTitle: itemTitle || "Untitled",
+            originalReminder: notificationData?.originalReminder || null,
           });
         } catch (err) {
-          console.warn('⚠️ Failed to downgrade notification for item', itemId, err);
+          console.warn(
+            "⚠️ Failed to downgrade notification for item",
+            itemId,
+            err
+          );
         }
       }
 
       if (isMobileDevice) {
         setMobileReminderPopup({
           isVisible: true,
-          title: '⏰ Reminder',
-          message: `Don't forget: ${itemTitle || 'Untitled'}`,
+          title: "⏰ Reminder",
+          message: `Don't forget: ${itemTitle || "Untitled"}`,
           itemId: itemId,
           reminderId: notificationData?.reminderId,
-          showDoneButton:
-            notificationData?.reminderDisplayDoneButton ?? true,
+          showDoneButton: notificationData?.reminderDisplayDoneButton ?? true,
         });
       }
     };
@@ -954,7 +983,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       );
       window.removeEventListener("reminderDismissed", handleReminderDismissed);
       window.removeEventListener("focusItem", handleFocusItem);
-      window.removeEventListener("upgrade-plan-requested", handleUpgradePlanRequest);
+      window.removeEventListener(
+        "upgrade-plan-requested",
+        handleUpgradePlanRequest
+      );
     };
   }, [findItemByIdFromTree, expandFolderPath, selectItemById, showMessage]);
   const handleSnoozeConfirm = useCallback(
@@ -1083,7 +1115,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       showMessage(
         `Auto-export active: every ${settings.autoExportIntervalMinutes} min.`,
         "info",
-        4000
+        5000
       );
     }
     return () => {
@@ -1167,14 +1199,18 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   ]);
   const openAddDialog = useCallback(
     (type, parent) => {
-      console.log('🔧 openAddDialog called:', { type, parent: parent?.label || parent, isMobile });
+      console.log("🔧 openAddDialog called:", {
+        type,
+        parent: parent?.label || parent,
+        isMobile,
+      });
       setNewItemType(type);
       setParentItemForAdd(parent);
       setNewItemLabel("");
       setAddDialogErrorMessage("");
       showMessage("", "error");
       setAddDialogOpen(true);
-      console.log('🔧 setAddDialogOpen(true) called');
+      console.log("🔧 setAddDialogOpen(true) called");
       setContextMenu((m) => ({ ...m, visible: false }));
       setTopMenuOpen(false);
       setMobileMenuOpen(false);
@@ -1183,39 +1219,50 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   );
 
   // Enhanced FAB handler with context-aware item creation
-  const handleFabCreateItem = useCallback((itemType) => {
-    console.log('🚀 handleFabCreateItem called with:', itemType, 'selectedItem:', selectedItem?.label);
-    
-    switch (itemType) {
-      case 'root-folder':
-        // Always create folders at root level
-        openAddDialog('folder', null);
-        break;
-        
-      case 'subfolder':
-        // Create subfolder in the currently selected folder
-        if (selectedItem && selectedItem.type === 'folder') {
-          openAddDialog('folder', selectedItem);
-        } else {
-          showMessage('Select a folder first to create a subfolder', 'error');
-        }
-        break;
-        
-      case 'note':
-      case 'task':
-        // Only allow creation if a folder is selected
-        if (selectedItem && selectedItem.type === 'folder') {
-          openAddDialog(itemType, selectedItem);
-        } else {
-          showMessage(`Select a folder first to create a ${itemType}`, 'error');
-        }
-        break;
-        
-      default:
-        console.warn('Unknown item type:', itemType);
-        break;
-    }
-  }, [openAddDialog, selectedItem, showMessage]);
+  const handleFabCreateItem = useCallback(
+    (itemType) => {
+      console.log(
+        "🚀 handleFabCreateItem called with:",
+        itemType,
+        "selectedItem:",
+        selectedItem?.label
+      );
+
+      switch (itemType) {
+        case "root-folder":
+          // Always create folders at root level
+          openAddDialog("folder", null);
+          break;
+
+        case "subfolder":
+          // Create subfolder in the currently selected folder
+          if (selectedItem && selectedItem.type === "folder") {
+            openAddDialog("folder", selectedItem);
+          } else {
+            showMessage("Select a folder first to create a subfolder", "error");
+          }
+          break;
+
+        case "note":
+        case "task":
+          // Only allow creation if a folder is selected
+          if (selectedItem && selectedItem.type === "folder") {
+            openAddDialog(itemType, selectedItem);
+          } else {
+            showMessage(
+              `Select a folder first to create a ${itemType}`,
+              "error"
+            );
+          }
+          break;
+
+        default:
+          console.warn("Unknown item type:", itemType);
+          break;
+      }
+    },
+    [openAddDialog, selectedItem, showMessage]
+  );
 
   const handleAdd = useCallback(async () => {
     const trimmedLabel = newItemLabel.trim();
@@ -1432,7 +1479,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
   // Mobile reminder popup handlers
   const handleMobileReminderDismiss = useCallback(() => {
-    setMobileReminderPopup(prev => ({ ...prev, isVisible: false }));
+    setMobileReminderPopup((prev) => ({ ...prev, isVisible: false }));
   }, []);
 
   const handleMobileReminderDone = useCallback(() => {
@@ -1444,25 +1491,28 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       clearReminder(itemId);
       showMessage("Task marked as completed!", "success");
     }
-    setMobileReminderPopup(prev => ({ ...prev, isVisible: false }));
+    setMobileReminderPopup((prev) => ({ ...prev, isVisible: false }));
   }, [mobileReminderPopup, handleToggleTask, showMessage]);
 
-  const handleMobileReminderSnooze = useCallback((duration, unit) => {
-    const { itemId } = mobileReminderPopup;
-    if (itemId) {
-      reminderMonitor.applySnooze(itemId, duration, unit, {});
-    }
-    setMobileReminderPopup(prev => ({ ...prev, isVisible: false }));
-  }, [mobileReminderPopup]);
+  const handleMobileReminderSnooze = useCallback(
+    (duration, unit) => {
+      const { itemId } = mobileReminderPopup;
+      if (itemId) {
+        reminderMonitor.applySnooze(itemId, duration, unit, {});
+      }
+      setMobileReminderPopup((prev) => ({ ...prev, isVisible: false }));
+    },
+    [mobileReminderPopup]
+  );
 
   const handleDragEnd = useCallback(() => {
-    console.log('🏁 handleDragEnd called - clearing draggedId');
+    console.log("🏁 handleDragEnd called - clearing draggedId");
     setDraggedId(null);
-    
+
     // Force clear any lingering drag effects
     setTimeout(() => {
       setDraggedId(null);
-      console.log('🧹 Forced drag cleanup after timeout');
+      console.log("🧹 Forced drag cleanup after timeout");
     }, 100);
   }, [setDraggedId]);
 
@@ -1862,14 +1912,19 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     if (!isMobile) return;
 
     // Setup Android back button handler
-    setupAndroidBackHandler(isMobile, mobileViewMode, setMobileViewMode, navigate);
+    setupAndroidBackHandler(
+      isMobile,
+      mobileViewMode,
+      setMobileViewMode,
+      navigate
+    );
 
     // Also keep web browser back button support
     const handlePopState = (event) => {
       // If we're in content view mode, go back to tree view
       if (mobileViewMode === "content") {
         setMobileViewMode("tree");
-        // Push a new state to maintain proper history stack  
+        // Push a new state to maintain proper history stack
         window.history.pushState(
           { viewMode: "tree" },
           "",
@@ -1909,8 +1964,18 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl max-w-md mx-4 p-6">
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0">
-                <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
+                <svg
+                  className="w-8 h-8 text-orange-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
                 </svg>
               </div>
               <div className="flex-1 overflow-y-auto">
@@ -1918,13 +1983,15 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                   Browser Compatibility Notice
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-300 mb-4">
-                  We've detected you're using Safari. For the best experience with all features, we recommend using <strong>Google Chrome</strong>. 
-                  Some advanced functionality may not work properly in Safari.
+                  We've detected you're using Safari. For the best experience
+                  with all features, we recommend using{" "}
+                  <strong>Google Chrome</strong>. Some advanced functionality
+                  may not work properly in Safari.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     onClick={() => {
-                      localStorage.setItem('safari-warning-dismissed', 'true');
+                      localStorage.setItem("safari-warning-dismissed", "true");
                       setShowSafariWarning(false);
                     }}
                     className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
@@ -1933,8 +2000,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                   </button>
                   <button
                     onClick={() => {
-                      window.open('https://www.google.com/chrome/', '_blank');
-                      localStorage.setItem('safari-warning-dismissed', 'true');
+                      window.open("https://www.google.com/chrome/", "_blank");
+                      localStorage.setItem("safari-warning-dismissed", "true");
                       setShowSafariWarning(false);
                     }}
                     className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
@@ -2094,7 +2161,11 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     <span className="text-sm font-medium">Settings</span>
                   </LoadingButton>
                   <div className="flex items-center justify-center p-3 rounded-lg border bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600">
-                    <ThemeToggle size="small" showLabel={true} className="hover:bg-zinc-50 dark:hover:bg-zinc-600" />
+                    <ThemeToggle
+                      size="small"
+                      showLabel={true}
+                      className="hover:bg-zinc-50 dark:hover:bg-zinc-600"
+                    />
                   </div>
                 </div>
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 space-y-1">
@@ -2358,112 +2429,130 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                 <div className="flex-grow overflow-auto w-full">
                   <div className="overflow-x-auto tree-horizontal-scroll">
                     <Tree
-                    items={tree || []}
-                    selectedItemId={selectedItemId}
-                    onSelect={(id) => {
-                      console.log("🔵 Mobile tree item selected:", id);
+                      items={tree || []}
+                      selectedItemId={selectedItemId}
+                      onSelect={(id) => {
+                        console.log("🔵 Mobile tree item selected:", id);
 
-                      // Always select the item first
-                      selectItemById(id);
+                        // Always select the item first
+                        selectItemById(id);
 
-                      // Skip navigation if we're in rename mode
-                      if (inlineRenameId) {
-                        console.log(
-                          "⏸️ Skipping navigation - rename mode active"
-                        );
-                        return;
-                      }
-
-                      // Find the item directly from tree data
-                      const findItemInTree = (items, targetId) => {
-                        if (!Array.isArray(items)) return null;
-                        for (const item of items) {
-                          if (item.id === targetId) return item;
-                          if (item.children && Array.isArray(item.children)) {
-                            const found = findItemInTree(item.children, targetId);
-                            if (found) return found;
-                          }
+                        // Skip navigation if we're in rename mode
+                        if (inlineRenameId) {
+                          console.log(
+                            "⏸️ Skipping navigation - rename mode active"
+                          );
+                          return;
                         }
-                        return null;
-                      };
 
-                      const selectedItem = findItemInTree(tree || [], id);
-                      console.log("🔍 Found item:", selectedItem);
+                        // Find the item directly from tree data
+                        const findItemInTree = (items, targetId) => {
+                          if (!Array.isArray(items)) return null;
+                          for (const item of items) {
+                            if (item.id === targetId) return item;
+                            if (item.children && Array.isArray(item.children)) {
+                              const found = findItemInTree(
+                                item.children,
+                                targetId
+                              );
+                              if (found) return found;
+                            }
+                          }
+                          return null;
+                        };
 
-                      if (!selectedItem) {
-                        console.warn("⚠️ Could not find item with id:", id);
-                        return;
-                      }
+                        const selectedItem = findItemInTree(tree || [], id);
+                        console.log("🔍 Found item:", selectedItem);
 
-                      // Handle different item types
-                      if (selectedItem.type === "folder") {
-                        console.log("📁 Folder selected - toggling expansion");
-                        toggleFolderExpand(id);
-                      } else if (
-                        selectedItem.type === "note" ||
-                        selectedItem.type === "task"
-                      ) {
-                        console.log(
-                          "📄 Note/Task selected - navigating to content view"
-                        );
-                        setMobileViewMode("content");
-                        window.history.pushState(
-                          { viewMode: "content", itemId: id },
-                          "",
-                          window.location.href
-                        );
-                      } else {
-                        console.log("❓ Unknown item type:", selectedItem.type);
-                      }
-                    }}
-                    inlineRenameId={inlineRenameId}
-                    inlineRenameValue={inlineRenameValue}
-                    setInlineRenameValue={setInlineRenameValue}
-                    onAttemptRename={handleAttemptRename}
-                    cancelInlineRename={cancelInlineRename}
-                    expandedFolders={expandedFolders}
-                    onToggleExpand={toggleFolderExpand}
-                    onToggleTask={handleToggleTask}
-                    draggedId={draggedId}
-                    onDragStart={(e, id) => {
-                      if (inlineRenameId) {
-                        e.preventDefault();
-                        return;
-                      }
-                      
-                      // Prevent drag if already dragging something
-                      if (draggedId) {
-                        console.log('❌ Preventing drag start - already dragging:', draggedId);
-                        e.preventDefault();
-                        return;
-                      }
-                      
-                      // Set drag data
-                      e.dataTransfer.setData('text/plain', id);
-                      e.dataTransfer.effectAllowed = 'move';
-                      
-                      // Create a simple but visible drag image
-                      const dragElement = e.target.closest('[data-item-id]');
-                      if (dragElement) {
-                        const rect = dragElement.getBoundingClientRect();
-                        e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
-                      }
-                      
-                      // Set drag state immediately
-                      console.log('🎯 Setting draggedId:', id);
-                      setDraggedId(id);
-                    }}
-                    onDrop={(targetId) => handleDrop(targetId, draggedId)}
-                    onDragEnd={handleDragEnd}
-                    onNativeContextMenu={handleNativeContextMenu}
-                    onShowItemMenu={handleShowItemMenu}
-                    onRename={startInlineRename}
-                    uiError={uiMessage}
-                    setUiError={(msg) => showMessage(msg, "error")}
-                  />
+                        if (!selectedItem) {
+                          console.warn("⚠️ Could not find item with id:", id);
+                          return;
+                        }
+
+                        // Handle different item types
+                        if (selectedItem.type === "folder") {
+                          console.log(
+                            "📁 Folder selected - toggling expansion"
+                          );
+                          toggleFolderExpand(id);
+                        } else if (
+                          selectedItem.type === "note" ||
+                          selectedItem.type === "task"
+                        ) {
+                          console.log(
+                            "📄 Note/Task selected - navigating to content view"
+                          );
+                          setMobileViewMode("content");
+                          window.history.pushState(
+                            { viewMode: "content", itemId: id },
+                            "",
+                            window.location.href
+                          );
+                        } else {
+                          console.log(
+                            "❓ Unknown item type:",
+                            selectedItem.type
+                          );
+                        }
+                      }}
+                      inlineRenameId={inlineRenameId}
+                      inlineRenameValue={inlineRenameValue}
+                      setInlineRenameValue={setInlineRenameValue}
+                      onAttemptRename={handleAttemptRename}
+                      cancelInlineRename={cancelInlineRename}
+                      expandedFolders={expandedFolders}
+                      onToggleExpand={toggleFolderExpand}
+                      onToggleTask={handleToggleTask}
+                      draggedId={draggedId}
+                      onDragStart={(e, id) => {
+                        if (inlineRenameId) {
+                          e.preventDefault();
+                          return;
+                        }
+
+                        // Prevent drag if already dragging something
+                        if (draggedId) {
+                          console.log(
+                            "❌ Preventing drag start - already dragging:",
+                            draggedId
+                          );
+                          e.preventDefault();
+                          return;
+                        }
+
+                        // Set drag data
+                        e.dataTransfer.setData("text/plain", id);
+                        e.dataTransfer.effectAllowed = "move";
+
+                        // Create a simple but visible drag image
+                        const dragElement = e.target.closest("[data-item-id]");
+                        if (dragElement) {
+                          const rect = dragElement.getBoundingClientRect();
+                          e.dataTransfer.setDragImage(
+                            dragElement,
+                            rect.width / 2,
+                            rect.height / 2
+                          );
+                        }
+
+                        // Set drag state immediately
+                        console.log("🎯 Setting draggedId:", id);
+                        setDraggedId(id);
+                      }}
+                      onDrop={(targetId) => handleDrop(targetId, draggedId)}
+                      onDragEnd={handleDragEnd}
+                      onNativeContextMenu={handleNativeContextMenu}
+                      onShowItemMenu={handleShowItemMenu}
+                      onRename={startInlineRename}
+                      uiError={uiMessage}
+                      setUiError={(msg) => showMessage(msg, "error")}
+                    />
                   </div>
                 </div>
-                <AccountPlanStatus user={currentUser} currentItemCount={currentItemCount} />
+                <AccountPlanStatus
+                  user={currentUser}
+                  currentItemCount={currentItemCount}
+                />
               </div>
             ) : (
               // Content view remains the same
@@ -2526,7 +2615,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       handleDelete={(item) =>
                         showConfirm({
                           title: `Delete ${
-                            item.type.charAt(0).toUpperCase() + item.type.slice(1)
+                            item.type.charAt(0).toUpperCase() +
+                            item.type.slice(1)
                           }`,
                           message: `Are you sure you want to delete "${item.label}"? This cannot be undone.`,
                           onConfirm: () => handleDeleteConfirm(item.id),
@@ -2540,7 +2630,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       handleDuplicate={handleDuplicate}
                       handleExport={(context) => openExportDialog(context)}
                       handleImport={(context) => openImportDialog(context)}
-                      handleCloseContextMenu={() => setContextMenu((m) => ({ ...m, visible: false }))}
+                      handleCloseContextMenu={() =>
+                        setContextMenu((m) => ({ ...m, visible: false }))
+                      }
                     />
                   ) : (
                     <div className="flex flex-col h-full">
@@ -2549,27 +2641,49 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
                           <h1
                             dir={(() => {
-                              const titleText = selectedItem?.label || selectedItem?.title || '';
-                              if (!titleText) return 'ltr';
-                              const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
-                              const rtlMatches = titleText.match(rtlChars) || [];
-                              const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
-                              if (textForAnalysis.length === 0) return 'ltr';
-                              const rtlRatio = rtlMatches.length / textForAnalysis.length;
-                              return rtlRatio > 0.3 ? 'rtl' : 'ltr';
+                              const titleText =
+                                selectedItem?.label ||
+                                selectedItem?.title ||
+                                "";
+                              if (!titleText) return "ltr";
+                              const rtlChars =
+                                /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+                              const rtlMatches =
+                                titleText.match(rtlChars) || [];
+                              const textForAnalysis = titleText.replace(
+                                /[\s\d\p{P}\p{S}a-zA-Z]/gu,
+                                ""
+                              );
+                              if (textForAnalysis.length === 0) return "ltr";
+                              const rtlRatio =
+                                rtlMatches.length / textForAnalysis.length;
+                              return rtlRatio > 0.3 ? "rtl" : "ltr";
                             })()}
-                            className={`text-xl font-bold title-multiline ${
-                              (() => {
-                                const titleText = selectedItem?.label || selectedItem?.title || '';
-                                const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
-                                const rtlMatches = titleText.match(rtlChars) || [];
-                                const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
-                                const rtlRatio = textForAnalysis.length > 0 ? rtlMatches.length / textForAnalysis.length : 0;
-                                return rtlRatio > 0.3 ? 'text-right' : 'text-left';
-                              })()
-                            } text-zinc-900 dark:text-zinc-100`}
+                            className={`text-xl font-bold title-multiline ${(() => {
+                              const titleText =
+                                selectedItem?.label ||
+                                selectedItem?.title ||
+                                "";
+                              const rtlChars =
+                                /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+                              const rtlMatches =
+                                titleText.match(rtlChars) || [];
+                              const textForAnalysis = titleText.replace(
+                                /[\s\d\p{P}\p{S}a-zA-Z]/gu,
+                                ""
+                              );
+                              const rtlRatio =
+                                textForAnalysis.length > 0
+                                  ? rtlMatches.length / textForAnalysis.length
+                                  : 0;
+                              return rtlRatio > 0.3
+                                ? "text-right"
+                                : "text-left";
+                            })()} text-zinc-900 dark:text-zinc-100`}
                           >
-                            {selectedItem.label || selectedItem.title || "Untitled"}
+                            {selectedItem.label ||
+                              selectedItem.title ||
+                              "Untitled"}
                           </h1>
                         </div>
                       )}
@@ -2588,10 +2702,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
           </>
         ) : (
           <PanelGroup direction="vertical">
-            <Panel 
-              id="main-content-panel" 
-              order={0} 
-              defaultSize={searchSheetOpen ? 75 : 100} 
+            <Panel
+              id="main-content-panel"
+              order={0}
+              defaultSize={searchSheetOpen ? 75 : 100}
               minSize={40}
             >
               <PanelGroup direction="horizontal">
@@ -2619,69 +2733,82 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     <div className="flex-grow overflow-auto">
                       <div className="overflow-x-auto tree-horizontal-scroll">
                         <Tree
-                        items={tree || []}
-                        selectedItemId={selectedItemId}
-                        onSelect={(id) => {
-                          selectItemById(id);
-                        }}
-                        inlineRenameId={inlineRenameId}
-                        inlineRenameValue={inlineRenameValue}
-                        setInlineRenameValue={setInlineRenameValue}
-                        onAttemptRename={handleAttemptRename}
-                        cancelInlineRename={cancelInlineRename}
-                        expandedFolders={expandedFolders}
-                        onToggleExpand={toggleFolderExpand}
-                        onToggleTask={handleToggleTask}
-                        draggedId={draggedId}
-                        onDragStart={(e, id) => {
-                          if (inlineRenameId) {
-                            e.preventDefault();
-                            return;
-                          }
-                          
-                          // Prevent drag if already dragging something
-                          if (draggedId) {
-                            console.log('❌ Preventing drag start - already dragging:', draggedId);
-                            e.preventDefault();
-                            return;
-                          }
-                          
-                          // Set drag data
-                          e.dataTransfer.setData('text/plain', id);
-                          e.dataTransfer.effectAllowed = 'move';
-                          
-                          // Create a simple but visible drag image
-                          const dragElement = e.target.closest('[data-item-id]');
-                          if (dragElement) {
-                            const rect = dragElement.getBoundingClientRect();
-                            e.dataTransfer.setDragImage(dragElement, rect.width / 2, rect.height / 2);
-                          }
-                          
-                          // Set drag state immediately
-                          console.log('🎯 Setting draggedId (search):', id);
-                          setDraggedId(id);
-                        }}
-                        onDrop={(targetId) => handleDrop(targetId, draggedId)}
-                        onDragEnd={handleDragEnd}
-                        onNativeContextMenu={handleNativeContextMenu}
-                        onShowItemMenu={handleShowItemMenu}
-                        onRename={startInlineRename}
-                        uiError={uiMessage}
-                        setUiError={(msg) => showMessage(msg, "error")}
-                      />
+                          items={tree || []}
+                          selectedItemId={selectedItemId}
+                          onSelect={(id) => {
+                            selectItemById(id);
+                          }}
+                          inlineRenameId={inlineRenameId}
+                          inlineRenameValue={inlineRenameValue}
+                          setInlineRenameValue={setInlineRenameValue}
+                          onAttemptRename={handleAttemptRename}
+                          cancelInlineRename={cancelInlineRename}
+                          expandedFolders={expandedFolders}
+                          onToggleExpand={toggleFolderExpand}
+                          onToggleTask={handleToggleTask}
+                          draggedId={draggedId}
+                          onDragStart={(e, id) => {
+                            if (inlineRenameId) {
+                              e.preventDefault();
+                              return;
+                            }
+
+                            // Prevent drag if already dragging something
+                            if (draggedId) {
+                              console.log(
+                                "❌ Preventing drag start - already dragging:",
+                                draggedId
+                              );
+                              e.preventDefault();
+                              return;
+                            }
+
+                            // Set drag data
+                            e.dataTransfer.setData("text/plain", id);
+                            e.dataTransfer.effectAllowed = "move";
+
+                            // Create a simple but visible drag image
+                            const dragElement =
+                              e.target.closest("[data-item-id]");
+                            if (dragElement) {
+                              const rect = dragElement.getBoundingClientRect();
+                              e.dataTransfer.setDragImage(
+                                dragElement,
+                                rect.width / 2,
+                                rect.height / 2
+                              );
+                            }
+
+                            // Set drag state immediately
+                            console.log("🎯 Setting draggedId (search):", id);
+                            setDraggedId(id);
+                          }}
+                          onDrop={(targetId) => handleDrop(targetId, draggedId)}
+                          onDragEnd={handleDragEnd}
+                          onNativeContextMenu={handleNativeContextMenu}
+                          onShowItemMenu={handleShowItemMenu}
+                          onRename={startInlineRename}
+                          uiError={uiMessage}
+                          setUiError={(msg) => showMessage(msg, "error")}
+                        />
                       </div>
                     </div>
-                    <AccountPlanStatus 
-                      user={currentUser} 
+                    <AccountPlanStatus
+                      user={currentUser}
                       currentItemCount={currentItemCount}
-                      fabComponent={!isMobile ? (
-                        <FloatingActionButton 
-                          onCreateItem={handleFabCreateItem}
-                          selectedItem={selectedItem}
-                          disabled={!currentUser || currentUser.status === 'pending_deletion'}
-                          position="inline"
-                        />
-                      ) : null}
+                      fabComponent={
+                        !isMobile ? (
+                          <FloatingActionButton
+                            onCreateItem={handleFabCreateItem}
+                            selectedItem={selectedItem}
+                            disabled={
+                              !currentUser ||
+                              currentUser.status === "pending_deletion"
+                            }
+                            position="inline"
+                          />
+                        ) : null
+                      }
                     />
                   </div>
                 </Panel>
@@ -2705,7 +2832,9 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         handleDragEnter={handleDragEnter}
                         handleDragOver={handleDragOver}
                         handleDragLeave={handleDragLeave}
-                        handleDrop={(targetId) => handleDrop(targetId, draggedId)}
+                        handleDrop={(targetId) =>
+                          handleDrop(targetId, draggedId)
+                        }
                         handleDragEnd={handleDragEnd}
                         draggedId={draggedId}
                         dragOverItemId={dragOverItemId}
@@ -2720,7 +2849,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         handleDelete={(item) =>
                           showConfirm({
                             title: `Delete ${
-                              item.type.charAt(0).toUpperCase() + item.type.slice(1)
+                              item.type.charAt(0).toUpperCase() +
+                              item.type.slice(1)
                             }`,
                             message: `Are you sure you want to delete "${item.label}"? This cannot be undone.`,
                             onConfirm: () => handleDeleteConfirm(item.id),
@@ -2734,43 +2864,67 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         handleDuplicate={handleDuplicate}
                         handleExport={(context) => openExportDialog(context)}
                         handleImport={(context) => openImportDialog(context)}
-                        handleCloseContextMenu={() => setContextMenu(m => ({ ...m, visible: false }))}
+                        handleCloseContextMenu={() =>
+                          setContextMenu((m) => ({ ...m, visible: false }))
+                        }
                       />
-                  ) : (
-                    <div className="flex flex-col h-full">
-                      {/* Title Section */}
-                      {selectedItem && (
-                        <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
-                          <h1
-                            dir={(() => {
-                              const titleText = selectedItem?.label || selectedItem?.title || '';
-                              if (!titleText) return 'ltr';
-                              const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
-                              const rtlMatches = titleText.match(rtlChars) || [];
-                              const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
-                              if (textForAnalysis.length === 0) return 'ltr';
-                              const rtlRatio = rtlMatches.length / textForAnalysis.length;
-                              return rtlRatio > 0.3 ? 'rtl' : 'ltr';
-                            })()}
-                            className={`text-xl font-bold title-multiline ${
-                              (() => {
-                                const titleText = selectedItem?.label || selectedItem?.title || '';
-                                const rtlChars = /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
-                                const rtlMatches = titleText.match(rtlChars) || [];
-                                const textForAnalysis = titleText.replace(/[\s\d\p{P}\p{S}a-zA-Z]/gu, "");
-                                const rtlRatio = textForAnalysis.length > 0 ? rtlMatches.length / textForAnalysis.length : 0;
-                                return rtlRatio > 0.3 ? 'text-right' : 'text-left';
-                              })()
-                            } text-zinc-900 dark:text-zinc-100`}
-                          >
-                            {selectedItem.label || selectedItem.title || "Untitled"}
-                          </h1>
+                    ) : (
+                      <div className="flex flex-col h-full">
+                        {/* Title Section */}
+                        {selectedItem && (
+                          <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
+                            <h1
+                              dir={(() => {
+                                const titleText =
+                                  selectedItem?.label ||
+                                  selectedItem?.title ||
+                                  "";
+                                if (!titleText) return "ltr";
+                                const rtlChars =
+                                  /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+                                const rtlMatches =
+                                  titleText.match(rtlChars) || [];
+                                const textForAnalysis = titleText.replace(
+                                  /[\s\d\p{P}\p{S}a-zA-Z]/gu,
+                                  ""
+                                );
+                                if (textForAnalysis.length === 0) return "ltr";
+                                const rtlRatio =
+                                  rtlMatches.length / textForAnalysis.length;
+                                return rtlRatio > 0.3 ? "rtl" : "ltr";
+                              })()}
+                              className={`text-xl font-bold title-multiline ${(() => {
+                                const titleText =
+                                  selectedItem?.label ||
+                                  selectedItem?.title ||
+                                  "";
+                                const rtlChars =
+                                  /[\u0590-\u08FF]|[\uFB1D-\uFDFF]|[\uFE70-\uFEFF]/g;
+                                const rtlMatches =
+                                  titleText.match(rtlChars) || [];
+                                const textForAnalysis = titleText.replace(
+                                  /[\s\d\p{P}\p{S}a-zA-Z]/gu,
+                                  ""
+                                );
+                                const rtlRatio =
+                                  textForAnalysis.length > 0
+                                    ? rtlMatches.length / textForAnalysis.length
+                                    : 0;
+                                return rtlRatio > 0.3
+                                  ? "text-right"
+                                  : "text-left";
+                              })()} text-zinc-900 dark:text-zinc-100`}
+                            >
+                              {selectedItem.label ||
+                                selectedItem.title ||
+                                "Untitled"}
+                            </h1>
+                          </div>
+                        )}
+                        <div className="flex-1 overflow-y-auto">
+                          <ContentEditor {...contentEditorProps} />
                         </div>
-                      )}
-                      <div className="flex-1 overflow-y-auto">
-                        <ContentEditor {...contentEditorProps} />
                       </div>
-                    </div>
                     )
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
@@ -2813,7 +2967,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       <ContextMenu
         {...contextMenu}
         onClose={() => {
-          console.log('ContextMenu onClose called');
+          console.log("ContextMenu onClose called");
           setContextMenu((m) => ({ ...m, visible: false }));
         }}
         onAdd={openAddDialog}
@@ -2986,10 +3140,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
       {/* FAB for mobile - fixed position overlay */}
       {isMobile && (
-        <FloatingActionButton 
+        <FloatingActionButton
           onCreateItem={handleFabCreateItem}
           selectedItem={selectedItem}
-          disabled={!currentUser || currentUser.status === 'pending_deletion'}
+          disabled={!currentUser || currentUser.status === "pending_deletion"}
           position="fixed"
         />
       )}
