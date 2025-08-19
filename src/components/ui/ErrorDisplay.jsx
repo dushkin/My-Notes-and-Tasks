@@ -18,6 +18,23 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
+
+  // Calculate top offset for Android devices
+  const getTopOffset = () => {
+    const betaBannerHeight = "var(--beta-banner-height, 0px)";
+    const safeAreaTop = "env(safe-area-inset-top, 0px)";
+    
+    // Additional fallback for Android devices where env() might not work
+    const isAndroid = navigator.userAgent.includes('Android');
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (isAndroid && isCapacitor) {
+      // Add extra 24px for Android status bar as fallback
+      return `calc(${betaBannerHeight} + ${safeAreaTop} + 24px + 0.75rem)`;
+    }
+    
+    return `calc(${betaBannerHeight} + ${safeAreaTop} + 0.75rem)`;
+  };
   
   if (!message) {
     return null;
@@ -42,7 +59,7 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
     <div
       data-item-id="error-display-message"
       className={`${baseClasses} ${typeClasses}`}
-      style={{ top: "calc(var(--beta-banner-height, 0px) + env(safe-area-inset-top, 0px) + 0.75rem)" }}
+      style={{ top: getTopOffset() }}
       role="alert"
     >
       <span>{message}</span>
