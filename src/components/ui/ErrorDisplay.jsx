@@ -42,7 +42,7 @@ const ErrorDisplay = ({ message, type = "error", onClose, currentUser }) => {
     <div
       data-item-id="error-display-message"
       className={`${baseClasses} ${typeClasses}`}
-      style={{ top: "calc(var(--beta-banner-height, 0px) + 0.75rem)" }}
+      style={{ top: "calc(var(--beta-banner-height, 0px) + env(safe-area-inset-top, 0px) + 0.75rem)" }}
       role="alert"
     >
       <span>{message}</span>
