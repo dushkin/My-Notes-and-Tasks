@@ -1,6 +1,3 @@
-// ============================================================================
-// REACT AND CORE LIBRARIES
-// ============================================================================
 import React, {
   useState,
   useRef,
@@ -16,9 +13,6 @@ import {
   Navigate,
 } from "react-router-dom";
 
-// ============================================================================
-// THIRD-PARTY LIBRARIES
-// ============================================================================
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Sheet } from "react-modal-sheet";
 import {
@@ -41,9 +35,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-// ============================================================================
-// COMPONENTS - CORE
-// ============================================================================
 import ErrorBoundary from "../ErrorBoundary.jsx";
 import BetaBanner from "./BetaBanner";
 import ConnectionStatus from "./ConnectionStatus.jsx";
@@ -51,22 +42,13 @@ import FeedbackNotification from "./FeedbackNotification";
 import LandingPage from "./LandingPage";
 import DeletionStatusPage from "./DeletionStatusPage";
 
-// ============================================================================
-// COMPONENTS - TREE
-// ============================================================================
 import Tree from "./tree/Tree";
 import AccountPlanStatus from "./tree/AccountPlanStatus.jsx";
 import ContextMenu from "./tree/ContextMenu.jsx";
 
-// ============================================================================
-// COMPONENTS - RIGHT PANE
-// ============================================================================
 import FolderContents from "./rpane/FolderContents";
 import ContentEditor from "./rpane/ContentEditor";
 
-// ============================================================================
-// COMPONENTS - DIALOGS
-// ============================================================================
 import AddDialog from "./dialogs/AddDialog.jsx";
 import AboutDialog from "./dialogs/AboutDialog.jsx";
 import ExportDialog from "./dialogs/ExportDialog.jsx";
@@ -77,30 +59,18 @@ import ConfirmDialog from "./dialogs/ConfirmDialog.jsx";
 import Login from "./dialogs/Login";
 import Register from "./dialogs/Register";
 
-// ============================================================================
-// COMPONENTS - REMINDERS
-// ============================================================================
 import SnoozeDialog from "./reminders/SnoozeDialog";
 import SetReminderDialog from "./reminders/SetReminderDialog.jsx";
 import MobileReminderPopup from "./reminders/MobileReminderPopup.jsx";
 import reminderMonitor from "./reminders/reminderMonitor.js";
 
-// ============================================================================
-// COMPONENTS - UI
-// ============================================================================
 import LoadingSpinner from "./ui/LoadingSpinner.jsx";
 import LoadingButton from "./ui/LoadingButton.jsx";
 import ThemeToggle from "./ui/ThemeToggle.jsx";
 
-// ============================================================================
-// COMPONENTS - PAGES AND SEARCH
-// ============================================================================
 import EditorPage from "./pages/EditorPage.jsx";
 import SearchResultsPane from "./search/SearchResultsPane.jsx";
 
-// ============================================================================
-// SERVICES
-// ============================================================================
 import {
   initSocket,
   getSocket,
@@ -114,16 +84,10 @@ import {
 } from "../services/authService";
 import { initApiClient, authFetch } from "../services/apiClient";
 
-// ============================================================================
-// HOOKS AND CONTEXTS
-// ============================================================================
 import { useTree } from "../hooks/useTree.jsx";
 import { useSettings } from "../contexts/SettingsContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 
-// ============================================================================
-// UTILITIES
-// ============================================================================
 import { subscribeToPushNotifications } from "../utils/pushSubscriptionUtil";
 import {
   setupAndroidBackHandler,
@@ -144,9 +108,6 @@ import {
 } from "../utils/reminderUtils";
 import { matchText } from "../utils/searchUtils";
 
-// ============================================================================
-// ASSETS
-// ============================================================================
 import logo from "../assets/logo_dual_32x32.png";
 
 // Import version manager for auto-updates

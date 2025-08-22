@@ -1,6 +1,3 @@
-// ============================================================================
-// VERSION CONTROL MIGRATION UTILITIES (Frontend)
-// ============================================================================
 // Utilities to handle version control migration for cached frontend data
 
 /**
