@@ -215,18 +215,11 @@ else
       COMMIT_MSG="feat: build v${VERSION} with app improvements
 
 - Application functionality improvements and fixes
-- Built debug APK v${VERSION}
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+- Built debug APK v${VERSION}"
   else
-      # Add Claude Code attribution to AI-generated message
-      COMMIT_MSG="${COMMIT_MSG}
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+      # AI-generated message is ready as-is
+      # No additional attribution needed
+      echo "✅ Using AI-generated commit message"
   fi
 
   echo -e "📄 Generated Commit Message:\n---\n$COMMIT_MSG\n---"

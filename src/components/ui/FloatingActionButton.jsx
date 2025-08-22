@@ -13,14 +13,12 @@ const FloatingActionButton = ({
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
   const fabRef = useRef(null);
   
-  // Focus trap for expanded menu
   useFocusTrap(fabRef, isExpanded);
 
   // Generate context-aware item types based on current selection
   const getAvailableItemTypes = () => {
     const baseTypes = [];
     
-    // Always allow root folder creation
     baseTypes.push({
       type: 'root-folder',
       label: 'Root Folder',
@@ -30,7 +28,6 @@ const FloatingActionButton = ({
 
     // Only show additional options if a folder is selected
     if (selectedItem && selectedItem.type === 'folder') {
-      // Allow subfolder creation
       baseTypes.push({
         type: 'subfolder',
         label: 'Subfolder',
@@ -38,7 +35,6 @@ const FloatingActionButton = ({
         description: `Create a subfolder in "${selectedItem.label}"`
       });
 
-      // Allow note creation
       baseTypes.push({
         type: 'note',
         label: 'Note',
@@ -46,7 +42,6 @@ const FloatingActionButton = ({
         description: `Create a note in "${selectedItem.label}"`
       });
       
-      // Allow task creation
       baseTypes.push({
         type: 'task',
         label: 'Task',

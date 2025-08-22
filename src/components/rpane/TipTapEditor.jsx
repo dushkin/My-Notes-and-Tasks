@@ -429,7 +429,7 @@ const TipTapEditor = ({
         const html = event.clipboardData?.getData("text/html");
 
         const commonMarkdownPatterns =
-          /^(?:#+\s|\*\s|-\s|>\s|```|$$ .* $$$$ .* $$|`[^`]+`|\d+\.\s)/m;
+          /^(?:#+\s|-\s|>\s|```|$$ .* $$$$ .* $$|`[^`]+`|\d+\.\s)/m;
 
         if (
           html &&
@@ -444,7 +444,18 @@ const TipTapEditor = ({
           try {
             const renderer = new marked.Renderer();
             renderer.image = () => "";
-            const markdownHtml = marked.parse(text.trim(), { renderer });
+            
+            // Preprocess text to escape asterisks that are not list bullets
+            // This preserves literal asterisks while allowing proper markdown parsing
+            let processedText = text.trim();
+            
+            // Escape asterisks that are not at the beginning of lines (not bullet points)
+            // and not part of emphasis/strong patterns
+            processedText = processedText.replace(/(?<!^|\n)\*(?!\s)/gm, '\\*');
+            // Also escape double asterisks that are used for styling within text
+            processedText = processedText.replace(/\*\*([^*]+)\*\*/g, '\\*\\*$1\\*\\*');
+            
+            const markdownHtml = marked.parse(processedText, { renderer });
             const tempDiv = document.createElement("div");
             tempDiv.innerHTML = markdownHtml;
             const prosemirrorSlice = DOMParser.fromSchema(
@@ -949,7 +960,13 @@ const TipTapEditor = ({
                   }
                   const renderer = new marked.Renderer();
                   renderer.image = () => "";
-                  const html = marked.parse(cleanedText, { renderer });
+                  
+                  // Preprocess text to escape asterisks that are not list bullets
+                  let processedText = cleanedText;
+                  processedText = processedText.replace(/(?<!^|\n)\*(?!\s)/gm, '\\*');
+                  processedText = processedText.replace(/\*\*([^*]+)\*\*/g, '\\*\\*$1\\*\\*');
+                  
+                  const html = marked.parse(processedText, { renderer });
                   editor
                     .chain()
                     .focus()

@@ -1,20 +1,10 @@
-// ============================================================================
-// FRONTEND TREE UTILITIES
-// ============================================================================
 // Utilities for tree operations on the frontend/client side
-
-// ============================================================================
-// ITEM TYPE CONSTANTS
-// ============================================================================
 const ITEM_TYPES = {
   FOLDER: 'folder',
   NOTE: 'note',
   TASK: 'task'
 };
 
-// ============================================================================
-// SORTING UTILITIES
-// ============================================================================
 
 /**
  * Sorts items: folders first, then notes, then tasks, then alphabetically by label.
@@ -63,7 +53,6 @@ export const deleteItemRecursive = (items, idToDelete) => {
   const baseItems = Array.isArray(items) ? items : [];
   if (!idToDelete) return baseItems; // Return original array if no ID provided
 
-  // Filter out the item at the current level
   return baseItems
     .filter((it) => it.id !== idToDelete)
     .map((it) => {
@@ -86,16 +75,12 @@ export const findItemById = (nodes, id) => {
   // Basic validation
   if (!Array.isArray(nodes) || !id) return null;
   for (const item of nodes) {
-    // Check if the current item is the one we're looking for
     if (item.id === id) return item;
-    // If the item is a folder and has children, search recursively within its children
     if (item.type === "folder" && Array.isArray(item.children)) {
       const found = findItemById(item.children, id);
-      // If found in children, return the result immediately
       if (found) return found;
     }
   }
-  // Item not found in the current level or its descendants
   return null;
 };
 /**
@@ -129,23 +114,17 @@ export const findParentAndSiblings = (tree, itemId) => {
       }
       // If the item is a folder and has children, recurse into the children
       if (item.type === "folder" && Array.isArray(item.children) && item.children.length > 0) {
-        // Pass the current item as the parent for the next level of recursion
         const foundInChildren = findRecursive(item.children, idToFind, item);
-        // If found in the recursive call, return the result immediately
         if (foundInChildren) return foundInChildren;
       }
     }
-    // Item not found in this branch of the tree
     return null;
   };
 
-  // Start the recursive search from the root of the tree
   const result = findRecursive(tree, itemId, null);
   if (result) {
-    // Item was found, return the result { parent, siblings }
     return result;
   } else {
-    // Item not found anywhere in the tree
     console.warn(`findParentAndSiblings: Could not find item with id ${itemId}`);
     // Return a default object indicating not found
     return { parent: null, siblings: [] };

@@ -1,10 +1,6 @@
 import { authFetch } from '../services/apiClient.js';
 import storageManager from './storageManager.js';
 
-// ============================================================================
-// SYNC CONFIGURATION
-// ============================================================================
-
 const SYNC_CONFIG = {
   MAX_RETRY_ATTEMPTS: 3,
   RETRY_DELAY_BASE: 1000, // 1 second base delay
@@ -21,10 +17,6 @@ const SYNC_OPERATION_TYPES = {
   UPDATE_TASK: 'UPDATE_TASK',
   DELETE_TASK: 'DELETE_TASK'
 };
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
 
 /**
  * Safe content conversion that prevents [object Object]
@@ -68,9 +60,6 @@ const createSyncItem = (operation) => ({
   maxAttempts: SYNC_CONFIG.MAX_RETRY_ATTEMPTS
 });
 
-// ============================================================================
-// SYNC MANAGER CLASS
-// ============================================================================
 
 class SyncManager {
   constructor() {

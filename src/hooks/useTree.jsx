@@ -1115,10 +1115,18 @@ export const useTree = (currentUser) => {
           throw new Error(errorData.error || `Server responded with ${response.status}`);
         }
 
-        // Update the local state
-        setTreeWithUndo(newTreeState);
-
-        // Note: Real-time sync will handle the server-client sync automatically
+        // CRITICAL FIX: Fetch the updated tree from server to get proper server IDs
+        // This prevents 404 errors when renaming immediately after duplication
+        const treeResponse = await authFetch(`/items`, { cache: "no-store" });
+        if (treeResponse.ok) {
+          const treeData = await treeResponse.json();
+          if (treeData && Array.isArray(treeData.notesTree)) {
+            setTreeWithUndo(treeData.notesTree);
+          }
+        } else {
+          // Fallback to local state update if fetch fails
+          setTreeWithUndo(newTreeState);
+        }
 
         if (parentId && settings.autoExpandNewFolders) {
           setTimeout(() => expandFolderPath(parentId), 0);
@@ -1389,10 +1397,18 @@ export const useTree = (currentUser) => {
             throw new Error(errorData.error || `Server responded with ${response.status}`);
           }
 
-          // Update the local state
-          setTreeWithUndo(newTreeState);
-
-          // Note: Real-time sync will handle the server-client sync automatically
+          // CRITICAL FIX: Fetch the updated tree from server to get proper server IDs
+          // This prevents 404 errors when renaming immediately after pasting
+          const treeResponse = await authFetch(`/items`, { cache: "no-store" });
+          if (treeResponse.ok) {
+            const treeData = await treeResponse.json();
+            if (treeData && Array.isArray(treeData.notesTree)) {
+              setTreeWithUndo(treeData.notesTree);
+            }
+          } else {
+            // Fallback to local state update if fetch fails
+            setTreeWithUndo(newTreeState);
+          }
 
           if (targetFolderId && settings.autoExpandNewFolders) {
             expandFolderPath(targetFolderId);

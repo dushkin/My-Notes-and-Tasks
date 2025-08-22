@@ -1,6 +1,3 @@
-// ============================================================================
-// ADAPTIVE DEBOUNCE ALGORITHM
-// ============================================================================
 // Smart debouncing that adapts to user behavior and content characteristics
 
 import { EditHistoryTracker } from './editHistoryTracker.js';
