@@ -142,6 +142,9 @@ git commit -m "Release v$VERSION
 echo "🏷️  Tagging v$VERSION"
 git tag "v$VERSION" || true
 
+echo "⬆️  Pushing dev branch"
+git push origin dev
+
 echo "🔀 Merging dev into main branch"
 git checkout main
 git pull origin main

@@ -2387,7 +2387,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     Collapse All
                   </button>
                 </div>
-                <div className="flex-grow overflow-auto w-full">
+                <div 
+                  className="flex-grow overflow-auto w-full"
+                  onContextMenu={(e) => handleNativeContextMenu(e, null)}
+                >
                   <div className="overflow-x-auto tree-horizontal-scroll">
                     <Tree
                       items={tree || []}
@@ -2691,7 +2694,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         Collapse All
                       </button>
                     </div>
-                    <div className="flex-grow overflow-auto">
+                    <div 
+                      className="flex-grow overflow-auto"
+                      onContextMenu={(e) => handleNativeContextMenu(e, null)}
+                    >
                       <div className="overflow-x-auto tree-horizontal-scroll">
                         <Tree
                           items={tree || []}
