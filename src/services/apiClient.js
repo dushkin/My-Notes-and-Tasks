@@ -287,11 +287,11 @@ export const authFetch = async (url, options = {}) => {
             try {
               const newAccessToken = await refreshTokenFlow();
               isRefreshing = false;
-              onRefreshed(newAccessToken);
+              notifyRefreshSubscribers(newAccessToken);
               return makeRequest(newAccessToken, retryCount);
             } catch (refreshError) {
               isRefreshing = false;
-              onRefreshFailed(refreshError);
+              notifyRefreshSubscribers(null, refreshError);
               throw refreshError;
             }
           } else {
