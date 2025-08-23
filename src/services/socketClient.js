@@ -1,4 +1,5 @@
 import { io } from "socket.io-client";
+import { getAccessToken, getRefreshToken, storeTokens, clearTokens } from "./authService";
 
 // Socket instance and state management
 let socket;
@@ -87,19 +88,38 @@ export function initializeSocket(authToken) {
   });
 
   // Error handler to catch connection failures
-  socket.on("connect_error", (err) => {
+  socket.on("connect_error", async (err) => {
     console.error("WebSocket connection error:", err.message);
     updateConnectionState(CONNECTION_STATES.DISCONNECTED);
     
     // Stop heartbeat on connection error
     stopClientHeartbeat();
     
-    // Handle authentication failures
+    // Handle authentication failures - try token refresh first
     if (isAuthenticationError(err)) {
-      console.error("🔐 Authentication error - token may be expired");
+      console.error("🔐 Authentication error - attempting token refresh");
+      
+      try {
+        const newToken = await refreshSocketToken();
+        if (newToken) {
+          console.log("🔄 Retrying socket connection with refreshed token");
+          storedAuthToken = newToken;
+          // Clean up current socket and retry with new token
+          performSocketCleanup();
+          initializeSocket(newToken);
+          return;
+        }
+      } catch (refreshError) {
+        console.error("❌ Token refresh failed:", refreshError);
+      }
+      
+      // If refresh fails, update state and disconnect
+      console.error("🔐 Authentication failed - token refresh unsuccessful");
       updateConnectionState(CONNECTION_STATES.AUTH_ERROR);
       disconnectSocket();
-      // Don't attempt to reconnect on auth errors
+      // Clear tokens and trigger logout if necessary
+      clearTokens();
+      dispatchSocketEvent('socketAuthFailed', { reason: 'TOKEN_REFRESH_FAILED' });
       return;
     }
     
@@ -179,7 +199,7 @@ export function getConnectionStatus() {
 /**
  * Force reconnection (useful for manual retry)
  */
-export function forceReconnection() {
+export async function forceReconnection() {
   console.log("🔄 Forcing manual reconnection...");
   
   // Clear any pending reconnection attempts
@@ -188,12 +208,66 @@ export function forceReconnection() {
   // Reset reconnection attempts for manual retry
   currentReconnectAttempts = 0;
   
-  if (storedAuthToken) {
+  // Get fresh token to ensure it's not expired
+  let tokenToUse = getAccessToken();
+  
+  // If no token, try to refresh
+  if (!tokenToUse) {
+    console.log("🔄 No stored token, attempting refresh...");
+    tokenToUse = await refreshSocketToken();
+  }
+  
+  if (tokenToUse) {
     // Clean up existing socket and create new one
     performSocketCleanup();
-    initializeSocket(storedAuthToken);
+    initializeSocket(tokenToUse);
   } else {
-    console.error("❌ Cannot force reconnect: no token available");
+    console.error("❌ Cannot force reconnect: no valid token available");
+    updateConnectionState(CONNECTION_STATES.AUTH_ERROR);
+    dispatchSocketEvent('socketAuthFailed', { reason: 'NO_TOKEN_AVAILABLE' });
+  }
+}
+
+// ============================================================================
+// TOKEN REFRESH FOR SOCKET
+// ============================================================================
+
+/**
+ * Refreshes the access token for socket authentication
+ * @returns {string|null} New access token or null if refresh failed
+ */
+async function refreshSocketToken() {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    console.error("❌ Cannot refresh socket token: no refresh token available");
+    return null;
+  }
+
+  try {
+    const serverUrl = import.meta.env.VITE_API_BASE_URL || "https://my-notes-and-tasks-backend.onrender.com";
+    const response = await fetch(`${serverUrl}/api/auth/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: refreshToken }),
+    });
+
+    if (!response.ok) {
+      console.error("❌ Socket token refresh failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.accessToken && data.refreshToken) {
+      storeTokens(data.accessToken, data.refreshToken);
+      console.log("✅ Socket token refreshed successfully");
+      return data.accessToken;
+    } else {
+      console.error("❌ Invalid socket token refresh response");
+      return null;
+    }
+  } catch (error) {
+    console.error("❌ Error refreshing socket token:", error);
+    return null;
   }
 }
 
@@ -283,19 +357,29 @@ function scheduleReconnectionAttempt() {
 
   const delay = calculateExponentialBackoffDelay(currentAttempt);
   
-  reconnectionTimer = setTimeout(() => {
+  reconnectionTimer = setTimeout(async () => {
     reconnectionTimer = null;
     
-    if (!storedAuthToken) {
-      console.error("❌ Cannot reconnect: no token available");
+    // Get fresh token for reconnection attempt
+    let tokenToUse = getAccessToken() || storedAuthToken;
+    
+    // If token looks expired or unavailable, try refresh
+    if (!tokenToUse) {
+      console.log("🔄 No token available, attempting refresh for reconnection...");
+      tokenToUse = await refreshSocketToken();
+    }
+    
+    if (!tokenToUse) {
+      console.error("❌ Cannot reconnect: no valid token available");
       updateConnectionState(CONNECTION_STATES.FAILED);
       return;
     }
 
     console.log(`🔄 Attempting to reconnect... (attempt ${currentReconnectAttempts})`);
     
-    // Create new socket with exponential backoff
-    initializeSocket(storedAuthToken);
+    // Update stored token and create new socket
+    storedAuthToken = tokenToUse;
+    initializeSocket(tokenToUse);
   }, delay);
 }
 

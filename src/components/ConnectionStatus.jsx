@@ -39,11 +39,35 @@ const ConnectionStatus = ({ position = 'bottom-right', showDetailedStatus = fals
       }
     };
 
+    // Listen for authentication failures that may require logout
+    const handleAuthFailed = (event) => {
+      const { reason } = event.detail;
+      console.error('🔐 Socket authentication failed:', reason);
+      
+      // Update connection info to show auth error
+      setConnectionInfo(prev => ({
+        ...prev,
+        status: 'auth_error',
+        details: reason,
+        lastUpdate: Date.now()
+      }));
+      
+      setIsVisible(true);
+      
+      // For severe auth failures, we might want to trigger logout
+      // This can be customized based on your app's needs
+      if (reason === 'TOKEN_REFRESH_FAILED') {
+        console.warn('🔐 Token refresh failed - user may need to login again');
+      }
+    };
+
     window.addEventListener('socketStatusChange', handleStatusChange);
+    window.addEventListener('socketAuthFailed', handleAuthFailed);
     
     // Cleanup
     return () => {
       window.removeEventListener('socketStatusChange', handleStatusChange);
+      window.removeEventListener('socketAuthFailed', handleAuthFailed);
     };
   }, []);
 
@@ -154,7 +178,7 @@ const ConnectionStatus = ({ position = 'bottom-right', showDetailedStatus = fals
           <span className={`text-sm font-medium ${statusConfig.textColor}`}>
             {statusConfig.text}
           </span>
-          {(['disconnected', 'connection_error', 'failed'].includes(connectionInfo.status)) && (
+          {(['disconnected', 'connection_error', 'failed', 'auth_error'].includes(connectionInfo.status)) && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
