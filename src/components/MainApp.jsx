@@ -1843,9 +1843,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         e.shiftKey &&
         e.key.toUpperCase() === "F"
       ) {
-        const el = e.target;
-        if (el.id === "global-search-input") return;
-
         e.preventDefault();
         setSearchSheetOpen((s) => !s);
       }
