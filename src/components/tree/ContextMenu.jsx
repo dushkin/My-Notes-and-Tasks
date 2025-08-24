@@ -76,6 +76,10 @@ const ContextMenu = ({
       let adjustedX = x;
       let adjustedY = y;
 
+      // Position menu above the trigger point (bottom-up approach)
+      // Subtract an additional 1px to account for border and ensure direct contact
+      adjustedY = y - rect.height - 1;
+
       // Adjust horizontal position if menu overflows right edge
       if (x + rect.width > viewportWidth - 10) {
         adjustedX = viewportWidth - rect.width - 10;
@@ -86,20 +90,24 @@ const ContextMenu = ({
         adjustedX = 10;
       }
 
-      // Adjust vertical position if menu overflows bottom edge
-      if (y + rect.height > viewportHeight - 10) {
-        adjustedY = viewportHeight - rect.height - 10;
-      }
-
-      // Adjust vertical position if menu overflows top edge
+      // If menu would go above viewport, position it below instead
       if (adjustedY < 10) {
-        adjustedY = 10;
+        adjustedY = y + 10; // Small gap below trigger
       }
 
-      if (adjustedX !== x || adjustedY !== y) {
-        menu.style.left = `${adjustedX}px`;
-        menu.style.top = `${adjustedY}px`;
+      // If still doesn't fit below, center it vertically
+      if (adjustedY + rect.height > viewportHeight - 10) {
+        adjustedY = Math.max(10, (viewportHeight - rect.height) / 2);
       }
+
+      // Always update position to use the actual measured dimensions
+      menu.style.left = `${adjustedX}px`;
+      menu.style.top = `${adjustedY}px`;
+      
+      // Ensure menu height matches content exactly
+      menu.style.height = 'auto';
+      menu.style.maxHeight = 'none';
+      
     }
   }, [visible, x, y]);
 
@@ -116,7 +124,7 @@ const ContextMenu = ({
       aria-label={
         isEmptyArea ? "Tree context menu" : `Context menu for ${item?.label}`
       }
-      className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-500 rounded-md shadow-lg text-base md:text-sm min-w-[200px] py-1"
+      className={`fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-500 rounded-md shadow-lg text-base md:text-sm min-w-[200px] ${isEmptyArea ? 'w-fit h-fit' : ''}`}
       style={{ top: y, left: x }}
     >
       {/* --- Actions for Empty Area --- */}
@@ -124,7 +132,7 @@ const ContextMenu = ({
         <>
           <button
             role="menuitem"
-            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 ${isEmptyArea ? 'pt-1' : ''} ${isEmptyArea && !canPaste ? 'pb-1' : ''}`}
             onClick={() => {
               onAdd("folder", null);
               onClose();
@@ -133,28 +141,66 @@ const ContextMenu = ({
             <Plus
               className={`${iconBaseClass} text-purple-500 dark:text-purple-400`}
             />{" "}
-            Add Root Folder
+            Add root folder
           </button>
+          {canPaste && (
+            <>
+              <hr
+                className="my-1 border-zinc-200 dark:border-zinc-700"
+                role="separator"
+              />
+              <button
+                role="menuitem"
+                className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+                onClick={() => {
+                  onPaste(null);
+                  onClose();
+                }}
+                title="Paste item at root"
+              >
+                <ClipboardPaste
+                  className={`${iconBaseClass} text-green-500 dark:text-green-400`}
+                />{" "}
+                Paste
+              </button>
+            </>
+          )}
           <hr
             className="my-1 border-zinc-200 dark:border-zinc-700"
             role="separator"
           />
-          {canPaste && (
-            <button
-              role="menuitem"
-              className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
-              onClick={() => {
-                onPaste(null);
-                onClose();
-              }}
-              title="Paste item at root"
-            >
-              <ClipboardPaste
-                className={`${iconBaseClass} text-green-500 dark:text-green-400`}
-              />{" "}
-              Paste
-            </button>
-          )}
+          <button
+            role="menuitem"
+            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onExport("tree");
+              onClose();
+            }}
+            title="Export entire tree"
+          >
+            <Download
+              className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
+            />{" "}
+            Export Tree
+          </button>
+          <button
+            role="menuitem"
+            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 pb-1`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onImport("tree");
+              onClose();
+            }}
+            title="Import to root"
+          >
+            <Upload
+              className={`${iconBaseClass} text-green-500 dark:text-green-400`}
+            />{" "}
+            Import
+          </button>
         </>
       )}
 
@@ -274,6 +320,47 @@ const ContextMenu = ({
             className="my-1 border-zinc-200 dark:border-zinc-700"
             role="separator"
           />
+
+          {item.type === "folder" && (
+            <>
+              <button
+                role="menuitem"
+                className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onExport(item);
+                  onClose();
+                }}
+                title={`Export ${item.label} folder`}
+              >
+                <Download
+                  className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
+                />{" "}
+                Export Folder
+              </button>
+              <button
+                role="menuitem"
+                className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onImport(item);
+                  onClose();
+                }}
+                title={`Import into ${item.label} folder`}
+              >
+                <Upload
+                  className={`${iconBaseClass} text-green-500 dark:text-green-400`}
+                />{" "}
+                Import Here
+              </button>
+              <hr
+                className="my-1 border-zinc-200 dark:border-zinc-700"
+                role="separator"
+              />
+            </>
+          )}
 
           {item.type === "task" && !item.completed && (
             <button

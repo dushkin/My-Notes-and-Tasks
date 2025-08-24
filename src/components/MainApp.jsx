@@ -1603,15 +1603,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
       let x = event.clientX,
         y = event.clientY;
-      const menuWidth = 190;
-      const menuHeight = item ? (item.type === "folder" ? 350 : 280) : 180;
-
-      if (x + menuWidth > window.innerWidth - 10)
-        x = window.innerWidth - menuWidth - 10;
-      if (x < 10) x = 10;
-      if (y + menuHeight > window.innerHeight - 10)
-        y = window.innerHeight - menuHeight - 10;
-      if (y < 10) y = 10;
 
       setContextMenu({ visible: true, x, y, item, isEmptyArea: !item });
     },
@@ -1852,9 +1843,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         e.shiftKey &&
         e.key.toUpperCase() === "F"
       ) {
-        const el = e.target;
-        if (el.id === "global-search-input") return;
-
         e.preventDefault();
         setSearchSheetOpen((s) => !s);
       }
@@ -2387,7 +2375,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     Collapse All
                   </button>
                 </div>
-                <div className="flex-grow overflow-auto w-full">
+                <div 
+                  className="flex-grow overflow-auto w-full"
+                  onContextMenu={(e) => handleNativeContextMenu(e, null)}
+                >
                   <div className="overflow-x-auto tree-horizontal-scroll">
                     <Tree
                       items={tree || []}
@@ -2691,7 +2682,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                         Collapse All
                       </button>
                     </div>
-                    <div className="flex-grow overflow-auto">
+                    <div 
+                      className="flex-grow overflow-auto"
+                      onContextMenu={(e) => handleNativeContextMenu(e, null)}
+                    >
                       <div className="overflow-x-auto tree-horizontal-scroll">
                         <Tree
                           items={tree || []}

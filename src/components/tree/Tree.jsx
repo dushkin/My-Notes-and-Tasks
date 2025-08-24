@@ -59,6 +59,7 @@ const Tree = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+
   // Global mouseup handler to end drag if mouse is released anywhere
   useEffect(() => {
     const handleGlobalMouseUp = (e) => {
@@ -131,7 +132,26 @@ const Tree = ({
         </div>
       );
     }
-    return renderItems(items);
+    return (
+      <div className="h-full flex flex-col">
+        {renderItems(items)}
+        <div
+          className="tree-empty-area flex-1 min-h-[20px]"
+          onClick={isMobile ? (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelect(null);
+            onNativeContextMenu(e, null);
+          } : undefined}
+          onContextMenu={!isMobile ? (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelect(null);
+            onNativeContextMenu(e, null);
+          } : undefined}
+        />
+      </div>
+    );
   };
 
   const refocusTree = useCallback(() => {
@@ -390,13 +410,17 @@ const Tree = ({
 
   const handleNavContextMenu = useCallback(
     (e) => {
+      
       if (draggedId || inlineRenameId) {
         e.preventDefault();
         return;
       }
       const isDirectNavClick = e.target === navRef.current;
       const isEmptySpaceClick = e.target.closest("li") === null;
-      if (isDirectNavClick || isEmptySpaceClick) {
+      const isEmptyAreaClick = e.target.classList.contains('tree-empty-area') || e.target.closest('.tree-empty-area');
+      
+      
+      if (isDirectNavClick || isEmptySpaceClick || isEmptyAreaClick) {
         e.preventDefault();
         onSelect(null);
         onNativeContextMenu(e, null);
