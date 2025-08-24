@@ -66,19 +66,8 @@ if ('serviceWorker' in navigator && !isNative) {
     .then(registration => {
       console.log('SW registered:', registration);
       
-      // Check for updates
-      registration.addEventListener('updatefound', () => {
-        console.log('New SW version found, updating...');
-        const newWorker = registration.installing;
-        
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // New version ready, prompt user or auto-update
-            console.log('New version available, reloading...');
-            window.location.reload();
-          }
-        });
-      });
+      // Update handling is managed by clientInit.js
+      console.log('SW registration successful, update handling delegated to clientInit.js');
     })
     .catch(error => console.log('SW registration failed:', error));
 } else {
