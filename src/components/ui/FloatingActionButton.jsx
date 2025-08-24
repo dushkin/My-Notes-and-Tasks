@@ -12,6 +12,7 @@ const FloatingActionButton = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
   const fabRef = useRef(null);
+  const menuRef = useRef(null);
   
   useFocusTrap(fabRef, isExpanded);
 
@@ -100,8 +101,9 @@ const FloatingActionButton = ({
       // Calculate menu position for inline positioning
       if (position === 'inline' && fabRef.current) {
         const rect = fabRef.current.getBoundingClientRect();
+        
         setMenuPosition({
-          top: rect.top - 200, // Position above the button
+          bottom: window.innerHeight - rect.top, // Position menu bottom at button top
           right: window.innerWidth - rect.right
         });
       }
@@ -140,7 +142,7 @@ const FloatingActionButton = ({
         }`}
         style={position === 'inline' ? {
           position: 'fixed',
-          top: `${menuPosition.top}px`,
+          bottom: `${menuPosition.bottom}px`,
           right: `${menuPosition.right}px`,
           zIndex: 9999
         } : {}}
