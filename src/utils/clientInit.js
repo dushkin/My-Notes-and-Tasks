@@ -265,35 +265,55 @@ import { authFetch } from '../services/apiClient';
     }
 
     try {
-      // OPTIONAL: Unregister old service workers to ensure a clean state
-      if (navigator.serviceWorker?.getRegistrations) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const reg of registrations) {
-          try {
-            await reg.unregister();
-            console.log('🗑️ Unregistered old service worker');
-          } catch {}
+      // Check if service worker is already registered
+      const existingRegistration = await navigator.serviceWorker.getRegistration();
+      
+      if (existingRegistration) {
+        console.log('✅ Service Worker already registered, checking for updates...');
+        window.MyNotesApp.swRegistration = existingRegistration;
+        
+        // Only check for updates if there's actually a waiting worker
+        if (existingRegistration.waiting) {
+          console.log('🔄 SW update is ready (waiting worker found)');
+          showUpdateAvailableNotification();
+        } else {
+          // Listen for future updates only
+          existingRegistration.addEventListener('updatefound', () => {
+            const newWorker = existingRegistration.installing;
+            console.log('🔄 SW update found, checking state changes...');
+            
+            newWorker?.addEventListener('statechange', () => {
+              console.log('🔄 SW state changed to:', newWorker.state);
+              if (newWorker.state === 'installed' && navigator.serviceWorker?.controller) {
+                console.log('🔄 SW update is ready to install');
+                showUpdateAvailableNotification();
+              }
+            });
+          });
         }
-      }
-
-      // Register new service worker
-      const verParam = (window.APP_VERSION || new Date().toISOString().slice(0, 10));
-      const registration = await navigator.serviceWorker.register(`/sw.js?v=${verParam}`, {
-        // Do not set updateViaCache on older WebViews/browsers unless needed
-        // updateViaCache: 'none'
-      });
-      window.MyNotesApp.swRegistration = registration;
-      console.log('✅ Service Worker registered:', registration);
-
-      // Listen for updates, guard registration
-      registration?.addEventListener?.('updatefound', () => {
-        const newWorker = registration.installing;
-        newWorker?.addEventListener?.('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker?.controller) {
-            showUpdateAvailableNotification();
-          }
+      } else {
+        // First time registration
+        const verParam = (window.APP_VERSION || new Date().toISOString().slice(0, 10));
+        const registration = await navigator.serviceWorker.register(`/sw.js?v=${verParam}`, {
+          updateViaCache: 'none'
         });
-      });
+        window.MyNotesApp.swRegistration = registration;
+        console.log('✅ Service Worker registered for first time:', registration);
+
+        // Listen for updates on new registration
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          console.log('🔄 SW update found on new registration');
+          
+          newWorker?.addEventListener('statechange', () => {
+            console.log('🔄 SW state changed to:', newWorker.state);
+            if (newWorker.state === 'installed' && navigator.serviceWorker?.controller) {
+              console.log('🔄 SW update is ready to install');
+              showUpdateAvailableNotification();
+            }
+          });
+        });
+      }
     } catch (error) {
       console.error('❌ Service Worker registration failed:', error);
     }
@@ -485,7 +505,17 @@ import { authFetch } from '../services/apiClient';
   }
 
   function showUpdateAvailableNotification() {
+    // Check if notification already exists to prevent duplicates
+    const existingNotification = document.querySelector('.update-notification');
+    if (existingNotification) {
+      console.log('🔄 Update notification already showing, skipping duplicate');
+      return;
+    }
+
+    console.log('🔄 Showing update notification');
+    
     const updateDiv = document.createElement('div');
+    updateDiv.className = 'update-notification';
     updateDiv.innerHTML = `
     <div style="
       position: fixed;
@@ -498,27 +528,44 @@ import { authFetch } from '../services/apiClient';
       z-index: 10000;
       max-width: 300px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      animation: slideUp 0.3s ease-out;
     ">
-      <div style="margin-bottom: 10px;">Update available!</div>
-      <button id="update-now-btn" style="
-        background: white;
-        color: #2196F3;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        margin-right: 8px;
-      ">Update Now</button>
-      <button id="update-later-btn" style="
-        background: transparent;
-        color: white;
-        border: 1px solid white;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-      ">Later</button>
+      <div style="margin-bottom: 12px; font-weight: 500;">📱 App Update Available</div>
+      <div style="margin-bottom: 12px; font-size: 14px; opacity: 0.9;">
+        A new version is ready to install. Update now for the latest features and improvements.
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="update-now-btn" style="
+          background: white;
+          color: #2196F3;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-weight: 500;
+          flex: 1;
+        ">Update Now</button>
+        <button id="update-later-btn" style="
+          background: transparent;
+          color: white;
+          border: 1px solid white;
+          padding: 8px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+        ">Later</button>
+      </div>
     </div>
   `;
+
+    // Add slide animation styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideUp {
+        from { transform: translateY(100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
 
     document.body.appendChild(updateDiv);
 
@@ -527,6 +574,8 @@ import { authFetch } from '../services/apiClient';
 
     updateNowBtn.addEventListener('click', async () => {
       console.log('🔄 Update Now clicked - triggering service worker update...');
+      updateNowBtn.textContent = 'Updating...';
+      updateNowBtn.disabled = true;
 
       try {
         const registration =
@@ -543,8 +592,11 @@ import { authFetch } from '../services/apiClient';
             window.location.reload();
           }, { once: true });
 
-          updateNowBtn.textContent = 'Updating...';
-          updateNowBtn.disabled = true;
+          // Add timeout fallback
+          setTimeout(() => {
+            console.log('🔄 Update timeout, forcing reload...');
+            window.location.reload();
+          }, 3000);
         } else {
           console.log('🔄 No waiting service worker found, forcing page reload...');
           window.location.reload();
@@ -556,8 +608,23 @@ import { authFetch } from '../services/apiClient';
     });
 
     updateLaterBtn.addEventListener('click', () => {
+      console.log('🔄 Update dismissed by user');
       updateDiv.remove();
+      if (style.parentNode) {
+        style.remove();
+      }
     });
+
+    // Auto-dismiss after 30 seconds to avoid permanent clutter
+    setTimeout(() => {
+      if (updateDiv.parentNode) {
+        console.log('🔄 Auto-dismissing update notification after 30 seconds');
+        updateDiv.remove();
+        if (style.parentNode) {
+          style.remove();
+        }
+      }
+    }, 30000);
   }
 
   // ---------- App-specific utils ----------
