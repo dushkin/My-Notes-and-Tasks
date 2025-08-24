@@ -151,7 +151,7 @@ const ContextMenu = ({
               />
               <button
                 role="menuitem"
-                className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 pb-1`}
+                className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
                 onClick={() => {
                   onPaste(null);
                   onClose();
@@ -165,6 +165,42 @@ const ContextMenu = ({
               </button>
             </>
           )}
+          <hr
+            className="my-1 border-zinc-200 dark:border-zinc-700"
+            role="separator"
+          />
+          <button
+            role="menuitem"
+            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onExport("tree");
+              onClose();
+            }}
+            title="Export entire tree"
+          >
+            <Download
+              className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
+            />{" "}
+            Export Tree
+          </button>
+          <button
+            role="menuitem"
+            className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 pb-1`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onImport("tree");
+              onClose();
+            }}
+            title="Import to root"
+          >
+            <Upload
+              className={`${iconBaseClass} text-green-500 dark:text-green-400`}
+            />{" "}
+            Import
+          </button>
         </>
       )}
 
@@ -284,6 +320,47 @@ const ContextMenu = ({
             className="my-1 border-zinc-200 dark:border-zinc-700"
             role="separator"
           />
+
+          {item.type === "folder" && (
+            <>
+              <button
+                role="menuitem"
+                className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onExport(item);
+                  onClose();
+                }}
+                title={`Export ${item.label} folder`}
+              >
+                <Download
+                  className={`${iconBaseClass} text-blue-500 dark:text-blue-400`}
+                />{" "}
+                Export Folder
+              </button>
+              <button
+                role="menuitem"
+                className={`flex items-center w-full ${itemPadding} text-left hover:bg-zinc-100 dark:hover:bg-zinc-700`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onImport(item);
+                  onClose();
+                }}
+                title={`Import into ${item.label} folder`}
+              >
+                <Upload
+                  className={`${iconBaseClass} text-green-500 dark:text-green-400`}
+                />{" "}
+                Import Here
+              </button>
+              <hr
+                className="my-1 border-zinc-200 dark:border-zinc-700"
+                role="separator"
+              />
+            </>
+          )}
 
           {item.type === "task" && !item.completed && (
             <button
