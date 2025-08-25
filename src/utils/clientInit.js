@@ -365,11 +365,45 @@ import { authFetch } from '../services/apiClient';
             const newWorker = existingRegistration.installing;
             console.log('🔄 SW update found, checking state changes...');
             
+            // Check if this is a legitimate update (there's already a controller)
+            const hasExistingController = !!navigator.serviceWorker?.controller;
+            console.log('🔄 Update context:', {
+              hasExistingController,
+              controllerState: navigator.serviceWorker?.controller?.state,
+              newWorkerScript: newWorker?.scriptURL
+            });
+            
             newWorker?.addEventListener('statechange', () => {
               console.log('🔄 SW state changed to:', newWorker.state);
-              if (newWorker.state === 'installed' && navigator.serviceWorker?.controller) {
-                console.log('🔄 SW update is ready to install');
-                showUpdateAvailableNotification();
+              
+              // Only show update notification if:
+              // 1. New worker is installed
+              // 2. There's an existing controller (not first install)
+              // 3. The new worker is different from the current controller
+              if (newWorker.state === 'installed' && 
+                  navigator.serviceWorker?.controller &&
+                  newWorker.scriptURL !== navigator.serviceWorker.controller.scriptURL) {
+                
+                console.log('🔄 Legitimate SW update detected:', {
+                  newWorkerUrl: newWorker.scriptURL,
+                  controllerUrl: navigator.serviceWorker.controller.scriptURL
+                });
+                
+                // Additional delay to ensure this isn't a race condition
+                setTimeout(() => {
+                  if (existingRegistration.waiting && navigator.serviceWorker?.controller) {
+                    console.log('🔄 Confirmed SW update is ready to install');
+                    showUpdateAvailableNotification();
+                  } else {
+                    console.log('🔄 SW update validation failed, skipping notification');
+                  }
+                }, 1500);
+              } else {
+                console.log('🔄 SW state change does not warrant update notification:', {
+                  state: newWorker.state,
+                  hasController: !!navigator.serviceWorker?.controller,
+                  sameScript: newWorker.scriptURL === navigator.serviceWorker?.controller?.scriptURL
+                });
               }
             });
           });
@@ -383,16 +417,26 @@ import { authFetch } from '../services/apiClient';
         window.MyNotesApp.swRegistration = registration;
         console.log('✅ Service Worker registered for first time:', registration);
 
-        // Listen for updates on new registration
+        // Listen for updates on new registration (but be more selective)
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           console.log('🔄 SW update found on new registration');
           
           newWorker?.addEventListener('statechange', () => {
             console.log('🔄 SW state changed to:', newWorker.state);
-            if (newWorker.state === 'installed' && navigator.serviceWorker?.controller) {
-              console.log('🔄 SW update is ready to install');
+            
+            // For new registrations, only show update if there's already a controller
+            // This prevents showing updates during the initial SW installation
+            if (newWorker.state === 'installed' && 
+                navigator.serviceWorker?.controller &&
+                newWorker !== navigator.serviceWorker.controller) {
+              console.log('🔄 SW update is ready to install (new registration)');
               showUpdateAvailableNotification();
+            } else {
+              console.log('🔄 SW installed but no update notification needed (likely first install):', {
+                hasController: !!navigator.serviceWorker?.controller,
+                isNewWorker: newWorker !== navigator.serviceWorker?.controller
+              });
             }
           });
         });
