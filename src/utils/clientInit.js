@@ -304,24 +304,61 @@ import { authFetch } from '../services/apiClient';
         });
         window.MyNotesApp.swRegistration = existingRegistration;
         
-        // Only show update notification if there's a waiting worker AND it's different from the active one
+        // Check for waiting worker with detailed logging
+        console.log('🔄 Detailed waiting worker analysis:', {
+          hasWaiting: !!existingRegistration.waiting,
+          hasActive: !!existingRegistration.active,
+          waitingUrl: existingRegistration.waiting?.scriptURL,
+          activeUrl: existingRegistration.active?.scriptURL,
+          sameWorker: existingRegistration.waiting === existingRegistration.active,
+          waitingDifferent: existingRegistration.waiting && existingRegistration.active && 
+                           existingRegistration.waiting !== existingRegistration.active
+        });
+
+        // Only show update notification if there's actually a different waiting worker
         if (existingRegistration.waiting && existingRegistration.active && 
             existingRegistration.waiting !== existingRegistration.active) {
-          console.log('🔄 SW update is ready (waiting worker found)');
+          
+          // Additional check - compare script URLs to ensure they're actually different
+          const waitingUrl = existingRegistration.waiting.scriptURL;
+          const activeUrl = existingRegistration.active.scriptURL;
+          console.log('🔄 Comparing script URLs:', { waitingUrl, activeUrl });
+          
+          if (waitingUrl === activeUrl) {
+            console.log('🔄 Script URLs are identical, likely a false positive - skipping notification');
+            return;
+          }
+          
+          // Extract version parameters from URLs to compare
+          const waitingVersion = new URL(waitingUrl).searchParams.get('v');
+          const activeVersion = new URL(activeUrl).searchParams.get('v');
+          console.log('🔄 Comparing versions:', { waitingVersion, activeVersion });
+          
+          if (waitingVersion === activeVersion) {
+            console.log('🔄 Versions are identical, skipping notification');
+            return;
+          }
+          
+          console.log('🔄 SW update is ready (waiting worker found with different script)');
           
           // Add a small delay to avoid showing notification on fresh page loads
-          // where the waiting worker might be from a previous session
           setTimeout(() => {
-            // Double-check the waiting worker is still there
-            if (existingRegistration.waiting) {
-              console.log('🔄 Confirmed waiting worker still exists, showing notification');
+            // Triple-check the waiting worker is still there and different
+            if (existingRegistration.waiting && 
+                existingRegistration.active &&
+                existingRegistration.waiting !== existingRegistration.active &&
+                existingRegistration.waiting.scriptURL !== existingRegistration.active.scriptURL) {
+              console.log('🔄 Confirmed legitimate update available, showing notification');
               showUpdateAvailableNotification();
             } else {
-              console.log('🔄 Waiting worker cleared, no notification needed');
+              console.log('🔄 Update check failed validation, skipping notification');
             }
-          }, 1000);
+          }, 2000); // Increased delay to 2 seconds
         } else if (existingRegistration.waiting) {
-          console.log('🔄 Waiting worker exists but may be stale, skipping notification');
+          console.log('🔄 Waiting worker exists but conditions not met for notification:', {
+            noActive: !existingRegistration.active,
+            sameAsActive: existingRegistration.waiting === existingRegistration.active
+          });
         } else {
           // Listen for future updates only
           existingRegistration.addEventListener('updatefound', () => {
@@ -551,6 +588,13 @@ import { authFetch } from '../services/apiClient';
   }
 
   function showUpdateAvailableNotification() {
+    // TEMPORARY: Add flag to disable update notifications for debugging
+    const disableUpdateNotifications = localStorage.getItem('disable_update_notifications') === 'true';
+    if (disableUpdateNotifications) {
+      console.log('🔄 Update notifications are disabled via localStorage flag');
+      return;
+    }
+
     // Check if notification already exists to prevent duplicates
     const existingNotification = document.querySelector('.update-notification');
     if (existingNotification) {
