@@ -69,6 +69,11 @@ self.addEventListener('install', (event) => {
 // Activate event - clean up old caches and register device
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activating');
+  console.log('🔄 SW: Activate event - current worker state:', {
+    isActive: self.registration.active === self,
+    scope: self.registration.scope
+  });
+  
   event.waitUntil(
     Promise.all([
       // Clean up old caches

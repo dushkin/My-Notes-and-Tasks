@@ -293,12 +293,35 @@ import { authFetch } from '../services/apiClient';
       
       if (existingRegistration) {
         console.log('✅ Service Worker already registered, checking for updates...');
+        console.log('🔄 Registration state:', {
+          hasActive: !!existingRegistration.active,
+          hasWaiting: !!existingRegistration.waiting,
+          hasInstalling: !!existingRegistration.installing,
+          activeState: existingRegistration.active?.state,
+          waitingState: existingRegistration.waiting?.state,
+          installingState: existingRegistration.installing?.state,
+          scope: existingRegistration.scope
+        });
         window.MyNotesApp.swRegistration = existingRegistration;
         
-        // Only check for updates if there's actually a waiting worker
-        if (existingRegistration.waiting) {
+        // Only show update notification if there's a waiting worker AND it's different from the active one
+        if (existingRegistration.waiting && existingRegistration.active && 
+            existingRegistration.waiting !== existingRegistration.active) {
           console.log('🔄 SW update is ready (waiting worker found)');
-          showUpdateAvailableNotification();
+          
+          // Add a small delay to avoid showing notification on fresh page loads
+          // where the waiting worker might be from a previous session
+          setTimeout(() => {
+            // Double-check the waiting worker is still there
+            if (existingRegistration.waiting) {
+              console.log('🔄 Confirmed waiting worker still exists, showing notification');
+              showUpdateAvailableNotification();
+            } else {
+              console.log('🔄 Waiting worker cleared, no notification needed');
+            }
+          }, 1000);
+        } else if (existingRegistration.waiting) {
+          console.log('🔄 Waiting worker exists but may be stale, skipping notification');
         } else {
           // Listen for future updates only
           existingRegistration.addEventListener('updatefound', () => {
@@ -535,6 +558,22 @@ import { authFetch } from '../services/apiClient';
       return;
     }
 
+    // Check if we recently dismissed an update notification (within last 5 minutes)
+    const lastDismissed = localStorage.getItem('update_notification_dismissed');
+    if (lastDismissed) {
+      const dismissTime = parseInt(lastDismissed);
+      const now = Date.now();
+      const fiveMinutesAgo = now - (5 * 60 * 1000);
+      
+      if (dismissTime > fiveMinutesAgo) {
+        console.log('🔄 Update notification was recently dismissed, skipping for now');
+        return;
+      } else {
+        // Clear old timestamp
+        localStorage.removeItem('update_notification_dismissed');
+      }
+    }
+
     console.log('🔄 Showing update notification');
     
     const updateDiv = document.createElement('div');
@@ -714,6 +753,10 @@ import { authFetch } from '../services/apiClient';
 
     updateLaterBtn.addEventListener('click', () => {
       console.log('🔄 Update dismissed by user');
+      
+      // Record the dismissal time to prevent showing again too soon
+      localStorage.setItem('update_notification_dismissed', Date.now().toString());
+      
       updateDiv.remove();
       if (style.parentNode) {
         style.remove();
