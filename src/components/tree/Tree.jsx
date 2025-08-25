@@ -133,7 +133,7 @@ const Tree = ({
       );
     }
     return (
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col" style={{ minWidth: 'max-content' }}>
         {renderItems(items)}
         <div
           className="tree-empty-area flex-1 min-h-[20px]"
@@ -808,13 +808,19 @@ const Tree = ({
                         onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         onFocus={(e) => {
+                          // Save current scroll position to prevent any scroll changes during focus
+                          const scrollLeft = navRef.current?.scrollLeft || 0;
+                          const scrollTop = navRef.current?.scrollTop || 0;
+                          
+                          // Restore scroll position immediately to prevent any scrolling
+                          if (navRef.current) {
+                            navRef.current.scrollLeft = scrollLeft;
+                            navRef.current.scrollTop = scrollTop;
+                          }
+                          
+                          // Mark as selected if not already done (mainly for re-focus scenarios)
                           if (!e.target.dataset.hasSelected) {
-                            if (isMobile) {
-                              e.target.dataset.hasSelected = "true";
-                            } else {
-                              e.target.select();
-                              e.target.dataset.hasSelected = "true";
-                            }
+                            e.target.dataset.hasSelected = "true";
                           }
                         }}
                         onBlur={() => {
@@ -830,7 +836,35 @@ const Tree = ({
                             refocusTree();
                           }
                         }}
-                        autoFocus
+                        ref={(inputEl) => {
+                          if (inputEl) {
+                            // Store current scroll position before any DOM changes
+                            const currentScrollLeft = navRef.current?.scrollLeft || 0;
+                            const currentScrollTop = navRef.current?.scrollTop || 0;
+                            
+                            // Focus without scrolling into view
+                            inputEl.focus({ preventScroll: true });
+                            
+                            // Select text for easy editing
+                            if (!isMobile) {
+                              inputEl.select();
+                            }
+                            
+                            // Ensure scroll position is maintained immediately and after any potential layout changes
+                            if (navRef.current) {
+                              navRef.current.scrollLeft = currentScrollLeft;
+                              navRef.current.scrollTop = currentScrollTop;
+                            }
+                            
+                            // Additional safeguard with RAF to handle any delayed layout updates
+                            requestAnimationFrame(() => {
+                              if (navRef.current) {
+                                navRef.current.scrollLeft = currentScrollLeft;
+                                navRef.current.scrollTop = currentScrollTop;
+                              }
+                            });
+                          }
+                        }}
                       />
                       {hasError && (
                         <span
@@ -917,6 +951,7 @@ const Tree = ({
       <nav
         ref={navRef}
         className="overflow-auto h-full p-1.5 sm:p-1 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
+        style={{ minWidth: 0 }}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onContextMenu={handleNavContextMenu}

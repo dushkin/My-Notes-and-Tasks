@@ -210,6 +210,29 @@ import { authFetch } from '../services/apiClient';
     window.addEventListener('syncNotification', handleSyncNotification);
     window.addEventListener('conflictResolution', handleConflictResolution);
 
+    // Service worker message handlers
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        const { type, data } = event.data || {};
+        console.log('🔄 Received SW message:', type, data);
+        
+        switch (type) {
+          case 'SW_ACTIVATED':
+            console.log('🔄 Service worker activated, reloading page...');
+            window.location.reload();
+            break;
+          case 'FORCE_RELOAD':
+            console.log('🔄 Service worker requested force reload...');
+            window.location.reload();
+            break;
+          default:
+            console.log('🔄 Unknown SW message type:', type);
+        }
+      });
+      
+      console.log('✅ Service worker message handlers set up');
+    }
+
     console.log('✅ Event listeners set up');
   }
 
@@ -270,23 +293,117 @@ import { authFetch } from '../services/apiClient';
       
       if (existingRegistration) {
         console.log('✅ Service Worker already registered, checking for updates...');
+        console.log('🔄 Registration state:', {
+          hasActive: !!existingRegistration.active,
+          hasWaiting: !!existingRegistration.waiting,
+          hasInstalling: !!existingRegistration.installing,
+          activeState: existingRegistration.active?.state,
+          waitingState: existingRegistration.waiting?.state,
+          installingState: existingRegistration.installing?.state,
+          scope: existingRegistration.scope
+        });
         window.MyNotesApp.swRegistration = existingRegistration;
         
-        // Only check for updates if there's actually a waiting worker
-        if (existingRegistration.waiting) {
-          console.log('🔄 SW update is ready (waiting worker found)');
-          showUpdateAvailableNotification();
+        // Check for waiting worker with detailed logging
+        console.log('🔄 Detailed waiting worker analysis:', {
+          hasWaiting: !!existingRegistration.waiting,
+          hasActive: !!existingRegistration.active,
+          waitingUrl: existingRegistration.waiting?.scriptURL,
+          activeUrl: existingRegistration.active?.scriptURL,
+          sameWorker: existingRegistration.waiting === existingRegistration.active,
+          waitingDifferent: existingRegistration.waiting && existingRegistration.active && 
+                           existingRegistration.waiting !== existingRegistration.active
+        });
+
+        // Only show update notification if there's actually a different waiting worker
+        if (existingRegistration.waiting && existingRegistration.active && 
+            existingRegistration.waiting !== existingRegistration.active) {
+          
+          // Additional check - compare script URLs to ensure they're actually different
+          const waitingUrl = existingRegistration.waiting.scriptURL;
+          const activeUrl = existingRegistration.active.scriptURL;
+          console.log('🔄 Comparing script URLs:', { waitingUrl, activeUrl });
+          
+          if (waitingUrl === activeUrl) {
+            console.log('🔄 Script URLs are identical, likely a false positive - skipping notification');
+            return;
+          }
+          
+          // Extract version parameters from URLs to compare
+          const waitingVersion = new URL(waitingUrl).searchParams.get('v');
+          const activeVersion = new URL(activeUrl).searchParams.get('v');
+          console.log('🔄 Comparing versions:', { waitingVersion, activeVersion });
+          
+          if (waitingVersion === activeVersion) {
+            console.log('🔄 Versions are identical, skipping notification');
+            return;
+          }
+          
+          console.log('🔄 SW update is ready (waiting worker found with different script)');
+          
+          // Add a small delay to avoid showing notification on fresh page loads
+          setTimeout(() => {
+            // Triple-check the waiting worker is still there and different
+            if (existingRegistration.waiting && 
+                existingRegistration.active &&
+                existingRegistration.waiting !== existingRegistration.active &&
+                existingRegistration.waiting.scriptURL !== existingRegistration.active.scriptURL) {
+              console.log('🔄 Confirmed legitimate update available, showing notification');
+              showUpdateAvailableNotification();
+            } else {
+              console.log('🔄 Update check failed validation, skipping notification');
+            }
+          }, 2000); // Increased delay to 2 seconds
+        } else if (existingRegistration.waiting) {
+          console.log('🔄 Waiting worker exists but conditions not met for notification:', {
+            noActive: !existingRegistration.active,
+            sameAsActive: existingRegistration.waiting === existingRegistration.active
+          });
         } else {
           // Listen for future updates only
           existingRegistration.addEventListener('updatefound', () => {
             const newWorker = existingRegistration.installing;
             console.log('🔄 SW update found, checking state changes...');
             
+            // Check if this is a legitimate update (there's already a controller)
+            const hasExistingController = !!navigator.serviceWorker?.controller;
+            console.log('🔄 Update context:', {
+              hasExistingController,
+              controllerState: navigator.serviceWorker?.controller?.state,
+              newWorkerScript: newWorker?.scriptURL
+            });
+            
             newWorker?.addEventListener('statechange', () => {
               console.log('🔄 SW state changed to:', newWorker.state);
-              if (newWorker.state === 'installed' && navigator.serviceWorker?.controller) {
-                console.log('🔄 SW update is ready to install');
-                showUpdateAvailableNotification();
+              
+              // Only show update notification if:
+              // 1. New worker is installed
+              // 2. There's an existing controller (not first install)
+              // 3. The new worker is different from the current controller
+              if (newWorker.state === 'installed' && 
+                  navigator.serviceWorker?.controller &&
+                  newWorker.scriptURL !== navigator.serviceWorker.controller.scriptURL) {
+                
+                console.log('🔄 Legitimate SW update detected:', {
+                  newWorkerUrl: newWorker.scriptURL,
+                  controllerUrl: navigator.serviceWorker.controller.scriptURL
+                });
+                
+                // Additional delay to ensure this isn't a race condition
+                setTimeout(() => {
+                  if (existingRegistration.waiting && navigator.serviceWorker?.controller) {
+                    console.log('🔄 Confirmed SW update is ready to install');
+                    showUpdateAvailableNotification();
+                  } else {
+                    console.log('🔄 SW update validation failed, skipping notification');
+                  }
+                }, 1500);
+              } else {
+                console.log('🔄 SW state change does not warrant update notification:', {
+                  state: newWorker.state,
+                  hasController: !!navigator.serviceWorker?.controller,
+                  sameScript: newWorker.scriptURL === navigator.serviceWorker?.controller?.scriptURL
+                });
               }
             });
           });
@@ -300,16 +417,26 @@ import { authFetch } from '../services/apiClient';
         window.MyNotesApp.swRegistration = registration;
         console.log('✅ Service Worker registered for first time:', registration);
 
-        // Listen for updates on new registration
+        // Listen for updates on new registration (but be more selective)
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           console.log('🔄 SW update found on new registration');
           
           newWorker?.addEventListener('statechange', () => {
             console.log('🔄 SW state changed to:', newWorker.state);
-            if (newWorker.state === 'installed' && navigator.serviceWorker?.controller) {
-              console.log('🔄 SW update is ready to install');
+            
+            // For new registrations, only show update if there's already a controller
+            // This prevents showing updates during the initial SW installation
+            if (newWorker.state === 'installed' && 
+                navigator.serviceWorker?.controller &&
+                newWorker !== navigator.serviceWorker.controller) {
+              console.log('🔄 SW update is ready to install (new registration)');
               showUpdateAvailableNotification();
+            } else {
+              console.log('🔄 SW installed but no update notification needed (likely first install):', {
+                hasController: !!navigator.serviceWorker?.controller,
+                isNewWorker: newWorker !== navigator.serviceWorker?.controller
+              });
             }
           });
         });
@@ -505,11 +632,28 @@ import { authFetch } from '../services/apiClient';
   }
 
   function showUpdateAvailableNotification() {
+
     // Check if notification already exists to prevent duplicates
     const existingNotification = document.querySelector('.update-notification');
     if (existingNotification) {
       console.log('🔄 Update notification already showing, skipping duplicate');
       return;
+    }
+
+    // Check if we recently dismissed an update notification (within last 5 minutes)
+    const lastDismissed = localStorage.getItem('update_notification_dismissed');
+    if (lastDismissed) {
+      const dismissTime = parseInt(lastDismissed);
+      const now = Date.now();
+      const fiveMinutesAgo = now - (5 * 60 * 1000);
+      
+      if (dismissTime > fiveMinutesAgo) {
+        console.log('🔄 Update notification was recently dismissed, skipping for now');
+        return;
+      } else {
+        // Clear old timestamp
+        localStorage.removeItem('update_notification_dismissed');
+      }
     }
 
     console.log('🔄 Showing update notification');
@@ -582,33 +726,119 @@ import { authFetch } from '../services/apiClient';
           window.MyNotesApp.swRegistration ||
           (swSupported ? await navigator.serviceWorker.getRegistration() : undefined);
 
-        if (registration?.waiting) {
-          console.log('🔄 Found waiting service worker, sending SKIP_WAITING message...');
-          registration.waiting.postMessage?.({ type: 'SKIP_WAITING' });
+        console.log('🔄 Registration state:', {
+          hasRegistration: !!registration,
+          hasWaiting: !!registration?.waiting,
+          hasInstalling: !!registration?.installing,
+          hasActive: !!registration?.active,
+          controllerState: navigator.serviceWorker?.controller?.state
+        });
 
-          // Guard controllerchange (navigator.serviceWorker may not exist on some platforms)
-          navigator.serviceWorker?.addEventListener?.('controllerchange', () => {
-            console.log('🔄 Controller changed, reloading page...');
-            window.location.reload();
-          }, { once: true });
+        if (registration) {
+          // First try to handle waiting service worker
+          if (registration.waiting) {
+            console.log('🔄 Found waiting service worker, sending SKIP_WAITING message...');
+            
+            // Set up controller change listener BEFORE sending message
+            const controllerChangePromise = new Promise((resolve) => {
+              if (navigator.serviceWorker) {
+                const handleControllerChange = () => {
+                  console.log('🔄 Controller changed, reloading page...');
+                  navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+                  resolve();
+                };
+                navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, { once: true });
+                
+                // Timeout for controller change
+                setTimeout(() => {
+                  navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+                  resolve();
+                }, 2000);
+              } else {
+                resolve();
+              }
+            });
 
-          // Add timeout fallback
+            // Send the skip waiting message
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            
+            // Wait for controller change or timeout
+            await controllerChangePromise;
+          } 
+          // Handle installing service worker (update is in progress)
+          else if (registration.installing) {
+            console.log('🔄 Service worker is installing, waiting for it to become waiting...');
+            
+            const installPromise = new Promise((resolve) => {
+              const handleStateChange = () => {
+                console.log('🔄 Installing worker state changed to:', registration.installing.state);
+                if (registration.installing.state === 'installed') {
+                  registration.installing.removeEventListener('statechange', handleStateChange);
+                  resolve();
+                } else if (registration.installing.state === 'redundant') {
+                  registration.installing.removeEventListener('statechange', handleStateChange);
+                  resolve();
+                }
+              };
+              registration.installing.addEventListener('statechange', handleStateChange);
+              
+              // Timeout
+              setTimeout(() => {
+                if (registration.installing) {
+                  registration.installing.removeEventListener('statechange', handleStateChange);
+                }
+                resolve();
+              }, 3000);
+            });
+            
+            await installPromise;
+            
+            // Now try again with waiting worker
+            if (registration.waiting) {
+              console.log('🔄 Now found waiting service worker after install, sending SKIP_WAITING...');
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          }
+          // Force update check if no waiting/installing worker
+          else {
+            console.log('🔄 No waiting or installing worker, forcing update check...');
+            await registration.update();
+            
+            // Wait a bit for update to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Check again for waiting worker
+            if (registration.waiting) {
+              console.log('🔄 Found waiting worker after update, sending SKIP_WAITING...');
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            } else {
+              console.log('🔄 Still no waiting worker after update, forcing reload...');
+            }
+          }
+          
+          // Final timeout fallback
           setTimeout(() => {
-            console.log('🔄 Update timeout, forcing reload...');
+            console.log('🔄 Update timeout reached, forcing reload...');
             window.location.reload();
-          }, 3000);
+          }, 5000);
+          
         } else {
-          console.log('🔄 No waiting service worker found, forcing page reload...');
+          console.log('🔄 No service worker registration found, forcing page reload...');
           window.location.reload();
         }
       } catch (error) {
         console.error('❌ Error during update:', error);
+        console.log('🔄 Falling back to page reload due to error...');
         window.location.reload();
       }
     });
 
     updateLaterBtn.addEventListener('click', () => {
       console.log('🔄 Update dismissed by user');
+      
+      // Record the dismissal time to prevent showing again too soon
+      localStorage.setItem('update_notification_dismissed', Date.now().toString());
+      
       updateDiv.remove();
       if (style.parentNode) {
         style.remove();
