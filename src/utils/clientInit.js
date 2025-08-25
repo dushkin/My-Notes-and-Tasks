@@ -632,12 +632,6 @@ import { authFetch } from '../services/apiClient';
   }
 
   function showUpdateAvailableNotification() {
-    // TEMPORARY: Add flag to disable update notifications for debugging
-    const disableUpdateNotifications = localStorage.getItem('disable_update_notifications') === 'true';
-    if (disableUpdateNotifications) {
-      console.log('🔄 Update notifications are disabled via localStorage flag');
-      return;
-    }
 
     // Check if notification already exists to prevent duplicates
     const existingNotification = document.querySelector('.update-notification');
