@@ -210,6 +210,29 @@ import { authFetch } from '../services/apiClient';
     window.addEventListener('syncNotification', handleSyncNotification);
     window.addEventListener('conflictResolution', handleConflictResolution);
 
+    // Service worker message handlers
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        const { type, data } = event.data || {};
+        console.log('🔄 Received SW message:', type, data);
+        
+        switch (type) {
+          case 'SW_ACTIVATED':
+            console.log('🔄 Service worker activated, reloading page...');
+            window.location.reload();
+            break;
+          case 'FORCE_RELOAD':
+            console.log('🔄 Service worker requested force reload...');
+            window.location.reload();
+            break;
+          default:
+            console.log('🔄 Unknown SW message type:', type);
+        }
+      });
+      
+      console.log('✅ Service worker message handlers set up');
+    }
+
     console.log('✅ Event listeners set up');
   }
 
@@ -582,27 +605,109 @@ import { authFetch } from '../services/apiClient';
           window.MyNotesApp.swRegistration ||
           (swSupported ? await navigator.serviceWorker.getRegistration() : undefined);
 
-        if (registration?.waiting) {
-          console.log('🔄 Found waiting service worker, sending SKIP_WAITING message...');
-          registration.waiting.postMessage?.({ type: 'SKIP_WAITING' });
+        console.log('🔄 Registration state:', {
+          hasRegistration: !!registration,
+          hasWaiting: !!registration?.waiting,
+          hasInstalling: !!registration?.installing,
+          hasActive: !!registration?.active,
+          controllerState: navigator.serviceWorker?.controller?.state
+        });
 
-          // Guard controllerchange (navigator.serviceWorker may not exist on some platforms)
-          navigator.serviceWorker?.addEventListener?.('controllerchange', () => {
-            console.log('🔄 Controller changed, reloading page...');
-            window.location.reload();
-          }, { once: true });
+        if (registration) {
+          // First try to handle waiting service worker
+          if (registration.waiting) {
+            console.log('🔄 Found waiting service worker, sending SKIP_WAITING message...');
+            
+            // Set up controller change listener BEFORE sending message
+            const controllerChangePromise = new Promise((resolve) => {
+              if (navigator.serviceWorker) {
+                const handleControllerChange = () => {
+                  console.log('🔄 Controller changed, reloading page...');
+                  navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+                  resolve();
+                };
+                navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, { once: true });
+                
+                // Timeout for controller change
+                setTimeout(() => {
+                  navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+                  resolve();
+                }, 2000);
+              } else {
+                resolve();
+              }
+            });
 
-          // Add timeout fallback
+            // Send the skip waiting message
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            
+            // Wait for controller change or timeout
+            await controllerChangePromise;
+          } 
+          // Handle installing service worker (update is in progress)
+          else if (registration.installing) {
+            console.log('🔄 Service worker is installing, waiting for it to become waiting...');
+            
+            const installPromise = new Promise((resolve) => {
+              const handleStateChange = () => {
+                console.log('🔄 Installing worker state changed to:', registration.installing.state);
+                if (registration.installing.state === 'installed') {
+                  registration.installing.removeEventListener('statechange', handleStateChange);
+                  resolve();
+                } else if (registration.installing.state === 'redundant') {
+                  registration.installing.removeEventListener('statechange', handleStateChange);
+                  resolve();
+                }
+              };
+              registration.installing.addEventListener('statechange', handleStateChange);
+              
+              // Timeout
+              setTimeout(() => {
+                if (registration.installing) {
+                  registration.installing.removeEventListener('statechange', handleStateChange);
+                }
+                resolve();
+              }, 3000);
+            });
+            
+            await installPromise;
+            
+            // Now try again with waiting worker
+            if (registration.waiting) {
+              console.log('🔄 Now found waiting service worker after install, sending SKIP_WAITING...');
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          }
+          // Force update check if no waiting/installing worker
+          else {
+            console.log('🔄 No waiting or installing worker, forcing update check...');
+            await registration.update();
+            
+            // Wait a bit for update to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Check again for waiting worker
+            if (registration.waiting) {
+              console.log('🔄 Found waiting worker after update, sending SKIP_WAITING...');
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            } else {
+              console.log('🔄 Still no waiting worker after update, forcing reload...');
+            }
+          }
+          
+          // Final timeout fallback
           setTimeout(() => {
-            console.log('🔄 Update timeout, forcing reload...');
+            console.log('🔄 Update timeout reached, forcing reload...');
             window.location.reload();
-          }, 3000);
+          }, 5000);
+          
         } else {
-          console.log('🔄 No waiting service worker found, forcing page reload...');
+          console.log('🔄 No service worker registration found, forcing page reload...');
           window.location.reload();
         }
       } catch (error) {
         console.error('❌ Error during update:', error);
+        console.log('🔄 Falling back to page reload due to error...');
         window.location.reload();
       }
     });

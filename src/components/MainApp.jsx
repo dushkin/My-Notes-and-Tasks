@@ -2497,7 +2497,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       onShowItemMenu={handleShowItemMenu}
                       onRename={startInlineRename}
                       uiError={uiMessage}
-                      setUiError={(msg) => showMessage(msg, "error")}
+                      setUiError={(msg) => msg && showMessage(msg, "error")}
                     />
                   </div>
                 </div>
@@ -2744,7 +2744,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                           onShowItemMenu={handleShowItemMenu}
                           onRename={startInlineRename}
                           uiError={uiMessage}
-                          setUiError={(msg) => showMessage(msg, "error")}
+                          setUiError={(msg) => msg && showMessage(msg, "error")}
                         />
                       </div>
                     </div>

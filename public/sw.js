@@ -85,13 +85,29 @@ self.addEventListener('activate', (event) => {
       // Register device and sync
       registerDeviceAndSync()
     ]).then(() => {
-      // Only claim clients if this service worker is active
-      if (self.registration.active === self) {
-        return self.clients.claim();
-      } else {
-        console.log('Service Worker not active yet, skipping claim');
-        return Promise.resolve();
-      }
+      // Always claim clients and notify them of the activation
+      return self.clients.claim().then(() => {
+        console.log('🔄 SW: Clients claimed successfully');
+        
+        // Notify all clients that the new service worker is active
+        return self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({ 
+              type: 'SW_ACTIVATED',
+              timestamp: Date.now() 
+            });
+          });
+          console.log('🔄 SW: Notified', clients.length, 'clients of activation');
+        });
+      }).catch(error => {
+        console.error('🔄 SW: Error claiming clients:', error);
+        // Force reload on all clients as fallback
+        return self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({ type: 'FORCE_RELOAD' });
+          });
+        });
+      })
     })
   );
 });
@@ -268,7 +284,25 @@ self.addEventListener('message', (event) => {
   switch (type) {
     case 'SKIP_WAITING':
       console.log('🔄 SW: Received SKIP_WAITING message, taking control...');
-      self.skipWaiting();
+      
+      // Notify the client that we're starting the update process
+      event.ports[0]?.postMessage?.({ type: 'SKIP_WAITING_STARTED' });
+      
+      // Skip waiting immediately
+      self.skipWaiting()
+        .then(() => {
+          console.log('🔄 SW: skipWaiting() completed successfully');
+          // The 'activate' event should trigger after this
+        })
+        .catch((error) => {
+          console.error('🔄 SW: skipWaiting() failed:', error);
+          // Try to reload anyway
+          self.clients.matchAll().then(clients => {
+            clients.forEach(client => {
+              client.postMessage({ type: 'FORCE_RELOAD' });
+            });
+          });
+        });
       break;
     case 'SYNC_REQUEST':
       event.waitUntil(triggerDataSync());
