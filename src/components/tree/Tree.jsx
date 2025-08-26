@@ -201,7 +201,16 @@ const Tree = ({
         `li[data-item-id="${inlineRenameId}"] input`
       );
       if (isRenameInputFocused) {
-        if (e.key === "Enter" || e.key === "Escape") {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (onAttemptRename && inlineRenameValue?.trim()) {
+            onAttemptRename(inlineRenameId, inlineRenameValue.trim());
+          }
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          if (cancelInlineRename) {
+            cancelInlineRename();
+          }
         }
         return;
       }

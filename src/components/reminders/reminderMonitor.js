@@ -74,8 +74,44 @@ class ReminderMonitor {
     });
   }
 
-triggerReminder(reminder, settings) {
-  const itemTitle = this.findItemTitle(reminder.itemId);
+async triggerReminder(reminder, settings) {
+  const isNativeApp = window.Capacitor?.isNativePlatform?.();
+  
+  // On native platforms, always use the app notification system
+  // Service workers don't handle reminders properly in native apps
+  if (isNativeApp) {
+    console.log('🔔 Native app - showing reminder notification directly');
+  } else {
+    // Check if service worker is available and handling reminders (web only)
+    const hasServiceWorker = 'serviceWorker' in navigator;
+    let swIsActive = false;
+    
+    if (hasServiceWorker) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        swIsActive = registration.active !== null;
+      } catch (error) {
+        console.warn('Error checking service worker:', error);
+      }
+    }
+
+    // If service worker is active on web, it's already handling the notification
+    // Only show app notification as fallback when SW is not available
+    if (swIsActive) {
+      console.log('🔔 Service worker is active - skipping app notification to avoid duplicates');
+      
+      // Still dispatch event for app state management
+      const itemTitle = reminder.itemTitle || this.findItemTitle(reminder.itemId);
+      window.dispatchEvent(new CustomEvent('reminderTriggered', {
+        detail: { ...reminder, itemTitle, handledByServiceWorker: true }
+      }));
+      return;
+    }
+
+    console.log('🔔 No active service worker - showing app notification as fallback');
+  }
+  
+  const itemTitle = reminder.itemTitle || this.findItemTitle(reminder.itemId);
   const title = '⏰ Reminder';
   const body = `Don't forget: ${itemTitle || 'Untitled'}`;
   const notificationData = {
@@ -88,7 +124,7 @@ triggerReminder(reminder, settings) {
     originalReminder: reminder
   };
 
-    const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
+  const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
   const isPageHidden = document.hidden;
   
   if (isMobile && isPageHidden) {
@@ -103,19 +139,10 @@ triggerReminder(reminder, settings) {
     }, 3000);
   }
 
-  // DEBUG: Check if showNotification exists
-  console.log('🚨 About to call showNotification:', {
-    title,
-    body,
-    showNotificationExists: typeof showNotification,
-    settings,
-    reminderDisplayDoneButton: settings.reminderDisplayDoneButton
-  });
-
   // Single notification call - let showNotification handle all the logic
   try {
     showNotification(title, body, notificationData);
-    console.log('🚨 showNotification called successfully');
+    console.log('🚨 Fallback notification shown successfully');
   } catch (error) {
     console.error('🚨 showNotification ERROR:', error);
   }
@@ -169,9 +196,13 @@ triggerReminder(reminder, settings) {
     }
   }
 
-  handleReminderDone(itemId, reminderId) {
-    clearReminder(itemId);
+  async handleReminderDone(itemId, reminderId) {
+    // Clear reminder locally and broadcast to other devices
+    const { clearReminder } = await import('../../utils/reminderUtils.js');
+    await clearReminder(itemId);
     this.clearProcessedReminder(itemId);
+    
+    // Dispatch event to mark task as done
     window.dispatchEvent(new CustomEvent('reminderMarkedDone', {
       detail: {
         itemId,
@@ -426,12 +457,37 @@ triggerReminder(reminder, settings) {
   findItemTitle(itemId) {
     try {
       const treeData = this.getTreeData();
+      console.log('🔍 findItemTitle - looking for:', itemId, 'in tree:', !!treeData);
       if (treeData) {
-        return this.searchTreeForTitle(treeData, itemId);
+        const title = this.searchTreeForTitle(treeData, itemId);
+        console.log('🔍 findItemTitle - found title:', title);
+        return title;
       }
+      
+      // Fallback: try to get from current app state
+      if (window.treeData) {
+        console.log('🔍 findItemTitle - trying window.treeData');
+        const title = this.searchTreeForTitle(window.treeData, itemId);
+        if (title) {
+          console.log('🔍 findItemTitle - found in window.treeData:', title);
+          return title;
+        }
+      }
+      
+      // Another fallback: try to get from a global context if available
+      if (window.appContext?.treeData) {
+        console.log('🔍 findItemTitle - trying appContext');
+        const title = this.searchTreeForTitle(window.appContext.treeData, itemId);
+        if (title) {
+          console.log('🔍 findItemTitle - found in appContext:', title);
+          return title;
+        }
+      }
+      
     } catch (error) {
       console.warn('Could not find item title:', error);
     }
+    console.warn('⚠️ findItemTitle - no title found for:', itemId);
     return null;
   }
 
@@ -469,8 +525,9 @@ triggerReminder(reminder, settings) {
     const socket = getSocket();
     if (!socket) return;
 
-    // Only sync data, don't trigger reminders immediately
-    socket.on("reminder:set", (reminderData) => {
+    // Sync data AND schedule notifications for cross-device reminders
+    socket.on("reminder:set", async (reminderData) => {
+      console.log("📡 ReminderMonitor: Socket event reminder:set - SYNCING AND SCHEDULING", reminderData);
       const now = Date.now();
       
       // Handle clock skew by recalculating timestamp based on duration
@@ -492,10 +549,19 @@ triggerReminder(reminder, settings) {
         timestamp: finalTimestamp
       };
       
-      // Just update localStorage, let the normal check cycle handle triggering
+      // Update localStorage
       const reminders = getReminders();
       reminders[reminderData.itemId] = adjustedReminderData;
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      // Schedule notification on this device too
+      try {
+        const { notificationService } = await import('../../services/notificationService.js');
+        await notificationService.scheduleReminder(adjustedReminderData);
+        console.log('🔔 ReminderMonitor: Cross-device reminder scheduled via notification service');
+      } catch (error) {
+        console.error('❌ ReminderMonitor: Failed to schedule cross-device reminder:', error);
+      }
       
       // Notify UI of the sync
       window.dispatchEvent(
@@ -518,11 +584,20 @@ triggerReminder(reminder, settings) {
       );
     });
 
-    socket.on("reminder:clear", ({ itemId }) => {
-      // Just update localStorage
+    socket.on("reminder:clear", async ({ itemId }) => {
+      // Update localStorage
       const reminders = getReminders();
       delete reminders[itemId];
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      // Cancel notification on this device too
+      try {
+        const { notificationService } = await import('../../services/notificationService.js');
+        await notificationService.cancelReminder(itemId);
+        console.log('🔔 Cross-device reminder cancelled via notification service');
+      } catch (error) {
+        console.error('❌ Failed to cancel cross-device reminder via notification service:', error);
+      }
       
       // Clear processed state
       this.clearProcessedReminder(itemId);

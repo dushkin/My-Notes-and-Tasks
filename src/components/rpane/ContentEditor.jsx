@@ -183,7 +183,8 @@ const ContentEditor = memo(
     }, [acceptServerVersion, forceClientVersion]);
 
     const handleSetReminder = (id, timestamp, repeatOptions) => {
-      setReminder(id, timestamp, repeatOptions);
+      const itemTitle = item?.label || item?.title || 'Untitled';
+      setReminder(id, timestamp, repeatOptions, itemTitle);
       // Optionally update local state or trigger re-render
     };
 

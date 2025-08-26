@@ -7,13 +7,15 @@ const REMINDERS_STORAGE_KEY = 'notes_app_reminders';
  * @param {string} itemId - The ID of the item the reminder is for.
  * @param {number} timestamp - The Unix timestamp (in milliseconds) when the reminder should trigger.
  * @param {Object|null} repeatOptions - The repeat options for the reminder.
+ * @param {string|null} itemTitle - The title of the item for the reminder.
  */
-export const setReminder = async (itemId, timestamp, repeatOptions = null) => {
+export const setReminder = async (itemId, timestamp, repeatOptions = null, itemTitle = null) => {
   const reminders = getReminders();
   const reminderData = {
     timestamp,
     itemId,
-    repeatOptions
+    repeatOptions,
+    itemTitle
   };
 
   reminders[itemId] = reminderData;
@@ -101,10 +103,12 @@ export const clearReminder = async (itemId) => {
  */
 export const updateReminder = async (itemId, timestamp, repeatOptions = null) => {
   const reminders = getReminders();
+  const existingReminder = reminders[itemId];
   const reminderData = {
     timestamp,
     itemId,
-    repeatOptions
+    repeatOptions,
+    itemTitle: existingReminder?.itemTitle // Preserve existing item title
   };
 
   reminders[itemId] = reminderData;

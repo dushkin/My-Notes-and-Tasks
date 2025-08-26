@@ -1,11 +1,21 @@
 import { getReminders } from "../utils/reminderUtils";
 
 export const createReminderHandlers = () => {
-  const handleReminderSet = (reminderData) => {
-    console.log("Socket event: reminder:set - SYNCING ONLY", reminderData);
+  const handleReminderSet = async (reminderData) => {
+    console.log("Socket event: reminder:set - SYNCING AND SCHEDULING", reminderData);
     const reminders = getReminders();
     reminders[reminderData.itemId] = reminderData;
     localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+    
+    // Schedule notification on this device too
+    try {
+      const { notificationService } = await import('../services/notificationService.js');
+      await notificationService.scheduleReminder(reminderData);
+      console.log('🔔 Cross-device reminder scheduled via notification service');
+    } catch (error) {
+      console.error('❌ Failed to schedule cross-device reminder:', error);
+    }
+    
     window.dispatchEvent(
       new CustomEvent("remindersUpdated", { detail: reminders })
     );

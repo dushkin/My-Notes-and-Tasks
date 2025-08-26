@@ -4,7 +4,14 @@ import "react-datepicker/dist/react-datepicker.css";
 
 const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
   const [reminderType, setReminderType] = useState("specific"); // 'specific' or 'relative'
-  const [specificDateTime, setSpecificDateTime] = useState(null);
+  // Set default to next minute
+  const getNextMinute = () => {
+    const now = new Date();
+    const nextMinute = new Date(now.getTime() + 60 * 1000); // Add 1 minute
+    nextMinute.setSeconds(0, 0); // Reset seconds and milliseconds to start of minute
+    return nextMinute;
+  };
+  const [specificDateTime, setSpecificDateTime] = useState(getNextMinute());
   const [relativeValue, setRelativeValue] = useState("");
   const [relativeUnit, setRelativeUnit] = useState("minutes");
   const [isRepeating, setIsRepeating] = useState(false); // State for repeating reminders

@@ -49,7 +49,8 @@ const FolderContents = ({
   };
 
   const handleConfirmReminder = (id, timestamp, repeatOptions) => {
-    setReminder(id, timestamp, repeatOptions);
+    const itemTitle = selectedItem?.label || 'Untitled';
+    setReminder(id, timestamp, repeatOptions, itemTitle);
     setIsReminderDialogOpen(false);
   };
 

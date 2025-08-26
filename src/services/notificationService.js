@@ -526,7 +526,7 @@ class NotificationService {
               },
               {
                 id: 'snooze',
-                title: '⏰ Snooze 10min'
+                title: '⏰ Snooze...'
               },
               {
                 id: 'open',
