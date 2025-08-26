@@ -544,8 +544,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       }
       try {
         const { setReminder } = await import("../utils/reminderUtils");
-        await setReminder(itemId, timestamp, repeatOptions);
         const itemLabel = itemForReminder?.label || "item";
+        await setReminder(itemId, timestamp, repeatOptions, itemLabel);
         showMessage(`Reminder set for "${itemLabel}".`, "success", 3000);
       } catch (error) {
         console.error("Failed to set reminder:", error);
@@ -859,6 +859,60 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       console.log("Reminder dismissed for item:", itemId);
     };
 
+    const handleReminderNotificationAction = (event) => {
+      const { action, itemId, reminderId, originalReminder } = event.detail;
+      console.log("📱 Notification action received:", action, itemId);
+      
+      switch (action) {
+        case 'done':
+          handleReminderMarkedDone({ detail: { itemId, reminderId } });
+          break;
+        case 'snooze':
+          // Open snooze dialog like on desktop
+          const itemTitle = findItemByIdFromTree(itemId)?.label || "Untitled";
+          setSnoozeDialogState({
+            isOpen: true,
+            itemId,
+            itemTitle,
+            onSnooze: (duration, unit) => {
+              let milliseconds = 0;
+              const value = parseInt(duration, 10);
+              switch (unit) {
+                case 'seconds':
+                  milliseconds = value * 1000;
+                  break;
+                case 'minutes':
+                  milliseconds = value * 60 * 1000;
+                  break;
+                case 'hours':
+                  milliseconds = value * 60 * 60 * 1000;
+                  break;
+                case 'days':
+                  milliseconds = value * 24 * 60 * 60 * 1000;
+                  break;
+                default:
+                  console.error('Invalid snooze unit:', unit);
+                  return;
+              }
+              
+              const newReminderTime = Date.now() + milliseconds;
+              import("../utils/reminderUtils").then(({ updateReminder }) => {
+                updateReminder(itemId, newReminderTime, originalReminder?.repeatOptions);
+                setSnoozeDialogState({ isOpen: false, itemId: null, itemTitle: '', onSnooze: null });
+                showMessage(`⏰ Reminder snoozed for ${duration} ${unit}`, 'info');
+              });
+            }
+          });
+          break;
+        case 'open':
+          // Focus the item and bring app to foreground
+          handleFocusItem({ detail: { itemId } });
+          break;
+        default:
+          console.warn('Unknown notification action:', action);
+      }
+    };
+
     const handleFocusItem = (event) => {
       const { itemId } = event.detail;
       if (itemId) {
@@ -942,6 +996,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     window.addEventListener("showFeedback", handleShowFeedback);
     window.addEventListener("reminderMarkedDone", handleReminderMarkedDone);
     window.addEventListener("reminderDismissed", handleReminderDismissed);
+    window.addEventListener("reminderNotificationAction", handleReminderNotificationAction);
     window.addEventListener("focusItem", handleFocusItem);
     window.addEventListener("upgrade-plan-requested", handleUpgradePlanRequest);
     return () => {
@@ -953,6 +1008,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         handleReminderMarkedDone
       );
       window.removeEventListener("reminderDismissed", handleReminderDismissed);
+      window.removeEventListener("reminderNotificationAction", handleReminderNotificationAction);
       window.removeEventListener("focusItem", handleFocusItem);
       window.removeEventListener(
         "upgrade-plan-requested",
@@ -1371,7 +1427,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
         if (finalReminderTime && result.item?.id) {
           const { setReminder } = await import("../utils/reminderUtils");
-          setReminder(result.item.id, finalReminderTime, repeatOptions);
+          setReminder(result.item.id, finalReminderTime, repeatOptions, result.item.label);
           showMessage(
             `${
               newItemType.charAt(0).toUpperCase() + newItemType.slice(1)

@@ -101,7 +101,7 @@ async triggerReminder(reminder, settings) {
       console.log('🔔 Service worker is active - skipping app notification to avoid duplicates');
       
       // Still dispatch event for app state management
-      const itemTitle = this.findItemTitle(reminder.itemId);
+      const itemTitle = reminder.itemTitle || this.findItemTitle(reminder.itemId);
       window.dispatchEvent(new CustomEvent('reminderTriggered', {
         detail: { ...reminder, itemTitle, handledByServiceWorker: true }
       }));
@@ -111,7 +111,7 @@ async triggerReminder(reminder, settings) {
     console.log('🔔 No active service worker - showing app notification as fallback');
   }
   
-  const itemTitle = this.findItemTitle(reminder.itemId);
+  const itemTitle = reminder.itemTitle || this.findItemTitle(reminder.itemId);
   const title = '⏰ Reminder';
   const body = `Don't forget: ${itemTitle || 'Untitled'}`;
   const notificationData = {
@@ -453,12 +453,37 @@ async triggerReminder(reminder, settings) {
   findItemTitle(itemId) {
     try {
       const treeData = this.getTreeData();
+      console.log('🔍 findItemTitle - looking for:', itemId, 'in tree:', !!treeData);
       if (treeData) {
-        return this.searchTreeForTitle(treeData, itemId);
+        const title = this.searchTreeForTitle(treeData, itemId);
+        console.log('🔍 findItemTitle - found title:', title);
+        return title;
       }
+      
+      // Fallback: try to get from current app state
+      if (window.treeData) {
+        console.log('🔍 findItemTitle - trying window.treeData');
+        const title = this.searchTreeForTitle(window.treeData, itemId);
+        if (title) {
+          console.log('🔍 findItemTitle - found in window.treeData:', title);
+          return title;
+        }
+      }
+      
+      // Another fallback: try to get from a global context if available
+      if (window.appContext?.treeData) {
+        console.log('🔍 findItemTitle - trying appContext');
+        const title = this.searchTreeForTitle(window.appContext.treeData, itemId);
+        if (title) {
+          console.log('🔍 findItemTitle - found in appContext:', title);
+          return title;
+        }
+      }
+      
     } catch (error) {
       console.warn('Could not find item title:', error);
     }
+    console.warn('⚠️ findItemTitle - no title found for:', itemId);
     return null;
   }
 
