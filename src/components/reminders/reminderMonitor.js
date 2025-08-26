@@ -75,33 +75,41 @@ class ReminderMonitor {
   }
 
 async triggerReminder(reminder, settings) {
-  // Check if service worker is available and handling reminders
-  const hasServiceWorker = 'serviceWorker' in navigator;
-  let swIsActive = false;
+  const isNativeApp = window.Capacitor?.isNativePlatform?.();
   
-  if (hasServiceWorker) {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      swIsActive = registration.active !== null;
-    } catch (error) {
-      console.warn('Error checking service worker:', error);
-    }
-  }
-
-  // If service worker is active, it's already handling the notification
-  // Only show app notification as fallback when SW is not available
-  if (swIsActive) {
-    console.log('🔔 Service worker is active - skipping app notification to avoid duplicates');
+  // On native platforms, always use the app notification system
+  // Service workers don't handle reminders properly in native apps
+  if (isNativeApp) {
+    console.log('🔔 Native app - showing reminder notification directly');
+  } else {
+    // Check if service worker is available and handling reminders (web only)
+    const hasServiceWorker = 'serviceWorker' in navigator;
+    let swIsActive = false;
     
-    // Still dispatch event for app state management
-    const itemTitle = this.findItemTitle(reminder.itemId);
-    window.dispatchEvent(new CustomEvent('reminderTriggered', {
-      detail: { ...reminder, itemTitle, handledByServiceWorker: true }
-    }));
-    return;
-  }
+    if (hasServiceWorker) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        swIsActive = registration.active !== null;
+      } catch (error) {
+        console.warn('Error checking service worker:', error);
+      }
+    }
 
-  console.log('🔔 No active service worker - showing app notification as fallback');
+    // If service worker is active on web, it's already handling the notification
+    // Only show app notification as fallback when SW is not available
+    if (swIsActive) {
+      console.log('🔔 Service worker is active - skipping app notification to avoid duplicates');
+      
+      // Still dispatch event for app state management
+      const itemTitle = this.findItemTitle(reminder.itemId);
+      window.dispatchEvent(new CustomEvent('reminderTriggered', {
+        detail: { ...reminder, itemTitle, handledByServiceWorker: true }
+      }));
+      return;
+    }
+
+    console.log('🔔 No active service worker - showing app notification as fallback');
+  }
   
   const itemTitle = this.findItemTitle(reminder.itemId);
   const title = '⏰ Reminder';
