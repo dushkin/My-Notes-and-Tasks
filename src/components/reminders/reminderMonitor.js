@@ -488,8 +488,9 @@ async triggerReminder(reminder, settings) {
     const socket = getSocket();
     if (!socket) return;
 
-    // Only sync data, don't trigger reminders immediately
-    socket.on("reminder:set", (reminderData) => {
+    // Sync data AND schedule notifications for cross-device reminders
+    socket.on("reminder:set", async (reminderData) => {
+      console.log("📡 ReminderMonitor: Socket event reminder:set - SYNCING AND SCHEDULING", reminderData);
       const now = Date.now();
       
       // Handle clock skew by recalculating timestamp based on duration
@@ -511,10 +512,19 @@ async triggerReminder(reminder, settings) {
         timestamp: finalTimestamp
       };
       
-      // Just update localStorage, let the normal check cycle handle triggering
+      // Update localStorage
       const reminders = getReminders();
       reminders[reminderData.itemId] = adjustedReminderData;
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      // Schedule notification on this device too
+      try {
+        const { notificationService } = await import('../../services/notificationService.js');
+        await notificationService.scheduleReminder(adjustedReminderData);
+        console.log('🔔 ReminderMonitor: Cross-device reminder scheduled via notification service');
+      } catch (error) {
+        console.error('❌ ReminderMonitor: Failed to schedule cross-device reminder:', error);
+      }
       
       // Notify UI of the sync
       window.dispatchEvent(
