@@ -256,7 +256,8 @@ export const registerServiceWorker = async () => {
     return null;
   }
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    const version = __APP_VERSION__; // Injected at build time
+    const registration = await navigator.serviceWorker.register(`/sw.js?v=${version}`);
     console.log("Service Worker registered:", registration);
     return registration;
   } catch (error) {
