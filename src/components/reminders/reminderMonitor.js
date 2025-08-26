@@ -74,7 +74,35 @@ class ReminderMonitor {
     });
   }
 
-triggerReminder(reminder, settings) {
+async triggerReminder(reminder, settings) {
+  // Check if service worker is available and handling reminders
+  const hasServiceWorker = 'serviceWorker' in navigator;
+  let swIsActive = false;
+  
+  if (hasServiceWorker) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      swIsActive = registration.active !== null;
+    } catch (error) {
+      console.warn('Error checking service worker:', error);
+    }
+  }
+
+  // If service worker is active, it's already handling the notification
+  // Only show app notification as fallback when SW is not available
+  if (swIsActive) {
+    console.log('🔔 Service worker is active - skipping app notification to avoid duplicates');
+    
+    // Still dispatch event for app state management
+    const itemTitle = this.findItemTitle(reminder.itemId);
+    window.dispatchEvent(new CustomEvent('reminderTriggered', {
+      detail: { ...reminder, itemTitle, handledByServiceWorker: true }
+    }));
+    return;
+  }
+
+  console.log('🔔 No active service worker - showing app notification as fallback');
+  
   const itemTitle = this.findItemTitle(reminder.itemId);
   const title = '⏰ Reminder';
   const body = `Don't forget: ${itemTitle || 'Untitled'}`;
@@ -88,7 +116,7 @@ triggerReminder(reminder, settings) {
     originalReminder: reminder
   };
 
-    const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
+  const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
   const isPageHidden = document.hidden;
   
   if (isMobile && isPageHidden) {
@@ -103,19 +131,10 @@ triggerReminder(reminder, settings) {
     }, 3000);
   }
 
-  // DEBUG: Check if showNotification exists
-  console.log('🚨 About to call showNotification:', {
-    title,
-    body,
-    showNotificationExists: typeof showNotification,
-    settings,
-    reminderDisplayDoneButton: settings.reminderDisplayDoneButton
-  });
-
   // Single notification call - let showNotification handle all the logic
   try {
     showNotification(title, body, notificationData);
-    console.log('🚨 showNotification called successfully');
+    console.log('🚨 Fallback notification shown successfully');
   } catch (error) {
     console.error('🚨 showNotification ERROR:', error);
   }
