@@ -281,12 +281,22 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     // Tree sync is now handled entirely by useRealTimeSync in useTree.jsx
 
-    // FIXED: Reminder sync handlers - only sync data, don't trigger
-    const handleReminderSet = (reminderData) => {
-      console.log("Socket event: reminder:set - SYNCING ONLY", reminderData);
+    // FIXED: Reminder sync handlers - sync data AND schedule notifications
+    const handleReminderSet = async (reminderData) => {
+      console.log("Socket event: reminder:set - SYNCING AND SCHEDULING", reminderData);
       const reminders = getReminders();
       reminders[reminderData.itemId] = reminderData;
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      // Schedule notification on this device too
+      try {
+        const { notificationService } = await import('../services/notificationService.js');
+        await notificationService.scheduleReminder(reminderData);
+        console.log('🔔 Cross-device reminder scheduled via notification service');
+      } catch (error) {
+        console.error('❌ Failed to schedule cross-device reminder:', error);
+      }
+      
       window.dispatchEvent(
         new CustomEvent("remindersUpdated", { detail: reminders })
       );
