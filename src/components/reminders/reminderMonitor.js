@@ -580,11 +580,20 @@ async triggerReminder(reminder, settings) {
       );
     });
 
-    socket.on("reminder:clear", ({ itemId }) => {
-      // Just update localStorage
+    socket.on("reminder:clear", async ({ itemId }) => {
+      // Update localStorage
       const reminders = getReminders();
       delete reminders[itemId];
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+      
+      // Cancel notification on this device too
+      try {
+        const { notificationService } = await import('../../services/notificationService.js');
+        await notificationService.cancelReminder(itemId);
+        console.log('🔔 Cross-device reminder cancelled via notification service');
+      } catch (error) {
+        console.error('❌ Failed to cancel cross-device reminder via notification service:', error);
+      }
       
       // Clear processed state
       this.clearProcessedReminder(itemId);

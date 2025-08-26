@@ -821,6 +821,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       try {
         const result = await updateTask(itemId, { completed: true });
         if (result && result.success) {
+          // Clear the reminder when task is marked done
+          const { clearReminder } = await import("../utils/reminderUtils");
+          await clearReminder(itemId);
+          
           const successMessage = `✅ "${itemTitle}" marked as done!`;
           const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
