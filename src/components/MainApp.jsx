@@ -1516,14 +1516,18 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   const handleMobileReminderDone = useCallback(() => {
     const { itemId } = mobileReminderPopup;
     if (itemId) {
-      // Mark the task as done
-      handleToggleTask(itemId, true);
+      // Find the current task to get its completed status
+      const currentItem = findItemByIdFromTree(itemId);
+      const currentCompletedStatus = currentItem?.completed || false;
+      
+      // Mark the task as done (pass current status so it gets toggled to true)
+      handleToggleTask(itemId, currentCompletedStatus);
       // Clear the reminder
       clearReminder(itemId);
       showMessage("Task marked as completed!", "success");
     }
     setMobileReminderPopup((prev) => ({ ...prev, isVisible: false }));
-  }, [mobileReminderPopup, handleToggleTask, showMessage]);
+  }, [mobileReminderPopup, handleToggleTask, showMessage, findItemByIdFromTree]);
 
   const handleMobileReminderSnooze = useCallback(
     (duration, unit) => {

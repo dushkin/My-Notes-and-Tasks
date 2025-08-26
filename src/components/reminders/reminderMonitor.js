@@ -196,9 +196,13 @@ async triggerReminder(reminder, settings) {
     }
   }
 
-  handleReminderDone(itemId, reminderId) {
-    clearReminder(itemId);
+  async handleReminderDone(itemId, reminderId) {
+    // Clear reminder locally and broadcast to other devices
+    const { clearReminder } = await import('../../utils/reminderUtils.js');
+    await clearReminder(itemId);
     this.clearProcessedReminder(itemId);
+    
+    // Dispatch event to mark task as done
     window.dispatchEvent(new CustomEvent('reminderMarkedDone', {
       detail: {
         itemId,
