@@ -323,12 +323,102 @@ self.addEventListener('message', (event) => {
     case 'UPDATE_SYNC_STATUS':
       event.waitUntil(updateSyncStatus(data));
       break;
+    case 'SCHEDULE_REMINDER':
+      event.waitUntil(handleScheduleReminder(data));
+      break;
+    case 'CANCEL_REMINDER':
+      event.waitUntil(handleCancelReminder(data));
+      break;
     default:
       console.log('🔄 SW: Unknown message type:', type);
   }
 });
 
 // Helper Functions
+
+async function handleScheduleReminder(data) {
+  console.log('🔔 SW: Scheduling reminder:', data);
+  
+  const { itemId, timestamp, itemTitle, reminderData } = data;
+  
+  if (!timestamp || timestamp <= Date.now()) {
+    // Show immediately if time has passed or is invalid
+    await showReminderNotification({
+      title: '⏰ Reminder',
+      body: `Don't forget: ${itemTitle || 'Untitled'}`,
+      itemId,
+      ...reminderData
+    });
+    return;
+  }
+  
+  // Calculate delay
+  const delay = timestamp - Date.now();
+  
+  // Store reminder for later triggering
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction(['scheduledReminders'], 'readwrite');
+    const store = transaction.objectStore('scheduledReminders');
+    
+    await store.put({
+      id: itemId,
+      timestamp,
+      itemTitle: itemTitle || 'Untitled',
+      reminderData,
+      scheduled: Date.now()
+    });
+    
+    console.log(`🔔 SW: Reminder scheduled for ${new Date(timestamp)}, delay: ${delay}ms`);
+    
+    // Set timeout to trigger the reminder
+    setTimeout(async () => {
+      await showReminderNotification({
+        title: '⏰ Reminder',
+        body: `Don't forget: ${itemTitle || 'Untitled'}`,
+        itemId,
+        ...reminderData
+      });
+      
+      // Remove from scheduled reminders
+      try {
+        const db = await openDatabase();
+        const transaction = db.transaction(['scheduledReminders'], 'readwrite');
+        const store = transaction.objectStore('scheduledReminders');
+        await store.delete(itemId);
+      } catch (error) {
+        console.error('Error removing triggered reminder:', error);
+      }
+    }, delay);
+    
+  } catch (error) {
+    console.error('Error storing scheduled reminder:', error);
+    // Fallback to immediate notification
+    await showReminderNotification({
+      title: '⏰ Reminder',
+      body: `Don't forget: ${itemTitle || 'Untitled'}`,
+      itemId,
+      ...reminderData
+    });
+  }
+}
+
+async function handleCancelReminder(data) {
+  console.log('🔔 SW: Cancelling reminder:', data);
+  
+  const { itemId } = data;
+  
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction(['scheduledReminders'], 'readwrite');
+    const store = transaction.objectStore('scheduledReminders');
+    
+    await store.delete(itemId);
+    console.log(`🔔 SW: Reminder cancelled for item: ${itemId}`);
+  } catch (error) {
+    console.error('Error cancelling reminder:', error);
+  }
+}
 
 async function handleAPIRequest(request) {
   const url = new URL(request.url);
@@ -1038,7 +1128,7 @@ async function openDatabase() {
       return;
     }
 
-    const request = indexedDB.open('PWASync', 3);
+    const request = indexedDB.open('PWASync', 4);
 
     request.onerror = () => {
       console.error('IndexedDB error:', request.error);
@@ -1083,7 +1173,12 @@ async function openDatabase() {
           db.createObjectStore('settings');
         }
 
-        console.log('IndexedDB upgraded successfully to version 3');
+        if (!db.objectStoreNames.contains('scheduledReminders')) {
+          const reminderStore = db.createObjectStore('scheduledReminders', { keyPath: 'id' });
+          reminderStore.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+
+        console.log('IndexedDB upgraded successfully to version 4');
       } catch (upgradeError) {
         console.error('Error during database upgrade:', upgradeError);
         reject(upgradeError);
