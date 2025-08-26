@@ -263,12 +263,17 @@ self.addEventListener('notificationclick', function (event) {
   const notification = event.notification;
   const data = notification.data;
 
-  console.log('Notification clicked:', { action, data });
+  console.log('🔔 Notification clicked:', { action, data });
   event.notification.close();
 
   event.waitUntil(
     handleNotificationAction(action, data)
       .then(() => trackNotificationEvent('clicked', data, action))
+      .catch(error => {
+        console.error('❌ Error handling notification action:', error);
+        // Fallback: just open the app
+        self.clients.openWindow('/app');
+      })
   );
 });
 
@@ -781,9 +786,14 @@ async function handleSyncNotification(data) {
 
 async function showReminderNotification(data) {
   const title = data.title || "⏰ Reminder";
-  const shouldDisplayDoneButton = data.shouldDisplayDoneButton ?? true;
+  // Get the shouldDisplayDoneButton setting from multiple possible locations
+  const shouldDisplayDoneButton = data.shouldDisplayDoneButton ?? 
+                                  data.data?.shouldDisplayDoneButton ?? 
+                                  data.reminderDisplayDoneButton ?? 
+                                  true;
 
   console.log('🔔 SW: showReminderNotification - shouldDisplayDoneButton:', shouldDisplayDoneButton);
+  console.log('🔔 SW: Full data received:', data);
 
   // Configure actions based on setting
   const actions = shouldDisplayDoneButton ? [

@@ -72,6 +72,9 @@ class NotificationService {
             this.handleNotificationAction(notification);
           });
 
+          // Register action types for notifications
+          await this.registerActionTypes();
+
           await LocalNotifications.addListener('localNotificationReceived', (notification) => {
             console.log('📱 Notification received while app active:', notification);
             // If app is in foreground, cancel this notification to prevent system heads-up
@@ -281,32 +284,82 @@ class NotificationService {
     }
 
     try {
-      const notification = new Notification('⏰ Reminder', {
-        body: `Don't forget: ${reminder.itemTitle || 'Untitled'}`,
-        icon: '/favicon-192x192.png',
-        badge: '/favicon-48x48.png',
-        tag: `reminder-${reminder.itemId}`,
-        requireInteraction: true,
-        vibrate: [500, 200, 500],
-        data: {
-          itemId: reminder.itemId,
-          reminderId: `${reminder.itemId}-${reminder.timestamp}`,
-          originalReminder: reminder
-        }
-      });
+      // Use service worker notification for action buttons if available
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+          if (registration.active) {
+            const options = {
+              body: `Don't forget: ${reminder.itemTitle || 'Untitled'}`,
+              icon: '/favicon-192x192.png',
+              badge: '/favicon-48x48.png',
+              tag: `reminder-${reminder.itemId}`,
+              requireInteraction: true,
+              vibrate: [500, 200, 500],
+              actions: [
+                {
+                  action: 'done',
+                  title: '✅ Done',
+                  icon: '/favicon-32x32.png'
+                },
+                {
+                  action: 'snooze', 
+                  title: '⏰ Snooze 10min',
+                  icon: '/favicon-32x32.png'
+                },
+                {
+                  action: 'open',
+                  title: '📱 Open App',
+                  icon: '/favicon-32x32.png'
+                }
+              ],
+              data: {
+                itemId: reminder.itemId,
+                reminderId: `${reminder.itemId}-${reminder.timestamp}`,
+                originalReminder: reminder
+              }
+            };
 
-      notification.onclick = () => {
-        window.focus();
-        this.handleNotificationClick(reminder);
-        notification.close();
-      };
+            registration.showNotification('⏰ Reminder', options);
+            console.log('🌐 Service worker notification shown with actions');
+            return true;
+          }
+        }).catch(error => {
+          console.warn('⚠️ Service worker notification failed, using basic notification:', error);
+          this.showBasicWebNotification(reminder);
+        });
+      } else {
+        this.showBasicWebNotification(reminder);
+      }
 
-      console.log('🌐 Web notification shown');
       return true;
     } catch (error) {
       console.error('❌ Failed to show web notification:', error);
       return false;
     }
+  }
+
+  showBasicWebNotification(reminder) {
+    const notification = new Notification('⏰ Reminder', {
+      body: `Don't forget: ${reminder.itemTitle || 'Untitled'}`,
+      icon: '/favicon-192x192.png',
+      badge: '/favicon-48x48.png',
+      tag: `reminder-${reminder.itemId}`,
+      requireInteraction: true,
+      vibrate: [500, 200, 500],
+      data: {
+        itemId: reminder.itemId,
+        reminderId: `${reminder.itemId}-${reminder.timestamp}`,
+        originalReminder: reminder
+      }
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      this.handleNotificationClick(reminder);
+      notification.close();
+    };
+
+    console.log('🌐 Basic web notification shown');
   }
 
   /**
