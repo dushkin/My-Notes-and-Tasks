@@ -2719,8 +2719,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     </div>
                   )
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-                    Select an item to view or edit
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-center px-6">
+                    <p className="mb-2">Select an item to view or edit</p>
                   </div>
                 )}
               </div>
@@ -2956,8 +2956,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       </div>
                     )
                   ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-                      Select an item to view or edit
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-center px-6">
+                      <p className="mb-2">Select an item to view or edit</p>
                     </div>
                   )}
                 </Panel>
@@ -3169,12 +3169,20 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
       {/* FAB for mobile - fixed position overlay */}
       {isMobile && (
-        <FloatingActionButton
-          onCreateItem={handleFabCreateItem}
-          selectedItem={selectedItem}
-          disabled={!currentUser || currentUser.status === "pending_deletion"}
-          position="fixed"
-        />
+        <>
+          <FloatingActionButton
+            onCreateItem={handleFabCreateItem}
+            selectedItem={selectedItem}
+            disabled={!currentUser || currentUser.status === "pending_deletion"}
+            position="fixed"
+          />
+          {/* Instruction text under FAB */}
+          <div className="fixed bottom-20 right-6 z-40 max-w-48">
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm px-2 py-1 rounded shadow-sm">
+              To create a sub-item, first select a folder from the tree on the left.
+            </p>
+          </div>
+        </>
       )}
 
       {/* Connection Status Indicator */}
