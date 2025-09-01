@@ -361,6 +361,23 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     selectItemById,
   ]);
 
+  // Initialize reminder service after authentication
+  useEffect(() => {
+    if (!currentUser?._id || !authToken) return;
+
+    const initReminderService = async () => {
+      try {
+        const { initializeReminderService } = await import('../utils/reminderUtils.js');
+        await initializeReminderService();
+        console.log('📡 Reminder service initialized in MainApp after auth');
+      } catch (error) {
+        console.warn('⚠️ Failed to initialize reminder service:', error);
+      }
+    };
+
+    initReminderService();
+  }, [currentUser?._id, authToken]);
+
   useEffect(() => {
     const liveSocket = getSocket();
     if (!liveSocket) return;
@@ -1054,15 +1071,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     if (currentRefreshToken) {
       try {
-        const response = await authFetch("/auth/logout", {
+        const responseBody = await authFetch("/auth/logout", {
           method: "POST",
           body: JSON.stringify({ refreshToken: currentRefreshToken }),
         });
-        console.log(
-          "[Logout] Backend logout response status:",
-          response.status
-        );
-        const responseBody = await response.json().catch(() => null);
         console.log("[Logout] Backend logout response body:", responseBody);
       } catch (error) {
         console.error(

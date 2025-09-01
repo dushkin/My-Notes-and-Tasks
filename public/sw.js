@@ -128,6 +128,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Handle Google Tag Manager requests gracefully
+  if (event.request.url.includes('googletagmanager.com') || event.request.url.includes('google-analytics.com')) {
+    event.respondWith(
+      fetch(event.request).catch(error => {
+        console.warn('SW: Analytics request failed, providing fallback', error);
+        return new Response('/* Analytics unavailable */', { 
+          status: 200,
+          headers: { 
+            'Content-Type': 'application/javascript',
+            'Cache-Control': 'no-cache'
+          }
+        });
+      })
+    );
+    return;
+  }
+
   // Handle API requests with better logic
   if (event.request.url.includes('/api/')) {
     // Check if this is a path we should skip SW handling for
@@ -191,11 +208,22 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(error => {
             console.warn('Fetch failed for:', event.request.url, error);
-            return caches.match(event.request) ||
-              new Response('Resource not available offline', {
+            return caches.match(event.request).then(cachedResponse => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              return new Response('Resource not available offline', {
                 status: 503,
-                statusText: 'Service Unavailable'
+                statusText: 'Service Unavailable',
+                headers: { 'Content-Type': 'text/plain' }
               });
+            }).catch(() => {
+              return new Response('Service temporarily unavailable', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: { 'Content-Type': 'text/plain' }
+              });
+            });
           });
       })
       .catch(error => {
@@ -203,7 +231,8 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request).catch(() =>
           new Response('Service temporarily unavailable', {
             status: 503,
-            statusText: 'Service Unavailable'
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' }
           })
         );
       })

@@ -20,14 +20,9 @@ export default function EditorPage() {
       const token = getAccessToken();
       if (token) {
         try {
-          const response = await authFetch("/auth/verify-token");
-          if (response.ok) {
-            const data = await response.json();
-            if (data.valid && data.user) {
-              setCurrentUser(data.user);
-            } else {
-              navigate("/");
-            }
+          const data = await authFetch("/auth/verify-token");
+          if (data.valid && data.user) {
+            setCurrentUser(data.user);
           } else {
             navigate("/");
           }

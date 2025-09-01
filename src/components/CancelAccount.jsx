@@ -16,15 +16,11 @@ export default function CancelAccount() {
   const confirmDeletion = async (token) => {
     try {
       setStatus('loading');
-      const res = await authFetch(`/api/account/delete?token=${token}`, {
+      await authFetch(`/api/account/delete?token=${token}`, {
         method: 'GET',
       });
-      if (res.ok) {
-        navigate('/goodbye');
-      } else {
-        const data = await res.json();
-        throw new Error(data.message || 'Deletion failed');
-      }
+      // If authFetch doesn't throw, the request was successful
+      navigate('/goodbye');
     } catch (err) {
       setError(err.message);
       setStatus('error');
@@ -34,11 +30,8 @@ export default function CancelAccount() {
   const requestDeletion = async () => {
     try {
       setStatus('loading');
-      const res = await authFetch('/api/account/delete-request', { method: 'POST' });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Request failed');
-      }
+      await authFetch('/api/account/delete-request', { method: 'POST' });
+      // If authFetch doesn't throw, the request was successful
       setStatus('sent');
     } catch (err) {
       setError(err.message);

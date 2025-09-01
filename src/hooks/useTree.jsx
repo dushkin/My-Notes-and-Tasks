@@ -400,17 +400,7 @@ export const useTree = (currentUser) => {
     async (preserveHistory = false) => {
       setIsFetchingTree(true);
       try {
-        const response = await authFetch(`/items`, { cache: "no-store" });
-        if (!response.ok) {
-          const errorData = await response
-            .json()
-            .catch(() => ({ message: "Failed to parse error response" }));
-          console.error(response.status, errorData);
-          console.warn("⚠️ Server error - preserving current tree state and undo history");
-          // Don't reset tree state on server errors - preserve current state and history
-          return;
-        }
-        const data = await response.json();
+        const data = await authFetch(`/items`, { cache: "no-store" });
         if (data && Array.isArray(data.notesTree)) {
           console.log("📥 Fetched tree from server:", data.notesTree.length, "items");
           

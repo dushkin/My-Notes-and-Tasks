@@ -46,20 +46,6 @@ const App = () => {
     initNotificationService();
   }, []);
 
-  // Initialize reminder service with migration from localStorage
-  useEffect(() => {
-    const initReminderService = async () => {
-      try {
-        const { initializeReminderService } = await import('./utils/reminderUtils.js');
-        await initializeReminderService();
-        console.log('📡 Reminder service initialized in App');
-      } catch (error) {
-        console.warn('⚠️ Failed to initialize reminder service:', error);
-      }
-    };
-
-    initReminderService();
-  }, []);
 
   return (
     <Router>

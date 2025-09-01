@@ -31,7 +31,7 @@ class ServerReminderService {
    */
   async loadReminders() {
     try {
-      const response = await authFetch('/api/reminders');
+      const response = await authFetch('/reminders');
       const { reminders } = response;
       
       // Clear cache and repopulate
@@ -74,7 +74,7 @@ class ServerReminderService {
 
     // Fallback to server
     try {
-      const response = await authFetch(`/api/reminders/${itemId}`);
+      const response = await authFetch(`/reminders/${itemId}`);
       const reminder = response.reminder;
       this.cache.set(itemId, reminder);
       return reminder;
@@ -91,7 +91,7 @@ class ServerReminderService {
    */
   async setReminder(itemId, timestamp, repeatOptions = null, itemTitle = null) {
     try {
-      const response = await authFetch(`/api/reminders/${itemId}`, {
+      const response = await authFetch(`/reminders/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -126,7 +126,7 @@ class ServerReminderService {
    */
   async clearReminder(itemId) {
     try {
-      await authFetch(`/api/reminders/${itemId}`, {
+      await authFetch(`/reminders/${itemId}`, {
         method: 'DELETE'
       });
       this.cache.delete(itemId);
@@ -155,7 +155,7 @@ class ServerReminderService {
    */
   async snoozeReminder(itemId, minutes) {
     try {
-      const response = await authFetch(`/api/reminders/${itemId}/snooze`, {
+      const response = await authFetch(`/reminders/${itemId}/snooze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -187,7 +187,7 @@ class ServerReminderService {
    */
   async triggerReminder(itemId) {
     try {
-      const response = await authFetch(`/api/reminders/${itemId}/trigger`, {
+      const response = await authFetch(`/reminders/${itemId}/trigger`, {
         method: 'POST'
       });
       const reminder = response.reminder;
@@ -218,7 +218,7 @@ class ServerReminderService {
    */
   async getDueReminders() {
     try {
-      const response = await authFetch('/api/reminders/due');
+      const response = await authFetch('/reminders/due');
       return response.reminders;
     } catch (error) {
       console.error('❌ Failed to get due reminders from server:', error);
@@ -254,7 +254,7 @@ class ServerReminderService {
 
       console.log(`📡 Migrating ${remindersArray.length} reminders from localStorage to server...`);
 
-      const response = await authFetch('/api/reminders/bulk-import', {
+      const response = await authFetch('/reminders/bulk-import', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

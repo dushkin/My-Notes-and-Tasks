@@ -29,8 +29,7 @@ export default function BetaBanner({ variant }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await authFetch('/auth/beta-status', { method: 'GET' });
-        const data = await res.json();
+        const data = await authFetch('/auth/beta-status', { method: 'GET' });
         if (!cancelled) setBetaStatus(data);
       } catch (err) {
         console.error('BetaBanner: beta-status fetch failed:', err);

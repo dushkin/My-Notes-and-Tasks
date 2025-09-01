@@ -20,17 +20,11 @@ export const LandingPageRoute = () => {
       const token = getAccessToken();
       if (token) {
         try {
-          const response = await authFetch("/auth/verify-token");
-          if (response.ok) {
-            const data = await response.json();
-            if (data.valid && data.user) {
-              setCurrentUser(data.user);
-            } else {
-              // Token exists but is invalid, clear it
-              clearTokens();
-            }
+          const data = await authFetch("/auth/verify-token");
+          if (data.valid && data.user) {
+            setCurrentUser(data.user);
           } else {
-            // Auth verification failed, clear invalid tokens
+            // Token exists but is invalid, clear it
             clearTokens();
           }
         } catch (error) {
@@ -75,20 +69,14 @@ export const LoginRoute = () => {
       const token = getAccessToken();
       if (token) {
         try {
-          const response = await authFetch("/auth/verify-token");
-          if (response.ok) {
-            const data = await response.json();
-            if (data.valid && data.user) {
-              setCurrentUser(data.user);
-              if (typeof window.subscribeAfterLogin === "function") {
-                window.subscribeAfterLogin();
-              }
-            } else {
-              // Token exists but is invalid, clear it
-              clearTokens();
+          const data = await authFetch("/auth/verify-token");
+          if (data.valid && data.user) {
+            setCurrentUser(data.user);
+            if (typeof window.subscribeAfterLogin === "function") {
+              window.subscribeAfterLogin();
             }
           } else {
-            // Auth verification failed, clear invalid tokens
+            // Token exists but is invalid, clear it
             clearTokens();
           }
         } catch (error) {
@@ -148,17 +136,11 @@ export const RegisterRoute = () => {
       const token = getAccessToken();
       if (token) {
         try {
-          const response = await authFetch("/auth/verify-token");
-          if (response.ok) {
-            const data = await response.json();
-            if (data.valid && data.user) {
-              setCurrentUser(data.user);
-            } else {
-              // Token exists but is invalid, clear it
-              clearTokens();
-            }
+          const data = await authFetch("/auth/verify-token");
+          if (data.valid && data.user) {
+            setCurrentUser(data.user);
           } else {
-            // Auth verification failed, clear invalid tokens
+            // Token exists but is invalid, clear it
             clearTokens();
           }
         } catch (error) {
@@ -207,16 +189,13 @@ export const ProtectedAppRoute = () => {
       const initialToken = getAccessToken();
       if (initialToken) {
         try {
-          const response = await authFetch("/auth/verify-token");
-          if (response.ok) {
-            const data = await response.json();
-            if (data.valid && data.user) {
-              const finalToken = getAccessToken();
-              setCurrentUser(data.user);
-              setAuthToken(finalToken);
-              setIsAuthCheckComplete(true);
-              return;
-            }
+          const data = await authFetch("/auth/verify-token");
+          if (data.valid && data.user) {
+            const finalToken = getAccessToken();
+            setCurrentUser(data.user);
+            setAuthToken(finalToken);
+            setIsAuthCheckComplete(true);
+            return;
           }
         } catch (error) {
           console.log("Auth check failed:", error);
