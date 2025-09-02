@@ -939,8 +939,7 @@ import { authFetch } from '../services/apiClient';
       const endpointURL = '/push/vapid-public-key';
       console.log('🔑 Fetching VAPID key from:', endpointURL);
 
-      const response = await authFetch(endpointURL);
-      const data = await response.json();
+      const data = await authFetch(endpointURL);
 
       console.log('🔑 VAPID parsed data:', data);
       return data.publicKey;
