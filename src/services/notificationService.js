@@ -88,15 +88,22 @@ class NotificationService {
                 LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
               }
               
-              // Schedule a low-importance drawer notification instead
+              // Show in-app alert instead
               const extra = notification?.extra || notification?.notification?.extra;
-              if (extra && extra.itemId) {
-                this.scheduleDrawerNotification({
-                  itemId: extra.itemId,
-                  timestamp: Date.now(),
-                  itemTitle: extra.originalReminder?.itemTitle || 'Untitled',
-                  originalReminder: extra.originalReminder
+              const itemTitle = extra?.originalReminder?.itemTitle || extra?.itemTitle || notification.body?.replace("Don't forget: ", "") || 'Untitled';
+              
+              console.log('🔔 Showing in-app reminder alert for:', itemTitle);
+              
+              // Show native alert dialog
+              if (window.Capacitor?.Plugins?.Dialog) {
+                window.Capacitor.Plugins.Dialog.alert({
+                  title: '⏰ Reminder',
+                  message: `Don't forget: ${itemTitle}`,
+                  buttonTitle: 'OK'
                 });
+              } else {
+                // Fallback to browser alert
+                alert(`⏰ Reminder: Don't forget: ${itemTitle}`);
               }
             }
           });
