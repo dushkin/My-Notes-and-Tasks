@@ -694,17 +694,28 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   }, [fetchUserTree]);
   // Load reminders from localStorage and set up live updates
   useEffect(() => {
-    const loadReminders = () => {
+    const loadReminders = async () => {
       try {
-        setReminders(getReminders());
+        const reminderData = await getReminders();
+        setReminders(reminderData);
       } catch (error) {
         console.error("Failed to load reminders:", error);
         setReminders({});
       }
     };
 
-    const handleRemindersUpdate = (event) => {
-      setReminders(event.detail || getReminders());
+    const handleRemindersUpdate = async (event) => {
+      if (event.detail) {
+        setReminders(event.detail);
+      } else {
+        try {
+          const reminderData = await getReminders();
+          setReminders(reminderData);
+        } catch (error) {
+          console.error("Failed to load reminders in update handler:", error);
+          setReminders({});
+        }
+      }
     };
 
     if (currentUser) {

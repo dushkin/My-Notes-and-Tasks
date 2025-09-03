@@ -370,7 +370,10 @@ async function handleScheduleReminder(data) {
   
   const { itemId, timestamp, itemTitle, reminderData } = data;
   
-  if (!timestamp || timestamp <= Date.now()) {
+  // Convert timestamp to number if it's a string
+  const timestampMs = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+  
+  if (!timestampMs || timestampMs <= Date.now()) {
     // Show immediately if time has passed or is invalid
     await showReminderNotification({
       title: '⏰ Reminder',
@@ -382,7 +385,7 @@ async function handleScheduleReminder(data) {
   }
   
   // Calculate delay
-  const delay = timestamp - Date.now();
+  const delay = timestampMs - Date.now();
   
   // Store reminder for later triggering
   try {
@@ -392,13 +395,13 @@ async function handleScheduleReminder(data) {
     
     await store.put({
       id: itemId,
-      timestamp,
+      timestamp: timestampMs,
       itemTitle: itemTitle || 'Untitled',
       reminderData,
       scheduled: Date.now()
     });
     
-    console.log(`🔔 SW: Reminder scheduled for ${new Date(timestamp)}, delay: ${delay}ms`);
+    console.log(`🔔 SW: Reminder scheduled for ${new Date(timestampMs)}, delay: ${delay}ms`);
     
     // Set timeout to trigger the reminder
     setTimeout(async () => {

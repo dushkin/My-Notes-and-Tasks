@@ -53,12 +53,6 @@ const isNative = (window.Capacitor && window.Capacitor.isNativePlatform && windo
                  window.Ionic || 
                  navigator.userAgent.includes('CapacitorWebView');
 
-console.log('🔍 SW Registration Check (main.jsx):', {
-  hasCapacitor: !!window.Capacitor,
-  isNativePlatform: window.Capacitor?.isNativePlatform?.(),
-  isNative,
-  swSupported: 'serviceWorker' in navigator
-});
 
 if ('serviceWorker' in navigator && !isNative) {
   const version = __APP_VERSION__; // Injected at build time

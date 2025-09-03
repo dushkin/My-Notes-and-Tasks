@@ -10,14 +10,6 @@ import { authFetch } from '../services/apiClient';
   const capacitorNative = window?.Capacitor?.isNative;
   const userAgentMatch = /\bCapacitor(WebView)?\b/.test(navigator.userAgent);
   
-  console.log('🔍 Environment Detection Debug:', {
-    capacitorExists: !!window.Capacitor,
-    capacitorPlatform,
-    capacitorNative,
-    userAgent: navigator.userAgent,
-    userAgentMatch,
-    href: window.location.href
-  });
   
   const isNative =
     !!capacitorPlatform ||

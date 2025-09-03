@@ -43,6 +43,13 @@ export const setReminder = async (itemId, timestamp, repeatOptions = null, itemT
     try {
       await serverReminderService.setReminder(itemId, timestamp, repeatOptions, itemTitle);
       console.log(`📡 Reminder set via server for item ${itemId} at ${new Date(timestamp)}`);
+      
+      // Trigger reminders update event for local state refresh
+      const updatedReminders = await getReminders();
+      window.dispatchEvent(
+        new CustomEvent("remindersUpdated", { detail: updatedReminders })
+      );
+      
       return;
     } catch (error) {
       console.warn('⚠️ Failed to set reminder on server, falling back to localStorage:', error);
@@ -284,8 +291,10 @@ export const clearAllReminders = () => {
  * @returns {string} A string like "in 5m", "in 2h", "in 3d", or "Due now".
  */
 export const formatRemainingTime = (timestamp) => {
+  // Convert timestamp to number if it's a string
+  const timestampMs = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
   const now = Date.now();
-  const diff = timestamp - now; // Difference in milliseconds
+  const diff = timestampMs - now; // Difference in milliseconds
 
   if (diff <= 0) {
     return "Due now";
@@ -359,12 +368,6 @@ export const registerServiceWorker = async () => {
                    window.Ionic || 
                    navigator.userAgent.includes('CapacitorWebView');
   
-  console.log('🔍 SW Registration Check:', {
-    hasCapacitor: !!window.Capacitor,
-    isNativePlatform: window.Capacitor?.isNativePlatform?.(),
-    isNative,
-    userAgent: navigator.userAgent
-  });
   
   if (isNative) {
     console.log('📱 Running in native app - skipping service worker registration (reminderUtils)');

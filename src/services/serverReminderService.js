@@ -99,7 +99,7 @@ class ServerReminderService {
         body: JSON.stringify({
           timestamp: new Date(timestamp).toISOString(),
           itemTitle,
-          repeatOptions,
+          ...(repeatOptions && { repeatOptions }),
           deviceId: this.getDeviceId()
         })
       });
@@ -244,7 +244,7 @@ class ServerReminderService {
         itemId,
         timestamp: new Date(data.timestamp).toISOString(),
         itemTitle: data.itemTitle || 'Reminder',
-        repeatOptions: data.repeatOptions || null
+        ...(data.repeatOptions && { repeatOptions: data.repeatOptions })
       }));
 
       if (remindersArray.length === 0) {

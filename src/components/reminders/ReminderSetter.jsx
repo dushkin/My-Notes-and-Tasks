@@ -2,6 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
+// Map frontend repeat units to backend repeat types
+const mapRepeatUnitToType = (unit) => {
+  const mapping = {
+    'seconds': 'daily',
+    'minutes': 'daily', 
+    'hours': 'daily',
+    'days': 'daily',
+    'weeks': 'weekly',
+    'months': 'monthly',
+    'years': 'yearly'
+  };
+  return mapping[unit] || 'daily';
+};
+
 const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
   const [reminderType, setReminderType] = useState("specific"); // 'specific' or 'relative'
   // Set default to next minute
@@ -117,8 +131,10 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
     // Only call onSetReminder if we have a valid calculated time
     if (calculatedTime !== null) {
       const repeatOptions = isRepeating ? {
-        interval: parseInt(repeatInterval) || 1, // Convert to number here, default to 1 if empty
-        unit: repeatUnit
+        type: mapRepeatUnitToType(repeatUnit),
+        interval: parseInt(repeatInterval) || 1,
+        endDate: null,
+        daysOfWeek: []
       } : null;
       onSetReminder(calculatedTime, repeatOptions);
     } else {
