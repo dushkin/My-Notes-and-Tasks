@@ -81,10 +81,15 @@ class NotificationService {
             // and let the in-app popup handle it instead
             if (document.visibilityState === 'visible') {
               console.log('🚫 Cancelling system notification - app is in foreground');
-              LocalNotifications.cancel({ notifications: [{ id: notification.notification.id }] });
+              
+              // Check notification structure and safely access the id
+              const notificationId = notification?.id || notification?.notification?.id;
+              if (notificationId) {
+                LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
+              }
               
               // Schedule a low-importance drawer notification instead
-              const extra = notification.notification.extra;
+              const extra = notification?.extra || notification?.notification?.extra;
               if (extra && extra.itemId) {
                 this.scheduleDrawerNotification({
                   itemId: extra.itemId,
@@ -132,12 +137,6 @@ class NotificationService {
     }
 
     try {
-      console.log('🔍 NotificationService.scheduleReminder platform check:', {
-        isNativePlatform: Capacitor.isNativePlatform(),
-        hasCapacitor: !!window.Capacitor,
-        platform: Capacitor.getPlatform()
-      });
-      
       if (Capacitor.isNativePlatform()) {
         // Use Capacitor LocalNotifications for native platforms
         // Generate a safe integer id for the notification. Capacitor/Android
