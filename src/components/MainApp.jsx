@@ -1006,7 +1006,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         }
       }
 
-      if (isMobileDevice) {
+      // Only use MobileReminderPopup if not on Capacitor (use Capacitor alerts instead)
+      if (isMobileDevice && !window.Capacitor?.isNativePlatform?.()) {
         setMobileReminderPopup({
           isVisible: true,
           title: "⏰ Reminder",

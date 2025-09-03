@@ -59,8 +59,21 @@ class NotificationService {
                 vibrationPattern: [0, 500, 200, 500],
                 visibility: 1
               });
+              
+              // Create a silent channel for when app is visible
+              await LocalNotifications.createChannel({
+                id: 'reminders_silent',
+                name: 'Silent Reminders',
+                importance: 1, // IMPORTANCE_MIN - no sound, no heads-up
+                description: 'Silent reminder notifications when app is active',
+                sound: null,
+                vibrationPattern: null,
+                visibility: 0, // VISIBILITY_SECRET - won't show on lock screen
+                showBadge: false
+              });
+              
               this.reminderLowChannelCreated = true;
-              console.log('🔔 Low‑importance reminder channel created');
+              console.log('🔔 Low‑importance and silent reminder channels created');
             }
           } catch (err) {
             console.warn('⚠️ Failed to create reminder channel:', err);
@@ -77,30 +90,33 @@ class NotificationService {
 
           await LocalNotifications.addListener('localNotificationReceived', (notification) => {
             console.log('📱 Notification received while app active:', notification);
-            // If app is in foreground, cancel this notification to prevent system heads-up
-            // and let the in-app popup handle it instead
-            if (document.visibilityState === 'visible') {
-              console.log('🚫 Cancelling system notification - app is in foreground');
-              
-              // Check notification structure and safely access the id
-              const notificationId = notification?.id || notification?.notification?.id;
-              if (notificationId) {
-                LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
-              }
-              
-              // Show in-app alert instead
-              const extra = notification?.extra || notification?.notification?.extra;
-              const itemTitle = extra?.originalReminder?.itemTitle || extra?.itemTitle || notification.body?.replace("Don't forget: ", "") || 'Untitled';
-              
+            
+            const extra = notification?.extra || notification?.notification?.extra;
+            const itemTitle = extra?.originalReminder?.itemTitle || extra?.itemTitle || notification.body?.replace("Don't forget: ", "") || 'Untitled';
+            const wasScheduledWhenVisible = extra?.scheduledWhenVisible;
+            
+            // If this was scheduled when app was visible, it should be a silent notification
+            // and we should always show the in-app alert
+            if (wasScheduledWhenVisible || document.visibilityState === 'visible') {
               console.log('🔔 Showing in-app reminder alert for:', itemTitle);
               
               // Show native alert dialog
               if (window.Capacitor?.Plugins?.Dialog) {
-                window.Capacitor.Plugins.Dialog.alert({
-                  title: '⏰ Reminder',
-                  message: `Don't forget: ${itemTitle}`,
-                  buttonTitle: 'OK'
-                });
+                try {
+                  window.Capacitor.Plugins.Dialog.alert({
+                    title: '⏰ Reminder',
+                    message: `Don't forget: ${itemTitle}`,
+                    buttonTitle: 'OK'
+                  }).then(() => {
+                    console.log('✅ Capacitor alert shown successfully');
+                  }).catch((error) => {
+                    console.error('❌ Capacitor alert failed, using browser alert:', error);
+                    alert(`⏰ Reminder: Don't forget: ${itemTitle}`);
+                  });
+                } catch (error) {
+                  console.error('❌ Capacitor alert failed, using browser alert:', error);
+                  alert(`⏰ Reminder: Don't forget: ${itemTitle}`);
+                }
               } else {
                 // Fallback to browser alert
                 alert(`⏰ Reminder: Don't forget: ${itemTitle}`);
@@ -168,6 +184,9 @@ class NotificationService {
         // mapping we wouldn't know which notification ID to cancel on receipt.
         this.notificationIdMap[itemId] = safeId;
 
+        // Check if app is currently visible to determine notification behavior
+        const isAppVisible = document.visibilityState === 'visible';
+        
         const notifications = [
           {
             title: '⏰ Reminder',
@@ -175,17 +194,19 @@ class NotificationService {
             id: safeId,
             // Ensure alarms fire while idle on Android
             schedule: { at: notificationTime, allowWhileIdle: true },
-            // Use our high‑priority channel to force heads‑up notifications on Android
-            channelId: 'reminders',
-            importance: 5,
-            // Leave sound unset (null) to use the channel's default sound
-            sound: null,
+            // Use different channel based on app visibility
+            channelId: isAppVisible ? 'reminders_silent' : 'reminders',
+            // Lower importance if app is visible (will prevent heads-up notification)
+            importance: isAppVisible ? 2 : 5,
+            // Disable sound if app is visible
+            sound: isAppVisible ? null : null,
             attachments: null,
             actionTypeId: 'REMINDER_ACTION',
             extra: {
               itemId,
               reminderId: `${itemId}-${timestamp}`,
-              originalReminder: reminder
+              originalReminder: reminder,
+              scheduledWhenVisible: isAppVisible
             }
           }
         ];
