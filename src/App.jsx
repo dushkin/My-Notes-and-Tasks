@@ -30,20 +30,39 @@ const App = () => {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  // Initialize notification service
+  // Initialize notification service and service worker message listener
   useEffect(() => {
     const initNotificationService = async () => {
       try {
         const { notificationService } = await import('./services/notificationService.js');
         await notificationService.initialize();
-        await notificationService.registerActionTypes();
         console.log('🔔 Notification service initialized in App');
       } catch (error) {
         console.error('❌ Failed to initialize notification service:', error);
       }
     };
 
+    // Service worker message listener for reminder alerts
+    const handleServiceWorkerMessage = (event) => {
+      if (event.data?.type === 'SHOW_REMINDER_ALERT') {
+        const { title, body, itemTitle } = event.data.data;
+        console.log('🔔 Showing desktop reminder alert:', itemTitle);
+        alert(`${title}\n${body}`);
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    }
+
     initNotificationService();
+
+    // Cleanup
+    return () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      }
+    };
   }, []);
 
 

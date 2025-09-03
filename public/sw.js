@@ -1014,6 +1014,33 @@ async function showReminderNotification(data) {
     fullScreenIntent: options.android?.fullScreenIntent
   });
 
+  // Check if any client (window/tab) is currently visible
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  let hasVisibleClient = false;
+  
+  for (const client of clients) {
+    if (client.visibilityState === 'visible' && client.focused) {
+      hasVisibleClient = true;
+      // Send message to the visible client to show an in-app alert
+      client.postMessage({
+        type: 'SHOW_REMINDER_ALERT',
+        data: {
+          title,
+          body: options.body,
+          itemId: data.itemId,
+          itemTitle: data.itemTitle
+        }
+      });
+      console.log('🔔 SW: Sent reminder alert to visible client:', client.id);
+      break;
+    }
+  }
+  
+  if (hasVisibleClient) {
+    console.log('🔔 SW: Page is visible, in-app alert sent instead of notification');
+    return; // Don't show system notification
+  }
+
   await self.registration.showNotification(title, options);
   console.log('🔔 SW: Enhanced reminder notification displayed successfully');
 
