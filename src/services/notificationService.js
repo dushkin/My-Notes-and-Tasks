@@ -132,6 +132,12 @@ class NotificationService {
     }
 
     try {
+      console.log('🔍 NotificationService.scheduleReminder platform check:', {
+        isNativePlatform: Capacitor.isNativePlatform(),
+        hasCapacitor: !!window.Capacitor,
+        platform: Capacitor.getPlatform()
+      });
+      
       if (Capacitor.isNativePlatform()) {
         // Use Capacitor LocalNotifications for native platforms
         // Generate a safe integer id for the notification. Capacitor/Android
