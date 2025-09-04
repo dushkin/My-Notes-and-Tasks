@@ -400,12 +400,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       updateTask(itemId, data);
     });
 
-    liveSocket.on("reminderUpdated", ({ itemId, reminder }) => {
-      setReminders((prev) => ({
-        ...prev,
-        [itemId]: reminder,
-      }));
-    });
 
     liveSocket.on("itemContentUpdated", ({ itemId, content }) => {
       updateNoteContent(itemId, { content });
@@ -413,7 +407,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     return () => {
       liveSocket.off("taskUpdated");
-      liveSocket.off("reminderUpdated");
       liveSocket.off("itemContentUpdated");
     };
   }, [updateTask, updateNoteContent]);

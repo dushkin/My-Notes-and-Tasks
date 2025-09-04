@@ -89,25 +89,3 @@ export const setupSocketListeners = (socket, handlers) => {
   };
 };
 
-export const setupLiveSocketListeners = (socket, { updateTask, updateNoteContent, setReminders }) => {
-  socket.on("taskUpdated", ({ itemId, data }) => {
-    updateTask(itemId, data);
-  });
-
-  socket.on("reminderUpdated", ({ itemId, reminder }) => {
-    setReminders((prev) => ({
-      ...prev,
-      [itemId]: reminder,
-    }));
-  });
-
-  socket.on("itemContentUpdated", ({ itemId, content }) => {
-    updateNoteContent(itemId, { content });
-  });
-
-  return () => {
-    socket.off("taskUpdated");
-    socket.off("reminderUpdated");
-    socket.off("itemContentUpdated");
-  };
-};
