@@ -284,9 +284,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     // FIXED: Reminder sync handlers - sync data AND schedule notifications
     const handleReminderSet = async (reminderData) => {
       console.log("Socket event: reminder:set - SYNCING AND SCHEDULING", reminderData);
-      const reminders = getReminders();
-      reminders[reminderData.itemId] = reminderData;
-      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
       
       // Schedule notification on this device too
       try {
@@ -297,29 +294,46 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         console.error('❌ Failed to schedule cross-device reminder:', error);
       }
       
-      window.dispatchEvent(
-        new CustomEvent("remindersUpdated", { detail: reminders })
-      );
+      // Refresh reminders state
+      try {
+        const allReminders = await getReminders();
+        setReminders(allReminders);
+        window.dispatchEvent(
+          new CustomEvent("remindersUpdated", { detail: allReminders })
+        );
+      } catch (error) {
+        console.error('❌ Failed to refresh reminders after socket event:', error);
+      }
     };
 
-    const handleReminderClear = ({ itemId }) => {
+    const handleReminderClear = async ({ itemId }) => {
       console.log("Socket event: reminder:clear - SYNCING ONLY", { itemId });
-      const reminders = getReminders();
-      delete reminders[itemId];
-      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
-      window.dispatchEvent(
-        new CustomEvent("remindersUpdated", { detail: reminders })
-      );
+      
+      // Refresh reminders state
+      try {
+        const reminderData = await getReminders();
+        setReminders(reminderData);
+        window.dispatchEvent(
+          new CustomEvent("remindersUpdated", { detail: reminderData })
+        );
+      } catch (error) {
+        console.error('❌ Failed to refresh reminders after clear event:', error);
+      }
     };
 
-    const handleReminderUpdate = (reminderData) => {
+    const handleReminderUpdate = async (reminderData) => {
       console.log("Socket event: reminder:update - SYNCING ONLY", reminderData);
-      const reminders = getReminders();
-      reminders[reminderData.itemId] = reminderData;
-      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
-      window.dispatchEvent(
-        new CustomEvent("remindersUpdated", { detail: reminders })
-      );
+      
+      // Refresh reminders state
+      try {
+        const allReminders = await getReminders();
+        setReminders(allReminders);
+        window.dispatchEvent(
+          new CustomEvent("remindersUpdated", { detail: allReminders })
+        );
+      } catch (error) {
+        console.error('❌ Failed to refresh reminders after update event:', error);
+      }
     };
 
     // NEW: Direct reminder trigger from server (for server-scheduled reminders)
