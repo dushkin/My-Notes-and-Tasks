@@ -4,6 +4,9 @@ import { serverReminderService } from '../services/serverReminderService.js';
 const REMINDERS_STORAGE_KEY = 'notes_app_reminders';
 let useServerReminders = true; // Flag to control which system to use
 
+// Force server reminders to be the primary system
+const FORCE_SERVER_REMINDERS = true;
+
 /**
  * Initialize reminder service and migrate if needed
  */
@@ -38,8 +41,8 @@ export const initializeReminderService = async () => {
  * @param {string|null} itemTitle - The title of the item for the reminder.
  */
 export const setReminder = async (itemId, timestamp, repeatOptions = null, itemTitle = null) => {
-  // Try server-side reminders first
-  if (useServerReminders) {
+  // Always try server-side reminders first if forced
+  if (useServerReminders || FORCE_SERVER_REMINDERS) {
     try {
       await serverReminderService.setReminder(itemId, timestamp, repeatOptions, itemTitle);
       console.log(`📡 Reminder set via server for item ${itemId} at ${new Date(timestamp)}`);
@@ -53,6 +56,9 @@ export const setReminder = async (itemId, timestamp, repeatOptions = null, itemT
       return;
     } catch (error) {
       console.warn('⚠️ Failed to set reminder on server, falling back to localStorage:', error);
+      if (FORCE_SERVER_REMINDERS) {
+        throw error; // Don't fall back if server reminders are forced
+      }
     }
   }
 

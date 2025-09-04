@@ -610,7 +610,20 @@ async triggerReminder(reminder, settings) {
 
     // Direct trigger from server (for server-scheduled reminders)
     socket.on("reminder:trigger", (reminder) => {
-      this.triggerReminder(reminder, this.currentSettings || {});
+      console.log('🔔 Server triggered reminder received:', reminder);
+      
+      // Enhanced reminder object for cross-device consistency
+      const enhancedReminder = {
+        itemId: reminder.itemId,
+        itemTitle: reminder.itemTitle,
+        timestamp: typeof reminder.timestamp === 'string' 
+          ? new Date(reminder.timestamp).getTime() 
+          : reminder.timestamp,
+        ...reminder.reminderData?.originalReminder,
+        triggeredByServer: true
+      };
+      
+      this.triggerReminder(enhancedReminder, this.currentSettings || {});
     });
   }
 
