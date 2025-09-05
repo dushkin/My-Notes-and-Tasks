@@ -48,7 +48,6 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true, existingRemind
       setEnableReminder(true);
       const reminderDate = new Date(existingReminder.timestamp);
       setSpecificDateTime(reminderDate);
-      setReminderType("specific");
       
       // Handle repeat options if present
       if (existingReminder.repeatOptions) {
