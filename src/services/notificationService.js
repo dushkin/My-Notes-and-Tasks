@@ -155,7 +155,8 @@ class NotificationService {
 
         // Apply Android timing compensation for better accuracy
         const now = Date.now();
-        const timeUntilReminder = timestamp - now;
+        const timestampMs = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+        const timeUntilReminder = timestampMs - now;
         let adjustedNotificationTime = notificationTime;
         
         // More aggressive compensation based on time until reminder
@@ -171,7 +172,7 @@ class NotificationService {
         }
         
         if (compensationMs > 0) {
-          adjustedNotificationTime = new Date(timestamp - compensationMs);
+          adjustedNotificationTime = new Date(timestampMs - compensationMs);
           console.log(`📱 Adjusting notification time by ${compensationMs}ms for better accuracy (${Math.round(timeUntilReminder/1000)}s until reminder)`);
         }
 

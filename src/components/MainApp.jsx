@@ -285,31 +285,47 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     // Desktop notification handler for cross-device reminders
     const handleReminderSetNotification = (reminderData) => {
-      // Only show notifications on desktop, not mobile (mobile handles its own)
+      // Only handle notifications on desktop, not mobile (mobile handles its own)
       const isDesktop = !('ontouchstart' in window) && window.innerWidth > 768;
       if (!isDesktop) return;
       
-      console.log("📧 Desktop: Cross-device reminder notification", reminderData);
+      console.log("📧 Desktop: Cross-device reminder received (MainApp handler)", reminderData);
       
-      // Show desktop browser notification for cross-device reminder
+      // Schedule the notification for the proper time (don't show immediately)
+      const reminderTime = new Date(reminderData.timestamp).getTime();
+      const now = Date.now();
+      const delay = reminderTime - now;
+      
+      if (delay <= 0) {
+        console.log("📧 Desktop: Reminder time has already passed, showing immediately");
+        showDesktopNotification(reminderData);
+      } else {
+        console.log(`📧 Desktop: Scheduling notification in ${Math.round(delay/1000)} seconds`);
+        setTimeout(() => {
+          showDesktopNotification(reminderData);
+        }, delay);
+      }
+    };
+    
+    const showDesktopNotification = (reminderData) => {
       if ('Notification' in window && Notification.permission === 'granted') {
-        const notification = new Notification('⏰ Cross-Device Reminder', {
+        const notification = new Notification('⏰ Reminder', {
           body: `Don't forget: ${reminderData.itemTitle}`,
           icon: '/favicon-192x192.png',
           badge: '/favicon-48x48.png',
           tag: `reminder-${reminderData.itemId}`,
-          requireInteraction: false // Don't require interaction for cross-device notifications
+          requireInteraction: true
         });
         
         notification.onclick = () => {
           window.focus();
           notification.close();
-          // Optionally navigate to the item
+          // Navigate to the item
           selectItemById(reminderData.itemId);
         };
         
-        // Auto-close after 8 seconds
-        setTimeout(() => notification.close(), 8000);
+        // Auto-close after 10 seconds
+        setTimeout(() => notification.close(), 10000);
       }
     };
 

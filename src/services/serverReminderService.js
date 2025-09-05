@@ -316,6 +316,7 @@ class ServerReminderService {
     if (!socket) return;
 
     socket.on('reminder:set', (data) => {
+      console.log("📡 ServerReminderService: reminder:set received", data);
       const reminder = {
         itemId: data.itemId,
         itemTitle: data.itemTitle,
