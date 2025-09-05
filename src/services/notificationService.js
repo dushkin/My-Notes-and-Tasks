@@ -59,8 +59,21 @@ class NotificationService {
                 vibrationPattern: [0, 500, 200, 500],
                 visibility: 1
               });
+              
+              // Create a silent channel for when app is visible
+              await LocalNotifications.createChannel({
+                id: 'reminders_silent',
+                name: 'Silent Reminders',
+                importance: 1, // IMPORTANCE_MIN - no sound, no heads-up
+                description: 'Silent reminder notifications when app is active',
+                sound: null,
+                vibrationPattern: null,
+                visibility: 0, // VISIBILITY_SECRET - won't show on lock screen
+                showBadge: false
+              });
+              
               this.reminderLowChannelCreated = true;
-              console.log('🔔 Low‑importance reminder channel created');
+              console.log('🔔 Low‑importance and silent reminder channels created');
             }
           } catch (err) {
             console.warn('⚠️ Failed to create reminder channel:', err);
@@ -77,23 +90,7 @@ class NotificationService {
 
           await LocalNotifications.addListener('localNotificationReceived', (notification) => {
             console.log('📱 Notification received while app active:', notification);
-            // If app is in foreground, cancel this notification to prevent system heads-up
-            // and let the in-app popup handle it instead
-            if (document.visibilityState === 'visible') {
-              console.log('🚫 Cancelling system notification - app is in foreground');
-              LocalNotifications.cancel({ notifications: [{ id: notification.notification.id }] });
-              
-              // Schedule a low-importance drawer notification instead
-              const extra = notification.notification.extra;
-              if (extra && extra.itemId) {
-                this.scheduleDrawerNotification({
-                  itemId: extra.itemId,
-                  timestamp: Date.now(),
-                  itemTitle: extra.originalReminder?.itemTitle || 'Untitled',
-                  originalReminder: extra.originalReminder
-                });
-              }
-            }
+            // Let the system notification show normally - no interference
           });
         }
       } else {
@@ -156,17 +153,31 @@ class NotificationService {
         // mapping we wouldn't know which notification ID to cancel on receipt.
         this.notificationIdMap[itemId] = safeId;
 
+        // Apply Android timing compensation for better accuracy
+        const now = Date.now();
+        const timestampMs = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+        const timeUntilReminder = timestampMs - now;
+        let adjustedNotificationTime = notificationTime;
+        
+        // Conservative compensation to account for Android delays without being too early
+        const compensationMs = 2000; // 2 seconds for longer reminders
+        
+        if (compensationMs > 0) {
+          adjustedNotificationTime = new Date(timestampMs - compensationMs);
+          console.log(`📱 Adjusting notification time by ${compensationMs}ms for better accuracy (${Math.round(timeUntilReminder/1000)}s until reminder)`);
+        }
+
         const notifications = [
           {
             title: '⏰ Reminder',
             body: `Don't forget: ${itemTitle || 'Untitled'}`,
             id: safeId,
             // Ensure alarms fire while idle on Android
-            schedule: { at: notificationTime, allowWhileIdle: true },
-            // Use our high‑priority channel to force heads‑up notifications on Android
+            schedule: { at: adjustedNotificationTime, allowWhileIdle: true },
+            // Always use the main reminders channel for consistent behavior
             channelId: 'reminders',
             importance: 5,
-            // Leave sound unset (null) to use the channel's default sound
+            // Use default sound
             sound: null,
             attachments: null,
             actionTypeId: 'REMINDER_ACTION',

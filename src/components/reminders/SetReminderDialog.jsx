@@ -4,7 +4,7 @@ import Modal from "../dialogs/Modal";
 import ReminderSetter from "./ReminderSetter";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 
-const SetReminderDialog = ({ isOpen, onClose, onSetReminder, item }) => {
+const SetReminderDialog = ({ isOpen, onClose, onSetReminder, item, existingReminder }) => {
   const [reminderTime, setReminderTime] = useState(null);
   const [repeatOptions, setRepeatOptions] = useState(null);
   const [error, setError] = useState("");
@@ -70,13 +70,14 @@ const SetReminderDialog = ({ isOpen, onClose, onSetReminder, item }) => {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Set Reminder for "${item?.label}"`}
+      title={`${existingReminder ? 'Update' : 'Set'} Reminder for "${item?.label}"`}
       actions={actions}
       dialogRef={dialogRef}
     >
       <ReminderSetter 
         onSetReminder={handleReminderSet} 
         showEnableToggle={false} 
+        existingReminder={existingReminder}
       />
     </Modal>
   );

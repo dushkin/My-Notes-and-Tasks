@@ -400,17 +400,7 @@ export const useTree = (currentUser) => {
     async (preserveHistory = false) => {
       setIsFetchingTree(true);
       try {
-        const response = await authFetch(`/items`, { cache: "no-store" });
-        if (!response.ok) {
-          const errorData = await response
-            .json()
-            .catch(() => ({ message: "Failed to parse error response" }));
-          console.error(response.status, errorData);
-          console.warn("⚠️ Server error - preserving current tree state and undo history");
-          // Don't reset tree state on server errors - preserve current state and history
-          return;
-        }
-        const data = await response.json();
+        const data = await authFetch(`/items`, { cache: "no-store" });
         if (data && Array.isArray(data.notesTree)) {
           console.log("📥 Fetched tree from server:", data.notesTree.length, "items");
           
@@ -678,20 +668,10 @@ export const useTree = (currentUser) => {
 
       try {
         const endpoint = parentId ? `/items/${parentId}` : `/items`;
-        const response = await authFetch(endpoint, {
+        const createdItemFromServer = await authFetch(endpoint, {
         method: "POST",
         body: JSON.stringify(payload),
         });
-        const createdItemFromServer = await response.json();
-        
-        if (!response.ok) {
-        return {
-        success: false,
-        error:
-        createdItemFromServer.error ||
-            `Failed to add item: ${response.status}`,
-          };
-        }
 
         // CRITICAL FIX: Insert the server-returned item immediately to prevent UI flicker
         const newTreeState = insertItemRecursive(tree, parentId, createdItemFromServer);
@@ -812,18 +792,10 @@ export const useTree = (currentUser) => {
         }
 
         // Direct API call (fallback or when SyncManager not available)
-        const response = await authFetch(`/items/${itemId}`, {
+        const updatedItemFromServer = await authFetch(`/items/${itemId}`, {
           method: "PATCH",
           body: updates,
         });
-        const updatedItemFromServer = await response.json();
-
-        if (!response.ok) {
-          return {
-            success: false,
-            error: updatedItemFromServer.error || "Failed to update note.",
-          };
-        }
 
         // Don't refetch entire tree for content updates - just update locally
         // Ensure server response content is properly handled
@@ -894,26 +866,10 @@ export const useTree = (currentUser) => {
       }
 
       try {
-        const response = await authFetch(`/items/${taskId}`, {
+        const updatedItemFromServer = await authFetch(`/items/${taskId}`, {
           method: "PATCH",
           body: JSON.stringify(updates),
         });
-        const updatedItemFromServer = await response.json();
-
-        if (!response.ok) {
-          if (updates.hasOwnProperty("completed")) {
-            const revertedTreeState = tree.map((item) =>
-              updateItemOptimistically(item, taskId, {
-                completed: !updates.completed,
-              })
-            );
-            setTreeWithUndo(revertedTreeState);
-          }
-          return {
-            success: false,
-            error: updatedItemFromServer.error || "Failed to update task.",
-          };
-        }
 
         const mapRecursiveTask = (items, id, serverUpdates) =>
           items.map((i) =>
@@ -988,16 +944,10 @@ export const useTree = (currentUser) => {
       }
 
       try {
-        const response = await authFetch(`/items/${itemId}`, {
+        const updatedItemFromServer = await authFetch(`/items/${itemId}`, {
           method: "PATCH",
           body: JSON.stringify({ label: trimmedLabel }),
         });
-        const updatedItemFromServer = await response.json();
-        if (!response.ok)
-          return {
-            success: false,
-            error: updatedItemFromServer.error || "Rename failed.",
-          };
 
         const mapRecursiveRename = (items, id, serverUpdates) =>
           items.map((i) =>

@@ -17,7 +17,8 @@ export const useLiveCountdown = (timestamp) => {
       setTimeString(newTimeString);
       
       // If time is up, we can stop updating (though the component might handle this)
-      if (timestamp <= Date.now()) {
+      const timestampMs = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+      if (timestampMs <= Date.now()) {
         return false; // Indicate we should stop
       }
       return true; // Continue updating
@@ -62,7 +63,8 @@ export const useLiveCountdowns = (reminders) => {
       Object.entries(reminders).forEach(([itemId, reminder]) => {
         if (reminder && reminder.timestamp) {
           newCountdowns[itemId] = formatRemainingTime(reminder.timestamp);
-          if (reminder.timestamp > Date.now()) {
+          const timestampMs = typeof reminder.timestamp === 'string' ? new Date(reminder.timestamp).getTime() : reminder.timestamp;
+          if (timestampMs > Date.now()) {
             hasActiveReminders = true;
           }
         }

@@ -2,7 +2,21 @@ import React, { useState, useEffect, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
+// Map frontend repeat units to backend repeat types
+const mapRepeatUnitToType = (unit) => {
+  const mapping = {
+    'seconds': 'daily',
+    'minutes': 'daily', 
+    'hours': 'daily',
+    'days': 'daily',
+    'weeks': 'weekly',
+    'months': 'monthly',
+    'years': 'yearly'
+  };
+  return mapping[unit] || 'daily';
+};
+
+const ReminderSetter = ({ onSetReminder, showEnableToggle = true, existingReminder }) => {
   const [reminderType, setReminderType] = useState("specific"); // 'specific' or 'relative'
   // Set default to next minute
   const getNextMinute = () => {
@@ -27,6 +41,29 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
   const debounceRef = useRef(null);
   const relativeInputRef = useRef(null);
   const datePickerRef = useRef(null);
+
+  // Initialize form with existing reminder data
+  useEffect(() => {
+    if (existingReminder) {
+      setEnableReminder(true);
+      const reminderDate = new Date(existingReminder.timestamp);
+      setSpecificDateTime(reminderDate);
+      
+      // Handle repeat options if present
+      if (existingReminder.repeatOptions) {
+        setIsRepeating(true);
+        setRepeatInterval(existingReminder.repeatOptions.interval?.toString() || "1");
+        // Map backend repeat type back to frontend unit
+        const typeToUnit = {
+          'daily': 'days',
+          'weekly': 'weeks', 
+          'monthly': 'months',
+          'yearly': 'years'
+        };
+        setRepeatUnit(typeToUnit[existingReminder.repeatOptions.type] || 'days');
+      }
+    }
+  }, [existingReminder]);
 
   // Validate relative time input
   const validateRelativeTime = (value) => {
@@ -117,8 +154,10 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
     // Only call onSetReminder if we have a valid calculated time
     if (calculatedTime !== null) {
       const repeatOptions = isRepeating ? {
-        interval: parseInt(repeatInterval) || 1, // Convert to number here, default to 1 if empty
-        unit: repeatUnit
+        type: mapRepeatUnitToType(repeatUnit),
+        interval: parseInt(repeatInterval) || 1,
+        endDate: null,
+        daysOfWeek: []
       } : null;
       onSetReminder(calculatedTime, repeatOptions);
     } else {

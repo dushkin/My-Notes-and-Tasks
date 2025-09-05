@@ -1,6 +1,37 @@
 import { getSocket } from '../services/socketClient';
+import { serverReminderService } from '../services/serverReminderService.js';
 
 const REMINDERS_STORAGE_KEY = 'notes_app_reminders';
+let useServerReminders = true; // Flag to control which system to use
+
+// Force server reminders to be the primary system
+const FORCE_SERVER_REMINDERS = true;
+
+/**
+ * Initialize reminder service and migrate if needed
+ */
+export const initializeReminderService = async () => {
+  try {
+    await serverReminderService.initialize();
+    
+    // Check if we need to migrate from localStorage
+    const localReminders = localStorage.getItem(REMINDERS_STORAGE_KEY);
+    if (localReminders && JSON.parse(localReminders) && Object.keys(JSON.parse(localReminders)).length > 0) {
+      console.log('📡 Migrating reminders from localStorage to server...');
+      const results = await serverReminderService.migrateFromLocalStorage();
+      
+      if (results.created + results.updated > 0) {
+        console.log(`📡 Successfully migrated ${results.created + results.updated} reminders to server`);
+      }
+    }
+    
+    useServerReminders = true;
+    console.log('📡 Server-side reminders initialized');
+  } catch (error) {
+    console.warn('⚠️ Failed to initialize server reminders, falling back to localStorage:', error);
+    useServerReminders = false;
+  }
+};
 
 /**
  * Stores a reminder and broadcasts to other devices via socket
@@ -10,6 +41,28 @@ const REMINDERS_STORAGE_KEY = 'notes_app_reminders';
  * @param {string|null} itemTitle - The title of the item for the reminder.
  */
 export const setReminder = async (itemId, timestamp, repeatOptions = null, itemTitle = null) => {
+  // Always try server-side reminders first if forced
+  if (useServerReminders || FORCE_SERVER_REMINDERS) {
+    try {
+      await serverReminderService.setReminder(itemId, timestamp, repeatOptions, itemTitle);
+      console.log(`📡 Reminder set via server for item ${itemId} at ${new Date(timestamp)}`);
+      
+      // Trigger reminders update event for local state refresh
+      const updatedReminders = await getReminders();
+      window.dispatchEvent(
+        new CustomEvent("remindersUpdated", { detail: updatedReminders })
+      );
+      
+      return;
+    } catch (error) {
+      console.warn('⚠️ Failed to set reminder on server, falling back to localStorage:', error);
+      if (FORCE_SERVER_REMINDERS) {
+        throw error; // Don't fall back if server reminders are forced
+      }
+    }
+  }
+
+  // Fallback to localStorage system
   const reminders = getReminders();
   const reminderData = {
     timestamp,
@@ -48,7 +101,28 @@ export const setReminder = async (itemId, timestamp, repeatOptions = null, itemT
  * Retrieves all stored reminders.
  * @returns {Object} An object where keys are item IDs and values are reminder objects.
  */
-export const getReminders = () => {
+export const getReminders = async () => {
+  // Try server-side reminders first
+  if (useServerReminders) {
+    try {
+      const reminders = await serverReminderService.getReminders();
+      // Convert array to object format for backward compatibility
+      const remindersObj = {};
+      reminders.forEach(reminder => {
+        remindersObj[reminder.itemId] = {
+          timestamp: new Date(reminder.timestamp).getTime(),
+          itemId: reminder.itemId,
+          repeatOptions: reminder.repeatOptions,
+          itemTitle: reminder.itemTitle
+        };
+      });
+      return remindersObj;
+    } catch (error) {
+      console.warn('⚠️ Failed to get reminders from server, falling back to localStorage:', error);
+    }
+  }
+
+  // Fallback to localStorage
   const remindersJson = localStorage.getItem(REMINDERS_STORAGE_KEY);
   return remindersJson ? JSON.parse(remindersJson) : {};
 };
@@ -58,8 +132,27 @@ export const getReminders = () => {
  * @param {string} itemId - The ID of the item.
  * @returns {Object|undefined} The reminder object, or undefined if not found.
  */
-export const getReminder = (itemId) => {
-  const reminders = getReminders();
+export const getReminder = async (itemId) => {
+  // Try server-side reminders first
+  if (useServerReminders) {
+    try {
+      const reminder = await serverReminderService.getReminder(itemId);
+      if (reminder) {
+        return {
+          timestamp: new Date(reminder.timestamp).getTime(),
+          itemId: reminder.itemId,
+          repeatOptions: reminder.repeatOptions,
+          itemTitle: reminder.itemTitle
+        };
+      }
+      return undefined;
+    } catch (error) {
+      console.warn('⚠️ Failed to get reminder from server, falling back to localStorage:', error);
+    }
+  }
+
+  // Fallback to localStorage
+  const reminders = await getReminders();
   return reminders[itemId];
 };
 
@@ -68,7 +161,19 @@ export const getReminder = (itemId) => {
  * @param {string} itemId - The ID of the item whose reminder should be cleared.
  */
 export const clearReminder = async (itemId) => {
-  const reminders = getReminders();
+  // Try server-side reminders first
+  if (useServerReminders) {
+    try {
+      await serverReminderService.clearReminder(itemId);
+      console.log(`📡 Reminder cleared via server for item ${itemId}`);
+      return;
+    } catch (error) {
+      console.warn('⚠️ Failed to clear reminder on server, falling back to localStorage:', error);
+    }
+  }
+
+  // Fallback to localStorage system
+  const reminders = await getReminders();
   delete reminders[itemId];
   localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
 
@@ -102,7 +207,31 @@ export const clearReminder = async (itemId) => {
  * @param {Object|null} repeatOptions - The repeat options.
  */
 export const updateReminder = async (itemId, timestamp, repeatOptions = null) => {
-  const reminders = getReminders();
+  // For server-side reminders, snoozing is handled by calculating minutes
+  if (useServerReminders) {
+    try {
+      const now = Date.now();
+      const minutes = Math.ceil((timestamp - now) / (1000 * 60));
+      
+      if (minutes > 0) {
+        await serverReminderService.snoozeReminder(itemId, minutes);
+        console.log(`📡 Reminder snoozed via server for item ${itemId} for ${minutes} minutes`);
+      } else {
+        // If timestamp is not in future, update the reminder directly
+        const existingReminder = await serverReminderService.getReminder(itemId);
+        if (existingReminder) {
+          await serverReminderService.setReminder(itemId, timestamp, repeatOptions, existingReminder.itemTitle);
+          console.log(`📡 Reminder updated via server for item ${itemId}`);
+        }
+      }
+      return;
+    } catch (error) {
+      console.warn('⚠️ Failed to update reminder on server, falling back to localStorage:', error);
+    }
+  }
+
+  // Fallback to localStorage system
+  const reminders = await getReminders();
   const existingReminder = reminders[itemId];
   const reminderData = {
     timestamp,
@@ -168,8 +297,10 @@ export const clearAllReminders = () => {
  * @returns {string} A string like "in 5m", "in 2h", "in 3d", or "Due now".
  */
 export const formatRemainingTime = (timestamp) => {
+  // Convert timestamp to number if it's a string
+  const timestampMs = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
   const now = Date.now();
-  const diff = timestamp - now; // Difference in milliseconds
+  const diff = timestampMs - now; // Difference in milliseconds
 
   if (diff <= 0) {
     return "Due now";
@@ -243,12 +374,6 @@ export const registerServiceWorker = async () => {
                    window.Ionic || 
                    navigator.userAgent.includes('CapacitorWebView');
   
-  console.log('🔍 SW Registration Check:', {
-    hasCapacitor: !!window.Capacitor,
-    isNativePlatform: window.Capacitor?.isNativePlatform?.(),
-    isNative,
-    userAgent: navigator.userAgent
-  });
   
   if (isNative) {
     console.log('📱 Running in native app - skipping service worker registration (reminderUtils)');

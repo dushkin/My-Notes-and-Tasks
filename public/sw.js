@@ -128,6 +128,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Handle Google Tag Manager requests gracefully
+  if (event.request.url.includes('googletagmanager.com') || event.request.url.includes('google-analytics.com')) {
+    event.respondWith(
+      fetch(event.request).catch(error => {
+        console.warn('SW: Analytics request failed, providing fallback', error);
+        return new Response('/* Analytics unavailable */', { 
+          status: 200,
+          headers: { 
+            'Content-Type': 'application/javascript',
+            'Cache-Control': 'no-cache'
+          }
+        });
+      })
+    );
+    return;
+  }
+
   // Handle API requests with better logic
   if (event.request.url.includes('/api/')) {
     // Check if this is a path we should skip SW handling for
@@ -191,11 +208,22 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(error => {
             console.warn('Fetch failed for:', event.request.url, error);
-            return caches.match(event.request) ||
-              new Response('Resource not available offline', {
+            return caches.match(event.request).then(cachedResponse => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              return new Response('Resource not available offline', {
                 status: 503,
-                statusText: 'Service Unavailable'
+                statusText: 'Service Unavailable',
+                headers: { 'Content-Type': 'text/plain' }
               });
+            }).catch(() => {
+              return new Response('Service temporarily unavailable', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: { 'Content-Type': 'text/plain' }
+              });
+            });
           });
       })
       .catch(error => {
@@ -203,7 +231,8 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request).catch(() =>
           new Response('Service temporarily unavailable', {
             status: 503,
-            statusText: 'Service Unavailable'
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' }
           })
         );
       })
@@ -341,7 +370,10 @@ async function handleScheduleReminder(data) {
   
   const { itemId, timestamp, itemTitle, reminderData } = data;
   
-  if (!timestamp || timestamp <= Date.now()) {
+  // Convert timestamp to number if it's a string
+  const timestampMs = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+  
+  if (!timestampMs || timestampMs <= Date.now()) {
     // Show immediately if time has passed or is invalid
     await showReminderNotification({
       title: '⏰ Reminder',
@@ -353,7 +385,7 @@ async function handleScheduleReminder(data) {
   }
   
   // Calculate delay
-  const delay = timestamp - Date.now();
+  const delay = timestampMs - Date.now();
   
   // Store reminder for later triggering
   try {
@@ -363,13 +395,13 @@ async function handleScheduleReminder(data) {
     
     await store.put({
       id: itemId,
-      timestamp,
+      timestamp: timestampMs,
       itemTitle: itemTitle || 'Untitled',
       reminderData,
       scheduled: Date.now()
     });
     
-    console.log(`🔔 SW: Reminder scheduled for ${new Date(timestamp)}, delay: ${delay}ms`);
+    console.log(`🔔 SW: Reminder scheduled for ${new Date(timestampMs)}, delay: ${delay}ms`);
     
     // Set timeout to trigger the reminder
     setTimeout(async () => {
@@ -981,6 +1013,33 @@ async function showReminderNotification(data) {
     androidPriority: options.android?.priority,
     fullScreenIntent: options.android?.fullScreenIntent
   });
+
+  // Check if any client (window/tab) is currently visible
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  let hasVisibleClient = false;
+  
+  for (const client of clients) {
+    if (client.visibilityState === 'visible' && client.focused) {
+      hasVisibleClient = true;
+      // Send message to the visible client to show an in-app alert
+      client.postMessage({
+        type: 'SHOW_REMINDER_ALERT',
+        data: {
+          title,
+          body: options.body,
+          itemId: data.itemId,
+          itemTitle: data.itemTitle
+        }
+      });
+      console.log('🔔 SW: Sent reminder alert to visible client:', client.id);
+      break;
+    }
+  }
+  
+  if (hasVisibleClient) {
+    console.log('🔔 SW: Page is visible, in-app alert sent instead of notification');
+    return; // Don't show system notification
+  }
 
   await self.registration.showNotification(title, options);
   console.log('🔔 SW: Enhanced reminder notification displayed successfully');

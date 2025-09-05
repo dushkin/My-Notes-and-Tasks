@@ -91,18 +91,14 @@ export default function SettingsDialog({ isOpen, onClose }) {
 
   const requestAccountDeletion = async () => {
     try {
-      const response = await authFetch("/account/delete-request", {
+      await authFetch("/account/delete-request", {
         method: "POST",
       });
-      if (response.ok) {
-        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-        alert(
-          "A confirmation email has been sent. Please check your inbox to permanently delete your account."
-        );
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.message}`);
-      }
+      // If authFetch doesn't throw, the request was successful
+      setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+      alert(
+        "A confirmation email has been sent. Please check your inbox to permanently delete your account."
+      );
     } catch (error) {
       console.error("Error requesting account deletion:", error);
       alert("An error occurred while requesting account deletion.");

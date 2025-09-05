@@ -328,7 +328,7 @@ export const authFetch = async (url, options = {}) => {
         throw createApiError(errorMessage, response.status);
       }
 
-      return response;
+      return await response.json();
     } catch (error) {
       if (isNetworkError(error)) {
         if (retryCount < maxRetries) {

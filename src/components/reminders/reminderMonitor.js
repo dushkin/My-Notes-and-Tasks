@@ -525,43 +525,25 @@ async triggerReminder(reminder, settings) {
     const socket = getSocket();
     if (!socket) return;
 
-    // Sync data AND schedule notifications for cross-device reminders
+    // ONLY sync data - DO NOT schedule notifications (that's handled by serverReminderService)
     socket.on("reminder:set", async (reminderData) => {
-      console.log("📡 ReminderMonitor: Socket event reminder:set - SYNCING AND SCHEDULING", reminderData);
-      const now = Date.now();
+      console.log("📡 ReminderMonitor: Socket event reminder:set - SYNCING ONLY (not scheduling)", reminderData);
       
-      // Handle clock skew by recalculating timestamp based on duration
-      let finalTimestamp = reminderData.timestamp;
+      // For server-based reminders, we should not schedule notifications here
+      // The serverReminderService and MainApp socket handlers are responsible for that
       
-      if (reminderData.durationMs && reminderData.createdAt) {
-        // Recalculate based on our local time to avoid clock skew
-        finalTimestamp = now + reminderData.durationMs;
-        console.log('🕐 Clock skew adjustment:', {
-          originalTimestamp: reminderData.timestamp,
-          adjustedTimestamp: finalTimestamp,
-          durationMs: reminderData.durationMs
-        });
-      }
-      
-      // Create adjusted reminder data
-      const adjustedReminderData = {
-        ...reminderData,
-        timestamp: finalTimestamp
-      };
-      
-      // Update localStorage
+      // Just update localStorage for backward compatibility with legacy localStorage-based code
       const reminders = getReminders();
-      reminders[reminderData.itemId] = adjustedReminderData;
+      const legacyReminderData = {
+        timestamp: typeof reminderData.timestamp === 'string' 
+          ? new Date(reminderData.timestamp).getTime() 
+          : reminderData.timestamp,
+        itemId: reminderData.itemId,
+        repeatOptions: reminderData.repeatOptions,
+        itemTitle: reminderData.itemTitle
+      };
+      reminders[reminderData.itemId] = legacyReminderData;
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
-      
-      // Schedule notification on this device too
-      try {
-        const { notificationService } = await import('../../services/notificationService.js');
-        await notificationService.scheduleReminder(adjustedReminderData);
-        console.log('🔔 ReminderMonitor: Cross-device reminder scheduled via notification service');
-      } catch (error) {
-        console.error('❌ ReminderMonitor: Failed to schedule cross-device reminder:', error);
-      }
       
       // Notify UI of the sync
       window.dispatchEvent(
@@ -585,19 +567,14 @@ async triggerReminder(reminder, settings) {
     });
 
     socket.on("reminder:clear", async ({ itemId }) => {
+      console.log("📡 ReminderMonitor: Socket event reminder:clear - SYNCING ONLY", { itemId });
+      
       // Update localStorage
       const reminders = getReminders();
       delete reminders[itemId];
       localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
       
-      // Cancel notification on this device too
-      try {
-        const { notificationService } = await import('../../services/notificationService.js');
-        await notificationService.cancelReminder(itemId);
-        console.log('🔔 Cross-device reminder cancelled via notification service');
-      } catch (error) {
-        console.error('❌ Failed to cancel cross-device reminder via notification service:', error);
-      }
+      // DO NOT cancel notifications here - that's handled by serverReminderService
       
       // Clear processed state
       this.clearProcessedReminder(itemId);
@@ -610,7 +587,20 @@ async triggerReminder(reminder, settings) {
 
     // Direct trigger from server (for server-scheduled reminders)
     socket.on("reminder:trigger", (reminder) => {
-      this.triggerReminder(reminder, this.currentSettings || {});
+      console.log('🔔 Server triggered reminder received:', reminder);
+      
+      // Enhanced reminder object for cross-device consistency
+      const enhancedReminder = {
+        itemId: reminder.itemId,
+        itemTitle: reminder.itemTitle,
+        timestamp: typeof reminder.timestamp === 'string' 
+          ? new Date(reminder.timestamp).getTime() 
+          : reminder.timestamp,
+        ...reminder.reminderData?.originalReminder,
+        triggeredByServer: true
+      };
+      
+      this.triggerReminder(enhancedReminder, this.currentSettings || {});
     });
   }
 

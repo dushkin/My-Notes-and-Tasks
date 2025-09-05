@@ -116,6 +116,13 @@ const AccountPlanStatus = ({ user, currentItemCount, fabComponent = null }) => {
           )}
         </div>
 
+        {/* Instruction text for FAB */}
+        {fabComponent && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+            To create a sub-item, first select a folder from the tree on the left.
+          </div>
+        )}
+
         {/* Item Count Display */}
         {getItemCountDisplay()}
 

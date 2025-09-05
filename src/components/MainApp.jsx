@@ -280,76 +280,60 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     });
 
     // Tree sync is now handled entirely by useRealTimeSync in useTree.jsx
+    // Reminder data sync is handled by serverReminderService
+    // But we still need to show desktop notifications for cross-device reminders
 
-    // FIXED: Reminder sync handlers - sync data AND schedule notifications
-    const handleReminderSet = async (reminderData) => {
-      console.log("Socket event: reminder:set - SYNCING AND SCHEDULING", reminderData);
-      const reminders = getReminders();
-      reminders[reminderData.itemId] = reminderData;
-      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
+    // Desktop notification handler for cross-device reminders
+    const handleReminderSetNotification = (reminderData) => {
+      // Only handle notifications on desktop, not mobile (mobile handles its own)
+      const isDesktop = !('ontouchstart' in window) && window.innerWidth > 768;
+      if (!isDesktop) return;
       
-      // Schedule notification on this device too
-      try {
-        const { notificationService } = await import('../services/notificationService.js');
-        await notificationService.scheduleReminder(reminderData);
-        console.log('🔔 Cross-device reminder scheduled via notification service');
-      } catch (error) {
-        console.error('❌ Failed to schedule cross-device reminder:', error);
+      console.log("📧 Desktop: Cross-device reminder received (MainApp handler)", reminderData);
+      
+      // Schedule the notification for the proper time (don't show immediately)
+      const reminderTime = new Date(reminderData.timestamp).getTime();
+      const now = Date.now();
+      const delay = reminderTime - now;
+      
+      if (delay <= 0) {
+        console.log("📧 Desktop: Reminder time has already passed, showing immediately");
+        showDesktopNotification(reminderData);
+      } else {
+        console.log(`📧 Desktop: Scheduling notification in ${Math.round(delay/1000)} seconds`);
+        setTimeout(() => {
+          showDesktopNotification(reminderData);
+        }, delay);
       }
-      
-      window.dispatchEvent(
-        new CustomEvent("remindersUpdated", { detail: reminders })
-      );
+    };
+    
+    const showDesktopNotification = (reminderData) => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('⏰ Reminder', {
+          body: `Don't forget: ${reminderData.itemTitle}`,
+          icon: '/favicon-192x192.png',
+          badge: '/favicon-48x48.png',
+          tag: `reminder-${reminderData.itemId}`,
+          requireInteraction: true
+        });
+        
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+          // Navigate to the item
+          selectItemById(reminderData.itemId);
+        };
+        
+        // Auto-close after 10 seconds
+        setTimeout(() => notification.close(), 10000);
+      }
     };
 
-    const handleReminderClear = ({ itemId }) => {
-      console.log("Socket event: reminder:clear - SYNCING ONLY", { itemId });
-      const reminders = getReminders();
-      delete reminders[itemId];
-      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
-      window.dispatchEvent(
-        new CustomEvent("remindersUpdated", { detail: reminders })
-      );
-    };
-
-    const handleReminderUpdate = (reminderData) => {
-      console.log("Socket event: reminder:update - SYNCING ONLY", reminderData);
-      const reminders = getReminders();
-      reminders[reminderData.itemId] = reminderData;
-      localStorage.setItem("notes_app_reminders", JSON.stringify(reminders));
-      window.dispatchEvent(
-        new CustomEvent("remindersUpdated", { detail: reminders })
-      );
-    };
-
-    // NEW: Direct reminder trigger from server (for server-scheduled reminders)
-    const handleReminderTriggered = (reminder) => {
-      console.log("Socket event: reminder:trigger - DIRECT TRIGGER", reminder);
-      window.dispatchEvent(
-        new CustomEvent("reminderTriggered", {
-          detail: { ...reminder },
-        })
-      );
-    };
-
-    // Register only reminder-related socket listeners
-    // Tree-related events (treeReplaced, itemUpdated, itemMoved, itemDeleted, itemCreated)
-    // are handled by useRealTimeSync in useTree.jsx to avoid duplicate listeners
-    socket.on("reminder:set", handleReminderSet);
-    socket.on("reminder:clear", handleReminderClear);
-    socket.on("reminder:update", handleReminderUpdate);
-    socket.on("reminder:trigger", handleReminderTriggered);
+    // Only listen for cross-device reminder notifications (not scheduling)
+    socket.on("reminder:set", handleReminderSetNotification);
 
     return () => {
-      // Cleanup only reminder listeners
-      socket.off("reminder:set", handleReminderSet);
-      socket.off("reminder:clear", handleReminderClear);
-      socket.off("reminder:update", handleReminderUpdate);
-      socket.off("reminder:trigger", handleReminderTriggered);
-      socket.off("connect_error");
-      socket.off("disconnect");
-      // Don't disconnect socket here - it should persist across tabs/navigation
-      // Only disconnect on logout (handled in Login.jsx)
+      socket.off("reminder:set", handleReminderSetNotification);
     };
   }, [
     currentUser?._id,
@@ -361,6 +345,23 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     selectItemById,
   ]);
 
+  // Initialize reminder service after authentication
+  useEffect(() => {
+    if (!currentUser?._id || !authToken) return;
+
+    const initReminderService = async () => {
+      try {
+        const { initializeReminderService } = await import('../utils/reminderUtils.js');
+        await initializeReminderService();
+        console.log('📡 Reminder service initialized in MainApp after auth');
+      } catch (error) {
+        console.warn('⚠️ Failed to initialize reminder service:', error);
+      }
+    };
+
+    initReminderService();
+  }, [currentUser?._id, authToken]);
+
   useEffect(() => {
     const liveSocket = getSocket();
     if (!liveSocket) return;
@@ -369,12 +370,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       updateTask(itemId, data);
     });
 
-    liveSocket.on("reminderUpdated", ({ itemId, reminder }) => {
-      setReminders((prev) => ({
-        ...prev,
-        [itemId]: reminder,
-      }));
-    });
 
     liveSocket.on("itemContentUpdated", ({ itemId, content }) => {
       updateNoteContent(itemId, { content });
@@ -382,7 +377,6 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     return () => {
       liveSocket.off("taskUpdated");
-      liveSocket.off("reminderUpdated");
       liveSocket.off("itemContentUpdated");
     };
   }, [updateTask, updateNoteContent]);
@@ -677,17 +671,28 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
   }, [fetchUserTree]);
   // Load reminders from localStorage and set up live updates
   useEffect(() => {
-    const loadReminders = () => {
+    const loadReminders = async () => {
       try {
-        setReminders(getReminders());
+        const reminderData = await getReminders();
+        setReminders(reminderData);
       } catch (error) {
         console.error("Failed to load reminders:", error);
         setReminders({});
       }
     };
 
-    const handleRemindersUpdate = (event) => {
-      setReminders(event.detail || getReminders());
+    const handleRemindersUpdate = async (event) => {
+      if (event.detail) {
+        setReminders(event.detail);
+      } else {
+        try {
+          const reminderData = await getReminders();
+          setReminders(reminderData);
+        } catch (error) {
+          console.error("Failed to load reminders in update handler:", error);
+          setReminders({});
+        }
+      }
     };
 
     if (currentUser) {
@@ -978,7 +983,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
         }
       }
 
-      if (isMobileDevice) {
+      // Only use MobileReminderPopup if not on Capacitor (use Capacitor alerts instead)
+      if (isMobileDevice && !window.Capacitor?.isNativePlatform?.()) {
         setMobileReminderPopup({
           isVisible: true,
           title: "⏰ Reminder",
@@ -1054,15 +1060,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
     if (currentRefreshToken) {
       try {
-        const response = await authFetch("/auth/logout", {
+        const responseBody = await authFetch("/auth/logout", {
           method: "POST",
           body: JSON.stringify({ refreshToken: currentRefreshToken }),
         });
-        console.log(
-          "[Logout] Backend logout response status:",
-          response.status
-        );
-        const responseBody = await response.json().catch(() => null);
         console.log("[Logout] Backend logout response body:", responseBody);
       } catch (error) {
         console.error(
@@ -2719,8 +2720,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                     </div>
                   )
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-                    Select an item to view or edit
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-center px-6">
+                    <p className="mb-2">Select an item to view or edit</p>
                   </div>
                 )}
               </div>
@@ -2956,8 +2957,8 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
                       </div>
                     )
                   ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-                      Select an item to view or edit
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-center px-6">
+                      <p className="mb-2">Select an item to view or edit</p>
                     </div>
                   )}
                 </Panel>
@@ -3169,12 +3170,20 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
 
       {/* FAB for mobile - fixed position overlay */}
       {isMobile && (
-        <FloatingActionButton
-          onCreateItem={handleFabCreateItem}
-          selectedItem={selectedItem}
-          disabled={!currentUser || currentUser.status === "pending_deletion"}
-          position="fixed"
-        />
+        <>
+          <FloatingActionButton
+            onCreateItem={handleFabCreateItem}
+            selectedItem={selectedItem}
+            disabled={!currentUser || currentUser.status === "pending_deletion"}
+            position="fixed"
+          />
+          {/* Instruction text under FAB */}
+          <div className="fixed bottom-20 right-6 z-40 max-w-48">
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm px-2 py-1 rounded shadow-sm">
+              To create a sub-item, first select a folder from the tree on the left.
+            </p>
+          </div>
+        </>
       )}
 
       {/* Connection Status Indicator */}
