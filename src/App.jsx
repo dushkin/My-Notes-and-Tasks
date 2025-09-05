@@ -43,11 +43,53 @@ const App = () => {
     };
 
     // Service worker message listener for reminder alerts
-    const handleServiceWorkerMessage = (event) => {
+    const handleServiceWorkerMessage = async (event) => {
       if (event.data?.type === 'SHOW_REMINDER_ALERT') {
         const { title, body, itemTitle } = event.data.data;
-        console.log('🔔 Showing desktop reminder alert:', itemTitle);
-        alert(`${title}\n${body}`);
+        console.log('🔔 Showing desktop reminder notification:', itemTitle);
+        
+        // Use proper browser notification instead of alert
+        try {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            const notification = new Notification(title, {
+              body: body,
+              icon: '/favicon-192x192.png',
+              badge: '/favicon-48x48.png',
+              requireInteraction: true,
+              tag: `reminder-${event.data.data.itemId || Date.now()}`,
+              vibrate: [200, 100, 200]
+            });
+            
+            notification.onclick = () => {
+              window.focus();
+              notification.close();
+            };
+            
+            // Auto-close after 10 seconds if user doesn't interact
+            setTimeout(() => {
+              notification.close();
+            }, 10000);
+            
+          } else if ('Notification' in window && Notification.permission === 'default') {
+            // Request permission and retry
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              // Retry with notification
+              handleServiceWorkerMessage(event);
+            } else {
+              // Fallback to alert only if permission denied
+              console.warn('⚠️ Notification permission denied, falling back to alert');
+              alert(`${title}\n${body}`);
+            }
+          } else {
+            // No notification support, use alert
+            console.warn('⚠️ Notifications not supported, using alert');
+            alert(`${title}\n${body}`);
+          }
+        } catch (error) {
+          console.error('❌ Failed to show notification, falling back to alert:', error);
+          alert(`${title}\n${body}`);
+        }
       }
     };
 
