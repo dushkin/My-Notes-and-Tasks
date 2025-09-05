@@ -65,19 +65,6 @@ const ContentEditor = memo(
 
     // FIX: Use the reminder prop for the live countdown
     const liveCountdown = useLiveCountdown(reminder?.timestamp);
-    
-    // Debug logging for reminder
-    useEffect(() => {
-      if (reminder) {
-        console.log('📱 ContentEditor reminder debug:', {
-          reminder,
-          timestamp: reminder.timestamp,
-          timestampType: typeof reminder.timestamp,
-          liveCountdown,
-          formatRemainingTime: formatRemainingTime(reminder.timestamp)
-        });
-      }
-    }, [reminder, liveCountdown]);
 
     // Auto-save implementation with proper integration
     const saveFunction = useCallback(async (data) => {
