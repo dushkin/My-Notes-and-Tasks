@@ -159,16 +159,16 @@ class NotificationService {
         const timeUntilReminder = timestampMs - now;
         let adjustedNotificationTime = notificationTime;
         
-        // More aggressive compensation based on time until reminder
+        // Conservative compensation to account for Android delays without being too early
         let compensationMs = 0;
-        if (timeUntilReminder <= 30 * 1000) { // 30 seconds or less
-          compensationMs = Math.min(10000, timeUntilReminder * 0.4); // Up to 10 seconds
-        } else if (timeUntilReminder <= 120 * 1000) { // 2 minutes or less  
-          compensationMs = Math.min(8000, timeUntilReminder * 0.15); // Up to 8 seconds
+        if (timeUntilReminder <= 10 * 1000) { // 10 seconds or less
+          compensationMs = Math.min(2000, timeUntilReminder * 0.2); // Up to 2 seconds, 20% of time
+        } else if (timeUntilReminder <= 60 * 1000) { // 1 minute or less  
+          compensationMs = Math.min(3000, timeUntilReminder * 0.1); // Up to 3 seconds, 10% of time
         } else if (timeUntilReminder <= 300 * 1000) { // 5 minutes or less
-          compensationMs = Math.min(6000, timeUntilReminder * 0.1); // Up to 6 seconds
+          compensationMs = Math.min(4000, timeUntilReminder * 0.05); // Up to 4 seconds, 5% of time
         } else {
-          compensationMs = 3000; // 3 seconds for longer reminders
+          compensationMs = 2000; // 2 seconds for longer reminders
         }
         
         if (compensationMs > 0) {

@@ -16,7 +16,7 @@ const mapRepeatUnitToType = (unit) => {
   return mapping[unit] || 'daily';
 };
 
-const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
+const ReminderSetter = ({ onSetReminder, showEnableToggle = true, existingReminder }) => {
   const [reminderType, setReminderType] = useState("specific"); // 'specific' or 'relative'
   // Set default to next minute
   const getNextMinute = () => {
@@ -41,6 +41,30 @@ const ReminderSetter = ({ onSetReminder, showEnableToggle = true }) => {
   const debounceRef = useRef(null);
   const relativeInputRef = useRef(null);
   const datePickerRef = useRef(null);
+
+  // Initialize form with existing reminder data
+  useEffect(() => {
+    if (existingReminder) {
+      setEnableReminder(true);
+      const reminderDate = new Date(existingReminder.timestamp);
+      setSpecificDateTime(reminderDate);
+      setReminderType("specific");
+      
+      // Handle repeat options if present
+      if (existingReminder.repeatOptions) {
+        setIsRepeating(true);
+        setRepeatInterval(existingReminder.repeatOptions.interval?.toString() || "1");
+        // Map backend repeat type back to frontend unit
+        const typeToUnit = {
+          'daily': 'days',
+          'weekly': 'weeks', 
+          'monthly': 'months',
+          'yearly': 'years'
+        };
+        setRepeatUnit(typeToUnit[existingReminder.repeatOptions.type] || 'days');
+      }
+    }
+  }, [existingReminder]);
 
   // Validate relative time input
   const validateRelativeTime = (value) => {
