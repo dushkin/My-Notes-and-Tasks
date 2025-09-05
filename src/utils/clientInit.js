@@ -202,11 +202,10 @@ import { authFetch } from '../services/apiClient';
     window.addEventListener('syncNotification', handleSyncNotification);
     window.addEventListener('conflictResolution', handleConflictResolution);
 
-    // Service worker message handlers
+    // Service worker message handlers (limited to core system messages)
     if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener('message', (event) => {
         const { type, data } = event.data || {};
-        console.log('🔄 Received SW message:', type, data);
         
         switch (type) {
           case 'SW_ACTIVATED':
@@ -217,12 +216,11 @@ import { authFetch } from '../services/apiClient';
             console.log('🔄 Service worker requested force reload...');
             window.location.reload();
             break;
-          default:
-            console.log('🔄 Unknown SW message type:', type);
+          // Don't log unknown messages to avoid conflicts with app-specific handlers
         }
       });
       
-      console.log('✅ Service worker message handlers set up');
+      console.log('✅ Service worker core message handlers set up');
     }
 
     console.log('✅ Event listeners set up');

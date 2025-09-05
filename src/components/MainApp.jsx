@@ -280,90 +280,10 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     });
 
     // Tree sync is now handled entirely by useRealTimeSync in useTree.jsx
-
-    // FIXED: Reminder sync handlers - sync data AND schedule notifications
-    const handleReminderSet = async (reminderData) => {
-      console.log("Socket event: reminder:set - SYNCING AND SCHEDULING", reminderData);
-      
-      // Schedule notification on this device too
-      try {
-        const { notificationService } = await import('../services/notificationService.js');
-        await notificationService.scheduleReminder(reminderData);
-        console.log('🔔 Cross-device reminder scheduled via notification service');
-      } catch (error) {
-        console.error('❌ Failed to schedule cross-device reminder:', error);
-      }
-      
-      // Refresh reminders state
-      try {
-        const allReminders = await getReminders();
-        setReminders(allReminders);
-        window.dispatchEvent(
-          new CustomEvent("remindersUpdated", { detail: allReminders })
-        );
-      } catch (error) {
-        console.error('❌ Failed to refresh reminders after socket event:', error);
-      }
-    };
-
-    const handleReminderClear = async ({ itemId }) => {
-      console.log("Socket event: reminder:clear - SYNCING ONLY", { itemId });
-      
-      // Refresh reminders state
-      try {
-        const reminderData = await getReminders();
-        setReminders(reminderData);
-        window.dispatchEvent(
-          new CustomEvent("remindersUpdated", { detail: reminderData })
-        );
-      } catch (error) {
-        console.error('❌ Failed to refresh reminders after clear event:', error);
-      }
-    };
-
-    const handleReminderUpdate = async (reminderData) => {
-      console.log("Socket event: reminder:update - SYNCING ONLY", reminderData);
-      
-      // Refresh reminders state
-      try {
-        const allReminders = await getReminders();
-        setReminders(allReminders);
-        window.dispatchEvent(
-          new CustomEvent("remindersUpdated", { detail: allReminders })
-        );
-      } catch (error) {
-        console.error('❌ Failed to refresh reminders after update event:', error);
-      }
-    };
-
-    // NEW: Direct reminder trigger from server (for server-scheduled reminders)
-    const handleReminderTriggered = (reminder) => {
-      console.log("Socket event: reminder:trigger - DIRECT TRIGGER", reminder);
-      window.dispatchEvent(
-        new CustomEvent("reminderTriggered", {
-          detail: { ...reminder },
-        })
-      );
-    };
-
-    // Register only reminder-related socket listeners
-    // Tree-related events (treeReplaced, itemUpdated, itemMoved, itemDeleted, itemCreated)
-    // are handled by useRealTimeSync in useTree.jsx to avoid duplicate listeners
-    socket.on("reminder:set", handleReminderSet);
-    socket.on("reminder:clear", handleReminderClear);
-    socket.on("reminder:update", handleReminderUpdate);
-    socket.on("reminder:trigger", handleReminderTriggered);
+    // Reminder sync is now handled entirely by serverReminderService - no socket listeners needed here
 
     return () => {
-      // Cleanup only reminder listeners
-      socket.off("reminder:set", handleReminderSet);
-      socket.off("reminder:clear", handleReminderClear);
-      socket.off("reminder:update", handleReminderUpdate);
-      socket.off("reminder:trigger", handleReminderTriggered);
-      socket.off("connect_error");
-      socket.off("disconnect");
-      // Don't disconnect socket here - it should persist across tabs/navigation
-      // Only disconnect on logout (handled in Login.jsx)
+      // No socket listeners to cleanup - all handled by serverReminderService
     };
   }, [
     currentUser?._id,
