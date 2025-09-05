@@ -280,10 +280,44 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     });
 
     // Tree sync is now handled entirely by useRealTimeSync in useTree.jsx
-    // Reminder sync is now handled entirely by serverReminderService - no socket listeners needed here
+    // Reminder data sync is handled by serverReminderService
+    // But we still need to show desktop notifications for cross-device reminders
+
+    // Desktop notification handler for cross-device reminders
+    const handleReminderSetNotification = (reminderData) => {
+      // Only show notifications on desktop, not mobile (mobile handles its own)
+      const isDesktop = !('ontouchstart' in window) && window.innerWidth > 768;
+      if (!isDesktop) return;
+      
+      console.log("📧 Desktop: Cross-device reminder notification", reminderData);
+      
+      // Show desktop browser notification for cross-device reminder
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('⏰ Cross-Device Reminder', {
+          body: `Don't forget: ${reminderData.itemTitle}`,
+          icon: '/favicon-192x192.png',
+          badge: '/favicon-48x48.png',
+          tag: `reminder-${reminderData.itemId}`,
+          requireInteraction: false // Don't require interaction for cross-device notifications
+        });
+        
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+          // Optionally navigate to the item
+          selectItemById(reminderData.itemId);
+        };
+        
+        // Auto-close after 8 seconds
+        setTimeout(() => notification.close(), 8000);
+      }
+    };
+
+    // Only listen for cross-device reminder notifications (not scheduling)
+    socket.on("reminder:set", handleReminderSetNotification);
 
     return () => {
-      // No socket listeners to cleanup - all handled by serverReminderService
+      socket.off("reminder:set", handleReminderSetNotification);
     };
   }, [
     currentUser?._id,

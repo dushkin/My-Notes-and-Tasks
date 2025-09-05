@@ -153,16 +153,26 @@ class NotificationService {
         // mapping we wouldn't know which notification ID to cancel on receipt.
         this.notificationIdMap[itemId] = safeId;
 
-        // For reminders within 60 seconds, schedule earlier to compensate for Android delays
+        // Apply Android timing compensation for better accuracy
         const now = Date.now();
         const timeUntilReminder = timestamp - now;
         let adjustedNotificationTime = notificationTime;
         
-        if (timeUntilReminder <= 60 * 1000) { // 60 seconds or less
-          // Schedule 5 seconds earlier to compensate for system delays
-          const compensationMs = Math.min(5000, timeUntilReminder * 0.5);
+        // More aggressive compensation based on time until reminder
+        let compensationMs = 0;
+        if (timeUntilReminder <= 30 * 1000) { // 30 seconds or less
+          compensationMs = Math.min(10000, timeUntilReminder * 0.4); // Up to 10 seconds
+        } else if (timeUntilReminder <= 120 * 1000) { // 2 minutes or less  
+          compensationMs = Math.min(8000, timeUntilReminder * 0.15); // Up to 8 seconds
+        } else if (timeUntilReminder <= 300 * 1000) { // 5 minutes or less
+          compensationMs = Math.min(6000, timeUntilReminder * 0.1); // Up to 6 seconds
+        } else {
+          compensationMs = 3000; // 3 seconds for longer reminders
+        }
+        
+        if (compensationMs > 0) {
           adjustedNotificationTime = new Date(timestamp - compensationMs);
-          console.log(`📱 Adjusting notification time by ${compensationMs}ms for better accuracy`);
+          console.log(`📱 Adjusting notification time by ${compensationMs}ms for better accuracy (${Math.round(timeUntilReminder/1000)}s until reminder)`);
         }
 
         const notifications = [
