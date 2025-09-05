@@ -153,13 +153,25 @@ class NotificationService {
         // mapping we wouldn't know which notification ID to cancel on receipt.
         this.notificationIdMap[itemId] = safeId;
 
+        // For reminders within 60 seconds, schedule earlier to compensate for Android delays
+        const now = Date.now();
+        const timeUntilReminder = timestamp - now;
+        let adjustedNotificationTime = notificationTime;
+        
+        if (timeUntilReminder <= 60 * 1000) { // 60 seconds or less
+          // Schedule 5 seconds earlier to compensate for system delays
+          const compensationMs = Math.min(5000, timeUntilReminder * 0.5);
+          adjustedNotificationTime = new Date(timestamp - compensationMs);
+          console.log(`📱 Adjusting notification time by ${compensationMs}ms for better accuracy`);
+        }
+
         const notifications = [
           {
             title: '⏰ Reminder',
             body: `Don't forget: ${itemTitle || 'Untitled'}`,
             id: safeId,
             // Ensure alarms fire while idle on Android
-            schedule: { at: notificationTime, allowWhileIdle: true },
+            schedule: { at: adjustedNotificationTime, allowWhileIdle: true },
             // Always use the main reminders channel for consistent behavior
             channelId: 'reminders',
             importance: 5,
