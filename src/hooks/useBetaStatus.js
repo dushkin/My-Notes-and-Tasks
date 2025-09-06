@@ -16,13 +16,8 @@ export const useBetaStatus = () => {
       setBetaStatus(prev => ({ ...prev, isLoading: true, error: null }));
       
       // Use authFetch, path does NOT include /api
-      const response = await authFetch('/auth/beta-status');
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch beta status: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      // authFetch already handles all response parsing and error handling
+      const data = await authFetch('/auth/beta-status');
       setBetaStatus(prev => ({
         ...prev,
         ...data,

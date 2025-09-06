@@ -969,6 +969,15 @@ export const useTree = (currentUser) => {
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("renameItem API error:", error);
+        
+        // If we get a "not found" error, the client tree might be out of sync
+        // Refresh the tree to get the latest server state
+        if (error && error.message && error.message.includes("Item not found")) {
+          console.warn("🔄 Item not found during rename - refreshing tree to sync with server");
+          await fetchUserTree(true); // Preserve undo history
+          return { success: false, error: "Item not found. Please try again after the tree refreshes." };
+        }
+        
         if (error && error.message) {
           return { success: false, error: error.message };
         }
@@ -976,23 +985,18 @@ export const useTree = (currentUser) => {
         return { success: false, error: "Network error renaming item." };
       }
     },
-    [tree, setTreeWithUndo]
+    [tree, setTreeWithUndo, fetchUserTree]
   );
   const deleteItem = useCallback(
     async (idToDelete) => {
       if (!idToDelete) return { success: false, error: "No ID for deletion." };
 
       try {
-        const response = await authFetch(`/items/${idToDelete}`, {
+        // authFetch already handles all response parsing and error handling
+        await authFetch(`/items/${idToDelete}`, {
           method: "DELETE",
         });
-        if (!response.ok && response.status !== 404) {
-          const errorData = await response.json().catch(() => ({}));
-          return {
-            success: false,
-            error: errorData.error || "Delete failed on server.",
-          };
-        }
+        
         const newTreeState = deleteItemRecursive(tree, idToDelete);
         setTreeWithUndo(newTreeState);
         if (selectedItemId === idToDelete) setSelectedItemId(null);
@@ -1009,10 +1013,19 @@ export const useTree = (currentUser) => {
         return { success: true };
       } catch (error) {
         console.error("deleteItem API error:", error);
-        return { success: false, error: "Network error deleting." };
+        
+        // If we get a "not found" error, the client tree might be out of sync
+        // Refresh the tree to get the latest server state
+        if (error && error.message && error.message.includes("Item not found")) {
+          console.warn("🔄 Item not found during delete - refreshing tree to sync with server");
+          await fetchUserTree(true); // Preserve undo history
+          return { success: false, error: "Item not found. The tree has been refreshed." };
+        }
+        
+        return { success: false, error: error.message || "Network error deleting." };
       }
     },
-    [tree, selectedItemId, setTreeWithUndo]
+    [tree, selectedItemId, setTreeWithUndo, fetchUserTree]
   );
   const duplicateItem = useCallback(
     async (itemId) => {
@@ -1055,25 +1068,26 @@ export const useTree = (currentUser) => {
         const newTreeState = insertItemRecursive(tree, parentId, newDuplicateDataForServer);
         
         // Update the entire tree on the server in one operation
-        const response = await authFetch(`/items/tree`, {
+        // authFetch already handles all response parsing and error handling
+        await authFetch(`/items/tree`, {
           method: "PUT",
           body: JSON.stringify({ newTree: newTreeState }),
         });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Server responded with ${response.status}`);
-        }
 
         // CRITICAL FIX: Fetch the updated tree from server to get proper server IDs
         // This prevents 404 errors when renaming immediately after duplication
-        const treeResponse = await authFetch(`/items`, { cache: "no-store" });
-        if (treeResponse.ok) {
-          const treeData = await treeResponse.json();
+        try {
+          const treeData = await authFetch(`/items`, { cache: "no-store" });
           if (treeData && Array.isArray(treeData.notesTree)) {
             setTreeWithUndo(treeData.notesTree);
+            // Brief delay to ensure UI has time to update before user interactions
+            await new Promise(resolve => setTimeout(resolve, 50));
+          } else {
+            // Fallback to local state update if fetch fails
+            setTreeWithUndo(newTreeState);
           }
-        } else {
+        } catch (fetchError) {
+          console.warn("Failed to fetch updated tree after duplication, using local state:", fetchError);
           // Fallback to local state update if fetch fails
           setTreeWithUndo(newTreeState);
         }
@@ -1184,27 +1198,25 @@ export const useTree = (currentUser) => {
       blockSocketUpdatesTemporarily();
 
       try {
-        const response = await authFetch(`/items/${currentDraggedId}/move`, {
+        // authFetch already handles all response parsing and error handling
+        await authFetch(`/items/${currentDraggedId}/move`, {
           method: "PATCH",
           body: JSON.stringify({ newParentId: targetFolderId, newIndex }),
         });
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(
-            data.error || `Server responded with ${response.status}`
-          );
-        }
 
         // Server succeeded - fetch fresh data but preserve undo history
-        const treeResponse = await authFetch(`/items`, { cache: "no-store" });
-        if (treeResponse.ok) {
-          const treeData = await treeResponse.json();
+        try {
+          const treeData = await authFetch(`/items`, { cache: "no-store" });
           if (treeData && Array.isArray(treeData.notesTree)) {
             // Update present state directly without creating new undo entry
             // This preserves the undo entry created by the optimistic update
             updateTreePresentOnly(treeData.notesTree);
+          } else {
+            // Fallback to fetchUserTree with preserveHistory=true to maintain undo
+            await fetchUserTree(true);
           }
-        } else {
+        } catch (fetchError) {
+          console.warn("Failed to fetch updated tree after move, using fetchUserTree:", fetchError);
           // Fallback to fetchUserTree with preserveHistory=true to maintain undo
           await fetchUserTree(true);
         }
@@ -1337,25 +1349,26 @@ export const useTree = (currentUser) => {
           const newTreeState = insertItemRecursive(tree, targetFolderId, itemToInsertData);
           
           // Update the entire tree on the server in one operation
-          const response = await authFetch(`/items/tree`, {
+          // authFetch already handles all response parsing and error handling
+          await authFetch(`/items/tree`, {
             method: "PUT",
             body: JSON.stringify({ newTree: newTreeState }),
           });
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Server responded with ${response.status}`);
-          }
 
           // CRITICAL FIX: Fetch the updated tree from server to get proper server IDs
           // This prevents 404 errors when renaming immediately after pasting
-          const treeResponse = await authFetch(`/items`, { cache: "no-store" });
-          if (treeResponse.ok) {
-            const treeData = await treeResponse.json();
+          try {
+            const treeData = await authFetch(`/items`, { cache: "no-store" });
             if (treeData && Array.isArray(treeData.notesTree)) {
               setTreeWithUndo(treeData.notesTree);
+              // Brief delay to ensure UI has time to update before user interactions
+              await new Promise(resolve => setTimeout(resolve, 50));
+            } else {
+              // Fallback to local state update if fetch fails
+              setTreeWithUndo(newTreeState);
             }
-          } else {
+          } catch (fetchError) {
+            console.warn("Failed to fetch updated tree after paste, using local state:", fetchError);
             // Fallback to local state update if fetch fails
             setTreeWithUndo(newTreeState);
           }
@@ -1397,30 +1410,27 @@ export const useTree = (currentUser) => {
 
         const newIndex = targetSiblings.length;
         try {
-          const response = await authFetch(`/items/${cutItemId}/move`, {
+          // authFetch already handles all response parsing and error handling
+          await authFetch(`/items/${cutItemId}/move`, {
             method: "PATCH",
             body: JSON.stringify({ newParentId: targetFolderId, newIndex }),
           });
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(
-              data.error || `Server responded with ${response.status}`
-            );
-          }
-          const data = await response.json();
 
           setClipboardItem(null);
           setClipboardMode(null);
           setCutItemId(null);
 
           // Get the updated tree from server and use setTreeWithUndo for undo/redo support
-          const treeResponse = await authFetch(`/items`, { cache: "no-store" });
-          if (treeResponse.ok) {
-            const treeData = await treeResponse.json();
+          try {
+            const treeData = await authFetch(`/items`, { cache: "no-store" });
             if (treeData && Array.isArray(treeData.notesTree)) {
               setTreeWithUndo(treeData.notesTree);
+            } else {
+              // Fallback to fetchUserTree if direct fetch fails, preserving undo history
+              await fetchUserTree(true);
             }
-          } else {
+          } catch (fetchError) {
+            console.warn("Failed to fetch updated tree after move, using fetchUserTree:", fetchError);
             // Fallback to fetchUserTree if direct fetch fails, preserving undo history
             await fetchUserTree(true);
           }
@@ -1429,7 +1439,7 @@ export const useTree = (currentUser) => {
             expandFolderPath(targetFolderId);
           }
 
-          return { success: true, item: data.data.movedItem };
+          return { success: true };
         } catch (err) {
           console.error("Move (pasteItem) API error:", err);
           await fetchUserTree(true); // Resync state on failure, preserving undo history
@@ -1759,28 +1769,23 @@ export const useTree = (currentUser) => {
               processedTreeForServer = updatedTree;
             }
 
-            const response = await authFetch(`/items/tree`, {
+            // authFetch already handles all response parsing and error handling
+            await authFetch(`/items/tree`, {
               method: "PUT",
               body: JSON.stringify({ newTree: processedTreeForServer }),
             });
-            const responseData = await response.json();
-            if (!response.ok) {
-              console.error("Server error saving imported tree:", responseData);
-              resolveOuter({
-                success: false,
-                error: "Failed to save imported tree to server.",
-              });
-              return;
-            }
 
             // Get the updated tree from server and use setTreeWithUndo for undo/redo support
-            const treeResponse = await authFetch(`/items`, { cache: "no-store" });
-            if (treeResponse.ok) {
-              const treeData = await treeResponse.json();
+            try {
+              const treeData = await authFetch(`/items`, { cache: "no-store" });
               if (treeData && Array.isArray(treeData.notesTree)) {
                 setTreeWithUndo(treeData.notesTree);
+              } else {
+                // Fallback to fetchUserTree if direct fetch fails, preserving undo history
+                await fetchUserTree(true);
               }
-            } else {
+            } catch (fetchError) {
+              console.warn("Failed to fetch updated tree after import, using fetchUserTree:", fetchError);
               // Fallback to fetchUserTree if direct fetch fails, preserving undo history
               await fetchUserTree(true);
             }
