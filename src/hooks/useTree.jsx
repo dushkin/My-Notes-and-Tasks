@@ -969,6 +969,15 @@ export const useTree = (currentUser) => {
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
         console.error("renameItem API error:", error);
+        
+        // If we get a "not found" error, the client tree might be out of sync
+        // Refresh the tree to get the latest server state
+        if (error && error.message && error.message.includes("Item not found")) {
+          console.warn("🔄 Item not found during rename - refreshing tree to sync with server");
+          await fetchUserTree(true); // Preserve undo history
+          return { success: false, error: "Item not found. Please try again after the tree refreshes." };
+        }
+        
         if (error && error.message) {
           return { success: false, error: error.message };
         }
@@ -976,7 +985,7 @@ export const useTree = (currentUser) => {
         return { success: false, error: "Network error renaming item." };
       }
     },
-    [tree, setTreeWithUndo]
+    [tree, setTreeWithUndo, fetchUserTree]
   );
   const deleteItem = useCallback(
     async (idToDelete) => {
@@ -1004,10 +1013,19 @@ export const useTree = (currentUser) => {
         return { success: true };
       } catch (error) {
         console.error("deleteItem API error:", error);
+        
+        // If we get a "not found" error, the client tree might be out of sync
+        // Refresh the tree to get the latest server state
+        if (error && error.message && error.message.includes("Item not found")) {
+          console.warn("🔄 Item not found during delete - refreshing tree to sync with server");
+          await fetchUserTree(true); // Preserve undo history
+          return { success: false, error: "Item not found. The tree has been refreshed." };
+        }
+        
         return { success: false, error: error.message || "Network error deleting." };
       }
     },
-    [tree, selectedItemId, setTreeWithUndo]
+    [tree, selectedItemId, setTreeWithUndo, fetchUserTree]
   );
   const duplicateItem = useCallback(
     async (itemId) => {
@@ -1062,6 +1080,8 @@ export const useTree = (currentUser) => {
           const treeData = await authFetch(`/items`, { cache: "no-store" });
           if (treeData && Array.isArray(treeData.notesTree)) {
             setTreeWithUndo(treeData.notesTree);
+            // Brief delay to ensure UI has time to update before user interactions
+            await new Promise(resolve => setTimeout(resolve, 50));
           } else {
             // Fallback to local state update if fetch fails
             setTreeWithUndo(newTreeState);
@@ -1341,6 +1361,8 @@ export const useTree = (currentUser) => {
             const treeData = await authFetch(`/items`, { cache: "no-store" });
             if (treeData && Array.isArray(treeData.notesTree)) {
               setTreeWithUndo(treeData.notesTree);
+              // Brief delay to ensure UI has time to update before user interactions
+              await new Promise(resolve => setTimeout(resolve, 50));
             } else {
               // Fallback to local state update if fetch fails
               setTreeWithUndo(newTreeState);
