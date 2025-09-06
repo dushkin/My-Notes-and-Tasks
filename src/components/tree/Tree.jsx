@@ -29,6 +29,7 @@ const Tree = ({
 }) => {
   const navRef = useRef(null);
   const longPressTimeoutRef = useRef(null);
+  const renameInputRef = useRef(null);
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" &&
       (window.innerWidth < 640 || /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent))
@@ -109,6 +110,38 @@ const Tree = ({
     };
   }, []);
 
+  // Handle initial focus and selection for rename input
+  useEffect(() => {
+    if (inlineRenameId && renameInputRef.current) {
+      const inputEl = renameInputRef.current;
+      
+      // Store current scroll position before any DOM changes
+      const currentScrollLeft = navRef.current?.scrollLeft || 0;
+      const currentScrollTop = navRef.current?.scrollTop || 0;
+      
+      // Focus without scrolling into view
+      inputEl.focus({ preventScroll: true });
+      
+      // Select text for easy editing (only on initial focus, not on every render)
+      if (!isMobile) {
+        inputEl.select();
+      }
+      
+      // Ensure scroll position is maintained immediately and after any potential layout changes
+      if (navRef.current) {
+        navRef.current.scrollLeft = currentScrollLeft;
+        navRef.current.scrollTop = currentScrollTop;
+      }
+      
+      // Additional safeguard with RAF to handle any delayed layout updates
+      requestAnimationFrame(() => {
+        if (navRef.current) {
+          navRef.current.scrollLeft = currentScrollLeft;
+          navRef.current.scrollTop = currentScrollTop;
+        }
+      });
+    }
+  }, [inlineRenameId, isMobile]); // Only trigger when inlineRenameId changes
 
   // Render empty-tree placeholder or items
   const renderContent = () => {
@@ -845,35 +878,7 @@ const Tree = ({
                             refocusTree();
                           }
                         }}
-                        ref={(inputEl) => {
-                          if (inputEl) {
-                            // Store current scroll position before any DOM changes
-                            const currentScrollLeft = navRef.current?.scrollLeft || 0;
-                            const currentScrollTop = navRef.current?.scrollTop || 0;
-                            
-                            // Focus without scrolling into view
-                            inputEl.focus({ preventScroll: true });
-                            
-                            // Select text for easy editing
-                            if (!isMobile) {
-                              inputEl.select();
-                            }
-                            
-                            // Ensure scroll position is maintained immediately and after any potential layout changes
-                            if (navRef.current) {
-                              navRef.current.scrollLeft = currentScrollLeft;
-                              navRef.current.scrollTop = currentScrollTop;
-                            }
-                            
-                            // Additional safeguard with RAF to handle any delayed layout updates
-                            requestAnimationFrame(() => {
-                              if (navRef.current) {
-                                navRef.current.scrollLeft = currentScrollLeft;
-                                navRef.current.scrollTop = currentScrollTop;
-                              }
-                            });
-                          }
-                        }}
+                        ref={renameInputRef}
                       />
                       {hasError && (
                         <span

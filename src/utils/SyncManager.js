@@ -328,18 +328,15 @@ class SyncManager {
       options.body = data;
     }
 
+    // authFetch already handles all response parsing and error handling
     const response = await authFetch(endpoint, options);
-
-    if (!response.ok) {
-      throw new Error(`Failed to ${method} ${endpoint}: ${response.statusText}`);
-    }
 
     // DELETE operations might not return content
     if (method === 'DELETE') {
       return { success: true };
     }
 
-    return await response.json();
+    return response;
   }
 
   /**
