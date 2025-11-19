@@ -3178,7 +3178,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
             position="fixed"
           />
           {/* Instruction text under FAB */}
-          <div className="fixed bottom-20 right-6 z-40 max-w-48">
+          <div className="fixed bottom-32 right-6 z-40 max-w-48">
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm px-2 py-1 rounded shadow-sm">
               To create a sub-item, first select a folder from the tree on the left.
             </p>

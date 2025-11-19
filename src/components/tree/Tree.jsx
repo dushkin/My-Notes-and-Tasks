@@ -871,7 +871,7 @@ const Tree = ({
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
-                            if (onAttemptRename) onAttemptRename();
+                            // This is handled by the nav's onKeyDown
                           } else if (e.key === "Escape") {
                             e.preventDefault();
                             cancelInlineRename();
