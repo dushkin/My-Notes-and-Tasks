@@ -930,6 +930,7 @@ export const useTree = (currentUser) => {
 
   const renameItem = useCallback(
     async (itemId, newLabel) => {
+      const startTime = performance.now();
       const trimmedLabel = newLabel?.trim();
       if (!trimmedLabel || !itemId)
         return { success: false, error: "Invalid ID or name." };
@@ -944,10 +945,14 @@ export const useTree = (currentUser) => {
       }
 
       try {
+        console.log('[TIMING] Starting rename API request');
+        const beforeFetch = performance.now();
         const updatedItemFromServer = await authFetch(`/items/${itemId}`, {
           method: "PATCH",
           body: JSON.stringify({ label: trimmedLabel }),
         });
+        const fetchTime = performance.now() - beforeFetch;
+        console.log(`[TIMING] API request completed in ${fetchTime.toFixed(2)}ms`);
 
         const mapRecursiveRename = (items, id, serverUpdates) =>
           items.map((i) =>
@@ -960,15 +965,22 @@ export const useTree = (currentUser) => {
                 }
               : i
           );
+        const beforeTreeUpdate = performance.now();
         const newTreeState = mapRecursiveRename(
           tree,
           itemId,
           updatedItemFromServer
         );
         setTreeWithUndo(newTreeState);
+        const treeUpdateTime = performance.now() - beforeTreeUpdate;
+        const totalTime = performance.now() - startTime;
+        console.log(`[TIMING] Local tree update completed in ${treeUpdateTime.toFixed(2)}ms`);
+        console.log(`[TIMING] ========== TOTAL FRONTEND RENAME TIME: ${totalTime.toFixed(2)}ms ==========`);
         return { success: true, item: updatedItemFromServer };
       } catch (error) {
+        const errorTime = performance.now() - startTime;
         console.error("renameItem API error:", error);
+        console.error(`[TIMING] Request failed after ${errorTime.toFixed(2)}ms`);
         
         // If we get a "not found" error, the client tree might be out of sync
         // Refresh the tree to get the latest server state
