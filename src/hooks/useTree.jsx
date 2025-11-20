@@ -453,7 +453,20 @@ export const useTree = (currentUser) => {
         window.treeData = tree;
       }
     } catch (error) {
-      console.error("Failed to save tree to localStorage:", error);
+      // QuotaExceededError: Tree too large for localStorage
+      // Not critical - tree is still in memory and available via window.treeData
+      if (error.name === 'QuotaExceededError') {
+        console.warn('⚠️ Tree too large for localStorage cache, using memory only');
+        // Still make it globally available for reminder monitor
+        window.treeData = tree;
+        // Clear the cached data to free up space
+        try {
+          localStorage.removeItem("cached_tree_data");
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } catch (e) {}
+      } else {
+        console.error("Failed to save tree to localStorage:", error);
+      }
     }
   }, [tree]);
   useEffect(() => {
