@@ -1,0 +1,386 @@
+{
+  "apiVersion": "1.0.0",
+  "baseUrl": {
+    "development": "https://my-notes-and-tasks-backend-dev.onrender.com/api",
+    "production": "https://my-notes-and-tasks-backend.onrender.com/api"
+  },
+  "authentication": {
+    "type": "JWT",
+    "header": "Authorization: Bearer <token>",
+    "tokenLifetime": "15 minutes",
+    "refreshTokenLifetime": "7 days",
+    "endpoints": {
+      "register": {
+        "method": "POST",
+        "path": "/auth/register",
+        "request": {
+          "email": "string (required, valid email)",
+          "password": "string (required, min 8 chars)"
+        },
+        "response": {
+          "token": "string (JWT access token)",
+          "refreshToken": "string",
+          "user": {
+            "id": "string",
+            "email": "string"
+          }
+        }
+      },
+      "login": {
+        "method": "POST",
+        "path": "/auth/login",
+        "request": {
+          "email": "string",
+          "password": "string"
+        },
+        "response": {
+          "token": "string",
+          "refreshToken": "string",
+          "user": {
+            "id": "string",
+            "email": "string"
+          }
+        }
+      },
+      "refresh": {
+        "method": "POST",
+        "path": "/auth/refresh",
+        "request": {
+          "refreshToken": "string"
+        },
+        "response": {
+          "token": "string (new access token)"
+        }
+      }
+    }
+  },
+  "endpoints": {
+    "getTree": {
+      "method": "GET",
+      "path": "/items",
+      "authentication": "required",
+      "request": null,
+      "response": {
+        "notesTree": "array of items (see itemSchema)"
+      }
+    },
+    "getItem": {
+      "method": "GET",
+      "path": "/items/:itemId",
+      "authentication": "required",
+      "request": null,
+      "response": "item object (see itemSchema)"
+    },
+    "createRootItem": {
+      "method": "POST",
+      "path": "/items",
+      "authentication": "required",
+      "rateLimit": "100 requests per 15 minutes",
+      "request": {
+        "label": "string (required, max 255 chars, trimmed)",
+        "type": "'note' | 'folder' | 'task' (required)",
+        "content": "string (optional, HTML)",
+        "direction": "'ltr' | 'rtl' (optional, default 'ltr')"
+      },
+      "response": "item object with generated id, timestamps, version",
+      "validation": [
+        "Label cannot be empty",
+        "Label cannot exceed 255 characters",
+        "Type must be note, folder, or task",
+        "No sibling with same name",
+        "No forbidden characters: / \\ < > | \\0 \\r \\n \\t",
+        "No reserved names: CON, PRN, AUX, NUL, COM1-9, LPT1-9"
+      ],
+      "errors": {
+        "400": "Validation failed (see validation rules)",
+        "401": "Unauthorized (missing or invalid token)",
+        "404": "User not found"
+      }
+    },
+    "createChildItem": {
+      "method": "POST",
+      "path": "/items/:parentId",
+      "authentication": "required",
+      "rateLimit": "100 requests per 15 minutes",
+      "request": {
+        "label": "string (required, max 255 chars)",
+        "type": "'note' | 'folder' | 'task'",
+        "content": "string (optional)",
+        "direction": "'ltr' | 'rtl' (optional)"
+      },
+      "response": "item object",
+      "validation": [
+        "Parent must exist",
+        "Parent must be a folder",
+        "Same validation as createRootItem"
+      ],
+      "errors": {
+        "400": "Validation failed or parent not folder",
+        "404": "Parent not found"
+      }
+    },
+    "updateItem": {
+      "method": "PATCH",
+      "path": "/items/:itemId",
+      "authentication": "required",
+      "request": {
+        "label": "string (optional, max 255 chars)",
+        "content": "string (optional, HTML - will be sanitized)",
+        "completed": "boolean (optional, tasks only)",
+        "direction": "'ltr' | 'rtl' (optional)",
+        "type": "'note' | 'folder' | 'task' (optional)",
+        "version": "number (optional, for optimistic locking)",
+        "expectedVersion": "number (optional, for conflict detection)"
+      },
+      "response": "updated item object",
+      "validation": [
+        "Label validation (if provided)",
+        "No sibling name conflicts",
+        "Version conflict check (if expectedVersion provided)"
+      ],
+      "optimization": "Label-only updates use MongoDB $set (fast)",
+      "errors": {
+        "400": "Validation failed or name conflict",
+        "404": "Item not found",
+        "409": "Version conflict (concurrent edit)"
+      },
+      "socketEvent": {
+        "event": "item_updated",
+        "payload": {
+          "itemId": "string",
+          "updates": "object (fields that changed)"
+        }
+      }
+    },
+    "deleteItem": {
+      "method": "DELETE",
+      "path": "/items/:itemId",
+      "authentication": "required",
+      "request": null,
+      "response": {
+        "message": "string (success message)"
+      },
+      "behavior": "Deletes item and all children recursively",
+      "errors": {
+        "404": "Item not found (idempotent - returns 200)"
+      },
+      "socketEvent": {
+        "event": "item_deleted",
+        "payload": {
+          "itemId": "string"
+        }
+      }
+    },
+    "moveItem": {
+      "method": "PATCH",
+      "path": "/items/:itemId/move",
+      "authentication": "required",
+      "request": {
+        "newParentId": "string (optional, null for root)",
+        "newIndex": "number (optional, 0-based index)"
+      },
+      "response": "moved item object",
+      "validation": [
+        "Cannot move folder into itself",
+        "Cannot move folder into descendant",
+        "Target parent must be folder or null (root)",
+        "Index must be valid"
+      },
+      "errors": {
+        "400": "Invalid move (circular reference, invalid index)",
+        "404": "Item or parent not found"
+      },
+      "socketEvent": {
+        "event": "item_moved",
+        "payload": {
+          "itemId": "string",
+          "newParentId": "string | null",
+          "newIndex": "number"
+        }
+      }
+    },
+    "replaceTree": {
+      "method": "PUT",
+      "path": "/items/tree",
+      "authentication": "required",
+      "request": {
+        "newTree": "array of items (full tree replacement)"
+      },
+      "response": {
+        "message": "Tree replaced successfully"
+      },
+      "validation": [
+        "newTree must be array",
+        "Each item must have label, type",
+        "All types must be valid",
+        "Structure must be valid (folders have children, etc.)"
+      ],
+      "errors": {
+        "400": "Invalid tree structure"
+      },
+      "socketEvent": {
+        "event": "tree_updated",
+        "payload": {
+          "tree": "array (full new tree)"
+        }
+      }
+    }
+  },
+  "schemas": {
+    "itemSchema": {
+      "id": "string (UUID v4)",
+      "label": "string (max 255 chars, trimmed)",
+      "type": "'note' | 'folder' | 'task'",
+      "content": "string (HTML, sanitized) - optional",
+      "completed": "boolean (tasks only) - optional",
+      "direction": "'ltr' | 'rtl' (default 'ltr')",
+      "version": "number (starts at 1, increments on update)",
+      "createdAt": "string (ISO 8601 timestamp)",
+      "updatedAt": "string (ISO 8601 timestamp)",
+      "children": "array of items (folders only) - optional"
+    },
+    "treeSchema": {
+      "type": "array",
+      "description": "Hierarchical tree structure",
+      "items": "itemSchema objects",
+      "maxDepth": "unlimited (but performance degrades >10 levels)"
+    }
+  },
+  "socketIO": {
+    "url": "same as baseUrl (HTTP upgraded to WebSocket)",
+    "authentication": {
+      "method": "handshake.auth.token",
+      "example": "socket = io(url, { auth: { token: 'JWT_TOKEN' } })"
+    },
+    "rooms": {
+      "userRoom": {
+        "format": "user_{userId}",
+        "description": "All sockets for same user join this room",
+        "purpose": "Multi-device sync"
+      }
+    },
+    "events": {
+      "client_to_server": {
+        "ping": {
+          "payload": null,
+          "response": "pong"
+        }
+      },
+      "server_to_client": {
+        "tree_updated": {
+          "trigger": "Full tree replacement",
+          "payload": {
+            "tree": "array (new tree)"
+          },
+          "action": "Replace local tree entirely"
+        },
+        "item_created": {
+          "trigger": "New item added",
+          "payload": {
+            "item": "item object",
+            "parentId": "string | null"
+          },
+          "action": "Add item to local tree"
+        },
+        "item_updated": {
+          "trigger": "Item modified",
+          "payload": {
+            "itemId": "string",
+            "updates": "object (changed fields)"
+          },
+          "action": "Update item in local tree"
+        },
+        "item_deleted": {
+          "trigger": "Item removed",
+          "payload": {
+            "itemId": "string"
+          },
+          "action": "Remove item from local tree"
+        },
+        "item_moved": {
+          "trigger": "Item repositioned",
+          "payload": {
+            "itemId": "string",
+            "newParentId": "string | null",
+            "newIndex": "number"
+          },
+          "action": "Move item in local tree"
+        },
+        "pong": {
+          "trigger": "Response to ping",
+          "payload": null,
+          "action": "Confirm connection alive"
+        }
+      }
+    },
+    "errorHandling": {
+      "connect_error": "Authentication failed or server down",
+      "disconnect": "Connection lost - attempt reconnect with backoff",
+      "error": "General Socket.IO error"
+    }
+  },
+  "agentHandoff": {
+    "frontendToBackend": {
+      "scenario": "Frontend needs new API endpoint",
+      "handoff": {
+        "provides": [
+          "Endpoint path and method",
+          "Request payload schema",
+          "Expected response schema",
+          "Validation rules",
+          "Error cases to handle"
+        ],
+        "expects": [
+          "Implementation confirmation",
+          "Actual response format",
+          "Socket.IO events to listen for (if any)",
+          "Rate limiting details"
+        ]
+      }
+    },
+    "backendToFrontend": {
+      "scenario": "Backend changes API contract",
+      "handoff": {
+        "provides": [
+          "Breaking change notice",
+          "New request/response format",
+          "Migration guide",
+          "Socket.IO event changes"
+        ],
+        "expects": [
+          "Frontend update confirmation",
+          "Client-side validation adjustments",
+          "UI flow changes (if needed)"
+        ]
+      }
+    },
+    "securityToAll": {
+      "scenario": "Security agent finds vulnerability",
+      "handoff": {
+        "provides": [
+          "Vulnerability description",
+          "Affected endpoints/components",
+          "Recommended fixes",
+          "Testing requirements"
+        ],
+        "expects": [
+          "Fix implementation",
+          "Tests covering vulnerability",
+          "Deployment timeline"
+        ]
+      }
+    }
+  },
+  "versionHistory": [
+    {
+      "version": "1.0.0",
+      "date": "2025-11-23",
+      "changes": [
+        "Initial API contract definition",
+        "Authentication flow documented",
+        "Socket.IO events standardized",
+        "Agent handoff protocols established"
+      ]
+    }
+  ]
+}
