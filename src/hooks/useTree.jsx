@@ -1904,6 +1904,32 @@ export const useTree = (currentUser) => {
       console.error('❌ Error fixing corrupted content:', error);
     }
   };
+
+  // CRITICAL FIX: Optimistic update for content changes (no API call, no undo history)
+  const updateLocalContent = useCallback((itemId, content, direction) => {
+    if (!itemId) return;
+
+    console.log('⚡ Optimistic content update (local only):', itemId);
+
+    const mapRecursiveUpdate = (items, id, updates) =>
+      items.map((i) =>
+        i.id === id
+          ? { ...i, ...updates, _dirty: true } // Mark as dirty (unsaved)
+          : Array.isArray(i.children)
+          ? { ...i, children: mapRecursiveUpdate(i.children, id, updates) }
+          : i
+      );
+
+    const updatedTree = mapRecursiveUpdate(tree, itemId, {
+      content: safeStringify(content),
+      direction: direction || 'ltr',
+      updatedAt: new Date().toISOString() // Update timestamp locally
+    });
+
+    // Update tree WITHOUT adding to undo stack (optimistic)
+    setTree(updatedTree);
+  }, [tree]);
+
   return {
     fetchUserTree,
     tree,
@@ -1947,5 +1973,7 @@ export const useTree = (currentUser) => {
     // Real-time sync status
     isSocketConnected,
     emitToOtherDevices,
+    // Optimistic updates
+    updateLocalContent,
   };
 };

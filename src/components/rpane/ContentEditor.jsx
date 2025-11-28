@@ -52,6 +52,7 @@ const ContentEditor = memo(
     item,
     defaultFontFamily,
     onSaveItemData,
+    onUpdateLocalContent,
     renderToolbarToggle,
     reminder,
   }) => {
@@ -62,6 +63,7 @@ const ContentEditor = memo(
     const [dir, setDir] = useState("ltr"); // RTL/LTR state
     const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false); // State for dialog visibility
     const [showConflictDialog, setShowConflictDialog] = useState(false);
+    const [isSwitchingSaving, setIsSwitchingSaving] = useState(false); // Track if saving during item switch
 
     // FIX: Use the reminder prop for the live countdown
     const liveCountdown = useLiveCountdown(reminder?.timestamp);
@@ -112,23 +114,38 @@ const ContentEditor = memo(
 
     // Save when switching away from an item with unsaved changes
     const previousItemIdRef = useRef();
+    const isSwitchingRef = useRef(false);
+
     useEffect(() => {
       const currentItemId = item?.id;
       const previousItemId = previousItemIdRef.current;
-      
-      console.log('🔄 Item switch check:', { 
-        from: previousItemId, 
-        to: currentItemId, 
-        hasUnsavedChanges, 
-        switching: previousItemId && previousItemId !== currentItemId 
+
+      console.log('🔄 Item switch check:', {
+        from: previousItemId,
+        to: currentItemId,
+        hasUnsavedChanges,
+        switching: previousItemId && previousItemId !== currentItemId
       });
-      
+
       // If switching from one item to another (not initial load)
       if (previousItemId && previousItemId !== currentItemId && hasUnsavedChanges) {
         console.log('💾 Saving on item switch (intent-based):', { from: previousItemId, to: currentItemId });
-        saveOnIntent('node-switch');
+
+        // CRITICAL FIX: Set switching flag and wait for save to complete
+        isSwitchingRef.current = true;
+        setIsSwitchingSaving(true);
+
+        saveOnIntent('node-switch').then(() => {
+          console.log('✅ Save completed before item switch');
+          isSwitchingRef.current = false;
+          setIsSwitchingSaving(false);
+        }).catch((error) => {
+          console.error('❌ Save failed during item switch:', error);
+          isSwitchingRef.current = false;
+          setIsSwitchingSaving(false);
+        });
       }
-      
+
       // Update the ref with current item ID
       previousItemIdRef.current = currentItemId;
     }, [item?.id, hasUnsavedChanges, saveOnIntent]);
@@ -215,25 +232,30 @@ const ContentEditor = memo(
     // Handle content updates with intent-based save
     const handleContentUpdate = useCallback((content, direction) => {
       if (!item) return;
-      
+
       // Ensure content is a string
       const safeContent = safeStringify(content);
       if (safeContent !== content) {
         console.warn('⚠️ Content was not a string in handleContentUpdate:', typeof content, content);
       }
-      
+
       // Update direction based on content
       const newDir = direction || (isRTLText(safeContent) ? "rtl" : "ltr");
       setDir(newDir);
-      
-      // Record content change (no immediate save)
+
+      // CRITICAL FIX: Optimistic update - immediately update parent state
+      if (onUpdateLocalContent) {
+        onUpdateLocalContent(item.id, safeContent, newDir);
+      }
+
+      // Record content change for eventual save to server
       recordContentChange({
         id: item.id,
         content: safeContent,
         direction: newDir,
         expectedVersion: item.version || 1
       });
-    }, [item, recordContentChange]);
+    }, [item, recordContentChange, onUpdateLocalContent]);
 
     // Handle blur events - save on editor blur (intent-based)
     const handleEditorBlur = useCallback(() => {
@@ -302,13 +324,13 @@ const ContentEditor = memo(
           
           {/* Enhanced Save Status Display */}
           <div className="flex items-center space-x-2">
-            {isSaving && (
+            {(isSaving || isSwitchingSaving) && (
               <div className="flex items-center space-x-1 text-xs text-green-600 dark:text-green-400">
                 <LoadingSpinner size="small" />
-                <span>Saving...</span>
+                <span>{isSwitchingSaving ? 'Saving before switch...' : 'Saving...'}</span>
               </div>
             )}
-            {hasUnsavedChanges && !isSaving && (
+            {hasUnsavedChanges && !isSaving && !isSwitchingSaving && (
               <span className="text-xs text-blue-600 dark:text-blue-400" title="Changes will be saved when you switch items, tabs, or press Ctrl+S">
                 ✏️ Draft
               </span>

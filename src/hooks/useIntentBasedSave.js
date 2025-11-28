@@ -163,8 +163,9 @@ export const useIntentBasedSave = (saveFunction, enabled = true) => {
   // Save on specific intent events
   const saveOnIntent = useCallback(async (reason = 'intent') => {
     if (pendingDataRef.current && hasUnsavedChanges) {
-      await performSave(pendingDataRef.current, reason);
+      return await performSave(pendingDataRef.current, reason);
     }
+    return Promise.resolve(); // Return resolved promise if nothing to save
   }, [hasUnsavedChanges, performSave]);
 
   // Force immediate save

@@ -257,6 +257,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
     fetchUserTree,
     isFetchingTree,
     currentItemCount,
+    updateLocalContent,
   } = useTree(currentUser);
 
   useEffect(() => {
@@ -596,6 +597,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       item: selectedItem,
       defaultFontFamily: settings.editorFontFamily,
       onSaveItemData: handleSaveItemData,
+      onUpdateLocalContent: updateLocalContent,
       reminder: reminders[selectedItemId],
       renderToolbarToggle: (toggleToolbar, showToolbar) => (
         <button
@@ -616,6 +618,7 @@ const MainApp = ({ currentUser, setCurrentUser, authToken }) => {
       selectedItem,
       settings.editorFontFamily,
       handleSaveItemData,
+      updateLocalContent,
       reminders,
       selectedItemId,
     ]

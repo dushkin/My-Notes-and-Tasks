@@ -672,6 +672,32 @@ const TipTapEditor = ({
     isInitializedRef.current = false;
   }, [content]);
 
+  // CRITICAL FIX: Sync external content changes to editor (e.g., from socket updates)
+  useEffect(() => {
+    if (!editor || !isInitializedRef.current) return;
+
+    const currentContent = editor.getHTML();
+    const newContent = safeStringify(content);
+
+    // Only update if content actually changed (avoid update loops)
+    if (currentContent !== newContent && newContent !== '') {
+      console.log('📝 Syncing external content change to editor (e.g., from socket or server)');
+
+      // Preserve cursor position if possible
+      const { from, to } = editor.state.selection;
+
+      // Set content without triggering onUpdate
+      editor.commands.setContent(newContent, false);
+
+      // Try to restore cursor position (will fail gracefully if position is invalid)
+      try {
+        editor.commands.setTextSelection({ from, to });
+      } catch (e) {
+        // Cursor position restoration failed, that's okay
+      }
+    }
+  }, [content, editor]);
+
   const toggleEditorDirection = useCallback(() => {
     if (!editor) return;
     const newDir = editorDir === "ltr" ? "rtl" : "ltr";
